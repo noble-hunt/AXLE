@@ -396,10 +396,16 @@ export const useAppStore = create<AppState>()(
         set({ activeWorkout: workout });
       },
       
-      completeWorkout: (id) => {
+      completeWorkout: (id, feedback) => {
         set((state) => ({
           workouts: state.workouts.map((workout) =>
-            workout.id === id ? { ...workout, completed: true } : workout
+            workout.id === id 
+              ? { 
+                  ...workout, 
+                  completed: true, 
+                  feedback: feedback 
+                } 
+              : workout
           ),
         }));
       },
