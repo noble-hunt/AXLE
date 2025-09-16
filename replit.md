@@ -1,0 +1,89 @@
+# AXLE - Fitness Tracking Application
+
+## Overview
+
+AXLE is a modern fitness tracking web application built as a Progressive Web App (PWA) with a mobile-first design approach. The application allows users to log workouts, track personal records, view achievements, and analyze their fitness progress through detailed reports. It features a clean, intuitive interface optimized for mobile devices with a comprehensive dashboard for managing fitness activities.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **React SPA**: Built with React 18 using TypeScript for type safety and better development experience
+- **Vite Build System**: Fast development server and optimized production builds with hot module replacement
+- **Mobile-First Design**: Responsive design with Tailwind CSS, optimized for mobile devices with touch-friendly interactions
+- **Component Library**: shadcn/ui components built on Radix UI primitives for accessibility and consistent design
+- **State Management**: 
+  - Zustand for client-side state management (app settings, active workouts)
+  - TanStack Query for server state management and caching
+  - Local persistence using zustand/middleware for offline functionality
+
+### Backend Architecture  
+- **Express.js Server**: RESTful API server with middleware for request logging and error handling
+- **TypeScript**: Full-stack TypeScript implementation for type safety across client and server
+- **Modular Storage Interface**: Abstract storage layer (`IStorage`) with in-memory implementation for development
+- **Route Organization**: Centralized route registration with validation using Zod schemas
+- **Development Tooling**: Vite integration for development with HMR support
+
+### Data Layer
+- **Drizzle ORM**: Type-safe database queries and schema management
+- **PostgreSQL Database**: Production database with support for JSON fields for complex workout data
+- **Schema Design**: 
+  - Users table for authentication
+  - Workouts table with JSON exercise data and workout metadata
+  - Personal records tracking with exercise-specific PRs
+  - Achievements system for gamification
+
+### Styling and Theming
+- **Tailwind CSS**: Utility-first CSS framework with custom design system
+- **CSS Variables**: Dynamic theming support for light/dark modes
+- **Custom Design System**: 
+  - Consistent spacing and typography using CSS custom properties
+  - Card-based UI with custom shadows and border radius
+  - Color palette optimized for fitness app branding
+
+### Development and Build Process
+- **Monorepo Structure**: Shared types and schemas between client and server (`/shared`)
+- **Path Aliases**: Simplified imports using TypeScript path mapping
+- **Build Pipeline**: 
+  - Client builds to `/dist/public` for static serving
+  - Server builds with esbuild for Node.js deployment
+- **Development Server**: Integrated Vite dev server with Express for full-stack development
+
+## External Dependencies
+
+### UI and Component Libraries
+- **Radix UI**: Comprehensive set of accessible, unstyled UI primitives for complex components (dialogs, dropdowns, navigation)
+- **Lucide React**: Icon library providing consistent iconography throughout the application
+- **class-variance-authority**: Utility for creating variant-based component APIs
+- **cmdk**: Command palette component for enhanced user interaction
+
+### State Management and Data Fetching
+- **TanStack Query**: Server state management with caching, background updates, and optimistic updates
+- **Zustand**: Lightweight state management for client-side application state
+
+### Database and ORM
+- **Drizzle ORM**: Type-safe database toolkit with automatic TypeScript inference
+- **Neon Database**: Serverless PostgreSQL database with connection pooling
+- **Drizzle Kit**: Database migration and introspection tools
+
+### Development and Build Tools
+- **Vite**: Fast build tool and development server with plugin ecosystem
+- **esbuild**: Fast JavaScript bundler for server-side builds
+- **PostCSS**: CSS processing with Tailwind CSS integration
+- **TypeScript**: Static type checking and enhanced developer experience
+
+### Utility Libraries
+- **date-fns**: Date manipulation and formatting utilities
+- **clsx/tailwind-merge**: Conditional CSS class utilities
+- **nanoid**: Unique ID generation for client-side entities
+- **react-hook-form**: Form state management with validation
+- **zod**: Schema validation for API endpoints and form data
+
+### Authentication and Session Management
+- **connect-pg-simple**: PostgreSQL session store for Express sessions
+- **express-session**: Session middleware for user authentication state
+
+The application is designed to be easily deployable to cloud platforms with environment-based configuration and supports both development and production environments with appropriate tooling and optimizations.
