@@ -111,6 +111,14 @@ export const generatedWorkoutSchema = z.object({
   sets: z.array(workoutSetSchema)
 });
 
+// Workout feedback schema
+export const workoutFeedbackSchema = z.object({
+  difficulty: z.number().min(1).max(10),
+  satisfaction: z.number().min(1).max(10),
+  completedAt: z.date()
+});
+
 export type WorkoutRequest = z.infer<typeof workoutRequestSchema>;
 export type WorkoutSet = z.infer<typeof workoutSetSchema>;
 export type GeneratedWorkout = z.infer<typeof generatedWorkoutSchema>;
+export type WorkoutFeedback = z.infer<typeof workoutFeedbackSchema>;

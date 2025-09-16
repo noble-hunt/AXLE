@@ -20,6 +20,12 @@ export interface WorkoutSet {
   notes?: string;
 }
 
+export interface WorkoutFeedback {
+  difficulty: number; // 1-10 scale: how hard was that?
+  satisfaction: number; // 1-10 scale: was this what you were looking for?
+  completedAt: Date;
+}
+
 export interface Workout {
   id: string;
   name: string;
@@ -30,6 +36,7 @@ export interface Workout {
   sets: WorkoutSet[];
   date: Date;
   completed: boolean;
+  feedback?: WorkoutFeedback;
   notes?: string;
   createdAt: Date;
 }
