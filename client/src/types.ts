@@ -257,16 +257,45 @@ export interface EnhancedPR {
   createdAt: Date;
 }
 
+// Achievement categories for organization
+export enum AchievementCategory {
+  GENERAL = "General",
+  POWERLIFTING = "Powerlifting",
+  OLYMPIC_WEIGHTLIFTING = "Olympic Weightlifting",
+  GYMNASTICS = "Gymnastics",
+  AEROBIC = "Aerobic",
+  BODYBUILDING = "Bodybuilding"
+}
+
+// Achievement types for different calculation methods
+export enum AchievementType {
+  WORKOUT_COUNT = "workout_count", // Count of completed workouts
+  PR_COUNT = "pr_count", // Count of personal records logged
+  TOTAL_WEIGHT = "total_weight", // Total weight lifted across PRs
+  CATEGORY_WORKOUTS = "category_workouts", // Workouts in specific category
+  CATEGORY_PRS = "category_prs", // PRs in specific movement category
+  STREAK = "streak", // Consecutive workout days
+  VOLUME_SESSION = "volume_session", // Weight lifted in single session
+  TIME_BASED = "time_based", // Time-based achievements (duration, pace)
+  MOVEMENT_SPECIFIC = "movement_specific", // Specific movement achievements
+  COMPOUND = "compound" // Complex achievements requiring multiple conditions
+}
+
 export interface Achievement {
   id: string;
   title: string;
   description: string;
-  category: string;
+  category: AchievementCategory;
+  type: AchievementType;
   target: number;
   progress: number;
   completed: boolean;
   unlockedAt?: Date;
   icon: string;
+  // Optional configuration for different achievement types
+  movementCategory?: MovementCategory; // For category-specific achievements
+  movement?: Movement; // For movement-specific achievements
+  unit?: Unit; // For weight/time/distance achievements
   createdAt: Date;
 }
 
