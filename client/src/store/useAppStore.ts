@@ -21,6 +21,7 @@ import {
   Unit,
   WorkoutFeedback
 } from '../types';
+import { computeAllAchievements, getNewlyUnlocked } from '../utils/achievementsEngine';
 
 // Seed data
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -307,6 +308,228 @@ const seedAchievements: Achievement[] = [
     movementCategory: MovementCategory.POWERLIFTING,
     createdAt: new Date('2024-01-01'),
   },
+  // Additional Powerlifting Achievements
+  {
+    id: 'achievement-iron-warrior',
+    title: 'Iron Warrior',
+    description: 'Log 50 Powerlifting PRs',
+    category: AchievementCategory.POWERLIFTING,
+    type: AchievementType.CATEGORY_PRS,
+    target: 50,
+    progress: 3,
+    completed: false,
+    icon: '⚔️',
+    movementCategory: MovementCategory.POWERLIFTING,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-heavy-hitter',
+    title: 'Heavy Hitter',
+    description: 'Lift 2,000+ lbs total in Powerlifting PRs',
+    category: AchievementCategory.POWERLIFTING,
+    type: AchievementType.TOTAL_WEIGHT,
+    target: 2000,
+    progress: 945,
+    completed: false,
+    icon: '💥',
+    movementCategory: MovementCategory.POWERLIFTING,
+    unit: Unit.LBS,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-triple-digit-club',
+    title: 'Triple Digit Club',
+    description: 'Bench press 315 lbs (3 plates)',
+    category: AchievementCategory.POWERLIFTING,
+    type: AchievementType.MOVEMENT_SPECIFIC,
+    target: 315,
+    progress: 225,
+    completed: false,
+    icon: '🏋️‍♂️',
+    movement: PowerliftingMovement.BENCH_PRESS,
+    unit: Unit.LBS,
+    createdAt: new Date('2024-01-01'),
+  },
+  // Olympic Weightlifting Achievements
+  {
+    id: 'achievement-olympic-lifter',
+    title: 'Olympic Lifter',
+    description: 'Complete 10 Olympic Weightlifting workouts',
+    category: AchievementCategory.OLYMPIC_WEIGHTLIFTING,
+    type: AchievementType.CATEGORY_WORKOUTS,
+    target: 10,
+    progress: 2,
+    completed: false,
+    icon: '🥇',
+    movementCategory: MovementCategory.OLYMPIC_WEIGHTLIFTING,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-clean-slate',
+    title: 'Clean Slate',
+    description: 'Log 25 Olympic Weightlifting PRs',
+    category: AchievementCategory.OLYMPIC_WEIGHTLIFTING,
+    type: AchievementType.CATEGORY_PRS,
+    target: 25,
+    progress: 2,
+    completed: false,
+    icon: '🧹',
+    movementCategory: MovementCategory.OLYMPIC_WEIGHTLIFTING,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-snatch-specialist',
+    title: 'Snatch Specialist',
+    description: 'Total snatch weight exceeds 1,000 lbs',
+    category: AchievementCategory.OLYMPIC_WEIGHTLIFTING,
+    type: AchievementType.TOTAL_WEIGHT,
+    target: 1000,
+    progress: 155,
+    completed: false,
+    icon: '⚡',
+    movementCategory: MovementCategory.OLYMPIC_WEIGHTLIFTING,
+    unit: Unit.LBS,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-jerk-champion',
+    title: 'Jerk Champion',
+    description: 'Clean & Jerk 275+ lbs',
+    category: AchievementCategory.OLYMPIC_WEIGHTLIFTING,
+    type: AchievementType.MOVEMENT_SPECIFIC,
+    target: 275,
+    progress: 185,
+    completed: false,
+    icon: '👑',
+    movement: OlympicWeightliftingMovement.CLEAN_AND_JERK,
+    unit: Unit.LBS,
+    createdAt: new Date('2024-01-01'),
+  },
+  // Additional Gymnastics Achievements
+  {
+    id: 'achievement-calisthenics-king',
+    title: 'Calisthenics King',
+    description: 'Log 30 Gymnastics PRs',
+    category: AchievementCategory.GYMNASTICS,
+    type: AchievementType.CATEGORY_PRS,
+    target: 30,
+    progress: 1,
+    completed: false,
+    icon: '👑',
+    movementCategory: MovementCategory.GYMNASTICS,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-pullup-pro',
+    title: 'Pull-Up Pro',
+    description: 'Achieve 20+ pull-ups in single set',
+    category: AchievementCategory.GYMNASTICS,
+    type: AchievementType.MOVEMENT_SPECIFIC,
+    target: 20,
+    progress: 25,
+    completed: true,
+    unlockedAt: new Date('2024-01-20'),
+    icon: '💪',
+    movement: GymnasticsMovement.PULL_UPS_MAX_SET,
+    unit: Unit.REPS,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-muscle-up-master',
+    title: 'Muscle-Up Master',
+    description: 'Complete 5+ muscle-ups in single set',
+    category: AchievementCategory.GYMNASTICS,
+    type: AchievementType.MOVEMENT_SPECIFIC,
+    target: 5,
+    progress: 0,
+    completed: false,
+    icon: '🚀',
+    movement: GymnasticsMovement.RING_MU_MAX,
+    unit: Unit.REPS,
+    createdAt: new Date('2024-01-01'),
+  },
+  // Additional Aerobic Achievements
+  {
+    id: 'achievement-cardio-crusher',
+    title: 'Cardio Crusher',
+    description: 'Log 25 Aerobic PRs',
+    category: AchievementCategory.AEROBIC,
+    type: AchievementType.CATEGORY_PRS,
+    target: 25,
+    progress: 1,
+    completed: false,
+    icon: '💨',
+    movementCategory: MovementCategory.AEROBIC,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-speed-demon',
+    title: 'Speed Demon',
+    description: 'Run 5K under 25:00',
+    category: AchievementCategory.AEROBIC,
+    type: AchievementType.MOVEMENT_SPECIFIC,
+    target: 1500, // 25:00 in seconds
+    progress: 1365, // 22:45 in seconds  
+    completed: true,
+    unlockedAt: new Date('2024-01-12'),
+    icon: '⚡',
+    movement: AerobicMovement.FIVE_K,
+    unit: Unit.TIME,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-distance-demon',
+    title: 'Distance Demon',
+    description: 'Complete a marathon distance (26.2 miles)',
+    category: AchievementCategory.AEROBIC,
+    type: AchievementType.MOVEMENT_SPECIFIC,
+    target: 1, // Just completion
+    progress: 0,
+    completed: false,
+    icon: '🏃‍♂️',
+    movement: AerobicMovement.MARATHON,
+    createdAt: new Date('2024-01-01'),
+  },
+  // Bodybuilding Achievements
+  {
+    id: 'achievement-muscle-builder',
+    title: 'Muscle Builder',
+    description: 'Complete 20 Bodybuilding workouts',
+    category: AchievementCategory.BODYBUILDING,
+    type: AchievementType.CATEGORY_WORKOUTS,
+    target: 20,
+    progress: 0,
+    completed: false,
+    icon: '💪',
+    movementCategory: MovementCategory.BODYBUILDING,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-pump-chaser',
+    title: 'Pump Chaser',
+    description: 'Log 40 Bodybuilding PRs',
+    category: AchievementCategory.BODYBUILDING,
+    type: AchievementType.CATEGORY_PRS,
+    target: 40,
+    progress: 0,
+    completed: false,
+    icon: '🔥',
+    movementCategory: MovementCategory.BODYBUILDING,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'achievement-hypertrophy-hero',
+    title: 'Hypertrophy Hero',
+    description: 'Log PRs in 6+ different Bodybuilding movements',
+    category: AchievementCategory.BODYBUILDING,
+    type: AchievementType.COMPOUND,
+    target: 6,
+    progress: 0,
+    completed: false,
+    icon: '🦾',
+    movementCategory: MovementCategory.BODYBUILDING,
+    createdAt: new Date('2024-01-01'),
+  },
 ];
 
 const seedWearables: WearableConnection[] = [
@@ -509,6 +732,8 @@ export const useAppStore = create<AppState>()(
               : workout
           ),
         }));
+        // Recompute achievements after workout completion
+        get().recomputeAchievements();
       },
 
       // PRs
@@ -521,6 +746,8 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date(),
         };
         set((state) => ({ prs: [pr, ...state.prs] }));
+        // Recompute achievements after adding PR
+        get().recomputeAchievements();
       },
       
       updatePR: (id, updates) => {
@@ -609,6 +836,17 @@ export const useAppStore = create<AppState>()(
       
       getProgressAchievements: () => {
         return get().achievements.filter((achievement) => !achievement.completed);
+      },
+
+      recomputeAchievements: () => {
+        const state = get();
+        const oldAchievements = state.achievements;
+        const newAchievements = computeAllAchievements(oldAchievements, state.workouts, state.prs);
+        const newlyUnlocked = getNewlyUnlocked(oldAchievements, newAchievements);
+        
+        set({ achievements: newAchievements });
+        
+        return newlyUnlocked;
       },
 
       // Wearables

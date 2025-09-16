@@ -2,8 +2,39 @@ import { SectionTitle } from "@/components/ui/section-title"
 import { PrimaryButton } from "@/components/ui/primary-button"
 import { Card } from "@/components/ui/card"
 import { Play, Plus, Timer, Dumbbell } from "lucide-react"
+import { useLocation } from "wouter"
+import { useAppStore } from "@/store/useAppStore"
 
 export default function Workout() {
+  const [, setLocation] = useLocation()
+  const { addWorkout } = useAppStore()
+
+  const handleCreateWorkout = () => {
+    setLocation('/generate-workout')
+  }
+
+  const handleStartTemplate = () => {
+    // Create a template workout
+    addWorkout({
+      name: 'Upper Body Strength',
+      category: 'Strength' as any,
+      description: 'Upper body strength training template',
+      duration: 45,
+      intensity: 7,
+      sets: [
+        { id: 'template-1', exercise: 'Bench Press', weight: 185, reps: 10 },
+        { id: 'template-2', exercise: 'Bent-Over Rows', weight: 155, reps: 10 },
+        { id: 'template-3', exercise: 'Overhead Press', weight: 115, reps: 8 },
+        { id: 'template-4', exercise: 'Lat Pulldowns', weight: 135, reps: 12 },
+        { id: 'template-5', exercise: 'Incline Dumbbell Press', weight: 65, reps: 10 },
+        { id: 'template-6', exercise: 'Barbell Curls', weight: 85, reps: 12 },
+      ],
+      date: new Date(),
+      completed: false,
+      notes: 'Template workout - Upper body strength',
+    })
+    setLocation('/history')
+  }
   return (
     <>
       <SectionTitle title="Workouts" />
@@ -32,7 +63,11 @@ export default function Workout() {
       </div>
 
       {/* Create New Workout */}
-      <PrimaryButton icon={<Plus className="w-5 h-5" />}>
+      <PrimaryButton 
+        icon={<Plus className="w-5 h-5" />}
+        onClick={handleCreateWorkout}
+        data-testid="primary-button"
+      >
         Create New Workout
       </PrimaryButton>
 
@@ -55,7 +90,11 @@ export default function Workout() {
                 </span>
               </div>
             </div>
-            <button className="bg-primary text-primary-foreground p-2 rounded-xl" data-testid="start-template">
+            <button 
+              className="bg-primary text-primary-foreground p-2 rounded-xl" 
+              data-testid="start-template"
+              onClick={handleStartTemplate}
+            >
               <Play className="w-4 h-4" />
             </button>
           </div>

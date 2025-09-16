@@ -378,6 +378,7 @@ export interface AchievementState {
   unlockAchievement: (id: string) => void;
   getCompletedAchievements: () => Achievement[];
   getProgressAchievements: () => Achievement[];
+  recomputeAchievements: () => Achievement[]; // Returns newly unlocked achievements
 }
 
 export interface WearableState {
