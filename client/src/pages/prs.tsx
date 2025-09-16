@@ -1,84 +1,162 @@
+import { useState } from 'react'
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Trophy, TrendingUp, Calendar, Target, Dumbbell } from "lucide-react"
 import { useAppStore } from "@/store/useAppStore"
-import { Trophy, TrendingUp, Calendar } from "lucide-react"
+import { MovementCategory, getMovementsByCategory, Movement } from '../types'
+import { MovementCard } from '@/components/common/movement-card'
+import { AddPRModal } from '@/components/common/add-pr-modal'
 
 export default function PRs() {
-  const { prs: personalRecords } = useAppStore()
+  const { prs: personalRecords, getPRsByCategory } = useAppStore()
+  const [activeTab, setActiveTab] = useState<MovementCategory>(MovementCategory.POWERLIFTING)
+  const [isAddPRModalOpen, setIsAddPRModalOpen] = useState(false)
+  const [selectedMovement, setSelectedMovement] = useState<Movement | undefined>()
+  const [selectedCategory, setSelectedCategory] = useState<MovementCategory | undefined>()
+
+  // Calculate stats
+  const totalPRs = personalRecords.length
+  const thisMonth = new Date()
+  thisMonth.setDate(1)
+  const recentPRs = personalRecords.filter(pr => pr.date >= thisMonth).length
 
   // Debug readout
-  console.log('PRs Page State:', { 
+  console.log('Enhanced PRs Page State:', { 
     totalPRs: personalRecords.length,
-    exerciseTypes: Array.from(new Set(personalRecords.map(pr => pr.exercise))),
-    recentPRs: personalRecords.slice(0, 3).map(pr => ({ exercise: pr.exercise, weight: pr.weight, date: pr.date }))
+    byCategory: Object.values(MovementCategory).map(cat => ({
+      category: cat,
+      count: getPRsByCategory(cat).length
+    })),
+    recentPRs: personalRecords.slice(0, 3).map(pr => ({ 
+      movement: pr.movement || pr.exercise, 
+      value: pr.value || pr.weight, 
+      unit: pr.unit || 'lbs',
+      date: pr.date 
+    }))
   })
 
-  const groupedPRs = personalRecords.reduce((acc, pr) => {
-    if (!acc[pr.exercise]) {
-      acc[pr.exercise] = []
+  const handleAddPR = (movement: Movement, category: MovementCategory) => {
+    setSelectedMovement(movement)
+    setSelectedCategory(category)
+    setIsAddPRModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsAddPRModalOpen(false)
+    setSelectedMovement(undefined)
+    setSelectedCategory(undefined)
+  }
+
+  const renderMovementsForCategory = (category: MovementCategory) => {
+    const movements = getMovementsByCategory(category)
+    
+    if (movements.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground">No movements available</h3>
+          <p className="text-muted-foreground">This category doesn't have movements defined yet.</p>
+        </div>
+      )
     }
-    acc[pr.exercise].push(pr)
-    return acc
-  }, {} as Record<string, typeof personalRecords>)
+
+    return (
+      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+        {movements.map((movement) => (
+          <MovementCard
+            key={movement}
+            movement={movement}
+            category={category}
+            onAddPR={handleAddPR}
+          />
+        ))}
+      </div>
+    )
+  }
 
   return (
     <>
       <SectionTitle title="Personal Records" />
 
-      {/* PR Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* PR Stats Overview */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <Card className="p-4 card-shadow border border-border text-center" data-testid="total-prs">
           <Trophy className="w-6 h-6 text-destructive mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{personalRecords.length}</p>
+          <p className="text-lg font-bold text-foreground">{totalPRs}</p>
           <p className="text-xs text-muted-foreground">Total PRs</p>
         </Card>
         
         <Card className="p-4 card-shadow border border-border text-center" data-testid="recent-prs">
           <TrendingUp className="w-6 h-6 text-chart-2 mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">2</p>
+          <p className="text-lg font-bold text-foreground">{recentPRs}</p>
           <p className="text-xs text-muted-foreground">This Month</p>
+        </Card>
+
+        <Card className="p-4 card-shadow border border-border text-center" data-testid="category-prs">
+          <Dumbbell className="w-6 h-6 text-chart-3 mx-auto mb-2" />
+          <p className="text-lg font-bold text-foreground">{getPRsByCategory(activeTab).length}</p>
+          <p className="text-xs text-muted-foreground">{activeTab} PRs</p>
         </Card>
       </div>
 
-      {/* PR Categories */}
-      <div className="space-y-6">
-        {Object.entries(groupedPRs).map(([exercise, prs]) => (
-          <div key={exercise} className="space-y-3">
-            <h3 className="text-lg font-semibold text-foreground">{exercise}</h3>
-            
-            {prs.map((pr, index) => (
-              <Card key={pr.id} className="p-4 card-shadow border border-border" data-testid={`pr-${pr.id}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      index === 0 ? 'bg-chart-1' : 
-                      index === 1 ? 'bg-chart-2' : 'bg-chart-3'
-                    }`} />
-                    <div>
-                      <p className="font-semibold text-foreground">{pr.weight} lbs</p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Calendar className="w-3 h-3 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">{pr.date.toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                  {index === 0 && (
-                    <div className="bg-destructive text-destructive-foreground px-2 py-1 rounded-lg text-xs font-medium">
-                      Current PR
-                    </div>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        ))}
-      </div>
+      {/* Tabbed Movement Categories */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MovementCategory)}>
+        <TabsList className="grid w-full grid-cols-5" data-testid="tabs-movement-categories">
+          <TabsTrigger value={MovementCategory.POWERLIFTING} data-testid="tab-powerlifting">
+            Powerlifting
+          </TabsTrigger>
+          <TabsTrigger value={MovementCategory.OLYMPIC_WEIGHTLIFTING} data-testid="tab-olympic">
+            Olympic
+          </TabsTrigger>
+          <TabsTrigger value={MovementCategory.GYMNASTICS} data-testid="tab-gymnastics">
+            Gymnastics
+          </TabsTrigger>
+          <TabsTrigger value={MovementCategory.AEROBIC} data-testid="tab-aerobic">
+            Aerobic
+          </TabsTrigger>
+          <TabsTrigger value={MovementCategory.BODYBUILDING} data-testid="tab-bodybuilding">
+            Bodybuilding
+          </TabsTrigger>
+        </TabsList>
 
-      {personalRecords.length === 0 && (
+        <TabsContent value={MovementCategory.POWERLIFTING} className="mt-6" data-testid="content-powerlifting">
+          {renderMovementsForCategory(MovementCategory.POWERLIFTING)}
+        </TabsContent>
+
+        <TabsContent value={MovementCategory.OLYMPIC_WEIGHTLIFTING} className="mt-6" data-testid="content-olympic">
+          {renderMovementsForCategory(MovementCategory.OLYMPIC_WEIGHTLIFTING)}
+        </TabsContent>
+
+        <TabsContent value={MovementCategory.GYMNASTICS} className="mt-6" data-testid="content-gymnastics">
+          {renderMovementsForCategory(MovementCategory.GYMNASTICS)}
+        </TabsContent>
+
+        <TabsContent value={MovementCategory.AEROBIC} className="mt-6" data-testid="content-aerobic">
+          {renderMovementsForCategory(MovementCategory.AEROBIC)}
+        </TabsContent>
+
+        <TabsContent value={MovementCategory.BODYBUILDING} className="mt-6" data-testid="content-bodybuilding">
+          {renderMovementsForCategory(MovementCategory.BODYBUILDING)}
+        </TabsContent>
+      </Tabs>
+
+      {/* Add PR Modal */}
+      <AddPRModal
+        isOpen={isAddPRModalOpen}
+        onClose={handleCloseModal}
+        preselectedMovement={selectedMovement}
+        preselectedCategory={selectedCategory}
+      />
+
+      {/* Empty State (shown when no PRs at all) */}
+      {totalPRs === 0 && (
         <div className="text-center space-y-4 py-12">
           <Trophy className="w-12 h-12 text-muted-foreground mx-auto" />
           <h3 className="text-lg font-semibold text-foreground">No PRs yet</h3>
-          <p className="text-muted-foreground">Complete workouts to set your first personal record!</p>
+          <p className="text-muted-foreground">
+            Start tracking your personal records by selecting a movement and adding your first PR!
+          </p>
         </div>
       )}
     </>

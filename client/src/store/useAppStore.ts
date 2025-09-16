@@ -8,11 +8,26 @@ import {
   WearableConnection, 
   HealthReport,
   AppState,
-  WorkoutSet
+  WorkoutSet,
+  Movement,
+  MovementCategory,
+  PowerliftingMovement,
+  OlympicWeightliftingMovement,
+  GymnasticsMovement,
+  AerobicMovement,
+  RepMaxType,
+  Unit,
+  WorkoutFeedback
 } from '../types';
 
 // Seed data
 const generateId = () => Math.random().toString(36).substring(2, 15);
+
+// Helper function to convert time string (mm:ss) to seconds
+const timeToSeconds = (timeStr: string): number => {
+  const [minutes, seconds] = timeStr.split(':').map(Number);
+  return minutes * 60 + seconds;
+};
 
 const seedWorkouts: Workout[] = [
   {
@@ -87,6 +102,7 @@ const seedWorkouts: Workout[] = [
 ];
 
 const seedPRs: PR[] = [
+  // Legacy format PRs maintained for compatibility
   {
     id: 'pr-deadlift',
     exercise: 'Deadlift',
@@ -96,6 +112,12 @@ const seedPRs: PR[] = [
     date: new Date('2024-01-28'),
     previousPR: 385,
     createdAt: new Date('2024-01-28'),
+    // Enhanced fields
+    movement: PowerliftingMovement.CONVENTIONAL_DEADLIFT,
+    movementCategory: MovementCategory.POWERLIFTING,
+    repMax: RepMaxType.ONE_RM,
+    value: 405,
+    unit: Unit.LBS,
   },
   {
     id: 'pr-squat',
@@ -106,6 +128,12 @@ const seedPRs: PR[] = [
     date: new Date('2024-01-22'),
     previousPR: 295,
     createdAt: new Date('2024-01-22'),
+    // Enhanced fields
+    movement: PowerliftingMovement.HIGH_BAR_BACK_SQUAT,
+    movementCategory: MovementCategory.POWERLIFTING,
+    repMax: RepMaxType.ONE_RM,
+    value: 315,
+    unit: Unit.LBS,
   },
   {
     id: 'pr-bench',
@@ -116,6 +144,12 @@ const seedPRs: PR[] = [
     date: new Date('2024-01-18'),
     previousPR: 215,
     createdAt: new Date('2024-01-18'),
+    // Enhanced fields
+    movement: PowerliftingMovement.BENCH_PRESS,
+    movementCategory: MovementCategory.POWERLIFTING,
+    repMax: RepMaxType.ONE_RM,
+    value: 225,
+    unit: Unit.LBS,
   },
   {
     id: 'pr-clean',
@@ -126,6 +160,12 @@ const seedPRs: PR[] = [
     date: new Date('2024-01-26'),
     previousPR: 175,
     createdAt: new Date('2024-01-26'),
+    // Enhanced fields
+    movement: OlympicWeightliftingMovement.CLEAN_AND_JERK,
+    movementCategory: MovementCategory.OLYMPIC_WEIGHTLIFTING,
+    repMax: RepMaxType.ONE_RM,
+    value: 185,
+    unit: Unit.LBS,
   },
   {
     id: 'pr-snatch',
@@ -136,6 +176,55 @@ const seedPRs: PR[] = [
     date: new Date('2024-01-24'),
     previousPR: 145,
     createdAt: new Date('2024-01-24'),
+    // Enhanced fields
+    movement: OlympicWeightliftingMovement.SQUAT_SNATCH,
+    movementCategory: MovementCategory.OLYMPIC_WEIGHTLIFTING,
+    repMax: RepMaxType.ONE_RM,
+    value: 155,
+    unit: Unit.LBS,
+  },
+  // Additional enhanced PRs for demonstration
+  {
+    id: 'pr-squat-3rm',
+    exercise: 'Back Squat',
+    category: Category.POWERLIFTING,
+    weight: 335,
+    reps: 3,
+    date: new Date('2024-01-15'),
+    createdAt: new Date('2024-01-15'),
+    // Enhanced fields
+    movement: PowerliftingMovement.HIGH_BAR_BACK_SQUAT,
+    movementCategory: MovementCategory.POWERLIFTING,
+    repMax: RepMaxType.THREE_RM,
+    value: 335,
+    unit: Unit.LBS,
+  },
+  {
+    id: 'pr-pullups',
+    exercise: 'Pull-ups',
+    category: Category.GYMNASTICS,
+    weight: 0,
+    reps: 25,
+    date: new Date('2024-01-20'),
+    createdAt: new Date('2024-01-20'),
+    // Enhanced fields
+    movement: GymnasticsMovement.PULL_UPS_MAX_SET,
+    movementCategory: MovementCategory.GYMNASTICS,
+    value: 25,
+    unit: Unit.REPS,
+  },
+  {
+    id: 'pr-5k-run',
+    exercise: '5K Run',
+    category: Category.CARDIO,
+    weight: 0,
+    date: new Date('2024-01-12'),
+    createdAt: new Date('2024-01-12'),
+    // Enhanced fields
+    movement: AerobicMovement.FIVE_K,
+    movementCategory: MovementCategory.AEROBIC,
+    value: '22:45',
+    unit: Unit.TIME,
   },
 ];
 
@@ -396,7 +485,7 @@ export const useAppStore = create<AppState>()(
         set({ activeWorkout: workout });
       },
       
-      completeWorkout: (id, feedback) => {
+      completeWorkout: (id: string, feedback: WorkoutFeedback) => {
         set((state) => ({
           workouts: state.workouts.map((workout) =>
             workout.id === id 
@@ -444,6 +533,41 @@ export const useAppStore = create<AppState>()(
           current.weight > (best?.weight || 0) ? current : best, 
           exercisePRs[0]
         );
+      },
+
+      // New methods for enhanced movement tracking
+      getPRsByMovement: (movement) => {
+        return get().prs.filter((pr) => pr.movement === movement);
+      },
+
+      getPRsByCategory: (category) => {
+        return get().prs.filter((pr) => pr.movementCategory === category);
+      },
+
+      getBestPRByMovement: (movement, repMax) => {
+        const movementPRs = get().prs.filter((pr) => 
+          pr.movement === movement && (!repMax || pr.repMax === repMax)
+        );
+        return movementPRs.reduce((best, current) => {
+          if (!best) return current;
+          // For numeric values, compare directly
+          if (typeof current.value === 'number' && typeof best.value === 'number') {
+            return current.value > best.value ? current : best;
+          }
+          // For time values (string format mm:ss), convert to seconds for comparison
+          if (typeof current.value === 'string' && typeof best.value === 'string') {
+            const currentSeconds = timeToSeconds(current.value);
+            const bestSeconds = timeToSeconds(best.value);
+            return currentSeconds < bestSeconds ? current : best; // Lower time is better
+          }
+          return best;
+        }, movementPRs[0]);
+      },
+
+      getProgressHistory: (movement, repMax) => {
+        return get().prs
+          .filter((pr) => pr.movement === movement && (!repMax || pr.repMax === repMax))
+          .sort((a, b) => a.date.getTime() - b.date.getTime());
       },
 
       // Achievements

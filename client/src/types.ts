@@ -120,6 +120,67 @@ export type MovementsByCategory = {
   [MovementCategory.BODYBUILDING]: BodybuildingMovement;
 };
 
+// Helper functions for movement categorization
+export const getMovementsByCategory = (category: MovementCategory): Movement[] => {
+  switch (category) {
+    case MovementCategory.POWERLIFTING:
+      return Object.values(PowerliftingMovement);
+    case MovementCategory.OLYMPIC_WEIGHTLIFTING:
+      return Object.values(OlympicWeightliftingMovement);
+    case MovementCategory.GYMNASTICS:
+      return Object.values(GymnasticsMovement);
+    case MovementCategory.AEROBIC:
+      return Object.values(AerobicMovement);
+    case MovementCategory.BODYBUILDING:
+      return Object.values(BodybuildingMovement);
+    default:
+      return [];
+  }
+};
+
+export const getMovementCategory = (movement: Movement): MovementCategory => {
+  if (Object.values(PowerliftingMovement).includes(movement as PowerliftingMovement)) {
+    return MovementCategory.POWERLIFTING;
+  }
+  if (Object.values(OlympicWeightliftingMovement).includes(movement as OlympicWeightliftingMovement)) {
+    return MovementCategory.OLYMPIC_WEIGHTLIFTING;
+  }
+  if (Object.values(GymnasticsMovement).includes(movement as GymnasticsMovement)) {
+    return MovementCategory.GYMNASTICS;
+  }
+  if (Object.values(AerobicMovement).includes(movement as AerobicMovement)) {
+    return MovementCategory.AEROBIC;
+  }
+  if (Object.values(BodybuildingMovement).includes(movement as BodybuildingMovement)) {
+    return MovementCategory.BODYBUILDING;
+  }
+  throw new Error(`Unknown movement: ${movement}`);
+};
+
+export const isWeightBasedMovement = (movement: Movement): boolean => {
+  const category = getMovementCategory(movement);
+  return category === MovementCategory.POWERLIFTING || 
+         category === MovementCategory.OLYMPIC_WEIGHTLIFTING ||
+         movement.includes('Weighted');
+};
+
+export const getDefaultUnitForMovement = (movement: Movement): Unit => {
+  if (isWeightBasedMovement(movement)) {
+    return Unit.LBS;
+  }
+  if (movement.includes('time') || movement.includes('m') || movement.includes('K') || movement.includes('Marathon')) {
+    return Unit.TIME;
+  }
+  if (movement.includes('height') || movement.includes('Jump')) {
+    return Unit.HEIGHT_INCHES;
+  }
+  return Unit.REPS;
+};
+
+export const shouldShowRepMaxForMovement = (movement: Movement): boolean => {
+  return isWeightBasedMovement(movement);
+};
+
 export interface WorkoutSet {
   id: string;
   exercise: string;
@@ -264,7 +325,7 @@ export interface WorkoutState {
   deleteWorkout: (id: string) => void;
   getWorkout: (id: string) => Workout | undefined;
   setActiveWorkout: (workout: Workout | null) => void;
-  completeWorkout: (id: string) => void;
+  completeWorkout: (id: string, feedback: WorkoutFeedback) => void;
 }
 
 export interface PRState {
