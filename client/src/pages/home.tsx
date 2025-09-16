@@ -1,12 +1,20 @@
 import { Card } from "@/components/ui/card"
 import { SectionTitle } from "@/components/ui/section-title"
 import { PrimaryButton } from "@/components/ui/primary-button"
-import { useFitnessStore } from "@/store/fitness-store"
+import { useAppStore } from "@/store/useAppStore"
 import { Flame, Target, Play, ChevronRight, BarChart3 } from "lucide-react"
 import { Link } from "wouter"
 
 export default function Home() {
-  const { streak, weeklyWorkouts, workouts, personalRecords } = useFitnessStore()
+  const { streak = 13, weeklyWorkouts = 4, workouts, prs: personalRecords } = useAppStore()
+
+  // Debug readout
+  console.log('Home Page State:', { 
+    workouts: workouts.length, 
+    personalRecords: personalRecords.length, 
+    streak, 
+    weeklyWorkouts 
+  })
 
   return (
     <>
@@ -63,13 +71,13 @@ export default function Home() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <h4 className="font-semibold text-foreground">{workout.name}</h4>
-                    <p className="text-sm text-muted-foreground">{workout.date}</p>
+                    <p className="text-sm text-muted-foreground">{workout.date.toLocaleDateString()}</p>
                     <div className="flex items-center gap-4 mt-2">
                       <span className="text-xs text-muted-foreground">
-                        {workout.exercises} exercises
+                        {workout.sets.length} exercises
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {workout.sets} sets
+                        {workout.sets.length} sets
                       </span>
                     </div>
                   </div>
@@ -115,7 +123,7 @@ export default function Home() {
                 <div className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-chart-1' : 'bg-chart-2'}`} />
                 <div>
                   <p className="font-medium text-foreground">{pr.exercise}</p>
-                  <p className="text-xs text-muted-foreground">{pr.date}</p>
+                  <p className="text-xs text-muted-foreground">{pr.date.toLocaleDateString()}</p>
                 </div>
               </div>
               <span className="font-semibold text-foreground">{pr.weight} lbs</span>

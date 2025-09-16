@@ -1,43 +1,19 @@
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Trophy, Star, Target, Flame, Award, Calendar } from "lucide-react"
-
-const achievements = [
-  {
-    id: '1',
-    title: 'First Workout',
-    description: 'Complete your first workout',
-    icon: Star,
-    completed: true,
-    date: '2 weeks ago'
-  },
-  {
-    id: '2',
-    title: 'Streak Master',
-    description: 'Maintain a 7-day workout streak',
-    icon: Flame,
-    completed: true,
-    date: '1 week ago'
-  },
-  {
-    id: '3',
-    title: 'Century Club',
-    description: 'Complete 100 total workouts',
-    icon: Award,
-    completed: false,
-    progress: 45
-  },
-  {
-    id: '4',
-    title: 'PR Setter',
-    description: 'Set 10 personal records',
-    icon: Trophy,
-    completed: false,
-    progress: 2
-  }
-]
+import { useAppStore } from "@/store/useAppStore"
 
 export default function Achievements() {
+  const { achievements } = useAppStore()
+  
+  // Debug readout
+  console.log('Achievements Page State:', { 
+    totalAchievements: achievements.length,
+    completedAchievements: achievements.filter(a => a.completed).length,
+    inProgressAchievements: achievements.filter(a => !a.completed && a.progress > 0).length,
+    recentAchievements: achievements.slice(0, 3).map(a => ({ title: a.title, completed: a.completed, progress: a.progress }))
+  })
+  
   const completedCount = achievements.filter(a => a.completed).length
   const totalCount = achievements.length
 
@@ -65,7 +41,19 @@ export default function Achievements() {
         <h3 className="text-lg font-semibold text-foreground">All Achievements</h3>
         
         {achievements.map((achievement) => {
-          const Icon = achievement.icon
+          // Map string icon to React component
+          const getIcon = (icon: string) => {
+            switch (icon) {
+              case '🏆': return Trophy
+              case '💪': return Award  
+              case '🏋️': return Target
+              case '🥷': return Star
+              case '🫁': return Flame
+              case '🔥': return Award
+              default: return Trophy
+            }
+          }
+          const Icon = getIcon(achievement.icon)
           return (
             <Card 
               key={achievement.id} 
@@ -90,19 +78,21 @@ export default function Achievements() {
                   {achievement.completed ? (
                     <div className="flex items-center gap-1 mt-2">
                       <Calendar className="w-3 h-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Completed {achievement.date}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Completed {achievement.unlockedAt?.toLocaleDateString() || 'Recently'}
+                      </span>
                     </div>
                   ) : achievement.progress !== undefined ? (
                     <div className="mt-2">
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
                         <span>Progress</span>
-                        <span>{achievement.progress}/{achievement.id === '3' ? '100' : '10'}</span>
+                        <span>{achievement.progress}/{achievement.target}</span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full transition-all duration-300"
                           style={{ 
-                            width: `${(achievement.progress / (achievement.id === '3' ? 100 : 10)) * 100}%` 
+                            width: `${Math.min((achievement.progress / achievement.target) * 100, 100)}%` 
                           }}
                         />
                       </div>

@@ -1,41 +1,31 @@
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Smartphone, Watch, Wifi, Users, Share, Settings } from "lucide-react"
-
-const integrations = [
-  {
-    id: '1',
-    name: 'Apple Health',
-    icon: Smartphone,
-    connected: true,
-    description: 'Sync workouts and health data'
-  },
-  {
-    id: '2',
-    name: 'Apple Watch',
-    icon: Watch,
-    connected: true,
-    description: 'Track workouts and heart rate'
-  },
-  {
-    id: '3',
-    name: 'Strava',
-    icon: Wifi,
-    connected: false,
-    description: 'Share your fitness activities'
-  },
-  {
-    id: '4',
-    name: 'MyFitnessPal',
-    icon: Users,
-    connected: false,
-    description: 'Sync nutrition and calorie data'
-  }
-]
+import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart } from "lucide-react"
+import { useAppStore } from "@/store/useAppStore"
 
 export default function Connect() {
-  const connectedCount = integrations.filter(i => i.connected).length
+  const { wearables, connectWearable, disconnectWearable } = useAppStore()
+  
+  // Debug readout
+  console.log('Connect Page State:', { 
+    totalWearables: wearables.length,
+    connectedWearables: wearables.filter(w => w.connected).length,
+    wearableTypes: wearables.map(w => ({ name: w.name, type: w.type, connected: w.connected, brand: w.brand }))
+  })
+  
+  // Map wearable type to icon
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'smartwatch': return Watch
+      case 'fitness_tracker': return Heart
+      case 'heart_rate_monitor': return Heart
+      case 'smartphone': return Smartphone
+      default: return Wifi
+    }
+  }
+  
+  const connectedCount = wearables.filter(w => w.connected).length
 
   return (
     <>
@@ -51,7 +41,7 @@ export default function Connect() {
         
         <Card className="p-4 card-shadow border border-border text-center" data-testid="available-services">
           <Share className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{integrations.length}</p>
+          <p className="text-lg font-bold text-foreground">{wearables.length}</p>
           <p className="text-xs text-muted-foreground">Available</p>
         </Card>
       </div>
@@ -60,10 +50,10 @@ export default function Connect() {
       <div className="space-y-4">
         <SectionTitle title="App Integrations" />
         
-        {integrations.map((integration) => {
-          const Icon = integration.icon
+        {wearables.map((wearable) => {
+          const Icon = getIcon(wearable.type)
           return (
-            <Card key={integration.id} className="p-4 card-shadow border border-border" data-testid={`integration-${integration.id}`}>
+            <Card key={wearable.id} className="p-4 card-shadow border border-border" data-testid={`wearable-${wearable.id}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
@@ -71,21 +61,35 @@ export default function Connect() {
                   </div>
                   
                   <div>
-                    <h4 className="font-semibold text-foreground">{integration.name}</h4>
-                    <p className="text-sm text-muted-foreground">{integration.description}</p>
+                    <h4 className="font-semibold text-foreground">{wearable.name}</h4>
+                    <p className="text-sm text-muted-foreground">{wearable.brand} • {wearable.type.replace('_', ' ')}</p>
+                    {wearable.batteryLevel && (
+                      <p className="text-xs text-muted-foreground">Battery: {wearable.batteryLevel}%</p>
+                    )}
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  {integration.connected ? (
+                  {wearable.connected ? (
                     <>
                       <div className="w-2 h-2 bg-chart-2 rounded-full" />
-                      <Button variant="outline" size="sm" className="rounded-xl" data-testid={`disconnect-${integration.id}`}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="rounded-xl" 
+                        data-testid={`disconnect-${wearable.id}`}
+                        onClick={() => disconnectWearable(wearable.id)}
+                      >
                         Connected
                       </Button>
                     </>
                   ) : (
-                    <Button size="sm" className="rounded-xl bg-primary text-primary-foreground" data-testid={`connect-${integration.id}`}>
+                    <Button 
+                      size="sm" 
+                      className="rounded-xl bg-primary text-primary-foreground" 
+                      data-testid={`connect-${wearable.id}`}
+                      onClick={() => connectWearable(wearable.id)}
+                    >
                       Connect
                     </Button>
                   )}

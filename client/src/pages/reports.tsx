@@ -1,7 +1,7 @@
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useFitnessStore } from "@/store/fitness-store"
+import { useAppStore } from "@/store/useAppStore"
 import { 
   BarChart3, 
   TrendingUp, 
@@ -15,7 +15,17 @@ import {
 } from "lucide-react"
 
 export default function Reports() {
-  const { workouts, personalRecords, streak, weeklyWorkouts } = useFitnessStore()
+  const { workouts, prs: personalRecords, streak, weeklyWorkouts } = useAppStore()
+
+  // Debug readout
+  console.log('Reports Page State:', { 
+    totalWorkouts: workouts.length,
+    totalPRs: personalRecords.length,
+    streak,
+    weeklyWorkouts,
+    totalTime: workouts.reduce((sum, w) => sum + w.duration, 0),
+    avgWorkoutTime: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length) : 0
+  })
 
   const totalTime = workouts.reduce((sum, w) => sum + w.duration, 0)
   const avgWorkoutTime = workouts.length > 0 ? Math.round(totalTime / workouts.length) : 0

@@ -1,14 +1,21 @@
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
-import { useFitnessStore } from "@/store/fitness-store"
+import { useAppStore } from "@/store/useAppStore"
 import { Link } from "wouter"
 import { ChevronRight, Calendar, Clock } from "lucide-react"
 
 export default function History() {
-  const { workouts } = useFitnessStore()
+  const { workouts } = useAppStore()
+
+  // Debug readout
+  console.log('History Page State:', { 
+    totalWorkouts: workouts.length,
+    completedWorkouts: workouts.filter(w => w.completed).length,
+    recentWorkouts: workouts.slice(0, 5).map(w => ({ name: w.name, date: w.date, completed: w.completed }))
+  })
 
   const groupedWorkouts = workouts.reduce((acc, workout) => {
-    const date = workout.date.split(' •')[0]
+    const date = workout.date.toLocaleDateString()
     if (!acc[date]) {
       acc[date] = []
     }
@@ -60,10 +67,10 @@ export default function History() {
                       <p className="text-sm text-muted-foreground">{workout.duration} minutes</p>
                       <div className="flex items-center gap-4 mt-2">
                         <span className="text-xs text-muted-foreground">
-                          {workout.exercises} exercises
+                          {workout.sets.length} exercises
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {workout.sets} sets
+                          {workout.sets.length} sets
                         </span>
                       </div>
                     </div>

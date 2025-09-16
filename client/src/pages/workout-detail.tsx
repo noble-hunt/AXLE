@@ -2,14 +2,21 @@ import { useParams } from "wouter"
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useFitnessStore } from "@/store/fitness-store"
+import { useAppStore } from "@/store/useAppStore"
 import { Calendar, Clock, Dumbbell, Target } from "lucide-react"
 
 export default function WorkoutDetail() {
   const { id } = useParams()
-  const { workouts } = useFitnessStore()
+  const { workouts, getWorkout } = useAppStore()
   
-  const workout = workouts.find(w => w.id === id)
+  // Debug readout
+  console.log('Workout Detail Page State:', { 
+    workoutId: id,
+    totalWorkouts: workouts.length,
+    foundWorkout: !!workouts.find(w => w.id === id)
+  })
+  
+  const workout = getWorkout(id as string)
 
   if (!workout) {
     return (
@@ -40,7 +47,7 @@ export default function WorkoutDetail() {
             <Dumbbell className="w-4 h-4 text-chart-2" />
             <span className="text-sm font-medium text-muted-foreground">Exercises</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{workout.exercises}</p>
+          <p className="text-2xl font-bold text-foreground">{workout.sets.length}</p>
           <p className="text-xs text-muted-foreground">completed</p>
         </Card>
       </div>
@@ -49,13 +56,13 @@ export default function WorkoutDetail() {
       <Card className="p-4 card-shadow border border-border">
         <div className="flex items-center gap-2 mb-4">
           <Calendar className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">{workout.date}</span>
+          <span className="text-sm text-muted-foreground">{workout.date.toLocaleDateString()}</span>
         </div>
         
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Total Sets</span>
-            <span className="font-semibold text-foreground">{workout.sets}</span>
+            <span className="font-semibold text-foreground">{workout.sets.length}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Volume</span>
@@ -68,16 +75,34 @@ export default function WorkoutDetail() {
       <div className="space-y-4">
         <SectionTitle title="Exercises" />
         
-        {Array.from({ length: workout.exercises }, (_, i) => (
-          <Card key={i} className="p-4 card-shadow border border-border" data-testid={`exercise-${i}`}>
+        {workout.sets.map((set, i) => (
+          <Card key={set.id || i} className="p-4 card-shadow border border-border" data-testid={`exercise-${set.id || i}`}>
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h4 className="font-semibold text-foreground">Exercise {i + 1}</h4>
-                <p className="text-sm text-muted-foreground">3 sets × 8-12 reps</p>
+                <h4 className="font-semibold text-foreground">{set.exercise}</h4>
+                <p className="text-sm text-muted-foreground">
+                  {set.reps && `${set.reps} reps`}
+                  {set.weight && ` × ${set.weight} lbs`}
+                  {set.duration && ` × ${set.duration}s`}
+                  {set.distance && ` × ${set.distance}m`}
+                </p>
+                {set.notes && (
+                  <p className="text-xs text-muted-foreground mt-1">{set.notes}</p>
+                )}
               </div>
               <div className="text-right">
-                <p className="font-semibold text-foreground">185 lbs</p>
-                <p className="text-xs text-muted-foreground">Best set</p>
+                {set.weight && (
+                  <>
+                    <p className="font-semibold text-foreground">{set.weight} lbs</p>
+                    <p className="text-xs text-muted-foreground">Weight</p>
+                  </>
+                )}
+                {set.duration && !set.weight && (
+                  <>
+                    <p className="font-semibold text-foreground">{set.duration}s</p>
+                    <p className="text-xs text-muted-foreground">Duration</p>
+                  </>
+                )}
               </div>
             </div>
           </Card>

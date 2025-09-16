@@ -1,10 +1,17 @@
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
-import { useFitnessStore } from "@/store/fitness-store"
+import { useAppStore } from "@/store/useAppStore"
 import { Trophy, TrendingUp, Calendar } from "lucide-react"
 
 export default function PRs() {
-  const { personalRecords } = useFitnessStore()
+  const { prs: personalRecords } = useAppStore()
+
+  // Debug readout
+  console.log('PRs Page State:', { 
+    totalPRs: personalRecords.length,
+    exerciseTypes: Array.from(new Set(personalRecords.map(pr => pr.exercise))),
+    recentPRs: personalRecords.slice(0, 3).map(pr => ({ exercise: pr.exercise, weight: pr.weight, date: pr.date }))
+  })
 
   const groupedPRs = personalRecords.reduce((acc, pr) => {
     if (!acc[pr.exercise]) {
@@ -51,7 +58,7 @@ export default function PRs() {
                       <p className="font-semibold text-foreground">{pr.weight} lbs</p>
                       <div className="flex items-center gap-1 mt-1">
                         <Calendar className="w-3 h-3 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">{pr.date}</p>
+                        <p className="text-xs text-muted-foreground">{pr.date.toLocaleDateString()}</p>
                       </div>
                     </div>
                   </div>
