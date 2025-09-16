@@ -9,6 +9,117 @@ export enum Category {
   MOBILITY = "Mobility"
 }
 
+// New movement tracking enums
+export enum MovementCategory {
+  POWERLIFTING = "Powerlifting",
+  OLYMPIC_WEIGHTLIFTING = "Olympic Weightlifting",
+  GYMNASTICS = "Gymnastics",
+  AEROBIC = "Aerobic",
+  BODYBUILDING = "Bodybuilding"
+}
+
+export enum PowerliftingMovement {
+  HIGH_BAR_BACK_SQUAT = "High Bar Back Squat",
+  LOW_BAR_BACK_SQUAT = "Low Bar Back Squat",
+  BENCH_PRESS = "Bench Press",
+  CLOSE_GRIP_BENCH = "Close Grip Bench",
+  INCLINE_BENCH = "Incline Bench",
+  CONVENTIONAL_DEADLIFT = "Conventional Deadlift",
+  SUMO_DEADLIFT = "Sumo Deadlift",
+  ROMANIAN_DEADLIFT = "Romanian Deadlift"
+}
+
+export enum OlympicWeightliftingMovement {
+  CLEAN_AND_JERK = "Clean & Jerk",
+  SQUAT_CLEAN = "Squat Clean",
+  POWER_CLEAN = "Power Clean",
+  STRICT_PRESS = "Strict Press",
+  SEATED_STRICT_PRESS = "Seated Strict Press",
+  PUSH_PRESS = "Push Press",
+  PUSH_JERK = "Push Jerk",
+  SPLIT_JERK = "Split Jerk",
+  SQUAT_SNATCH = "Squat Snatch",
+  POWER_SNATCH = "Power Snatch",
+  OVERHEAD_SQUAT = "Overhead Squat",
+  HANG_CLEAN = "Hang Clean",
+  HANG_SNATCH = "Hang Snatch"
+}
+
+export enum GymnasticsMovement {
+  PULL_UPS_MAX_SET = "Pull-ups (max set)",
+  WEIGHTED_PULL_UP_MAX = "Weighted Pull-up (max)",
+  CHIN_UPS_MAX_SET = "Chin-ups (max set)",
+  WEIGHTED_CHIN_UP_MAX = "Weighted Chin-up (max)",
+  PUSH_UPS_MAX_SET = "Push-ups (max set)",
+  WEIGHTED_PUSH_UP_MAX = "Weighted Push-up (max)",
+  RING_MU_MAX = "Ring MU (max)",
+  BAR_MU_MAX = "Bar MU (max)",
+  HSPU_MAX = "HSPU (max)",
+  STANDING_BOX_JUMP_MAX_HEIGHT = "Standing Box Jump (max height)",
+  SEATED_BOX_JUMP_MAX_HEIGHT = "Seated Box Jump (max height)"
+}
+
+export enum AerobicMovement {
+  FOUR_HUNDRED_M = "400m",
+  EIGHT_HUNDRED_M = "800m",
+  ONE_MILE = "1 mile",
+  FIVE_K = "5K",
+  TEN_K = "10K",
+  HALF_MARATHON = "Half Marathon",
+  MARATHON = "Marathon",
+  ROW_500M = "Row 500m",
+  ROW_1K = "Row 1K",
+  ROW_2K = "Row 2K",
+  ROW_5K = "Row 5K",
+  ROW_10K = "Row 10K",
+  BIKE_10K = "Bike 10K",
+  BIKE_20K = "Bike 20K",
+  BIKE_50K = "Bike 50K",
+  SKI_500M = "Ski 500m",
+  SKI_1K = "Ski 1K",
+  SKI_2K = "Ski 2K",
+  SKI_5K = "Ski 5K",
+  SKI_10K = "Ski 10K"
+}
+
+export enum BodybuildingMovement {
+  // Common bodybuilding movements can be added here as needed
+  BICEP_CURL = "Bicep Curl",
+  TRICEP_EXTENSION = "Tricep Extension",
+  LATERAL_RAISE = "Lateral Raise",
+  LEG_CURL = "Leg Curl",
+  LEG_EXTENSION = "Leg Extension",
+  CALF_RAISE = "Calf Raise"
+}
+
+export enum RepMaxType {
+  ONE_RM = "1RM",
+  THREE_RM = "3RM",
+  FIVE_RM = "5RM",
+  TEN_RM = "10RM"
+}
+
+export enum Unit {
+  KG = "kg",
+  LBS = "lbs",
+  REPS = "reps",
+  TIME = "time", // Format: mm:ss
+  HEIGHT_INCHES = "inches",
+  HEIGHT_CM = "cm"
+}
+
+// Union type for all movement types
+export type Movement = PowerliftingMovement | OlympicWeightliftingMovement | GymnasticsMovement | AerobicMovement | BodybuildingMovement;
+
+// Helper type to get movements by category
+export type MovementsByCategory = {
+  [MovementCategory.POWERLIFTING]: PowerliftingMovement;
+  [MovementCategory.OLYMPIC_WEIGHTLIFTING]: OlympicWeightliftingMovement;
+  [MovementCategory.GYMNASTICS]: GymnasticsMovement;
+  [MovementCategory.AEROBIC]: AerobicMovement;
+  [MovementCategory.BODYBUILDING]: BodybuildingMovement;
+};
+
 export interface WorkoutSet {
   id: string;
   exercise: string;
@@ -49,13 +160,39 @@ export interface WorkoutRequest {
 
 export interface PR {
   id: string;
+  // Legacy fields for backwards compatibility
   exercise: string;
   category: Category;
   weight: number; // in pounds
   reps?: number;
+  
+  // New comprehensive movement tracking fields
+  movement?: Movement; // Specific movement from movement enums
+  movementCategory?: MovementCategory; // Powerlifting, Olympic Weightlifting, etc.
+  repMax?: RepMaxType; // 1RM, 3RM, 5RM, 10RM - optional for non-weight based
+  value?: number | string; // number for weight/reps/height, string for time (mm:ss)
+  unit?: Unit; // kg, lbs, reps, time, inches, cm
+  notes?: string; // Additional notes for the PR
+  
+  // Common fields
   date: Date;
   workoutId?: string;
   previousPR?: number; // previous weight for comparison
+  createdAt: Date;
+}
+
+// Enhanced PR interface for new movement tracking system
+export interface EnhancedPR {
+  id: string;
+  movement: Movement;
+  movementCategory: MovementCategory;
+  repMax?: RepMaxType; // Optional for movements that don't use rep maxes
+  value: number | string; // number for weight/reps/height, string for time
+  unit: Unit;
+  date: Date;
+  workoutId?: string;
+  previousValue?: number | string; // previous value for comparison
+  notes?: string;
   createdAt: Date;
 }
 
@@ -135,8 +272,14 @@ export interface PRState {
   addPR: (pr: Omit<PR, 'id' | 'createdAt'>) => void;
   updatePR: (id: string, updates: Partial<PR>) => void;
   deletePR: (id: string) => void;
+  // Legacy methods for backwards compatibility
   getPRsByExercise: (exercise: string) => PR[];
   getBestPR: (exercise: string) => PR | undefined;
+  // New methods for enhanced movement tracking
+  getPRsByMovement: (movement: Movement) => PR[];
+  getPRsByCategory: (category: MovementCategory) => PR[];
+  getBestPRByMovement: (movement: Movement, repMax?: RepMaxType) => PR | undefined;
+  getProgressHistory: (movement: Movement, repMax?: RepMaxType) => PR[];
 }
 
 export interface AchievementState {
