@@ -14,6 +14,7 @@ import PRs from "@/pages/prs";
 import Achievements from "@/pages/achievements";
 import Connect from "@/pages/connect";
 import Reports from "@/pages/reports";
+import WorkoutGenerate from "@/pages/workout-generate";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/achievements" component={Achievements} />
       <Route path="/connect" component={Connect} />
       <Route path="/reports" component={Reports} />
+      <Route path="/generate-workout" component={WorkoutGenerate} />
       <Route component={NotFound} />
     </Switch>
   );

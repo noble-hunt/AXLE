@@ -75,3 +75,42 @@ export type PersonalRecord = typeof personalRecords.$inferSelect;
 
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 export type Achievement = typeof achievements.$inferSelect;
+
+// Workout generation schemas
+export enum Category {
+  CROSSFIT = "CrossFit",
+  STRENGTH = "Strength", 
+  HIIT = "HIIT",
+  CARDIO = "Cardio",
+  POWERLIFTING = "Powerlifting"
+}
+
+export const workoutRequestSchema = z.object({
+  category: z.nativeEnum(Category),
+  duration: z.number().min(5).max(120),
+  intensity: z.number().min(1).max(10)
+});
+
+export const workoutSetSchema = z.object({
+  id: z.string(),
+  exercise: z.string(),
+  weight: z.number().optional(),
+  reps: z.number().optional(),
+  duration: z.number().optional(),
+  distance: z.number().optional(),
+  restTime: z.number().optional(),
+  notes: z.string().optional()
+});
+
+export const generatedWorkoutSchema = z.object({
+  name: z.string(),
+  category: z.nativeEnum(Category),
+  description: z.string(),
+  duration: z.number(),
+  intensity: z.number(),
+  sets: z.array(workoutSetSchema)
+});
+
+export type WorkoutRequest = z.infer<typeof workoutRequestSchema>;
+export type WorkoutSet = z.infer<typeof workoutSetSchema>;
+export type GeneratedWorkout = z.infer<typeof generatedWorkoutSchema>;

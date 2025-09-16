@@ -6,6 +6,9 @@ import {
   insertPersonalRecordSchema, 
   insertAchievementSchema 
 } from "@shared/schema";
+import { generateWorkout } from "./workoutGenerator";
+import { workoutRequestSchema, WorkoutRequest } from "../shared/schema";
+import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Workout routes
@@ -106,6 +109,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(achievement);
     } catch (error) {
       res.status(400).json({ message: "Invalid achievement data" });
+    }
+  });
+
+  // Workout generation endpoint
+  app.post("/api/generate-workout", async (req, res) => {
+    try {
+      const validatedData = workoutRequestSchema.parse(req.body);
+      const generatedWorkout = await generateWorkout(validatedData);
+      res.json(generatedWorkout);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid workout request data" });
+      }
+      console.error("Workout generation error:", error);
+      res.status(500).json({ message: "Failed to generate workout" });
     }
   });
 
