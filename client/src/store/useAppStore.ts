@@ -677,6 +677,28 @@ export const useAppStore = create<AppState>()(
       // Theme
       theme: 'light',
       setTheme: (theme) => set({ theme }),
+      
+      // Authentication state
+      isAuthenticated: false,
+      user: null,
+      session: null,
+      authInitialized: false,
+      
+      setAuth: (user, session) => set({ 
+        user, 
+        session, 
+        isAuthenticated: !!user 
+      }),
+      
+      clearAuth: () => set({ 
+        user: null, 
+        session: null, 
+        isAuthenticated: false 
+      }),
+      
+      setAuthInitialized: (initialized) => set({ 
+        authInitialized: initialized 
+      }),
 
       // Computed properties for compatibility
       get streak() {

@@ -8,7 +8,7 @@ import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/lib/supabase";
-import { useAppStore } from "@/lib/store";
+import { useAppStore } from "@/store/useAppStore";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Workout from "@/pages/workout";
@@ -83,11 +83,14 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         setAuth(session.user, session);
+        // Load server data for existing session
+        await loadServerData(session.access_token);
       } else {
         clearAuth();
+        clearUserData();
       }
       // Mark auth as initialized after initial session check
       setAuthInitialized(true);
@@ -99,8 +102,8 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         setAuth(session.user, session);
-        // Load server data when user logs in
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        // Load server data when user logs in or session is restored
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
           await loadServerData(session.access_token);
         }
       } else {

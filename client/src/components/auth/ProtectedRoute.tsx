@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { useAppStore } from "@/lib/store";
+import { useAppStore } from "@/store/useAppStore";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {

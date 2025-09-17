@@ -404,6 +404,15 @@ export interface AppState extends WorkoutState, PRState, AchievementState, Weara
   theme: 'light' | 'dark' | 'system';
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   
+  // Authentication state
+  isAuthenticated: boolean;
+  user: any;
+  session: any;
+  setAuth: (user: any, session: any) => void;
+  clearAuth: () => void;
+  authInitialized: boolean;
+  setAuthInitialized: (initialized: boolean) => void;
+  
   // Server data loading
   loadServerData: (authToken: string) => Promise<void>;
   clearUserData: () => void;

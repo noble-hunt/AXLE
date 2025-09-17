@@ -1,7 +1,7 @@
 import { Activity, Sun, Moon, User, LogOut, Settings } from "lucide-react"
 import { useTheme } from "@/components/ui/theme-provider"
 import { Button } from "@/components/ui/button"
-import { useAppStore } from "@/lib/store"
+import { useAppStore } from "@/store/useAppStore"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { useLocation } from "wouter"
