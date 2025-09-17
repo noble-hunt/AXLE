@@ -9,23 +9,57 @@ import {
 import { generateWorkout } from "./workoutGenerator";
 import { workoutRequestSchema, WorkoutRequest } from "../shared/schema";
 import { z } from "zod";
+import { requireAuth, AuthenticatedRequest } from "./middleware/auth";
+import { listWorkouts, getWorkout, insertWorkout, updateWorkout } from "./dal/workouts";
+import { listPRs } from "./dal/prs";
+import { list as listAchievements } from "./dal/achievements";
+import { listReports } from "./dal/reports";
+import { listWearables } from "./dal/wearables";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Workout routes
-  app.get("/api/workouts", async (req, res) => {
+  // Authenticated data fetching routes
+  app.get("/api/user/data", requireAuth, async (req, res) => {
     try {
-      // For demo purposes, using a default user ID
-      const userId = "demo-user";
-      const workouts = await storage.getWorkouts(userId);
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+
+      // Fetch all user data in parallel
+      const [workouts, prs, achievements, healthReports, wearables] = await Promise.all([
+        listWorkouts(userId, { limit: 20 }),
+        listPRs(userId),
+        listAchievements(userId),
+        listReports(userId, { days: 7 }),
+        listWearables(userId)
+      ]);
+
+      res.json({
+        workouts,
+        prs,
+        achievements,
+        healthReports,
+        wearables
+      });
+    } catch (error) {
+      console.error("Failed to fetch user data:", error);
+      res.status(500).json({ message: "Failed to fetch user data" });
+    }
+  });
+
+  // Workout routes
+  app.get("/api/workouts", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const workouts = await listWorkouts(authReq.user.id, { limit: 20 });
       res.json(workouts);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch workouts" });
     }
   });
 
-  app.get("/api/workouts/:id", async (req, res) => {
+  app.get("/api/workouts/:id", requireAuth, async (req, res) => {
     try {
-      const workout = await storage.getWorkout(req.params.id);
+      const authReq = req as AuthenticatedRequest;
+      const workout = await getWorkout(authReq.user.id, req.params.id);
       if (!workout) {
         return res.status(404).json({ message: "Workout not found" });
       }
@@ -35,86 +69,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/workouts", async (req, res) => {
+  app.put("/api/workouts/:id", requireAuth, async (req, res) => {
     try {
-      const validatedData = insertWorkoutSchema.parse(req.body);
-      const workout = await storage.createWorkout(validatedData);
-      res.status(201).json(workout);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid workout data" });
-    }
-  });
-
-  app.put("/api/workouts/:id", async (req, res) => {
-    try {
-      const partialData = insertWorkoutSchema.partial().parse(req.body);
-      const workout = await storage.updateWorkout(req.params.id, partialData);
+      const authReq = req as AuthenticatedRequest;
+      const patch = req.body;
+      const workout = await updateWorkout(authReq.user.id, req.params.id, patch);
       if (!workout) {
         return res.status(404).json({ message: "Workout not found" });
       }
       res.json(workout);
     } catch (error) {
-      res.status(400).json({ message: "Invalid workout data" });
-    }
-  });
-
-  app.delete("/api/workouts/:id", async (req, res) => {
-    try {
-      const deleted = await storage.deleteWorkout(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ message: "Workout not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete workout" });
+      console.error("Failed to update workout:", error);
+      res.status(500).json({ message: "Failed to update workout" });
     }
   });
 
   // Personal Records routes
-  app.get("/api/personal-records", async (req, res) => {
+  app.get("/api/personal-records", requireAuth, async (req, res) => {
     try {
-      const userId = "demo-user";
-      const prs = await storage.getPersonalRecords(userId);
+      const authReq = req as AuthenticatedRequest;
+      const prs = await listPRs(authReq.user.id);
       res.json(prs);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch personal records" });
     }
   });
 
-  app.post("/api/personal-records", async (req, res) => {
-    try {
-      const validatedData = insertPersonalRecordSchema.parse(req.body);
-      const pr = await storage.createPersonalRecord(validatedData);
-      res.status(201).json(pr);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid personal record data" });
-    }
-  });
-
   // Achievements routes
-  app.get("/api/achievements", async (req, res) => {
+  app.get("/api/achievements", requireAuth, async (req, res) => {
     try {
-      const userId = "demo-user";
-      const achievements = await storage.getAchievements(userId);
+      const authReq = req as AuthenticatedRequest;
+      const achievements = await listAchievements(authReq.user.id);
       res.json(achievements);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch achievements" });
     }
   });
 
-  app.post("/api/achievements", async (req, res) => {
+  // Health Reports routes
+  app.get("/api/health-reports", requireAuth, async (req, res) => {
     try {
-      const validatedData = insertAchievementSchema.parse(req.body);
-      const achievement = await storage.createAchievement(validatedData);
-      res.status(201).json(achievement);
+      const authReq = req as AuthenticatedRequest;
+      const days = parseInt(req.query.days as string) || 7;
+      const reports = await listReports(authReq.user.id, { days });
+      res.json(reports);
     } catch (error) {
-      res.status(400).json({ message: "Invalid achievement data" });
+      res.status(500).json({ message: "Failed to fetch health reports" });
+    }
+  });
+
+  // Wearables routes
+  app.get("/api/wearables", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const wearables = await listWearables(authReq.user.id);
+      res.json(wearables);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch wearables" });
+    }
+  });
+
+  // Wearable connection toggle
+  app.post("/api/wearables/toggle", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { provider, connected } = req.body;
+      
+      const { upsertWearable } = await import("./dal/wearables");
+      const wearable = await upsertWearable({
+        userId: authReq.user.id,
+        provider,
+        connected,
+        lastSync: connected ? new Date().toISOString() : null
+      });
+      
+      res.json(wearable);
+    } catch (error) {
+      console.error("Failed to toggle wearable:", error);
+      res.status(500).json({ message: "Failed to toggle wearable connection" });
+    }
+  });
+
+  // Wearable sync
+  app.post("/api/wearables/sync", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { provider } = req.body;
+      
+      // Update wearable last sync
+      const { upsertWearable } = await import("./dal/wearables");
+      await upsertWearable({
+        userId: authReq.user.id,
+        provider,
+        connected: true,
+        lastSync: new Date().toISOString()
+      });
+      
+      // Insert mock health report for today
+      const { insertReport } = await import("./dal/reports");
+      const today = new Date().toISOString().split('T')[0];
+      
+      const mockMetrics = {
+        restingHeartRate: Math.floor(Math.random() * (75 - 45) + 45),
+        hrv: Math.floor(Math.random() * (80 - 20) + 20),
+        sleepScore: Math.floor(Math.random() * (100 - 60) + 60)
+      };
+      
+      const report = await insertReport({
+        userId: authReq.user.id,
+        date: today,
+        summary: `Health data synced from ${provider}`,
+        metrics: mockMetrics,
+        suggestions: ['Stay hydrated', 'Consider light exercise']
+      });
+      
+      res.json({ wearable: provider, report });
+    } catch (error) {
+      console.error("Failed to sync wearable:", error);
+      res.status(500).json({ message: "Failed to sync wearable data" });
     }
   });
 
   // Enhanced workout generation endpoint with prompt template
-  app.post("/api/generate-workout", async (req, res) => {
+  app.post("/api/generate-workout", requireAuth, async (req, res) => {
     try {
+      const authReq = req as AuthenticatedRequest;
+      
       // Enhanced schema with context data
       const enhancedWorkoutRequestSchema = workoutRequestSchema.extend({
         recentPRs: z.array(z.object({
@@ -142,7 +222,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = enhancedWorkoutRequestSchema.parse(req.body);
       const generatedWorkout = await generateWorkout(validatedData);
-      res.json(generatedWorkout);
+      
+      // Insert workout into database
+      const dbWorkout = await insertWorkout({
+        userId: authReq.user.id,
+        workout: {
+          title: generatedWorkout.title,
+          request: validatedData,
+          sets: generatedWorkout.exercises || {},
+          notes: generatedWorkout.notes,
+          completed: false
+        }
+      });
+      
+      // Return the DB row id for navigation
+      res.json({ 
+        ...generatedWorkout,
+        id: dbWorkout.id,
+        dbId: dbWorkout.id 
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         // Provide friendly validation error messages
