@@ -153,34 +153,105 @@ export default function WorkoutGenerate() {
 
         {/* Exercise List */}
         <div className="space-y-4">
-          <SectionTitle title="Exercises" />
+          <SectionTitle title="Workout Structure" />
           
-          {generatedWorkout.sets?.map((set: any, index: number) => (
-            <Card key={index} className="p-4 card-shadow border border-border" data-testid={`generated-exercise-${index}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-foreground">{set.exercise}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {set.reps && `${set.reps} reps`}
-                    {set.weight && ` × ${set.weight} lbs`}
-                    {set.duration && ` × ${set.duration}s`}
-                    {set.distance && ` × ${set.distance}m`}
-                  </p>
+          {(() => {
+            // Group exercises by type
+            const warmupSets = generatedWorkout.sets?.filter((set: any) => 
+              set.exercise.toLowerCase().includes('warm') || 
+              set.exercise.toLowerCase().includes('dynamic')
+            ) || []
+            
+            const metconSets = generatedWorkout.sets?.filter((set: any) => 
+              set.exercise.toLowerCase().includes('metcon')
+            ) || []
+            
+            const otherSets = generatedWorkout.sets?.filter((set: any) => 
+              !set.exercise.toLowerCase().includes('warm') && 
+              !set.exercise.toLowerCase().includes('dynamic') &&
+              !set.exercise.toLowerCase().includes('metcon')
+            ) || []
+
+            const formatExerciseContent = (sets: any[]) => {
+              if (sets.length === 0) return null;
+              
+              // For single set, use the notes which contain the full formatted content
+              if (sets.length === 1 && sets[0].notes) {
+                return sets[0].notes.split('\n').map((line: string, i: number) => (
+                  <div key={i} className={line.trim() === '' ? 'h-3' : ''}>
+                    {line.trim() === '' ? <br /> : line.trim()}
+                  </div>
+                ));
+              }
+              
+              // For multiple sets, format each exercise
+              return sets.map((set: any, index: number) => (
+                <div key={index} className="space-y-1">
+                  {set.exercise && (
+                    <div className="font-medium text-foreground">{set.exercise}</div>
+                  )}
+                  {(set.reps || set.weight || set.duration || set.distance) && (
+                    <div className="text-sm text-muted-foreground">
+                      {set.reps && <div>{set.reps} reps</div>}
+                      {set.weight && <div>{set.weight} lbs</div>}
+                      {set.duration && <div>{set.duration} seconds</div>}
+                      {set.distance && <div>{set.distance} meters</div>}
+                    </div>
+                  )}
                   {set.notes && (
-                    <p className="text-xs text-muted-foreground mt-1">{set.notes}</p>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {set.notes.split('\n').map((line: string, i: number) => (
+                        <div key={i} className={line.trim() === '' ? 'h-2' : ''}>
+                          {line.trim() === '' ? <br /> : line.trim()}
+                        </div>
+                      ))}
+                    </div>
                   )}
+                  {index < sets.length - 1 && <div className="h-3" />}
                 </div>
-                <div className="text-right">
-                  {set.restTime && (
-                    <>
-                      <p className="font-semibold text-foreground">{set.restTime}s</p>
-                      <p className="text-xs text-muted-foreground">rest</p>
-                    </>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
+              ));
+            };
+
+            return (
+              <>
+                {/* Warm-up Section */}
+                {warmupSets.length > 0 && (
+                  <Card className="p-6 card-shadow border border-border" data-testid="warmup-section">
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-foreground">Warm-up</h3>
+                      <div className="text-sm leading-relaxed">
+                        {formatExerciseContent(warmupSets)}
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Metcon Section */}
+                {metconSets.length > 0 && (
+                  <Card className="p-6 card-shadow border border-border" data-testid="metcon-section">
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-foreground">Metcon</h3>
+                      <div className="text-sm leading-relaxed space-y-4">
+                        {formatExerciseContent(metconSets)}
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Other Exercises */}
+                {otherSets.length > 0 && (
+                  <Card className="p-6 card-shadow border border-border" data-testid="other-exercises-section">
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-foreground">Exercises</h3>
+                      <div className="text-sm leading-relaxed space-y-3">
+                        {formatExerciseContent(otherSets)}
+                      </div>
+                    </div>
+                  </Card>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Action Buttons */}

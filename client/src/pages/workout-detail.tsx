@@ -127,72 +127,134 @@ export default function WorkoutDetail() {
         )}
       </div>
 
-      {/* Exercise Sets - SwiftUI style cards */}
+      {/* Exercise Sets - Grouped by type */}
       <div className="space-y-4">
-        <SectionTitle title="Exercises" />
+        <SectionTitle title="Workout Structure" />
         
-        {workout.sets.map((set, i) => (
-          <Card 
-            key={set.id || i} 
-            className={`
-              p-4 card-shadow border transition-all duration-200
-              ${workout.completed 
-                ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20' 
-                : 'border-border hover:border-primary/30'
-              }
-            `}
-            data-testid={`exercise-${set.id || i}`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h4 className="font-semibold text-foreground mb-1">{set.exercise}</h4>
-                
-                {/* Exercise details */}
-                <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                  {set.reps && (
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{set.reps}</span>
-                      <span>reps</span>
-                    </div>
-                  )}
-                  {set.weight && (
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{set.weight}</span>
-                      <span>lbs</span>
-                    </div>
-                  )}
-                  {set.duration && (
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{set.duration}</span>
-                      <span>sec</span>
-                    </div>
-                  )}
-                  {set.distance && (
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{set.distance}</span>
-                      <span>m</span>
-                    </div>
-                  )}
-                  {set.restTime && (
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{set.restTime}</span>
-                      <span>rest</span>
-                    </div>
-                  )}
+        {(() => {
+          // Group exercises by type
+          const warmupSets = workout.sets.filter(set => 
+            set.exercise.toLowerCase().includes('warm') || 
+            set.exercise.toLowerCase().includes('dynamic')
+          )
+          
+          const metconSets = workout.sets.filter(set => 
+            set.exercise.toLowerCase().includes('metcon')
+          )
+          
+          const otherSets = workout.sets.filter(set => 
+            !set.exercise.toLowerCase().includes('warm') && 
+            !set.exercise.toLowerCase().includes('dynamic') &&
+            !set.exercise.toLowerCase().includes('metcon')
+          )
+
+          const formatExerciseContent = (sets: any[]) => {
+            if (sets.length === 0) return null;
+            
+            // For single set, use the notes which contain the full formatted content
+            if (sets.length === 1 && sets[0].notes) {
+              return sets[0].notes.split('\n').map((line: string, i: number) => (
+                <div key={i} className={line.trim() === '' ? 'h-3' : ''}>
+                  {line.trim() === '' ? <br /> : line.trim()}
                 </div>
-
-                {set.notes && (
-                  <p className="text-xs text-muted-foreground mt-2 italic">{set.notes}</p>
+              ));
+            }
+            
+            // For multiple sets, format each exercise
+            return sets.map((set: any, index: number) => (
+              <div key={index} className="space-y-1">
+                {set.exercise && (
+                  <div className="font-medium text-foreground">{set.exercise}</div>
                 )}
+                {(set.reps || set.weight || set.duration || set.distance) && (
+                  <div className="text-sm text-muted-foreground">
+                    {set.reps && <div>{set.reps} reps</div>}
+                    {set.weight && <div>{set.weight} lbs</div>}
+                    {set.duration && <div>{set.duration} seconds</div>}
+                    {set.distance && <div>{set.distance} meters</div>}
+                  </div>
+                )}
+                {set.notes && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {set.notes.split('\n').map((line: string, i: number) => (
+                      <div key={i} className={line.trim() === '' ? 'h-2' : ''}>
+                        {line.trim() === '' ? <br /> : line.trim()}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {index < sets.length - 1 && <div className="h-3" />}
               </div>
+            ));
+          };
 
-              {/* Set number indicator */}
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/20">
-                <span className="text-sm font-semibold text-primary">{i + 1}</span>
-              </div>
-            </div>
-          </Card>
-        ))}
+          return (
+            <>
+              {/* Warm-up Section */}
+              {warmupSets.length > 0 && (
+                <Card 
+                  className={`
+                    p-6 card-shadow border transition-all duration-200
+                    ${workout.completed 
+                      ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20' 
+                      : 'border-border hover:border-primary/30'
+                    }
+                  `}
+                  data-testid="warmup-section"
+                >
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-foreground">Warm-up</h3>
+                    <div className="text-sm leading-relaxed">
+                      {formatExerciseContent(warmupSets)}
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Metcon Section */}
+              {metconSets.length > 0 && (
+                <Card 
+                  className={`
+                    p-6 card-shadow border transition-all duration-200
+                    ${workout.completed 
+                      ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20' 
+                      : 'border-border hover:border-primary/30'
+                    }
+                  `}
+                  data-testid="metcon-section"
+                >
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-foreground">Metcon</h3>
+                    <div className="text-sm leading-relaxed space-y-4">
+                      {formatExerciseContent(metconSets)}
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Other Exercises */}
+              {otherSets.length > 0 && (
+                <Card 
+                  className={`
+                    p-6 card-shadow border transition-all duration-200
+                    ${workout.completed 
+                      ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20' 
+                      : 'border-border hover:border-primary/30'
+                    }
+                  `}
+                  data-testid="other-exercises-section"
+                >
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-foreground">Exercises</h3>
+                    <div className="text-sm leading-relaxed space-y-3">
+                      {formatExerciseContent(otherSets)}
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Completion Status or Actions */}
@@ -212,13 +274,13 @@ export default function WorkoutDetail() {
                     <div
                       key={i}
                       className={`w-2 h-2 rounded-full ${
-                        i < workout.feedback.difficulty
+                        i < (workout.feedback?.difficulty ?? 0)
                           ? 'bg-red-500'
                           : 'bg-gray-200 dark:bg-gray-700'
                       }`}
                     />
                   ))}
-                  <span className="ml-2 font-medium">{workout.feedback.difficulty}/10</span>
+                  <span className="ml-2 font-medium">{workout.feedback?.difficulty ?? 0}/10</span>
                 </div>
               </div>
               
@@ -229,20 +291,20 @@ export default function WorkoutDetail() {
                     <div
                       key={i}
                       className={`w-2 h-2 rounded-full ${
-                        i < workout.feedback.satisfaction
+                        i < (workout.feedback?.satisfaction ?? 0)
                           ? 'bg-green-500'
                           : 'bg-gray-200 dark:bg-gray-700'
                       }`}
                     />
                   ))}
-                  <span className="ml-2 font-medium">{workout.feedback.satisfaction}/10</span>
+                  <span className="ml-2 font-medium">{workout.feedback?.satisfaction ?? 0}/10</span>
                 </div>
               </div>
             </div>
 
             <div className="pt-2 border-t border-green-200 dark:border-green-800">
               <p className="text-xs text-muted-foreground">
-                Completed on {format(new Date(workout.feedback.completedAt), 'MMM d, yyyy \'at\' h:mm a')}
+                Completed on {workout.feedback?.completedAt ? format(new Date(workout.feedback.completedAt), 'MMM d, yyyy \'at\' h:mm a') : 'Unknown'}
               </p>
             </div>
 
