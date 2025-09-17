@@ -7,63 +7,133 @@ import { generatedWorkoutSchema } from "../shared/schema";
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
-export async function generateWorkout(request: WorkoutRequest): Promise<GeneratedWorkout> {
-  console.log('Generating workout with OpenAI:', request);
+// Enhanced request type with context data
+type EnhancedWorkoutRequest = WorkoutRequest & {
+  recentPRs?: Array<{
+    exercise: string;
+    weight?: number;
+    reps?: number;
+    date: string;
+    unit?: string;
+  }>;
+  lastWorkouts?: Array<{
+    name: string;
+    category: string;
+    duration: number;
+    intensity: number;
+    date: string;
+    exercises: string[];
+  }>;
+  todaysReport?: {
+    energy: number;
+    stress: number;
+    sleep: number;
+    soreness: number;
+  };
+};
 
-  // If no API key available, fall back to mock immediately
-  if (!openai) {
-    console.log('No OpenAI API key available, using mock workout');
-    return generateMockWorkout(request);
-  }
+// AXLE Fitness Expert Prompt Template
+const createPromptTemplate = (request: EnhancedWorkoutRequest): string => {
+  const { category, duration, intensity, recentPRs = [], lastWorkouts = [], todaysReport } = request;
+  
+  // Format recent PRs for context
+  const prContext = recentPRs.length > 0 
+    ? `Recent Personal Records (Top 3):
+${recentPRs.slice(0, 3).map((pr: any) => 
+  `- ${pr.exercise}: ${pr.weight ? `${pr.weight} ${pr.unit || 'lbs'}` : ''} ${pr.reps ? `x${pr.reps} reps` : ''} (${new Date(pr.date).toLocaleDateString()})`
+).join('\n')}`
+    : "No recent PRs available.";
 
-  // Create a detailed prompt based on the request
-  const prompt = `Generate a detailed ${request.category} workout that is ${request.duration} minutes long with intensity level ${request.intensity}/10.
+  // Format last 3 workouts for variety context
+  const workoutContext = lastWorkouts.length > 0
+    ? `Last 3 Workouts:
+${lastWorkouts.slice(0, 3).map((workout: any) => 
+  `- ${workout.name} (${workout.category}): ${workout.duration}min, ${workout.intensity}/10 intensity, Exercises: ${workout.exercises.join(', ')} - ${new Date(workout.date).toLocaleDateString()}`
+).join('\n')}`
+    : "No recent workouts available.";
 
-Please create a complete workout with the following requirements:
-- Category: ${request.category}
-- Duration: ${request.duration} minutes
-- Intensity: ${request.intensity}/10 scale
-- Include 5-8 exercises appropriate for the category
-- Provide specific sets, reps, weights (if applicable), or duration for each exercise
-- Include rest times between exercises
-- Make it realistic and achievable
-- Add helpful notes or form cues where appropriate
+  // Format today's wellness report
+  const reportContext = todaysReport
+    ? `Today's Wellness Report:
+- Energy Level: ${todaysReport.energy}/10
+- Stress Level: ${todaysReport.stress}/10  
+- Sleep Quality: ${todaysReport.sleep}/10
+- Muscle Soreness: ${todaysReport.soreness}/10`
+    : "No wellness data available for today.";
 
-Return the response as a JSON object with this exact structure:
+  return `You are AXLE, an expert fitness planner with 20+ years of multi-disciplinary experience in all fields of physical fitness and athletic performance.
+
+WORKOUT REQUEST:
+- Category: ${category}
+- Duration: ${duration} minutes
+- Target Intensity: ${intensity}/10
+
+CONTEXT INFORMATION:
+${prContext}
+
+${workoutContext}
+
+${reportContext}
+
+INSTRUCTIONS:
+Create a safe, balanced, and effective workout in strict JSON format matching this exact structure:
+
 {
-  "name": "Workout Name (creative and descriptive)",
-  "category": "${request.category}",
-  "description": "Brief description of the workout",
-  "duration": ${request.duration},
-  "intensity": ${request.intensity},
+  "title": "Creative workout name that reflects the category and intensity",
+  "notes": "Brief workout description and any important safety considerations",
   "sets": [
     {
-      "id": "unique-id",
-      "exercise": "Exercise Name",
-      "weight": 135,
-      "reps": 10,
-      "duration": 30,
-      "distance": 400,
-      "restTime": 60,
-      "notes": "Form cues or instructions"
+      "description": "Clear exercise description with form cues",
+      "target": {
+        "reps": number (if applicable),
+        "weightKg": number (if applicable),
+        "distanceM": number (if applicable), 
+        "timeSec": number (if applicable)
+      }
     }
   ]
 }
 
-Make sure to:
-- Use appropriate weights for the exercises (realistic for average fitness level)
-- Include proper rest times (30-120 seconds depending on intensity)
-- Make exercise names clear and specific
-- Only include weight/reps/duration/distance fields that are relevant for each exercise
-- Generate unique IDs for each set`;
+CRITICAL RULES:
+- Respect category constraints (e.g., no PR tracking for Bodybuilding-focused workouts)
+- Scale difficulty by intensity level 1-10 (1=very easy, 10=extremely challenging)
+- Respect duration target within ±10% (${Math.round(duration * 0.9)}-${Math.round(duration * 1.1)} minutes)
+- Prefer varied movement patterns compared to recent workouts to prevent overuse
+- If risky combinations detected (e.g., heavy spinal loading after max deadlifts), adjust to safer alternatives
+- Consider wellness metrics: low energy/sleep = easier workout, high soreness = avoid affected muscle groups
+- Include proper warm-up and cool-down exercises
+- Use metric units (kg for weight, meters for distance, seconds for time)
+- Provide realistic weights and targets based on recent PR context
+
+Return ONLY the JSON object. No markdown formatting, explanations, or additional text.`;
+};
+
+export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
+  console.log('Generating workout with enhanced context:', {
+    category: request.category,
+    duration: request.duration,
+    intensity: request.intensity,
+    prCount: request.recentPRs?.length || 0,
+    workoutCount: request.lastWorkouts?.length || 0,
+    hasReport: !!request.todaysReport
+  });
+
+  // If no API key available, fall back to mock immediately
+  if (!openai) {
+    console.log('No OpenAI API key available, using enhanced mock workout');
+    return generateMockWorkout(request);
+  }
+
+  // Create the enhanced prompt with context
+  const prompt = createPromptTemplate(request);
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",
       messages: [
         {
-          role: "system",
-          content: "You are an expert fitness trainer and workout designer. Create realistic, safe, and effective workouts based on the user's requirements. Always respond with valid JSON only."
+          role: "system", 
+          content: "You are AXLE, an expert fitness planner. Always respond with valid JSON matching the exact schema provided. No additional text or markdown formatting."
         },
         {
           role: "user",
@@ -71,38 +141,40 @@ Make sure to:
         }
       ],
       response_format: { type: "json_object" },
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
       temperature: 0.7,
     });
 
-    const workoutData = JSON.parse(response.choices[0].message.content || '{}');
+    const aiResponse = JSON.parse(response.choices[0].message.content || '{}');
+    console.log('AI generated workout:', aiResponse);
     
-    console.log('Generated workout data:', workoutData);
-    
-    // Validate the OpenAI response against our schema
-    const validation = generatedWorkoutSchema.safeParse({
-      name: workoutData.name || `${request.category} Workout`,
+    // Transform AI response to match GeneratedWorkout schema
+    const workoutData = {
+      name: aiResponse.title || `${request.category} Workout`,
       category: request.category,
-      description: workoutData.description || `A ${request.intensity}/10 intensity ${request.category} workout`,
+      description: aiResponse.notes || `A ${request.intensity}/10 intensity ${request.category} workout`,
       duration: request.duration,
       intensity: request.intensity,
-      sets: workoutData.sets?.map((set: any, index: number) => ({
-        id: set.id || `set-${Date.now()}-${index}`,
-        exercise: set.exercise || `Exercise ${index + 1}`,
-        weight: set.weight || undefined,
-        reps: set.reps || undefined,
-        duration: set.duration || undefined,
-        distance: set.distance || undefined,
-        restTime: set.restTime || undefined,
-        notes: set.notes || undefined,
+      sets: aiResponse.sets?.map((set: any, index: number) => ({
+        id: `ai-set-${Date.now()}-${index}`,
+        exercise: set.description?.split(' ')[0] || `Exercise ${index + 1}`,
+        weight: set.target?.weightKg ? Math.round(set.target.weightKg * 2.205) : undefined, // Convert kg to lbs
+        reps: set.target?.reps || undefined,
+        duration: set.target?.timeSec || undefined,
+        distance: set.target?.distanceM || undefined,
+        restTime: request.intensity >= 7 ? 60 : 90,
+        notes: set.description || `Perform with ${request.intensity}/10 intensity`
       })) || []
-    });
+    };
 
+    // Validate against schema
+    const validation = generatedWorkoutSchema.safeParse(workoutData);
+    
     if (validation.success) {
       return validation.data;
     } else {
-      console.error('OpenAI response validation failed:', validation.error);
-      // Fall back to mock if validation fails
+      console.error('AI response validation failed:', validation.error.issues);
+      console.log('Falling back to mock workout due to validation failure');
       return generateMockWorkout(request);
     }
 
@@ -116,7 +188,7 @@ Make sure to:
 }
 
 // Fallback mock workout generator
-export function generateMockWorkout(request: WorkoutRequest): GeneratedWorkout {
+export function generateMockWorkout(request: EnhancedWorkoutRequest): GeneratedWorkout {
   const workoutTemplates = {
     [Category.CROSSFIT]: {
       name: "CrossFit Hero WOD",

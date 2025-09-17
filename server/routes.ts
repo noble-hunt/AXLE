@@ -112,18 +112,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Workout generation endpoint
+  // Enhanced workout generation endpoint with prompt template
   app.post("/api/generate-workout", async (req, res) => {
     try {
-      const validatedData = workoutRequestSchema.parse(req.body);
+      // Enhanced schema with context data
+      const enhancedWorkoutRequestSchema = workoutRequestSchema.extend({
+        recentPRs: z.array(z.object({
+          exercise: z.string(),
+          weight: z.number().optional(),
+          reps: z.number().optional(),
+          date: z.string(),
+          unit: z.string().optional()
+        })).optional(),
+        lastWorkouts: z.array(z.object({
+          name: z.string(),
+          category: z.string(),
+          duration: z.number(),
+          intensity: z.number(),
+          date: z.string(),
+          exercises: z.array(z.string())
+        })).optional(),
+        todaysReport: z.object({
+          energy: z.number(),
+          stress: z.number(),
+          sleep: z.number(),
+          soreness: z.number()
+        }).optional()
+      });
+
+      const validatedData = enhancedWorkoutRequestSchema.parse(req.body);
       const generatedWorkout = await generateWorkout(validatedData);
       res.json(generatedWorkout);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid workout request data" });
+        // Provide friendly validation error messages
+        const friendlyErrors = error.issues.map(issue => {
+          switch (issue.path.join('.')) {
+            case 'category':
+              return 'Please select a valid workout category (CrossFit, Strength, HIIT, Cardio, or Powerlifting)';
+            case 'duration': 
+              return 'Workout duration must be between 5 and 120 minutes';
+            case 'intensity':
+              return 'Intensity level must be between 1 and 10';
+            case 'recentPRs':
+              return 'Recent PRs data format is invalid';
+            case 'lastWorkouts':
+              return 'Recent workouts data format is invalid';
+            case 'todaysReport':
+              return 'Today\'s wellness report data format is invalid';
+            default:
+              return `Invalid ${issue.path.join('.')}: ${issue.message}`;
+          }
+        });
+        
+        return res.status(400).json({ 
+          message: "Invalid workout request data",
+          errors: friendlyErrors,
+          details: "Please check your request parameters and try again"
+        });
       }
+      
       console.error("Workout generation error:", error);
-      res.status(500).json({ message: "Failed to generate workout" });
+      res.status(500).json({ 
+        message: "Failed to generate workout",
+        error: "An internal error occurred while generating your workout. Please try again." 
+      });
     }
   });
 
