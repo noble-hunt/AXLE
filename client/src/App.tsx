@@ -79,14 +79,18 @@ function Router() {
 }
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setAuth, clearAuth } = useAppStore();
+  const { setAuth, clearAuth, setAuthInitialized } = useAppStore();
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setAuth(session.user, session);
+      } else {
+        clearAuth();
       }
+      // Mark auth as initialized after initial session check
+      setAuthInitialized(true);
     });
 
     // Listen for auth changes
@@ -98,10 +102,12 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         clearAuth();
       }
+      // Ensure auth is marked as initialized on any auth state change
+      setAuthInitialized(true);
     });
 
     return () => subscription.unsubscribe();
-  }, [setAuth, clearAuth]);
+  }, [setAuth, clearAuth, setAuthInitialized]);
 
   return <>{children}</>;
 }

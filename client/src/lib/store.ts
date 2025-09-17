@@ -7,9 +7,11 @@ interface AppState {
   activeWorkoutId: string | null;
   user: User | null;
   session: Session | null;
+  authInitialized: boolean;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setActiveWorkout: (workoutId: string | null) => void;
   setAuth: (user: User | null, session: Session | null) => void;
+  setAuthInitialized: (initialized: boolean) => void;
   clearAuth: () => void;
 }
 
@@ -20,9 +22,11 @@ export const useAppStore = create<AppState>()(
       activeWorkoutId: null,
       user: null,
       session: null,
+      authInitialized: false,
       setTheme: (theme) => set({ theme }),
       setActiveWorkout: (workoutId) => set({ activeWorkoutId: workoutId }),
       setAuth: (user, session) => set({ user, session }),
+      setAuthInitialized: (initialized) => set({ authInitialized: initialized }),
       clearAuth: () => set({ user: null, session: null }),
     }),
     {

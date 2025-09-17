@@ -15,7 +15,8 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 
 export function TopAppBar() {
-  const { theme, setTheme, user, clearAuth } = useAppStore()
+  const { theme, setTheme } = useTheme()
+  const { user, clearAuth } = useAppStore()
   const { toast } = useToast()
   const [, setLocation] = useLocation()
 
