@@ -404,6 +404,10 @@ export interface AppState extends WorkoutState, PRState, AchievementState, Weara
   theme: 'light' | 'dark' | 'system';
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   
+  // Server data loading
+  loadServerData: (authToken: string) => Promise<void>;
+  clearUserData: () => void;
+  
   // Computed properties for compatibility
   streak: number;
   weeklyWorkouts: number;

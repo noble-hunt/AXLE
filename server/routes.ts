@@ -227,10 +227,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dbWorkout = await insertWorkout({
         userId: authReq.user.id,
         workout: {
-          title: generatedWorkout.title,
+          title: generatedWorkout.name,
           request: validatedData,
-          sets: generatedWorkout.exercises || {},
-          notes: generatedWorkout.notes,
+          sets: generatedWorkout.sets || [],
+          notes: generatedWorkout.description,
           completed: false
         }
       });

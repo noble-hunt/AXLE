@@ -1024,6 +1024,121 @@ export const useAppStore = create<AppState>()(
         const reports = get().reports;
         return reports.sort((a, b) => b.date.getTime() - a.date.getTime())[0];
       },
+
+      // Server data loading methods
+      loadServerData: async (authToken: string) => {
+        try {
+          const response = await fetch('/api/user/data', {
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch user data');
+          }
+          
+          const data = await response.json();
+          
+          // Transform server data to client format and replace seed data
+          const transformedWorkouts = data.workouts.map((w: any) => ({
+            id: w.id,
+            name: w.title,
+            category: w.request?.category || Category.CROSSFIT,
+            description: w.notes || '',
+            duration: w.request?.duration || 30,
+            intensity: w.request?.intensity || 5,
+            sets: Array.isArray(w.sets) ? w.sets : [],
+            date: new Date(w.created_at),
+            completed: w.completed || false,
+            notes: w.notes,
+            createdAt: new Date(w.created_at),
+            feedback: w.feedback
+          }));
+          
+          const transformedPRs = data.prs.map((pr: any) => ({
+            id: pr.id,
+            exercise: pr.movement,
+            category: pr.category,
+            weight: pr.weight_kg * 2.20462, // Convert kg to lbs
+            reps: pr.rep_max,
+            date: new Date(pr.date),
+            createdAt: new Date(pr.date),
+            movement: pr.movement,
+            movementCategory: pr.category,
+            repMax: pr.rep_max,
+            value: pr.weight_kg * 2.20462,
+            unit: Unit.LBS
+          }));
+          
+          const transformedAchievements = data.achievements.map((ach: any) => ({
+            id: ach.id,
+            name: ach.name,
+            description: ach.description,
+            progress: ach.progress,
+            target: 100,
+            unlocked: ach.unlocked,
+            category: AchievementCategory.GENERAL,
+            type: AchievementType.WORKOUT_COUNT,
+            createdAt: new Date(ach.updated_at),
+            unlockedAt: ach.unlocked ? new Date(ach.updated_at) : undefined
+          }));
+          
+          const transformedReports = data.healthReports.map((report: any) => ({
+            id: report.id,
+            date: new Date(report.date),
+            metrics: report.metrics,
+            workoutsCompleted: report.metrics.workoutsCompleted || 0,
+            totalWorkoutTime: report.metrics.totalWorkoutTime || 0,
+            avgIntensity: report.metrics.avgIntensity || 0,
+            newPRs: report.metrics.newPRs || 0,
+            streakDays: report.metrics.streakDays || 0,
+            weeklyGoalProgress: report.metrics.weeklyGoalProgress || 0,
+            insights: report.suggestions || [],
+            createdAt: new Date(report.date),
+            restingHeartRate: report.metrics.restingHeartRate,
+            hrv: report.metrics.hrv,
+            sleepScore: report.metrics.sleepScore
+          }));
+          
+          const transformedWearables = data.wearables.map((w: any) => ({
+            id: w.id,
+            name: w.provider,
+            brand: w.provider.split(' ')[0],
+            type: w.provider.toLowerCase().replace(/\s+/g, '_'),
+            connected: w.connected,
+            batteryLevel: Math.floor(Math.random() * 30) + 70, // Mock battery
+            lastSync: w.last_sync ? new Date(w.last_sync) : undefined,
+            createdAt: new Date()
+          }));
+          
+          // Replace seed data with server data
+          set({
+            workouts: transformedWorkouts,
+            prs: transformedPRs,
+            achievements: transformedAchievements,
+            reports: transformedReports,
+            wearables: transformedWearables
+          });
+          
+          console.log('✅ Server data loaded successfully');
+        } catch (error) {
+          console.error('❌ Failed to load server data:', error);
+          // Keep using seed data on error
+        }
+      },
+
+      // Clear data (for logout)
+      clearUserData: () => {
+        set({
+          workouts: seedWorkouts,
+          prs: seedPRs,
+          achievements: seedAchievements,
+          wearables: seedWearables,
+          reports: seedReports
+        });
+      },
     }),
     {
       name: 'axle-app-storage',

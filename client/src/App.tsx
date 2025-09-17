@@ -79,7 +79,7 @@ function Router() {
 }
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setAuth, clearAuth, setAuthInitialized } = useAppStore();
+  const { setAuth, clearAuth, setAuthInitialized, loadServerData, clearUserData } = useAppStore();
 
   useEffect(() => {
     // Get initial session
@@ -96,18 +96,23 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         setAuth(session.user, session);
+        // Load server data when user logs in
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          await loadServerData(session.access_token);
+        }
       } else {
         clearAuth();
+        clearUserData();
       }
       // Ensure auth is marked as initialized on any auth state change
       setAuthInitialized(true);
     });
 
     return () => subscription.unsubscribe();
-  }, [setAuth, clearAuth, setAuthInitialized]);
+  }, [setAuth, clearAuth, setAuthInitialized, loadServerData, clearUserData]);
 
   return <>{children}</>;
 }
