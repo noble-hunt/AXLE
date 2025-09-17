@@ -327,7 +327,7 @@ const seedAchievements: Achievement[] = [
     title: 'Heavy Hitter',
     description: 'Lift 2,000+ lbs total in Powerlifting PRs',
     category: AchievementCategory.POWERLIFTING,
-    type: AchievementType.TOTAL_WEIGHT,
+    type: AchievementType.COMPOUND,
     target: 2000,
     progress: 945,
     completed: false,
@@ -921,6 +921,40 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'axle-app-storage',
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Hydrate all Date fields across the entire state
+          state.workouts = state.workouts.map(workout => ({
+            ...workout,
+            date: new Date(workout.date),
+            createdAt: new Date(workout.createdAt),
+          }));
+          
+          state.prs = state.prs.map(pr => ({
+            ...pr,
+            date: new Date(pr.date),
+            createdAt: new Date(pr.createdAt),
+          }));
+          
+          state.achievements = state.achievements.map(achievement => ({
+            ...achievement,
+            createdAt: new Date(achievement.createdAt),
+            unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : undefined,
+          }));
+          
+          state.wearables = state.wearables.map(wearable => ({
+            ...wearable,
+            createdAt: new Date(wearable.createdAt),
+            lastSync: wearable.lastSync ? new Date(wearable.lastSync) : undefined,
+          }));
+          
+          state.reports = state.reports.map(report => ({
+            ...report,
+            date: new Date(report.date),
+            createdAt: new Date(report.createdAt),
+          }));
+        }
+      },
     }
   )
 );

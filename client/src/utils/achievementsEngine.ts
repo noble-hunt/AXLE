@@ -28,9 +28,25 @@ const mapCategoryToMovementCategory = (category: Category): MovementCategory | n
       return MovementCategory.GYMNASTICS;
     case Category.CARDIO:
       return MovementCategory.AEROBIC;
+    case Category.CROSSFIT:
+      return MovementCategory.GYMNASTICS; // CrossFit often includes gymnastics movements
+    case Category.HIIT:
+      return MovementCategory.AEROBIC; // HIIT is primarily aerobic/conditioning
+    case Category.STRENGTH:
+      return MovementCategory.BODYBUILDING; // Strength training maps to bodybuilding category
+    case Category.MOBILITY:
+      return MovementCategory.GYMNASTICS; // Mobility work often aligns with gymnastics
     default:
       return null;
   }
+};
+
+// Helper function to convert time string (mm:ss) to seconds for comparison
+const timeToSeconds = (timeStr: string): number => {
+  if (typeof timeStr !== 'string' || !timeStr.includes(':')) return 0;
+  const [minutes, seconds] = timeStr.split(':').map(Number);
+  if (isNaN(minutes) || isNaN(seconds)) return 0;
+  return minutes * 60 + seconds;
 };
 
 // Calculate progress for a specific achievement
@@ -110,13 +126,100 @@ export const calculateAchievementProgress = (
       if (!achievement.movement) return 0;
       
       const movementPRs = prs.filter(pr => pr.movement === achievement.movement);
-      return movementPRs.length;
+      if (movementPRs.length === 0) return 0;
+      
+      // Get the best PR for this movement
+      const bestPR = movementPRs.reduce((best, current) => {
+        if (!best) return current;
+        
+        // For weight-based PRs, higher is better
+        if (achievement.unit === Unit.LBS || achievement.unit === Unit.KG) {
+          const currentValue = convertToLbs(current.value || current.weight, current.unit);
+          const bestValue = convertToLbs(best.value || best.weight, best.unit);
+          return currentValue > bestValue ? current : best;
+        }
+        
+        // For rep-based PRs, higher is better  
+        if (achievement.unit === Unit.REPS) {
+          const currentValue = typeof current.value === 'number' ? current.value : current.reps || 0;
+          const bestValue = typeof best.value === 'number' ? best.value : best.reps || 0;
+          return currentValue > bestValue ? current : best;
+        }
+        
+        // For time-based PRs, lower is better
+        if (achievement.unit === Unit.TIME) {
+          if (typeof current.value === 'string' && typeof best.value === 'string') {
+            return timeToSeconds(current.value) < timeToSeconds(best.value) ? current : best;
+          }
+        }
+        
+        return best;
+      }, movementPRs[0]);
+      
+      if (!bestPR) return 0;
+      
+      // Return actual value achieved for threshold comparison
+      if (achievement.unit === Unit.LBS || achievement.unit === Unit.KG) {
+        return Math.round(convertToLbs(bestPR.value || bestPR.weight, bestPR.unit));
+      }
+      
+      if (achievement.unit === Unit.REPS) {
+        return typeof bestPR.value === 'number' ? bestPR.value : bestPR.reps || 0;
+      }
+      
+      if (achievement.unit === Unit.TIME && typeof bestPR.value === 'string') {
+        // For time achievements, return seconds for comparison with target
+        return timeToSeconds(bestPR.value);
+      }
+      
+      return 0;
     }
 
-    case AchievementType.TIME_BASED:
-    case AchievementType.COMPOUND:
-      // These require custom logic per achievement - return current progress for now
+    case AchievementType.TIME_BASED: {
+      // Find the best time for the specific movement/category
+      if (achievement.movement) {
+        const movementPRs = prs.filter(pr => 
+          pr.movement === achievement.movement && pr.unit === Unit.TIME
+        );
+        
+        if (movementPRs.length === 0) return 0;
+        
+        const bestTime = movementPRs.reduce((best, current) => {
+          if (!best) return current;
+          if (typeof current.value === 'string' && typeof best.value === 'string') {
+            return timeToSeconds(current.value) < timeToSeconds(best.value) ? current : best;
+          }
+          return best;
+        }, movementPRs[0]);
+        
+        if (bestTime && typeof bestTime.value === 'string') {
+          return timeToSeconds(bestTime.value);
+        }
+      }
+      
+      // Fallback to existing progress
       return achievement.progress;
+    }
+
+    case AchievementType.COMPOUND: {
+      // Complex achievements requiring multiple conditions
+      // For now, use manual calculation based on achievement ID
+      
+      switch (achievement.id) {
+        case 'achievement-heavy-hitter': {
+          // "Lift 2,000+ lbs total in Powerlifting PRs"
+          const powerliftingPRs = prs.filter(pr => pr.movementCategory === MovementCategory.POWERLIFTING);
+          const totalWeight = powerliftingPRs.reduce((total, pr) => {
+            return total + convertToLbs(pr.value || pr.weight, pr.unit);
+          }, 0);
+          return Math.round(totalWeight);
+        }
+        
+        default:
+          // Return existing progress for unknown compound achievements
+          return achievement.progress;
+      }
+    }
 
     default:
       return achievement.progress;
@@ -125,7 +228,15 @@ export const calculateAchievementProgress = (
 
 // Check if achievement should be unlocked
 export const shouldUnlockAchievement = (achievement: Achievement, progress: number): boolean => {
-  return !achievement.completed && progress >= achievement.target;
+  if (achievement.completed) return false;
+  
+  // For time-based achievements, lower is better (progress <= target)
+  if (achievement.unit === Unit.TIME || achievement.type === AchievementType.TIME_BASED) {
+    return progress > 0 && progress <= achievement.target;
+  }
+  
+  // For all other achievements, higher is better (progress >= target)
+  return progress >= achievement.target;
 };
 
 // Compute all achievement progress

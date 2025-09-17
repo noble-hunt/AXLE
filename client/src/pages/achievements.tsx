@@ -2,7 +2,7 @@ import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Trophy, Star, Target, Flame, Award, Calendar, Medal, Crown, Zap, Users } from "lucide-react"
 import { useAppStore } from "@/store/useAppStore"
-import { AchievementCategory, Achievement } from "@/types"
+import { AchievementCategory, Achievement, Unit } from "@/types"
 import { useEffect, useState } from "react"
 
 export default function Achievements() {
@@ -79,10 +79,65 @@ export default function Achievements() {
     }
   }
 
+  // Helper function to safely format dates
+  const formatDate = (date: Date | string | undefined): string => {
+    if (!date) return 'Recently'
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date
+      if (isNaN(dateObj.getTime())) return 'Recently'
+      return dateObj.toLocaleDateString()
+    } catch {
+      return 'Recently'
+    }
+  }
+
+  // Helper function to safely calculate progress percentage
+  const getProgressPercentage = (progress: number, target: number, unit?: Unit): number => {
+    if (!progress || !target || target === 0) return 0
+    
+    // For time-based achievements, lower is better - invert calculation
+    if (unit === Unit.TIME) {
+      // If progress <= target, we've achieved the goal (100%)
+      if (progress <= target) return 100;
+      // Otherwise, show partial progress: target/progress * 100
+      const percentage = Math.round((target / progress) * 100)
+      return isNaN(percentage) ? 0 : Math.min(percentage, 100)
+    }
+    
+    // For all other achievements, higher is better
+    const percentage = Math.round((progress / target) * 100)
+    return isNaN(percentage) ? 0 : Math.min(percentage, 100)
+  }
+
+  // Helper function to safely format progress values
+  const formatProgressValue = (value: number | undefined): string => {
+    if (value === undefined || value === null || isNaN(value)) return '0'
+    return value.toString()
+  }
+
+  // Helper function to safely format target values based on unit
+  const formatTargetValue = (value: number, unit?: Unit): string => {
+    if (value === undefined || value === null || isNaN(value)) return '0'
+    
+    // For time-based achievements, convert seconds back to mm:ss format
+    if (unit === Unit.TIME) {
+      const minutes = Math.floor(value / 60)
+      const seconds = value % 60
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`
+    }
+    
+    return value.toString()
+  }
+
   // Render individual achievement
   const renderAchievement = (achievement: Achievement) => {
     const Icon = getIcon(achievement.icon)
     const isConfetti = showConfetti.includes(achievement.id)
+    
+    // Safely get progress values
+    const progress = achievement.progress || 0
+    const target = achievement.target || 1
+    const progressPercentage = getProgressPercentage(progress, target, achievement.unit)
     
     return (
       <Card 
@@ -119,20 +174,25 @@ export default function Achievements() {
               <div className="flex items-center gap-1 mt-2">
                 <Calendar className="w-3 h-3 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">
-                  Completed {achievement.unlockedAt?.toLocaleDateString() || 'Recently'}
+                  Completed {formatDate(achievement.unlockedAt)}
                 </span>
               </div>
-            ) : achievement.progress !== undefined ? (
+            ) : progress >= 0 ? (
               <div className="mt-2">
                 <div className="flex justify-between text-xs text-muted-foreground mb-1">
                   <span>Progress</span>
-                  <span>{achievement.progress}/{achievement.target}</span>
+                  <span>
+                    {formatProgressValue(progress)}/{formatTargetValue(target, achievement.unit)}
+                    {achievement.unit && achievement.unit !== Unit.REPS && (
+                      <span className="ml-1 opacity-70">{achievement.unit}</span>
+                    )}
+                  </span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                   <div 
                     className="bg-primary h-2 rounded-full transition-all duration-500 relative overflow-hidden"
                     style={{ 
-                      width: `${Math.min((achievement.progress / achievement.target) * 100, 100)}%` 
+                      width: `${progressPercentage}%` 
                     }}
                   >
                     {/* Animated progress bar shimmer */}
@@ -141,7 +201,12 @@ export default function Achievements() {
                 </div>
                 {/* Progress percentage text */}
                 <div className="text-xs text-muted-foreground mt-1">
-                  {Math.round((achievement.progress / achievement.target) * 100)}% complete
+                  {progressPercentage}% complete
+                  {achievement.unit === Unit.TIME && progress > 0 && (
+                    <span className="ml-2 opacity-70">
+                      Best: {formatTargetValue(progress, Unit.TIME)}
+                    </span>
+                  )}
                 </div>
               </div>
             ) : null}
