@@ -3,7 +3,7 @@ import type { WorkoutRequest, GeneratedWorkout, WorkoutSet } from "../shared/sch
 import { Category } from "../shared/schema";
 import { generatedWorkoutSchema } from "../shared/schema";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+// Using gpt-4o model for reliable workout generation. Do not change this unless explicitly requested by the user
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
@@ -95,7 +95,7 @@ Create a safe, balanced, and effective workout in strict JSON format matching th
 }
 
 CRITICAL RULES:
-- Respect category constraints (e.g., no PR tracking for Bodybuilding-focused workouts)
+- Respect category constraints and focus on movement patterns appropriate for each category
 - Scale difficulty by intensity level 1-10 (1=very easy, 10=extremely challenging)
 - Respect duration target within ±10% (${Math.round(duration * 0.9)}-${Math.round(duration * 1.1)} minutes)
 - Prefer varied movement patterns compared to recent workouts to prevent overuse
@@ -141,7 +141,7 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
         }
       ],
       response_format: { type: "json_object" },
-      max_completion_tokens: 1500,
+      max_tokens: 1500,
       temperature: 0.7,
     });
 
