@@ -742,20 +742,43 @@ export const useAppStore = create<AppState>()(
         set({ activeWorkout: workout });
       },
       
-      completeWorkout: (id: string, feedback: WorkoutFeedback) => {
-        set((state) => ({
-          workouts: state.workouts.map((workout) =>
-            workout.id === id 
-              ? { 
-                  ...workout, 
-                  completed: true, 
-                  feedback: feedback 
-                } 
-              : workout
-          ),
-        }));
-        // Recompute achievements after workout completion
-        get().recomputeAchievements();
+      completeWorkout: async (id: string, feedback: WorkoutFeedback) => {
+        try {
+          // Update on server first
+          const response = await fetch(`/api/workouts/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              completed: true,
+              feedback: feedback
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to update workout on server');
+          }
+
+          // Update local state
+          set((state) => ({
+            workouts: state.workouts.map((workout) =>
+              workout.id === id 
+                ? { 
+                    ...workout, 
+                    completed: true, 
+                    feedback: feedback 
+                  } 
+                : workout
+            ),
+          }));
+          
+          // Recompute achievements after workout completion
+          get().recomputeAchievements();
+        } catch (error) {
+          console.error('Failed to complete workout:', error);
+          throw error; // Re-throw so the UI can handle it
+        }
       },
 
       // PRs

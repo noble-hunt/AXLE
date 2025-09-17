@@ -54,8 +54,8 @@ export default function WorkoutDetail() {
         completedAt: new Date(),
       }
 
-      // Complete the workout with feedback (we'll need to update the store method)
-      completeWorkout(id as string, feedback)
+      // Complete the workout with feedback (now async)
+      await completeWorkout(id as string, feedback)
 
       toast({
         title: "Workout Completed! 🎉",
@@ -64,6 +64,7 @@ export default function WorkoutDetail() {
 
       setShowCompletionModal(false)
     } catch (error) {
+      console.error('Error completing workout:', error)
       toast({
         title: "Error",
         description: "Failed to complete workout. Please try again.",
