@@ -197,16 +197,41 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
       description: aiResponse.notes || `A ${request.intensity}/10 intensity ${request.category} workout`,
       duration: request.duration,
       intensity: request.intensity,
-      sets: aiResponse.sets?.map((set: any, index: number) => ({
-        id: `ai-set-${Date.now()}-${index}`,
-        exercise: set.description?.split(' ')[0] || `Exercise ${index + 1}`,
-        weight: set.target?.weightKg ? Math.round(set.target.weightKg * 2.205) : undefined, // Convert kg to lbs
-        reps: set.target?.reps || undefined,
-        duration: set.target?.timeSec || undefined,
-        distance: set.target?.distanceM || undefined,
-        restTime: request.intensity >= 7 ? 60 : 90,
-        notes: set.description || `Perform with ${request.intensity}/10 intensity`
-      })) || []
+      sets: aiResponse.sets?.map((set: any, index: number) => {
+        // Improved exercise labeling for better UI display
+        let exerciseName = `Exercise ${index + 1}`;
+        if (set.description) {
+          const desc = set.description.toLowerCase();
+          if (desc.includes('warm-up') || desc.includes('warm up')) {
+            exerciseName = 'Warm-up';
+          } else if (desc.includes('metcon') && desc.includes('rx+')) {
+            exerciseName = 'Metcon (Rx+)';
+          } else if (desc.includes('metcon') && desc.includes('rx')) {
+            exerciseName = 'Metcon (Rx)';
+          } else if (desc.includes('metcon')) {
+            exerciseName = 'Metcon';
+          } else if (desc.includes('cool') || desc.includes('stretch')) {
+            exerciseName = 'Cool Down';
+          } else {
+            // Extract first meaningful word, avoiding common prefixes
+            const words = set.description.split(' ').filter((word: string) => 
+              word.length > 2 && !['the', 'and', 'for', 'with'].includes(word.toLowerCase())
+            );
+            exerciseName = words[0] || `Exercise ${index + 1}`;
+          }
+        }
+        
+        return {
+          id: `ai-set-${Date.now()}-${index}`,
+          exercise: exerciseName,
+          weight: set.target?.weightKg ? Math.round(set.target.weightKg * 2.205) : undefined, // Convert kg to lbs
+          reps: set.target?.reps || undefined,
+          duration: set.target?.timeSec || undefined,
+          distance: set.target?.distanceM || undefined,
+          restTime: request.intensity >= 7 ? 60 : 90,
+          notes: set.description || `Perform with ${request.intensity}/10 intensity`
+        };
+      }) || []
     };
 
     // Validate against schema
@@ -233,14 +258,38 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
 export function generateMockWorkout(request: EnhancedWorkoutRequest): GeneratedWorkout {
   const workoutTemplates = {
     [Category.CROSSFIT]: {
-      name: "CrossFit Hero WOD",
-      description: "High-intensity functional fitness workout",
+      name: '"THE MOCK HERO CHALLENGE"',
+      description: `Warm up
+2:00 cardio machine, increasing speed every :30
+then, 2 rounds of
+5 inchworms
+10 air squats
+7 push ups
+5 jumping pull-ups
+
+Metcon
+"THE MOCK HERO CHALLENGE"
+
+Rx+
+
+5 Rounds For Time
+20 Burpees
+15 Pull-ups @ bodyweight
+25 Air Squats
+10:00 time cap!
+
+Rx
+
+5 Rounds For Time
+15 Burpees
+10 Assisted Pull-ups
+20 Air Squats
+12:00 time cap!`,
       exercises: [
-        { exercise: "Burpees", reps: 15, restTime: 60 },
-        { exercise: "Pull-ups", reps: 10, restTime: 60 },
-        { exercise: "Push-ups", reps: 20, restTime: 60 },
-        { exercise: "Air Squats", reps: 25, restTime: 60 },
-        { exercise: "Mountain Climbers", duration: 30, restTime: 45 }
+        { exercise: "Warm-up", duration: 120, restTime: 0, notes: "2:00 cardio machine, increasing speed every :30" },
+        { exercise: "Dynamic Movements", reps: 2, restTime: 60, notes: "2 rounds of: 5 inchworms, 10 air squats, 7 push ups, 5 jumping pull-ups" },
+        { exercise: "Metcon (Rx+)", reps: 5, duration: 600, restTime: 0, notes: "5 Rounds For Time: 20 Burpees, 15 Pull-ups, 25 Air Squats - 10:00 time cap" },
+        { exercise: "Metcon (Rx)", reps: 5, duration: 720, restTime: 0, notes: "5 Rounds For Time: 15 Burpees, 10 Assisted Pull-ups, 20 Air Squats - 12:00 time cap" }
       ]
     },
     [Category.STRENGTH]: {
