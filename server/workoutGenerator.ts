@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import type { Category, WorkoutRequest, GeneratedWorkout, WorkoutSet } from "../shared/schema";
+import type { WorkoutRequest, GeneratedWorkout, WorkoutSet } from "../shared/schema";
+import { Category } from "../shared/schema";
 import { generatedWorkoutSchema } from "../shared/schema";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
