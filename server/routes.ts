@@ -206,6 +206,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Health check for Supabase environment and connectivity
+  app.get("/api/health/supabase", async (req, res) => {
+    try {
+      const clientEnvPresent = Boolean(
+        process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY
+      );
+      
+      const serverEnvPresent = Boolean(
+        process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+
+      let canQuery = false;
+      if (serverEnvPresent) {
+        try {
+          const { supabaseAdmin } = await import("./lib/supabaseAdmin");
+          await supabaseAdmin.from("workouts").select("id").limit(1);
+          canQuery = true;
+        } catch (error) {
+          canQuery = false;
+        }
+      }
+
+      res.json({
+        clientEnvPresent,
+        serverEnvPresent,
+        canQuery
+      });
+    } catch (error) {
+      res.status(500).json({
+        clientEnvPresent: false,
+        serverEnvPresent: false,
+        canQuery: false
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

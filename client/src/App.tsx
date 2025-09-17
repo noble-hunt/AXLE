@@ -15,6 +15,7 @@ import Achievements from "@/pages/achievements";
 import Connect from "@/pages/connect";
 import Reports from "@/pages/reports";
 import WorkoutGenerate from "@/pages/workout-generate";
+import DevEnv from "@/pages/dev-env";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/connect" component={Connect} />
       <Route path="/reports" component={Reports} />
       <Route path="/generate-workout" component={WorkoutGenerate} />
+      <Route path="/dev/env" component={DevEnv} />
       <Route component={NotFound} />
     </Switch>
   );
