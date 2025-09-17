@@ -73,8 +73,13 @@ STRUCTURE:
 
 FORMATTING RULES:
 - Use CrossFit terminology: "AMRAP", "For Time", "Rounds", "Double Unders", "Single Unders"
-- Weight notation: @ 50/35# (male/female weights with # symbol)
-- Kettlebell weights: @ 20/16kg 
+- EXERCISE SPECIFICATIONS AND WEIGHTS:
+  * Barbell Thrusters: Rx+ @ 95/65#, Rx @ 65/45#
+  * Dumbbell Thrusters: Rx+ @ 50/35#, Rx @ 35/25# (specify as "Double Dumbbell Thrusters")
+  * Deadlifts: Rx+ @ 185/135#, Rx @ 135/95#
+  * Wall Balls: Rx+ @ 20/14# to 10ft, Rx @ 14/10# to 9ft
+  * Kettlebells: Rx+ @ 24/16kg, Rx @ 20/12kg
+- Always specify exercise variations clearly (e.g., "Barbell Back Squats", "Double Dumbbell Thrusters")
 - Include time caps when appropriate (e.g., "15:00 time cap!")
 - Use proper rep schemes like "3-6-9-12..." for ascending ladders
 - Include specific movement notes with asterisks for clarification
@@ -82,7 +87,7 @@ FORMATTING RULES:
 EXAMPLE FORMAT TO FOLLOW:
 {
   "title": "\"CREATIVE WORKOUT NAME IN QUOTES\"",
-  "notes": "Warm up\\n2:00 cardio machine, increasing speed every :30\\nthen, 2 rounds of\\n5 [movement]\\n7 [movement]\\n10 [movement]\\n\\nMetcon\\n\"CREATIVE NAME\"\\n\\nRx+\\n\\n[Workout structure with proper formatting]\\n\\nRx\\n\\n[Scaled version with lighter weights/easier movements]",
+  "notes": "Warm up\\n2:00 cardio machine, increasing speed every :30\\nthen, 2 rounds of\\n5 inchworms\\n7 push ups\\n10 bodyweight squats\\n5 jumping pull-ups\\n\\nMetcon\\n\"CREATIVE NAME\"\\n\\nRx+\\n21-15-9\\nDouble Dumbbell Thrusters @ 50/35#\\nChest-to-Bar Pull-Ups\\nDouble Unders x 50 each round\\n\\nRx\\n21-15-9\\nDouble Dumbbell Thrusters @ 35/25#\\nPull-Ups\\nSingle Unders x 50 each round",
   "sets": [
     {
       "description": "Warm-up: 2:00 cardio machine, increasing speed every :30",
@@ -93,11 +98,11 @@ EXAMPLE FORMAT TO FOLLOW:
       "target": { "reps": 2 }
     },
     {
-      "description": "Metcon: [CREATIVE NAME] - Rx+ version with specific format",
+      "description": "Metcon: \"CREATIVE NAME\"\\n\\nRx+\\n21-15-9\\nDouble Dumbbell Thrusters @ 50/35#\\nChest-to-Bar Pull-Ups\\nDouble Unders x 50 each round",
       "target": { "timeSec": 900, "reps": 6 }
     },
     {
-      "description": "Rx scaled version with modifications",
+      "description": "Rx\\n21-15-9\\nDouble Dumbbell Thrusters @ 35/25#\\nPull-Ups\\nSingle Unders x 50 each round",
       "target": { "timeSec": 900, "reps": 6 }
     }
   ]
@@ -271,25 +276,23 @@ Metcon
 "THE MOCK HERO CHALLENGE"
 
 Rx+
-
-5 Rounds For Time
-20 Burpees
-15 Pull-ups @ bodyweight
-25 Air Squats
+21-15-9
+Double Dumbbell Thrusters @ 50/35#
+Chest-to-Bar Pull-ups
+Double Unders x 30 each round
 10:00 time cap!
 
 Rx
-
-5 Rounds For Time
-15 Burpees
-10 Assisted Pull-ups
-20 Air Squats
+21-15-9
+Double Dumbbell Thrusters @ 35/25#
+Pull-ups
+Single Unders x 30 each round
 12:00 time cap!`,
       exercises: [
         { exercise: "Warm-up", duration: 120, restTime: 0, notes: "2:00 cardio machine, increasing speed every :30" },
         { exercise: "Dynamic Movements", reps: 2, restTime: 60, notes: "2 rounds of: 5 inchworms, 10 air squats, 7 push ups, 5 jumping pull-ups" },
-        { exercise: "Metcon (Rx+)", reps: 5, duration: 600, restTime: 0, notes: "5 Rounds For Time: 20 Burpees, 15 Pull-ups, 25 Air Squats - 10:00 time cap" },
-        { exercise: "Metcon (Rx)", reps: 5, duration: 720, restTime: 0, notes: "5 Rounds For Time: 15 Burpees, 10 Assisted Pull-ups, 20 Air Squats - 12:00 time cap" }
+        { exercise: "Metcon (Rx+)", reps: 6, duration: 600, restTime: 0, notes: "Metcon: \"THE MOCK HERO CHALLENGE\"\n\nRx+\n21-15-9\nDouble Dumbbell Thrusters @ 50/35#\nChest-to-Bar Pull-ups\nDouble Unders x 30 each round\n10:00 time cap!" },
+        { exercise: "Metcon (Rx)", reps: 6, duration: 720, restTime: 0, notes: "Rx\n21-15-9\nDouble Dumbbell Thrusters @ 35/25#\nPull-ups\nSingle Unders x 30 each round\n12:00 time cap!" }
       ]
     },
     [Category.STRENGTH]: {
