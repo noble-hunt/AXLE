@@ -534,14 +534,35 @@ const seedAchievements: Achievement[] = [
 
 const seedWearables: WearableConnection[] = [
   {
+    id: 'wearable-apple-health',
+    name: 'Apple Health',
+    type: 'smartphone',
+    brand: 'Apple',
+    model: 'Health App',
+    connected: false,
+    capabilities: ['heart_rate', 'steps', 'sleep_tracking', 'workout_tracking', 'health_records'],
+    createdAt: new Date('2024-01-01'),
+  },
+  {
     id: 'wearable-apple-watch',
     name: 'Apple Watch Series 9',
     type: 'smartwatch',
     brand: 'Apple',
     model: 'Series 9',
     connected: false,
-    capabilities: ['heart_rate', 'gps', 'workout_tracking', 'sleep_tracking'],
+    capabilities: ['heart_rate', 'gps', 'workout_tracking', 'sleep_tracking', 'ecg'],
     batteryLevel: 85,
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'wearable-garmin',
+    name: 'Garmin Fenix 7',
+    type: 'smartwatch',
+    brand: 'Garmin',
+    model: 'Fenix 7',
+    connected: false,
+    capabilities: ['heart_rate', 'gps', 'workout_tracking', 'sleep_tracking', 'body_battery'],
+    batteryLevel: 92,
     createdAt: new Date('2024-01-01'),
   },
   {
@@ -556,24 +577,25 @@ const seedWearables: WearableConnection[] = [
     createdAt: new Date('2024-01-01'),
   },
   {
-    id: 'wearable-polar',
-    name: 'Polar H10',
-    type: 'heart_rate_monitor',
-    brand: 'Polar',
-    model: 'H10',
+    id: 'wearable-fitbit',
+    name: 'Fitbit Charge 6',
+    type: 'fitness_tracker',
+    brand: 'Fitbit',
+    model: 'Charge 6',
     connected: false,
-    capabilities: ['heart_rate', 'hrv'],
+    capabilities: ['heart_rate', 'steps', 'sleep_tracking', 'workout_tracking', 'stress'],
+    batteryLevel: 78,
     createdAt: new Date('2024-01-01'),
   },
   {
-    id: 'wearable-iphone',
-    name: 'iPhone 15 Pro',
-    type: 'smartphone',
-    brand: 'Apple',
-    model: '15 Pro',
+    id: 'wearable-oura',
+    name: 'Oura Ring Gen3',
+    type: 'fitness_tracker',
+    brand: 'Oura',
+    model: 'Gen3',
     connected: false,
-    capabilities: ['step_counting', 'workout_tracking', 'gps'],
-    batteryLevel: 73,
+    capabilities: ['heart_rate', 'hrv', 'recovery', 'sleep_tracking', 'temperature'],
+    batteryLevel: 45,
     createdAt: new Date('2024-01-01'),
   },
 ];
@@ -895,6 +917,90 @@ export const useAppStore = create<AppState>()(
       
       getConnectedWearables: () => {
         return get().wearables.filter((wearable) => wearable.connected);
+      },
+
+      syncWearableData: (id: string) => {
+        const state = get();
+        
+        // Update wearable lastSync timestamp
+        set({
+          wearables: state.wearables.map((wearable) =>
+            wearable.id === id ? { ...wearable, lastSync: new Date() } : wearable
+          ),
+        });
+        
+        // Generate mock health data based on wearable type
+        const wearable = state.wearables.find((w) => w.id === id);
+        if (!wearable || !wearable.connected) return;
+        
+        // Generate realistic mock metrics based on device capabilities
+        const mockMetrics = {
+          heartRate: {
+            resting: Math.floor(Math.random() * 20) + 50, // 50-70
+            max: Math.floor(Math.random() * 30) + 180, // 180-210
+            zones: { 
+              zone1: Math.floor(Math.random() * 15) + 120,
+              zone2: Math.floor(Math.random() * 15) + 140,
+              zone3: Math.floor(Math.random() * 15) + 160,
+              zone4: Math.floor(Math.random() * 15) + 175,
+              zone5: Math.floor(Math.random() * 15) + 190
+            },
+          },
+          steps: Math.floor(Math.random() * 5000) + 7000, // 7000-12000
+          calories: Math.floor(Math.random() * 1000) + 2200, // 2200-3200
+          sleep: {
+            duration: Math.round((Math.random() * 3 + 6) * 10) / 10, // 6.0-9.0 hours
+            quality: ['poor', 'fair', 'good', 'excellent'][Math.floor(Math.random() * 4)] as 'poor' | 'fair' | 'good' | 'excellent',
+            deepSleep: Math.round((Math.random() * 1.5 + 1.0) * 10) / 10, // 1.0-2.5 hours
+          },
+          recovery: {
+            score: Math.floor(Math.random() * 40) + 60, // 60-100
+            hrv: Math.floor(Math.random() * 20) + 35, // 35-55
+          },
+        };
+        
+        // Update or create today's health report with new metrics
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const existingReportIndex = state.reports.findIndex(
+          (report) => {
+            const reportDate = new Date(report.date);
+            reportDate.setHours(0, 0, 0, 0);
+            return reportDate.getTime() === today.getTime();
+          }
+        );
+        
+        if (existingReportIndex >= 0) {
+          // Update existing report
+          set({
+            reports: state.reports.map((report, index) =>
+              index === existingReportIndex
+                ? { ...report, metrics: mockMetrics }
+                : report
+            ),
+          });
+        } else {
+          // Create new report for today
+          const newReport: HealthReport = {
+            id: generateId(),
+            date: today,
+            metrics: mockMetrics,
+            workoutsCompleted: Math.floor(Math.random() * 2), // 0-1
+            totalWorkoutTime: Math.floor(Math.random() * 60), // 0-60 minutes
+            avgIntensity: Math.floor(Math.random() * 5) + 5, // 5-10
+            newPRs: Math.floor(Math.random() * 2), // 0-1
+            streakDays: state.streak || 0,
+            weeklyGoalProgress: Math.floor(Math.random() * 30) + 70, // 70-100%
+            insights: [
+              `Data synced from ${wearable.name}`,
+              'Your metrics look good today',
+              'Keep up the great work!',
+            ],
+            createdAt: new Date(),
+          };
+          set({ reports: [newReport, ...state.reports] });
+        }
       },
 
       // Reports

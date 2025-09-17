@@ -389,6 +389,7 @@ export interface WearableState {
   connectWearable: (id: string) => void;
   disconnectWearable: (id: string) => void;
   getConnectedWearables: () => WearableConnection[];
+  syncWearableData: (id: string) => void;
 }
 
 export interface ReportState {

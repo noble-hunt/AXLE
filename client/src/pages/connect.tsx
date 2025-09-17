@@ -1,11 +1,15 @@
+import { useState } from "react"
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart } from "lucide-react"
+import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, CheckCircle } from "lucide-react"
 import { useAppStore } from "@/store/useAppStore"
+import { useToast } from "@/hooks/use-toast"
 
 export default function Connect() {
-  const { wearables, connectWearable, disconnectWearable } = useAppStore()
+  const { wearables, connectWearable, disconnectWearable, syncWearableData } = useAppStore()
+  const { toast } = useToast()
+  const [syncingIds, setSyncingIds] = useState<string[]>([])
   
   // Debug readout
   console.log('Connect Page State:', { 
@@ -14,14 +18,46 @@ export default function Connect() {
     wearableTypes: wearables.map(w => ({ name: w.name, type: w.type, connected: w.connected, brand: w.brand }))
   })
   
-  // Map wearable type to icon
-  const getIcon = (type: string) => {
+  // Map wearable brand/name to icon
+  const getIcon = (name: string, type: string) => {
+    if (name.includes('Apple Health')) return Smartphone
+    if (name.includes('Apple Watch')) return Watch
+    if (name.includes('Garmin')) return Watch
+    if (name.includes('WHOOP')) return Heart
+    if (name.includes('Fitbit')) return Heart
+    if (name.includes('Oura')) return Heart
+    
+    // Fallback to type-based icons
     switch (type) {
       case 'smartwatch': return Watch
       case 'fitness_tracker': return Heart
       case 'heart_rate_monitor': return Heart
       case 'smartphone': return Smartphone
       default: return Wifi
+    }
+  }
+
+  const handleSync = async (wearableId: string, wearableName: string) => {
+    setSyncingIds(prev => [...prev, wearableId])
+    
+    try {
+      // Simulate sync delay
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      syncWearableData(wearableId)
+      
+      toast({
+        title: "Sync Complete",
+        description: `Successfully synced data from ${wearableName}`,
+      })
+    } catch (error) {
+      toast({
+        title: "Sync Failed", 
+        description: "Unable to sync data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setSyncingIds(prev => prev.filter(id => id !== wearableId))
     }
   }
   
@@ -51,7 +87,7 @@ export default function Connect() {
         <SectionTitle title="App Integrations" />
         
         {wearables.map((wearable) => {
-          const Icon = getIcon(wearable.type)
+          const Icon = getIcon(wearable.name, wearable.type)
           return (
             <Card key={wearable.id} className="p-4 card-shadow border border-border" data-testid={`wearable-${wearable.id}`}>
               <div className="flex items-center justify-between">
@@ -77,9 +113,30 @@ export default function Connect() {
                         variant="outline" 
                         size="sm" 
                         className="rounded-xl" 
+                        data-testid={`sync-${wearable.id}`}
+                        onClick={() => handleSync(wearable.id, wearable.name)}
+                        disabled={syncingIds.includes(wearable.id)}
+                      >
+                        {syncingIds.includes(wearable.id) ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                            Syncing...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Sync Now
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="rounded-xl" 
                         data-testid={`disconnect-${wearable.id}`}
                         onClick={() => disconnectWearable(wearable.id)}
                       >
+                        <CheckCircle className="w-3 h-3 mr-1" />
                         Connected
                       </Button>
                     </>
