@@ -1,0 +1,22 @@
+#!/bin/bash
+# scripts/db-print.sh - Print database migration instructions
+
+echo "🗄️  Database Migration Instructions"
+echo ""
+echo "Migration File: $(pwd)/supabase/migrations/001_init.sql"
+echo ""
+echo "To run this migration:"
+echo "1. Open your Supabase project dashboard"
+echo "2. Go to the SQL Editor"
+echo "3. Copy and paste the contents of the migration file above"
+echo "4. Click 'Run' to execute the migration"
+echo ""
+echo "This will create the following tables with Row Level Security enabled:"
+echo "  • profiles (user profiles)"
+echo "  • workouts (workout data and completion status)"  
+echo "  • prs (personal records by category and movement)"
+echo "  • achievements (user achievements and progress)"
+echo "  • wearable_connections (fitness tracker integrations)"
+echo "  • health_reports (daily health summaries)"
+echo ""
+echo "Note: All tables have proper RLS policies that restrict access to the authenticated user's own data."

@@ -242,6 +242,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEMPORARY TEST ROUTE for DAL verification
+  app.get("/api/test/dal", async (req, res) => {
+    try {
+      // Import DAL methods
+      const { insertWorkout, listWorkouts } = await import("./dal/workouts");
+      
+      console.log("🧪 Testing DAL connectivity...");
+      
+      // Test user ID for demonstration
+      const testUserId = "00000000-0000-0000-0000-000000000000"; // Test UUID
+      
+      // Test inserting a workout
+      const testWorkout = await insertWorkout({
+        userId: testUserId,
+        workout: {
+          title: "DAL Test Workout",
+          request: { category: "Test", duration: 30 },
+          sets: { exercise1: { reps: 10, weight: 100 } },
+          notes: "Test workout from DAL",
+          completed: false
+        }
+      });
+      
+      console.log(`✅ Inserted test workout with ID: ${testWorkout.id}`);
+      
+      // Test listing workouts
+      const workouts = await listWorkouts(testUserId, { limit: 5 });
+      console.log(`✅ Listed ${workouts.length} workouts for user`);
+      
+      res.json({
+        message: "DAL test successful",
+        testWorkout: {
+          id: testWorkout.id,
+          title: testWorkout.title,
+          created_at: testWorkout.created_at
+        },
+        totalWorkouts: workouts.length
+      });
+      
+    } catch (error) {
+      console.error("❌ DAL test failed:", error);
+      res.status(500).json({ 
+        message: "DAL test failed", 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
