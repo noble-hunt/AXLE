@@ -1,13 +1,18 @@
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
+import { LoadingSkeleton } from "@/components/ui/loading-state"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Trophy, Star, Target, Flame, Award, Calendar, Medal, Crown, Zap, Users } from "lucide-react"
 import { useAppStore } from "@/store/useAppStore"
 import { AchievementCategory, Achievement, Unit } from "@/types"
 import { useEffect, useState } from "react"
+import { useLocation } from "wouter"
 
 export default function Achievements() {
   const { achievements, recomputeAchievements } = useAppStore()
   const [showConfetti, setShowConfetti] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [, setLocation] = useLocation()
   
   // Trigger achievements recomputation on page load
   useEffect(() => {
@@ -17,6 +22,10 @@ export default function Achievements() {
       // Clear confetti after animation
       setTimeout(() => setShowConfetti([]), 3000)
     }
+    
+    // Simulate loading for better UX
+    const timer = setTimeout(() => setIsLoading(false), 800)
+    return () => clearTimeout(timer)
   }, [recomputeAchievements])
   
   // Debug readout
@@ -250,16 +259,28 @@ export default function Achievements() {
 
       {/* Achievement Stats */}
       <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="completed-achievements">
-          <Trophy className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{completedCount}</p>
-          <p className="text-xs text-muted-foreground">Completed</p>
+        <Card className="p-4 card-shadow border border-border text-center card-gradient" data-testid="completed-achievements">
+          {isLoading ? (
+            <LoadingSkeleton rows={1} />
+          ) : (
+            <>
+              <Trophy className="w-6 h-6 text-primary mx-auto mb-2" />
+              <p className="text-lg font-bold text-foreground">{completedCount}</p>
+              <p className="text-xs text-muted-foreground">Completed</p>
+            </>
+          )}
         </Card>
         
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="total-achievements">
-          <Target className="w-6 h-6 text-chart-2 mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{totalCount}</p>
-          <p className="text-xs text-muted-foreground">Total</p>
+        <Card className="p-4 card-shadow border border-border text-center card-gradient" data-testid="total-achievements">
+          {isLoading ? (
+            <LoadingSkeleton rows={1} />
+          ) : (
+            <>
+              <Target className="w-6 h-6 text-chart-2 mx-auto mb-2" />
+              <p className="text-lg font-bold text-foreground">{totalCount}</p>
+              <p className="text-xs text-muted-foreground">Total</p>
+            </>
+          )}
         </Card>
       </div>
 
@@ -308,14 +329,16 @@ export default function Achievements() {
       )}
 
       {/* Empty state */}
-      {achievements.length === 0 && (
-        <div className="text-center py-12">
-          <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground">No Achievements Yet</h3>
-          <p className="text-muted-foreground">
-            Complete workouts and log PRs to unlock achievements!
-          </p>
-        </div>
+      {!isLoading && achievements.length === 0 && (
+        <EmptyState
+          icon={Trophy}
+          title="No achievements yet"
+          description="Complete workouts and log PRs to unlock achievements and track your fitness journey!"
+          actionLabel="Start First Workout"
+          onAction={() => setLocation('/workout')}
+          secondaryActionLabel="View Personal Records"
+          onSecondaryAction={() => setLocation('/prs')}
+        />
       )}
     </>
   )

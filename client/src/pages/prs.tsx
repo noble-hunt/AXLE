@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, TrendingUp, Calendar, Target, Dumbbell } from "lucide-react"
+import { LoadingState, LoadingSkeleton } from "@/components/ui/loading-state"
+import { EmptyState } from "@/components/ui/empty-state"
+import { useToast } from "@/hooks/use-toast"
+import { Trophy, TrendingUp, Calendar, Target, Dumbbell, Plus } from "lucide-react"
 import { useAppStore } from "@/store/useAppStore"
 import { MovementCategory, getMovementsByCategory, Movement } from '../types'
 import { MovementCard } from '@/components/common/movement-card'
@@ -10,10 +13,18 @@ import { AddPRModal } from '@/components/common/add-pr-modal'
 
 export default function PRs() {
   const { prs: personalRecords, getPRsByCategory } = useAppStore()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<MovementCategory>(MovementCategory.POWERLIFTING)
   const [isAddPRModalOpen, setIsAddPRModalOpen] = useState(false)
   const [selectedMovement, setSelectedMovement] = useState<Movement | undefined>()
   const [selectedCategory, setSelectedCategory] = useState<MovementCategory | undefined>()
+  const [isLoading, setIsLoading] = useState(true)
+  
+  // Simulate loading state for better UX
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 700)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Calculate stats
   const totalPRs = personalRecords.length
@@ -49,15 +60,33 @@ export default function PRs() {
   }
 
   const renderMovementsForCategory = (category: MovementCategory) => {
+    if (isLoading) {
+      return (
+        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="p-4 card-shadow border border-border">
+              <LoadingSkeleton rows={3} />
+            </Card>
+          ))}
+        </div>
+      )
+    }
+    
     const movements = getMovementsByCategory(category)
     
     if (movements.length === 0) {
       return (
-        <div className="text-center py-12">
-          <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground">No movements available</h3>
-          <p className="text-muted-foreground">This category doesn't have movements defined yet.</p>
-        </div>
+        <EmptyState
+          icon={Target}
+          title="No movements available"
+          description={`This ${category} category doesn't have movements defined yet. Check back soon for updates!`}
+          actionLabel="Add Custom PR"
+          onAction={() => {
+            setSelectedMovement(undefined)
+            setSelectedCategory(category)
+            setIsAddPRModalOpen(true)
+          }}
+        />
       )
     }
 
@@ -81,27 +110,55 @@ export default function PRs() {
 
       {/* PR Stats Overview */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="total-prs">
-          <Trophy className="w-6 h-6 text-destructive mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{totalPRs}</p>
-          <p className="text-xs text-muted-foreground">Total PRs</p>
+        <Card className="p-4 card-shadow border border-border text-center card-gradient" data-testid="total-prs">
+          {isLoading ? (
+            <LoadingSkeleton rows={1} />
+          ) : (
+            <>
+              <Trophy className="w-6 h-6 text-destructive mx-auto mb-2" />
+              <p className="text-lg font-bold text-foreground">{totalPRs}</p>
+              <p className="text-xs text-muted-foreground">Total PRs</p>
+            </>
+          )}
         </Card>
         
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="recent-prs">
-          <TrendingUp className="w-6 h-6 text-chart-2 mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{recentPRs}</p>
-          <p className="text-xs text-muted-foreground">This Month</p>
+        <Card className="p-4 card-shadow border border-border text-center card-gradient" data-testid="recent-prs">
+          {isLoading ? (
+            <LoadingSkeleton rows={1} />
+          ) : (
+            <>
+              <TrendingUp className="w-6 h-6 text-chart-2 mx-auto mb-2" />
+              <p className="text-lg font-bold text-foreground">{recentPRs}</p>
+              <p className="text-xs text-muted-foreground">This Month</p>
+            </>
+          )}
         </Card>
 
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="category-prs">
-          <Dumbbell className="w-6 h-6 text-chart-3 mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{getPRsByCategory(activeTab).length}</p>
-          <p className="text-xs text-muted-foreground">{activeTab} PRs</p>
+        <Card className="p-4 card-shadow border border-border text-center card-gradient" data-testid="category-prs">
+          {isLoading ? (
+            <LoadingSkeleton rows={1} />
+          ) : (
+            <>
+              <Dumbbell className="w-6 h-6 text-chart-3 mx-auto mb-2" />
+              <p className="text-lg font-bold text-foreground">{getPRsByCategory(activeTab).length}</p>
+              <p className="text-xs text-muted-foreground">{activeTab} PRs</p>
+            </>
+          )}
         </Card>
       </div>
 
       {/* Tabbed Movement Categories */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as MovementCategory)}>
+      <Tabs value={activeTab} onValueChange={(value) => {
+        try {
+          setActiveTab(value as MovementCategory)
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to switch category. Please try again.",
+            variant: "destructive"
+          })
+        }
+      }}>
         <TabsList className="grid w-full grid-cols-5" data-testid="tabs-movement-categories">
           <TabsTrigger value={MovementCategory.POWERLIFTING} data-testid="tab-powerlifting">
             Powerlifting
@@ -150,14 +207,19 @@ export default function PRs() {
       />
 
       {/* Empty State (shown when no PRs at all) */}
-      {totalPRs === 0 && (
-        <div className="text-center space-y-4 py-12">
-          <Trophy className="w-12 h-12 text-muted-foreground mx-auto" />
-          <h3 className="text-lg font-semibold text-foreground">No PRs yet</h3>
-          <p className="text-muted-foreground">
-            Start tracking your personal records by selecting a movement and adding your first PR!
-          </p>
-        </div>
+      {!isLoading && totalPRs === 0 && (
+        <EmptyState
+          icon={Trophy}
+          title="No personal records yet"
+          description="Start tracking your personal records to monitor your strength gains and celebrate your achievements!"
+          actionLabel="Add First PR"
+          onAction={() => {
+            setSelectedMovement(undefined)
+            setSelectedCategory(MovementCategory.POWERLIFTING)
+            setIsAddPRModalOpen(true)
+          }}
+          className="my-12"
+        />
       )}
     </>
   )

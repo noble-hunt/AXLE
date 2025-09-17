@@ -39,7 +39,7 @@
   --font-sans: 'Space Grotesk', sans-serif;
   --font-serif: 'Geist', sans-serif;
   --font-mono: 'Geist Mono', monospace;
-  --radius: 0rem;
+  --radius: 1rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow-sm: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
@@ -114,12 +114,32 @@
 }
 
 @layer utilities {
+  /* SwiftUI-inspired card shadows */
   .card-shadow {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .card-shadow:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
   }
 
   .dark .card-shadow {
-    box-shadow: 0 1px 3px rgba(255, 255, 255, 0.05), 0 1px 2px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .dark .card-shadow:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+
+  /* SwiftUI-like gradient backgrounds */
+  .card-gradient {
+    background: linear-gradient(135deg, var(--card) 0%, var(--muted) 100%);
+  }
+
+  .primary-gradient {
+    background: linear-gradient(135deg, var(--primary) 0%, hsl(96, 85%, 90%) 100%);
   }
 
   .chart-container {
@@ -127,7 +147,18 @@
     border-radius: var(--radius);
   }
 
-  /* Shimmer animation for progress bars */
+  /* Mobile-first spacing */
+  .mobile-padding {
+    padding: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .mobile-padding {
+      padding: 1.5rem;
+    }
+  }
+
+  /* Shimmer animation for loading states */
   @keyframes shimmer {
     0% {
       transform: translateX(-100%);
@@ -139,5 +170,32 @@
 
   .animate-shimmer {
     animation: shimmer 2s infinite;
+  }
+
+  /* Pulse animation for loading */
+  @keyframes pulse-subtle {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s infinite;
+  }
+
+  /* Better focus styles for accessibility */
+  .focus-ring:focus {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius);
+  }
+
+  /* SwiftUI-like button styles */
+  .button-pressed:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease-in-out;
   }
 }
