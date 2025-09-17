@@ -1,3 +1,5 @@
+create extension if not exists pgcrypto; -- needed for gen_random_uuid()
+
 -- PROFILES
 create table if not exists public.profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
