@@ -33,19 +33,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // Show loading while redirecting if not authenticated
+  // Redirect immediately if not authenticated - no loading screen
   if (!user || !session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-          <div>
-            <h2 className="text-lg font-semibold">Redirecting...</h2>
-            <p className="text-muted-foreground text-sm">Taking you to login</p>
-          </div>
-        </div>
-      </div>
-    );
+    setLocation("/auth/login");
+    return null;
   }
 
   return <>{children}</>;
