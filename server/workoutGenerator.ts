@@ -61,6 +61,48 @@ ${lastWorkouts.slice(0, 3).map((workout: any) =>
 - Muscle Soreness: ${todaysReport.soreness}/10`
     : "No wellness data available for today.";
 
+  // CrossFit-specific instructions
+  const crossfitInstructions = category === Category.CROSSFIT ? `
+CROSSFIT WORKOUT REQUIREMENTS:
+You must research authentic CrossFit WODs and create a workout that follows these EXACT formatting rules:
+
+STRUCTURE:
+1. WARM-UP SECTION: Always start with "2:00 cardio machine, increasing speed every :30" followed by "then, 2 rounds of" and 3-5 specific movements
+2. METCON SECTION: Must have a creative, fun name in ALL CAPS and quotes (examples: "THE KRISS KROSS ROCKY ROAD", "BARBED WIRE CHARCUTERIE BOARD")
+3. TWO SCALING OPTIONS: Rx+ (advanced) and Rx (scaled down version with lighter weights, easier movements, or modified reps)
+
+FORMATTING RULES:
+- Use CrossFit terminology: "AMRAP", "For Time", "Rounds", "Double Unders", "Single Unders"
+- Weight notation: @ 50/35# (male/female weights with # symbol)
+- Kettlebell weights: @ 20/16kg 
+- Include time caps when appropriate (e.g., "15:00 time cap!")
+- Use proper rep schemes like "3-6-9-12..." for ascending ladders
+- Include specific movement notes with asterisks for clarification
+
+EXAMPLE FORMAT TO FOLLOW:
+{
+  "title": "\"CREATIVE WORKOUT NAME IN QUOTES\"",
+  "notes": "Warm up\\n2:00 cardio machine, increasing speed every :30\\nthen, 2 rounds of\\n5 [movement]\\n7 [movement]\\n10 [movement]\\n\\nMetcon\\n\"CREATIVE NAME\"\\n\\nRx+\\n\\n[Workout structure with proper formatting]\\n\\nRx\\n\\n[Scaled version with lighter weights/easier movements]",
+  "sets": [
+    {
+      "description": "Warm-up: 2:00 cardio machine, increasing speed every :30",
+      "target": { "timeSec": 120 }
+    },
+    {
+      "description": "Then, 2 rounds of: 5 inchworms, 7 push ups, 10 bodyweight squats, 5 jumping pull-ups",
+      "target": { "reps": 2 }
+    },
+    {
+      "description": "Metcon: [CREATIVE NAME] - Rx+ version with specific format",
+      "target": { "timeSec": 900, "reps": 6 }
+    },
+    {
+      "description": "Rx scaled version with modifications",
+      "target": { "timeSec": 900, "reps": 6 }
+    }
+  ]
+}` : '';
+
   return `You are AXLE, an expert fitness planner with 20+ years of multi-disciplinary experience in all fields of physical fitness and athletic performance.
 
 WORKOUT REQUEST:
@@ -74,6 +116,7 @@ ${prContext}
 ${workoutContext}
 
 ${reportContext}
+${crossfitInstructions}
 
 INSTRUCTIONS:
 Create a safe, balanced, and effective workout in strict JSON format matching this exact structure:
@@ -101,8 +144,7 @@ CRITICAL RULES:
 - Prefer varied movement patterns compared to recent workouts to prevent overuse
 - If risky combinations detected (e.g., heavy spinal loading after max deadlifts), adjust to safer alternatives
 - Consider wellness metrics: low energy/sleep = easier workout, high soreness = avoid affected muscle groups
-- Include proper warm-up and cool-down exercises
-- Use metric units (kg for weight, meters for distance, seconds for time)
+- Use metric units (kg for weight, meters for distance, seconds for time) for non-CrossFit categories
 - Provide realistic weights and targets based on recent PR context
 
 Return ONLY the JSON object. No markdown formatting, explanations, or additional text.`;
