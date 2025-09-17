@@ -2,6 +2,11 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
+// Server startup guard - ensure required environment variables are present
+["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].forEach((k) => {
+  if (!process.env[k]) throw new Error(`Missing required server env: ${k}`);
+});
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
