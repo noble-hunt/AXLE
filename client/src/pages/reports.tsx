@@ -15,8 +15,7 @@ import {
   Heart,
   Activity,
   Moon,
-  Lightbulb,
-  AlertCircle
+  Lightbulb
 } from "lucide-react"
 
 export default function Reports() {
@@ -131,7 +130,7 @@ export default function Reports() {
       {/* Health Metrics */}
       {latestReport && (
         <Card className="p-4 card-shadow border border-border">
-          <SectionTitle title="Today's Health Metrics" className="mb-4" />
+          <SectionTitle title={todaysReport ? "Today's Health Metrics" : "Latest Health Metrics"} className="mb-4" />
           
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center" data-testid="resting-hr-metric">
@@ -153,10 +152,10 @@ export default function Reports() {
             </div>
           </div>
           
-          {todaysReport && (
+          {(todaysReport || latestReport) && (
             <div className="mt-4 text-center">
               <p className="text-xs text-muted-foreground">
-                Last updated: {new Date(todaysReport.createdAt).toLocaleTimeString()}
+                Last updated: {new Date(todaysReport?.createdAt || latestReport.createdAt || new Date()).toLocaleTimeString()}
               </p>
             </div>
           )}

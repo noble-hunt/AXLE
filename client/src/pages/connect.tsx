@@ -132,12 +132,12 @@ export default function Connect() {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="rounded-xl" 
+                        className="rounded-xl text-chart-2" 
                         data-testid={`disconnect-${wearable.id}`}
                         onClick={() => disconnectWearable(wearable.id)}
                       >
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        Connected
+                        Disconnect
                       </Button>
                     </>
                   ) : (
