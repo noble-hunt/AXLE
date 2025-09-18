@@ -49,6 +49,15 @@ export default function WorkoutGenerate() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        if (response.status === 401) {
+          throw new Error('Authentication required. Please sign in to generate workouts.')
+        }
+        throw new Error(error.message || `Server error: ${response.status}`)
+      }
+      
       return await response.json()
     },
     onSuccess: (data) => {
@@ -61,11 +70,21 @@ export default function WorkoutGenerate() {
     },
     onError: (error: any) => {
       console.error('Generate workout error:', error)
+      const isAuthError = error.message?.includes('Authentication required') || error.message?.includes('Authorization')
+      
       toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate workout. Please try again.",
+        title: isAuthError ? "Authentication Required" : "Generation Failed",
+        description: isAuthError 
+          ? "Please sign in to generate AI-powered workouts." 
+          : error.message || "Failed to generate workout. Please try again.",
         variant: "destructive",
       })
+      
+      // If auth error, could redirect to login
+      if (isAuthError) {
+        // Could navigate to /auth or show login modal
+        console.log('User needs to authenticate to generate workouts')
+      }
     },
   })
 

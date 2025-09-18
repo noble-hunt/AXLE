@@ -98,8 +98,8 @@ export default function Home() {
   const { workouts, user } = useAppStore()
   const [, setLocation] = useLocation()
 
-  // Get recent workouts (last 3)
-  const recentWorkouts = workouts
+  // Get recent workouts (last 3) - avoid mutating store array
+  const recentWorkouts = [...workouts]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 3)
 
@@ -115,8 +115,10 @@ export default function Home() {
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
     
-    if (diffInHours < 24) {
-      return diffInHours === 0 ? 'Today' : diffInHours === 1 ? 'Yesterday' : `${diffInHours}h ago`
+    if (diffInHours < 1) {
+      return 'Today'
+    } else if (diffInHours < 24) {
+      return `${diffInHours}h ago`
     } else {
       const diffInDays = Math.floor(diffInHours / 24)
       return diffInDays === 1 ? 'Yesterday' : `${diffInDays} days ago`
@@ -139,7 +141,7 @@ export default function Home() {
           <div className="relative z-10 flex items-center justify-between text-white">
             <div>
               <h1 className="text-subheading font-bold">Welcome back!</h1>
-              <h2 className="text-heading font-bold">Athlete</h2>
+              <h2 className="text-heading font-bold">{user?.email?.split('@')[0] || 'Athlete'}</h2>
               <p className="text-body opacity-90 mt-1">Ready to crush your goals?</p>
             </div>
             <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center">
