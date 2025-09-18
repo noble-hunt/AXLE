@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { SiGoogle } from "react-icons/si"
 
 export function TopAppBar() {
@@ -59,6 +60,19 @@ export function TopAppBar() {
 
   const isGoogleLinked = () => {
     return (profile as any)?.providers?.includes("google") || false
+  }
+
+  const getLinkedProviders = () => {
+    return (profile as any)?.providers || []
+  }
+
+  const getProviderIcon = (provider: string) => {
+    switch (provider) {
+      case 'google':
+        return <SiGoogle className="w-3 h-3" />
+      default:
+        return null
+    }
   }
 
   const handleLinkGoogle = async () => {
@@ -121,6 +135,21 @@ export function TopAppBar() {
                   <p className="text-sm text-muted-foreground" data-testid="user-email">
                     {user.email}
                   </p>
+                  {getLinkedProviders().length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {getLinkedProviders().map((provider: string) => (
+                        <Badge 
+                          key={provider} 
+                          variant="secondary" 
+                          className="text-xs flex items-center gap-1 px-2 py-1"
+                          data-testid={`badge-provider-${provider}`}
+                        >
+                          {getProviderIcon(provider)}
+                          <span className="capitalize">{provider}</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <DropdownMenuSeparator />
