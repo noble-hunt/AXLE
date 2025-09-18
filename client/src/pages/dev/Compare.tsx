@@ -2,10 +2,16 @@ import { useState } from "react";
 import { Card } from "@/components/swift/card";
 import { Button } from "@/components/swift/button";
 import { Field } from "@/components/swift/field";
-import { SegmentedControl, Segment } from "@/components/swift/segmented-control";
+import {
+  SegmentedControl,
+  Segment,
+} from "@/components/swift/segmented-control";
 import { ExternalLink, Eye } from "lucide-react";
 
-const REFERENCE_IMAGES = Array.from({ length: 17 }, (_, i) => `ref-${String(i + 1).padStart(2, '0')}.png`);
+const REFERENCE_IMAGES = Array.from(
+  { length: 17 },
+  (_, i) => `ref-${String(i + 1).padStart(2, "0")}.png`,
+);
 
 const ROUTES = [
   { value: "/", label: "Home" },
@@ -29,7 +35,7 @@ export default function Compare() {
   const handleStartComparison = () => {
     const route = useCustomRoute ? customRoute : targetRoute;
     const compareUrl = `${route}?overlay=${selectedRef}`;
-    window.open(compareUrl, '_blank', 'width=1200,height=800');
+    window.open(compareUrl, "_blank", "width=1200,height=800");
     setIsComparing(true);
   };
 
@@ -47,7 +53,8 @@ export default function Compare() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">UI Reference Comparison</h1>
         <p className="text-muted-foreground">
-          Compare your implementation against reference designs using overlays and side-by-side views.
+          Compare your implementation against reference designs using overlays
+          and side-by-side views.
         </p>
       </div>
 
@@ -55,7 +62,7 @@ export default function Compare() {
         <Card className="p-6 space-y-6">
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Configure Comparison</h2>
-            
+
             {/* Reference Image Selection */}
             <div className="space-y-3">
               <label className="text-sm font-medium">Reference Image</label>
@@ -68,14 +75,15 @@ export default function Compare() {
                       aspect-square rounded-lg border-2 transition-all duration-200
                       flex items-center justify-center text-xs font-medium
                       hover:border-primary/50 hover:bg-muted
-                      ${selectedRef === image 
-                        ? 'border-primary bg-primary/10 text-primary' 
-                        : 'border-border text-muted-foreground'
+                      ${
+                        selectedRef === image
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground"
                       }
                     `}
                     data-testid={`ref-${image}`}
                   >
-                    {image.split('.')[0]}
+                    {image.split(".")[0]}
                   </button>
                 ))}
               </div>
@@ -90,7 +98,9 @@ export default function Compare() {
                 <label className="text-sm font-medium">Target Route</label>
                 <SegmentedControl
                   value={useCustomRoute ? "custom" : "preset"}
-                  onValueChange={(value) => setUseCustomRoute(value === "custom")}
+                  onValueChange={(value) =>
+                    setUseCustomRoute(value === "custom")
+                  }
                   data-testid="route-selector"
                 >
                   <Segment value="preset">Preset Routes</Segment>
@@ -117,15 +127,18 @@ export default function Compare() {
                       className={`
                         p-3 rounded-lg border-2 transition-all duration-200 text-left
                         hover:border-primary/50 hover:bg-muted
-                        ${targetRoute === route.value 
-                          ? 'border-primary bg-primary/10 text-primary' 
-                          : 'border-border'
+                        ${
+                          targetRoute === route.value
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border"
                         }
                       `}
-                      data-testid={`route-${route.value.replace('/', '')}`}
+                      data-testid={`route-${route.value.replace("/", "")}`}
                     >
                       <div className="font-medium text-sm">{route.label}</div>
-                      <div className="text-xs text-muted-foreground">{route.value}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {route.value}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -181,7 +194,9 @@ export default function Compare() {
               {/* Reference Image */}
               <div className="border-r border-border bg-muted/20">
                 <div className="p-4 border-b border-border">
-                  <h3 className="font-medium text-sm">Reference: {selectedRef}</h3>
+                  <h3 className="font-medium text-sm">
+                    Reference: {selectedRef}
+                  </h3>
                 </div>
                 <div className="p-4 h-[600px] flex items-center justify-center">
                   <img
@@ -190,7 +205,7 @@ export default function Compare() {
                     className="max-w-full max-h-full object-contain border border-border rounded"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
+                      target.style.display = "none";
                       const parent = target.parentElement;
                       if (parent) {
                         parent.innerHTML = `
@@ -208,7 +223,9 @@ export default function Compare() {
               {/* Live Implementation */}
               <div>
                 <div className="p-4 border-b border-border">
-                  <h3 className="font-medium text-sm">Implementation: {useCustomRoute ? customRoute : targetRoute}</h3>
+                  <h3 className="font-medium text-sm">
+                    Implementation: {useCustomRoute ? customRoute : targetRoute}
+                  </h3>
                 </div>
                 <iframe
                   src={getIframeSrc()}
@@ -221,8 +238,14 @@ export default function Compare() {
           </Card>
 
           <div className="text-center text-sm text-muted-foreground">
-            <p>The implementation iframe includes the overlay for direct comparison.</p>
-            <p>Use the overlay controls in the iframe to adjust opacity, scale, and position.</p>
+            <p>
+              The implementation iframe includes the overlay for direct
+              comparison.
+            </p>
+            <p>
+              Use the overlay controls in the iframe to adjust opacity, scale,
+              and position.
+            </p>
           </div>
         </div>
       )}
