@@ -167,30 +167,31 @@ export default function PRs() {
         />
       </div>
 
-      {/* Category Tabs */}
-      <div className="space-y-2">
-        <label className="text-body font-medium text-foreground">Category</label>
-        <SegmentedControl
-          options={categoryOptions}
-          value={activeCategory}
-          onChange={(value) => setActiveCategory(value as MovementCategory)}
-          data-testid="category-tabs"
-        />
-      </div>
+      {/* Filter Controls */}
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <label className="text-body font-medium text-foreground">Category</label>
+          <SegmentedControl
+            options={categoryOptions}
+            value={activeCategory}
+            onChange={(value) => setActiveCategory(value as MovementCategory)}
+            data-testid="category-tabs"
+          />
+        </div>
 
-      {/* Unit Switch */}
-      <div className="space-y-2">
-        <label className="text-body font-medium text-foreground">Units</label>
-        <SegmentedControl
-          options={unitOptions}
-          value={unit}
-          onChange={(value) => setUnit(value as "lbs" | "kg")}
-          data-testid="unit-switch"
-        />
+        <div className="space-y-3">
+          <label className="text-body font-medium text-foreground">Units</label>
+          <SegmentedControl
+            options={unitOptions}
+            value={unit}
+            onChange={(value) => setUnit(value as "lbs" | "kg")}
+            data-testid="unit-switch"
+          />
+        </div>
       </div>
 
       {/* Movements Grid */}
-      <div className="space-y-4">
+      <div className="space-y-5 pt-2">
         <div className="flex items-center justify-between">
           <h2 className="text-subheading font-semibold text-foreground">
             {activeCategory} Movements
@@ -222,7 +223,7 @@ export default function PRs() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-3" data-testid="movements-grid">
+          <div className="grid gap-4" data-testid="movements-grid">
             {movements.map((movement) => {
               const currentPR = categoryPersonalRecords.find(pr => 
                 (pr.movement || pr.exercise) === movement
@@ -231,7 +232,7 @@ export default function PRs() {
               return (
                 <Card 
                   key={movement} 
-                  className="p-4"
+                  className="p-5"
                   data-testid={`movement-${movement.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <div className="flex items-center justify-between">
@@ -338,7 +339,7 @@ export default function PRs() {
                         {movements.map((movement) => (
                           <Chip
                             key={movement}
-                            variant="outline"
+                            variant="default"
                             onClick={() => setSelectedMovement(movement)}
                             data-testid={`select-movement-${movement.toLowerCase().replace(/\s+/g, '-')}`}
                           >

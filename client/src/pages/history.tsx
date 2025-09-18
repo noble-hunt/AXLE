@@ -141,14 +141,14 @@ export default function History() {
       </div>
 
       {/* Filter Chips */}
-      <div className="space-y-4">
-        <div className="space-y-2">
+      <div className="space-y-6">
+        <div className="space-y-3">
           <label className="text-body font-medium text-foreground">Category</label>
-          <div className="flex flex-wrap gap-2" data-testid="category-filter-chips">
+          <div className="flex flex-wrap gap-3" data-testid="category-filter-chips">
             {categoryOptions.map((option) => (
               <Chip 
                 key={option.value}
-                variant={categoryFilter === option.value ? "default" : "outline"}
+                variant={categoryFilter === option.value ? "primary" : "default"}
                 onClick={() => setCategoryFilter(option.value)}
                 data-testid={`category-filter-${option.value}`}
               >
@@ -158,7 +158,7 @@ export default function History() {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="text-body font-medium text-foreground">Status</label>
           <SegmentedControl
             options={completionOptions}
@@ -170,7 +170,7 @@ export default function History() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-4 pt-2">
         <StatBadge
           icon={<Calendar className="w-4 h-4" />}
           value={filteredWorkouts.length.toString()}
@@ -192,7 +192,7 @@ export default function History() {
       </div>
 
       {/* Workout List */}
-      <div className="space-y-6">
+      <div className="space-y-8 pt-2">
         {Object.entries(groupedWorkouts).map(([dateKey, dateGroup]) => (
           <div key={dateKey} className="space-y-3">
             <h2 className="text-subheading font-semibold text-foreground">{dateGroup.label}</h2>
@@ -201,7 +201,7 @@ export default function History() {
               const CategoryIcon = getCategoryIcon(workout.category)
               return (
                 <Link key={workout.id} href={`/workout/${workout.id}`}>
-                  <Card className="p-4 active:scale-98 transition-transform" data-testid={`history-workout-${workout.id}`}>
+                  <Card className="p-5 active:scale-98 transition-transform" data-testid={`history-workout-${workout.id}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex-1 space-y-3">
                         {/* Header Row */}
@@ -217,7 +217,7 @@ export default function History() {
                         
                         {/* Chips Row */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Chip variant="outline" size="sm">
+                          <Chip variant="default" size="sm">
                             {workout.category}
                           </Chip>
                           <Chip 
@@ -228,7 +228,7 @@ export default function History() {
                             <Zap className="w-3 h-3 mr-1" />
                             {workout.intensity}/10
                           </Chip>
-                          <Chip variant="outline" size="sm">
+                          <Chip variant="default" size="sm">
                             <Clock className="w-3 h-3 mr-1" />
                             {workout.duration}m
                           </Chip>
