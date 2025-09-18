@@ -62,11 +62,7 @@ function OverlayWrapper() {
         
         {/* Main navigation routes - accessible to guests and authenticated users */}
         <Route path="/workout" component={Workout} />
-        <Route path="/workout/:id" component={() => (
-          <ProtectedRoute>
-            <WorkoutDetail />
-          </ProtectedRoute>
-        )} />
+        <Route path="/workout/:id" component={WorkoutDetail} />
         <Route path="/history" component={History} />
         <Route path="/prs" component={PRs} />
         <Route path="/achievements" component={Achievements} />
