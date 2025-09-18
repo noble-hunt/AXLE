@@ -43,7 +43,12 @@ export default function WorkoutGenerate() {
   const generateMutation = useMutation({
     mutationFn: async (data: WorkoutRequestForm) => {
       console.log('Generating workout with:', data)
-      const response = await apiRequest('POST', '/api/generate-workout', data)
+      const { authFetch } = await import('@/lib/authFetch');
+      const response = await authFetch('/api/generate-workout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
       return await response.json()
     },
     onSuccess: (data) => {

@@ -695,6 +695,128 @@ export const useAppStore = create<AppState>()(
         session: null, 
         isAuthenticated: false 
       }),
+
+      // Hydrate from database using client Supabase with RLS
+      hydrateFromDb: async (userId: string) => {
+        try {
+          console.log('💧 Hydrating from database for user:', userId);
+          const { supabase } = await import('@/lib/supabase');
+
+          // Fetch data in parallel using client Supabase (RLS will scope by user)
+          const [workoutsResult, prsResult, achievementsResult, reportsResult, wearablesResult] = await Promise.all([
+            supabase.from('workouts').select('*').order('created_at', { ascending: false }).limit(20),
+            supabase.from('personal_records').select('*'),
+            supabase.from('achievements').select('*'),
+            supabase.from('health_reports').select('*').order('date', { ascending: false }).limit(7),
+            supabase.from('wearable_connections').select('*')
+          ]);
+
+          if (workoutsResult.error) throw workoutsResult.error;
+          if (prsResult.error) throw prsResult.error;
+          if (achievementsResult.error) throw achievementsResult.error;
+          if (reportsResult.error) throw reportsResult.error;
+          if (wearablesResult.error) throw wearablesResult.error;
+
+          // Transform and update store
+          const transformedWorkouts = workoutsResult.data.map((w: any) => ({
+            id: w.id,
+            name: w.title,
+            category: w.request?.category || Category.CROSSFIT,
+            description: w.notes || '',
+            duration: w.request?.duration || 30,
+            intensity: w.request?.intensity || 5,
+            sets: Array.isArray(w.sets) ? w.sets : [],
+            date: new Date(w.created_at),
+            completed: w.completed || false,
+            notes: w.notes,
+            createdAt: new Date(w.created_at),
+            feedback: w.feedback
+          }));
+
+          const transformedPRs = prsResult.data.map((pr: any) => ({
+            id: pr.id,
+            exercise: pr.exercise,
+            category: pr.category || Category.STRENGTH,
+            weight: pr.weight,
+            reps: pr.reps,
+            date: new Date(pr.date),
+            createdAt: new Date(pr.date),
+            movement: pr.exercise,
+            movementCategory: MovementCategory.POWERLIFTING,
+            repMax: RepMaxType.ONE_RM,
+            value: pr.weight,
+            unit: Unit.LBS,
+            previousPR: 0
+          }));
+
+          const transformedAchievements = achievementsResult.data.map((a: any) => ({
+            id: a.id,
+            title: a.title,
+            description: a.description,
+            category: AchievementCategory.GENERAL,
+            type: AchievementType.WORKOUT_COUNT,
+            target: 100,
+            progress: 0,
+            completed: false,
+            icon: '🏆',
+            createdAt: new Date(a.created_at),
+            unlockedAt: new Date(a.unlocked_at)
+          }));
+
+          const transformedReports = reportsResult.data.map((r: any) => ({
+            id: r.id,
+            date: new Date(r.date),
+            summary: r.summary,
+            metrics: r.metrics || { sleep: { hours: 8, score: 85, hrv: 48 } },
+            suggestions: r.suggestions || [],
+            workoutsCompleted: 0,
+            totalWorkoutTime: 0,
+            avgIntensity: 0,
+            newPRs: 0,
+            streakDays: 0,
+            weeklyGoalProgress: 0,
+            insights: r.suggestions || [],
+            createdAt: new Date(r.created_at)
+          }));
+
+          const transformedWearables = wearablesResult.data.map((w: any) => ({
+            id: w.id,
+            name: w.provider,
+            type: 'fitness_tracker' as const,
+            brand: w.provider,
+            connected: w.connected,
+            capabilities: ['heart_rate', 'steps'],
+            lastSync: w.last_sync ? new Date(w.last_sync) : undefined,
+            createdAt: new Date(w.created_at)
+          }));
+
+          // Update store with hydrated data
+          set({
+            workouts: transformedWorkouts,
+            prs: transformedPRs,
+            achievements: transformedAchievements,
+            reports: transformedReports,
+            wearables: transformedWearables
+          });
+
+          console.log('✅ Database hydration complete');
+        } catch (error) {
+          console.error('❌ Database hydration failed:', error);
+          throw error;
+        }
+      },
+
+      // Clear store for guest mode
+      clearStoreForGuest: () => {
+        console.log('🧹 Clearing store for guest mode');
+        set({
+          workouts: seedWorkouts,
+          prs: seedPRs,
+          achievements: seedAchievements,
+          reports: seedReports,
+          wearables: seedWearables
+        });
+      },
       
       setAuthInitialized: (initialized) => set({ 
         authInitialized: initialized 

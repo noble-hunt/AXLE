@@ -3,12 +3,13 @@ import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { LoadingState, LoadingSkeleton } from "@/components/ui/loading-state"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
 import { Link } from "wouter"
-import { ChevronRight, Calendar, Clock, Dumbbell, Zap, Timer, Weight, Activity, Heart, Move, CheckCircle, XCircle, Filter, Search } from "lucide-react"
+import { ChevronRight, Calendar, Clock, Dumbbell, Zap, Timer, Weight, Activity, Heart, Move, CheckCircle, XCircle, Filter, Search, RefreshCw, Info } from "lucide-react"
 import { Category } from "../types"
 
 // Category icon mapping
@@ -35,11 +36,12 @@ const getIntensityColor = (intensity: number) => {
 }
 
 export default function History() {
-  const { workouts } = useAppStore()
+  const { workouts, isAuthenticated, hydrateFromDb, user } = useAppStore()
   const { toast } = useToast()
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [completionFilter, setCompletionFilter] = useState<string>("all")
   const [isLoading, setIsLoading] = useState(true)
+  const [isReloading, setIsReloading] = useState(false)
   
   // Simulate loading state for better UX
   useEffect(() => {
@@ -53,6 +55,34 @@ export default function History() {
       description: `Failed to apply ${filterType} filter. Please try again.`,
       variant: "destructive"
     })
+  }
+
+  const handleReload = async () => {
+    if (!isAuthenticated || !user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to sync your workouts.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsReloading(true)
+    try {
+      await hydrateFromDb(user.id)
+      toast({
+        title: "Data refreshed",
+        description: "Your workout history has been updated from the database.",
+      })
+    } catch (error) {
+      toast({
+        title: "Refresh failed",
+        description: "Failed to refresh data. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsReloading(false)
+    }
   }
 
   // Filter and sort workouts (most recent first)
@@ -88,6 +118,39 @@ export default function History() {
   return (
     <>
       <SectionTitle title="Workout History" />
+
+      {/* Guest Mode Banner */}
+      {!isAuthenticated && (
+        <Card className="p-4 card-shadow border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 mb-4">
+          <div className="flex items-center gap-3">
+            <Info className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                Guest Mode
+              </p>
+              <p className="text-xs text-orange-700 dark:text-orange-300">
+                Sign in to sync workouts across devices and persist your data
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Reload Button for Authenticated Users */}
+      {isAuthenticated && (
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReload}
+            disabled={isReloading}
+            data-testid="reload-workouts"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isReloading ? 'animate-spin' : ''}`} />
+            Reload from Database
+          </Button>
+        </div>
+      )}
 
       {/* Filter Controls */}
       <Card className="p-4 card-shadow border border-border card-gradient">

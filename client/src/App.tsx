@@ -81,55 +81,34 @@ function Router() {
 }
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setAuth, clearAuth, setAuthInitialized, loadServerData, clearUserData, processOfflineQueue } = useAppStore();
+  const { setAuth, clearAuth, setAuthInitialized, hydrateFromDb, clearStoreForGuest } = useAppStore();
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log('🔍 Initial session check:', session ? 'Found session' : 'No session');
-      if (session) {
-        console.log('🔐 Setting auth with user:', session.user.email);
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
         setAuth(session.user, session);
-        // Load server data for existing session
-        await loadServerData(session.access_token);
-        // Process any offline queue items
-        await processOfflineQueue();
+        await hydrateFromDb(session.user.id);
       } else {
-        console.log('❌ No session found, clearing auth');
         clearAuth();
-        clearUserData();
+        clearStoreForGuest();
       }
-      // Mark auth as initialized after initial session check
+      setAuthInitialized(true);
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_evt, session) => {
+      if (session?.user) {
+        setAuth(session.user, session);
+        await hydrateFromDb(session.user.id);
+      } else {
+        clearAuth();
+        clearStoreForGuest();
+      }
       setAuthInitialized(true);
     });
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Auth state change:', event, session ? 'with session' : 'no session');
-      if (session) {
-        console.log('🔐 Auth state: Setting auth with user:', session.user.email);
-        setAuth(session.user, session);
-        // Load server data when user logs in or session is restored
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-          console.log('📊 Loading server data...');
-          await loadServerData(session.access_token);
-          // Process any offline queue items after loading server data
-          console.log('🔄 Processing offline queue...');
-          await processOfflineQueue();
-        }
-      } else {
-        console.log('❌ Auth state: Clearing auth');
-        clearAuth();
-        clearUserData();
-      }
-      // Ensure auth is marked as initialized on any auth state change
-      setAuthInitialized(true);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [setAuth, clearAuth, setAuthInitialized, loadServerData, clearUserData, processOfflineQueue]);
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   return <>{children}</>;
 }

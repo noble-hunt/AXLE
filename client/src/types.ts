@@ -412,6 +412,8 @@ export interface AppState extends WorkoutState, PRState, AchievementState, Weara
   clearAuth: () => void;
   authInitialized: boolean;
   setAuthInitialized: (initialized: boolean) => void;
+  hydrateFromDb: (userId: string) => Promise<void>;
+  clearStoreForGuest: () => void;
   
   // Server data loading
   loadServerData: (authToken: string) => Promise<void>;
