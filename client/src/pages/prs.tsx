@@ -1,28 +1,47 @@
 import { useState, useEffect } from 'react'
-import { SectionTitle } from "@/components/ui/section-title"
-import { Card } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LoadingState, LoadingSkeleton } from "@/components/ui/loading-state"
-import { EmptyState } from "@/components/ui/empty-state"
 import { useToast } from "@/hooks/use-toast"
-import { Trophy, TrendingUp, Calendar, Target, Dumbbell, Plus } from "lucide-react"
 import { useAppStore } from "@/store/useAppStore"
 import { MovementCategory, getMovementsByCategory, Movement } from '../types'
-import { MovementCard } from '@/components/common/movement-card'
-import { AddPRModal } from '@/components/common/add-pr-modal'
+import { Card } from "@/components/swift/card"
+import { Button } from "@/components/swift/button"
+import { Chip } from "@/components/swift/chip"
+import { SegmentedControl } from "@/components/swift/segmented-control"
+import { StatBadge } from "@/components/swift/stat-badge"
+import { Sheet } from "@/components/swift/sheet"
+import { Field } from "@/components/swift/field"
+import { fadeIn, slideUp } from "@/lib/motion-variants"
+import { motion } from "framer-motion"
+import { Trophy, TrendingUp, Calendar, Target, Dumbbell, Plus, Award, BarChart3 } from "lucide-react"
+
+// Category tab options
+const categoryOptions = [
+  { value: MovementCategory.POWERLIFTING, label: "Power" },
+  { value: MovementCategory.OLYMPIC_WEIGHTLIFTING, label: "Olympic" },
+  { value: MovementCategory.GYMNASTICS, label: "Gym" },
+  { value: MovementCategory.AEROBIC, label: "Cardio" },
+  { value: MovementCategory.BODYBUILDING, label: "BB" }
+]
+
+// Unit options
+const unitOptions = [
+  { value: "lbs", label: "lbs" },
+  { value: "kg", label: "kg" }
+] as const
 
 export default function PRs() {
-  const { prs: personalRecords, getPRsByCategory } = useAppStore()
+  const { prs: personalRecords, getPRsByCategory, addPR } = useAppStore()
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState<MovementCategory>(MovementCategory.POWERLIFTING)
-  const [isAddPRModalOpen, setIsAddPRModalOpen] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<MovementCategory>(MovementCategory.POWERLIFTING)
+  const [showAddPRSheet, setShowAddPRSheet] = useState(false)
   const [selectedMovement, setSelectedMovement] = useState<Movement | undefined>()
-  const [selectedCategory, setSelectedCategory] = useState<MovementCategory | undefined>()
+  const [customMovement, setCustomMovement] = useState("")
+  const [unit, setUnit] = useState<"lbs" | "kg">("lbs")
+  const [value, setValue] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   
   // Simulate loading state for better UX
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 700)
+    const timer = setTimeout(() => setIsLoading(false), 300)
     return () => clearTimeout(timer)
   }, [])
 
@@ -30,197 +49,362 @@ export default function PRs() {
   const totalPRs = personalRecords.length
   const thisMonth = new Date()
   thisMonth.setDate(1)
-  const recentPRs = personalRecords.filter(pr => pr.date >= thisMonth).length
+  const recentPRs = personalRecords.filter(pr => {
+    const prDate = pr.date instanceof Date ? pr.date : new Date(pr.date)
+    return prDate >= thisMonth
+  }).length
+  const categoryPRs = getPRsByCategory(activeCategory).length
 
-  // Debug readout
-  console.log('Enhanced PRs Page State:', { 
-    totalPRs: personalRecords.length,
-    byCategory: Object.values(MovementCategory).map(cat => ({
-      category: cat,
-      count: getPRsByCategory(cat).length
-    })),
-    recentPRs: personalRecords.slice(0, 3).map(pr => ({ 
-      movement: pr.movement || pr.exercise, 
-      value: pr.value || pr.weight, 
-      unit: pr.unit || 'lbs',
-      date: pr.date 
-    }))
-  })
-
-  const handleAddPR = (movement: Movement, category: MovementCategory) => {
+  const handleAddPR = (movement?: Movement) => {
     setSelectedMovement(movement)
-    setSelectedCategory(category)
-    setIsAddPRModalOpen(true)
+    setCustomMovement("")
+    setValue("")
+    setShowAddPRSheet(true)
   }
 
-  const handleCloseModal = () => {
-    setIsAddPRModalOpen(false)
-    setSelectedMovement(undefined)
-    setSelectedCategory(undefined)
+  const handleSubmitPR = async () => {
+    const movementName = selectedMovement || customMovement
+    if (!movementName || !value) {
+      toast({
+        title: "Missing Information",
+        description: "Please select or enter a movement and value.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      await addPR({
+        movement: movementName as Movement,
+        category: activeCategory,
+        value: parseFloat(value),
+        unit,
+        date: new Date()
+      })
+
+      toast({
+        title: "PR Added! 🎉",
+        description: `New ${movementName} PR: ${value}${unit}`,
+      })
+
+      setShowAddPRSheet(false)
+      setSelectedMovement(undefined)
+      setCustomMovement("")
+      setValue("")
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add PR. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
-  const renderMovementsForCategory = (category: MovementCategory) => {
-    if (isLoading) {
-      return (
-        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="p-4 card-shadow border border-border">
-              <LoadingSkeleton rows={3} />
-            </Card>
-          ))}
-        </div>
-      )
-    }
-    
-    const movements = getMovementsByCategory(category)
-    
-    if (movements.length === 0) {
-      return (
-        <EmptyState
-          icon={Target}
-          title="No movements available"
-          description={`This ${category} category doesn't have movements defined yet. Check back soon for updates!`}
-          actionLabel="Add Custom PR"
-          onAction={() => {
-            setSelectedMovement(undefined)
-            setSelectedCategory(category)
-            setIsAddPRModalOpen(true)
-          }}
-        />
-      )
-    }
+  // Get movements and PRs for current category
+  const movements = getMovementsByCategory(activeCategory)
+  const categoryPersonalRecords = getPRsByCategory(activeCategory)
 
+  if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-        {movements.map((movement) => (
-          <MovementCard
-            key={movement}
-            movement={movement}
-            category={category}
-            onAddPR={handleAddPR}
-          />
-        ))}
-      </div>
+      <motion.div 
+        className="space-y-6"
+        variants={fadeIn}
+        initial="initial"
+        animate="animate"
+      >
+        <div className="space-y-4">
+          <div className="h-8 bg-muted rounded-2xl w-48 animate-pulse" />
+          <div className="grid grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-20 bg-muted rounded-2xl animate-pulse" />
+            ))}
+          </div>
+          <div className="h-10 bg-muted rounded-2xl animate-pulse" />
+          <div className="grid gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-24 bg-muted rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </motion.div>
     )
   }
 
   return (
-    <>
-      <SectionTitle title="Personal Records" />
-
-      {/* PR Stats Overview */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <Card className="p-4 card-shadow border border-border text-center card-gradient" data-testid="total-prs">
-          {isLoading ? (
-            <LoadingSkeleton rows={1} />
-          ) : (
-            <>
-              <Trophy className="w-6 h-6 text-destructive mx-auto mb-2" />
-              <p className="text-lg font-bold text-foreground">{totalPRs}</p>
-              <p className="text-xs text-muted-foreground">Total PRs</p>
-            </>
-          )}
-        </Card>
-        
-        <Card className="p-4 card-shadow border border-border text-center card-gradient" data-testid="recent-prs">
-          {isLoading ? (
-            <LoadingSkeleton rows={1} />
-          ) : (
-            <>
-              <TrendingUp className="w-6 h-6 text-chart-2 mx-auto mb-2" />
-              <p className="text-lg font-bold text-foreground">{recentPRs}</p>
-              <p className="text-xs text-muted-foreground">This Month</p>
-            </>
-          )}
-        </Card>
-
-        <Card className="p-4 card-shadow border border-border text-center card-gradient" data-testid="category-prs">
-          {isLoading ? (
-            <LoadingSkeleton rows={1} />
-          ) : (
-            <>
-              <Dumbbell className="w-6 h-6 text-chart-3 mx-auto mb-2" />
-              <p className="text-lg font-bold text-foreground">{getPRsByCategory(activeTab).length}</p>
-              <p className="text-xs text-muted-foreground">{activeTab} PRs</p>
-            </>
-          )}
-        </Card>
+    <motion.div 
+      className="space-y-6"
+      variants={fadeIn}
+      initial="initial"
+      animate="animate"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-heading font-bold text-foreground">Personal Records</h1>
+        <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Trophy className="w-5 h-5 text-primary" />
+        </div>
       </div>
 
-      {/* Tabbed Movement Categories */}
-      <Tabs value={activeTab} onValueChange={(value) => {
-        try {
-          setActiveTab(value as MovementCategory)
-        } catch (error) {
-          toast({
-            title: "Error",
-            description: "Failed to switch category. Please try again.",
-            variant: "destructive"
-          })
-        }
-      }}>
-        <TabsList className="grid w-full grid-cols-5" data-testid="tabs-movement-categories">
-          <TabsTrigger value={MovementCategory.POWERLIFTING} data-testid="tab-powerlifting">
-            Powerlifting
-          </TabsTrigger>
-          <TabsTrigger value={MovementCategory.OLYMPIC_WEIGHTLIFTING} data-testid="tab-olympic">
-            Olympic
-          </TabsTrigger>
-          <TabsTrigger value={MovementCategory.GYMNASTICS} data-testid="tab-gymnastics">
-            Gymnastics
-          </TabsTrigger>
-          <TabsTrigger value={MovementCategory.AEROBIC} data-testid="tab-aerobic">
-            Aerobic
-          </TabsTrigger>
-          <TabsTrigger value={MovementCategory.BODYBUILDING} data-testid="tab-bodybuilding">
-            Bodybuilding
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={MovementCategory.POWERLIFTING} className="mt-6" data-testid="content-powerlifting">
-          {renderMovementsForCategory(MovementCategory.POWERLIFTING)}
-        </TabsContent>
-
-        <TabsContent value={MovementCategory.OLYMPIC_WEIGHTLIFTING} className="mt-6" data-testid="content-olympic">
-          {renderMovementsForCategory(MovementCategory.OLYMPIC_WEIGHTLIFTING)}
-        </TabsContent>
-
-        <TabsContent value={MovementCategory.GYMNASTICS} className="mt-6" data-testid="content-gymnastics">
-          {renderMovementsForCategory(MovementCategory.GYMNASTICS)}
-        </TabsContent>
-
-        <TabsContent value={MovementCategory.AEROBIC} className="mt-6" data-testid="content-aerobic">
-          {renderMovementsForCategory(MovementCategory.AEROBIC)}
-        </TabsContent>
-
-        <TabsContent value={MovementCategory.BODYBUILDING} className="mt-6" data-testid="content-bodybuilding">
-          {renderMovementsForCategory(MovementCategory.BODYBUILDING)}
-        </TabsContent>
-      </Tabs>
-
-      {/* Add PR Modal */}
-      <AddPRModal
-        isOpen={isAddPRModalOpen}
-        onClose={handleCloseModal}
-        preselectedMovement={selectedMovement}
-        preselectedCategory={selectedCategory}
-      />
-
-      {/* Empty State (shown when no PRs at all) */}
-      {!isLoading && totalPRs === 0 && (
-        <EmptyState
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatBadge
           icon={Trophy}
-          title="No personal records yet"
-          description="Start tracking your personal records to monitor your strength gains and celebrate your achievements!"
-          actionLabel="Add First PR"
-          onAction={() => {
-            setSelectedMovement(undefined)
-            setSelectedCategory(MovementCategory.POWERLIFTING)
-            setIsAddPRModalOpen(true)
-          }}
-          className="my-12"
+          value={totalPRs.toString()}
+          label="Total PRs"
+          data-testid="total-prs"
         />
+        <StatBadge
+          icon={TrendingUp}
+          value={recentPRs.toString()}
+          label="This Month"
+          data-testid="recent-prs"
+        />
+        <StatBadge
+          icon={BarChart3}
+          value={categoryPRs.toString()}
+          label={categoryOptions.find(c => c.value === activeCategory)?.label || "Current"}
+          data-testid="category-prs"
+        />
+      </div>
+
+      {/* Category Tabs */}
+      <div className="space-y-2">
+        <label className="text-body font-medium text-foreground">Category</label>
+        <SegmentedControl
+          options={categoryOptions}
+          value={activeCategory}
+          onChange={(value) => setActiveCategory(value as MovementCategory)}
+          data-testid="category-tabs"
+        />
+      </div>
+
+      {/* Unit Switch */}
+      <div className="space-y-2">
+        <label className="text-body font-medium text-foreground">Units</label>
+        <SegmentedControl
+          options={unitOptions}
+          value={unit}
+          onChange={(value) => setUnit(value as "lbs" | "kg")}
+          data-testid="unit-switch"
+        />
+      </div>
+
+      {/* Movements Grid */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-subheading font-semibold text-foreground">
+            {activeCategory} Movements
+          </h2>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleAddPR()}
+            data-testid="add-custom-pr"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Add PR
+          </Button>
+        </div>
+
+        {movements.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
+              <Target className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-subheading font-bold text-foreground">No movements available</h3>
+              <p className="text-body text-muted-foreground max-w-sm">
+                This category doesn't have movements defined yet
+              </p>
+            </div>
+            <Button onClick={() => handleAddPR()} data-testid="add-first-movement">
+              Add Custom PR
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-3" data-testid="movements-grid">
+            {movements.map((movement) => {
+              const currentPR = categoryPersonalRecords.find(pr => 
+                (pr.movement || pr.exercise) === movement
+              )
+              
+              return (
+                <Card 
+                  key={movement} 
+                  className="p-4"
+                  data-testid={`movement-${movement.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-body font-semibold text-foreground">{movement}</h3>
+                      {currentPR ? (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Chip variant="success" size="sm">
+                            <Award className="w-3 h-3 mr-1" />
+                            {currentPR.value || currentPR.weight} {currentPR.unit || 'lbs'}
+                          </Chip>
+                          <span className="text-caption text-muted-foreground">
+                            {new Date(currentPR.date).toLocaleDateString()}
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-caption text-muted-foreground mt-1">No PR set</p>
+                      )}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleAddPR(movement)}
+                      data-testid={`add-pr-${movement.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Empty State */}
+      {totalPRs === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
+            <Trophy className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <div className="text-center space-y-2">
+            <h3 className="text-subheading font-bold text-foreground">No personal records yet</h3>
+            <p className="text-body text-muted-foreground max-w-sm">
+              Start tracking your PRs to monitor your strength gains
+            </p>
+          </div>
+          <Button onClick={() => handleAddPR()} data-testid="add-first-pr">
+            Add First PR
+          </Button>
+        </div>
       )}
-    </>
+
+      {/* Add PR Sheet */}
+      <Sheet 
+        open={showAddPRSheet} 
+        onOpenChange={setShowAddPRSheet}
+        data-testid="add-pr-sheet"
+      >
+        <div className="p-6 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+              <Trophy className="w-6 h-6 text-primary" />
+            </div>
+            <h2 className="text-subheading font-bold text-foreground">Add Personal Record</h2>
+            <p className="text-body text-muted-foreground">Set a new PR for your training</p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Movement Picker */}
+            <div className="space-y-2">
+              <label className="text-body font-medium text-foreground">Movement</label>
+              <div className="space-y-2">
+                {selectedMovement ? (
+                  <div className="space-y-2">
+                    <Chip variant="default">
+                      {selectedMovement}
+                    </Chip>
+                    <Button 
+                      variant="secondary" 
+                      size="sm"
+                      onClick={() => setSelectedMovement(undefined)}
+                    >
+                      Change Movement
+                    </Button>
+                  </div>
+                ) : customMovement ? (
+                  <div className="space-y-2">
+                    <Chip variant="default">
+                      {customMovement}
+                    </Chip>
+                    <Button 
+                      variant="secondary" 
+                      size="sm"
+                      onClick={() => setCustomMovement("")}
+                    >
+                      Change Movement
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {movements.length > 0 && (
+                      <div className="grid gap-2 max-h-32 overflow-y-auto">
+                        {movements.map((movement) => (
+                          <Chip
+                            key={movement}
+                            variant="outline"
+                            onClick={() => setSelectedMovement(movement)}
+                            data-testid={`select-movement-${movement.toLowerCase().replace(/\s+/g, '-')}`}
+                          >
+                            {movement}
+                          </Chip>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="space-y-2">
+                      <Field
+                        label="Or enter custom movement"
+                        value={customMovement}
+                        onChange={setCustomMovement}
+                        placeholder="Enter movement name"
+                        data-testid="custom-movement-input"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Value Input */}
+            <Field
+              label="Value"
+              value={value}
+              onChange={setValue}
+              placeholder="Enter weight or time"
+              type="number"
+              data-testid="pr-value-input"
+            />
+
+            {/* Unit Selection */}
+            <div className="space-y-2">
+              <label className="text-body font-medium text-foreground">Unit</label>
+              <SegmentedControl
+                options={unitOptions}
+                value={unit}
+                onChange={(value) => setUnit(value as "lbs" | "kg")}
+                data-testid="pr-unit-selector"
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            <Button
+              className="w-full"
+              onClick={handleSubmitPR}
+              disabled={(!selectedMovement && !customMovement) || !value}
+              data-testid="submit-pr-button"
+            >
+              Add PR
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => setShowAddPRSheet(false)}
+              data-testid="cancel-pr-button"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Sheet>
+    </motion.div>
   )
 }
