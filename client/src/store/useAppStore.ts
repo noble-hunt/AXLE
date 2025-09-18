@@ -1114,7 +1114,7 @@ export const useAppStore = create<AppState>()(
         }
         
         // Recompute achievements after workout completion
-        get().recomputeAchievements();
+        await get().recomputeAchievements();
       },
 
       // PRs

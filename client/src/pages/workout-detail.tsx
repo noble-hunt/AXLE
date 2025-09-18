@@ -56,13 +56,8 @@ export default function WorkoutDetail() {
   const handleCompleteWorkout = async (data: z.infer<typeof feedbackSchema>) => {
     // Prevent multiple submissions
     if (isSubmitting) {
-      console.log('🎯 Already submitting, ignoring duplicate request')
       return
     }
-    
-    console.log('🎯 handleCompleteWorkout called with data:', data)
-    console.log('🎯 Workout ID:', id, 'Type:', typeof id)
-    console.log('🎯 Current workout:', workout)
     
     setIsSubmitting(true)
     
@@ -73,19 +68,7 @@ export default function WorkoutDetail() {
         completedAt: new Date(),
       }
 
-      console.log('🎯 About to call completeWorkout with feedback:', feedback)
-      
-      // Add timeout protection to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Completion timeout')), 10000)
-      )
-      
-      await Promise.race([
-        completeWorkout(id as string, feedback),
-        timeoutPromise
-      ])
-      
-      console.log('🎯 completeWorkout call completed successfully')
+      await completeWorkout(id as string, feedback)
 
       setShowCompletionSheet(false)
       setShowSuccessState(true)
@@ -101,17 +84,14 @@ export default function WorkoutDetail() {
       })
 
     } catch (error) {
-      console.error('🎯 Error completing workout:', error)
+      console.error('Error completing workout:', error)
       toast({
         title: "Error",
-        description: error instanceof Error && error.message === 'Completion timeout' 
-          ? "Completion timed out. Please try again." 
-          : "Failed to complete workout. Please try again.",
+        description: "Failed to complete workout. Please try again.",
         variant: "destructive",
       })
     } finally {
       setIsSubmitting(false)
-      console.log('🎯 isSubmitting reset to false')
     }
   }
 
