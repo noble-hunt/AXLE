@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { authFetch } from "@/lib/authFetch";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
-import { Loader2, Database, User as UserIcon, Zap } from "lucide-react";
+import { Loader2, Database, User as UserIcon, Zap, Mail } from "lucide-react";
 
 interface DebugSessionData {
   userId: string;
@@ -19,6 +19,19 @@ interface DebugWorkoutsData {
   last5Ids: string[];
 }
 
+interface EmailProviderData {
+  adminConnectivity: boolean;
+  emailConfirm: boolean;
+  passwordless: boolean;
+  environment: string;
+  timestamp: string;
+  supabaseUrl: string;
+  customSmtpConfigured: boolean;
+  userCount: number;
+  error?: string;
+  details?: string;
+}
+
 export default function Debug() {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
@@ -27,6 +40,8 @@ export default function Debug() {
   const [isLoadingSession, setIsLoadingSession] = useState(false);
   const [isLoadingWorkouts, setIsLoadingWorkouts] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<EmailProviderData | null>(null);
+  const [isLoadingEmail, setIsLoadingEmail] = useState(false);
 
   useEffect(() => {
     // Get current Supabase session
@@ -137,6 +152,44 @@ export default function Debug() {
     }
   };
 
+  const fetchEmailStatus = async () => {
+    setIsLoadingEmail(true);
+    try {
+      const response = await fetch("/api/dev/debug/email");
+      if (response.ok) {
+        const data = await response.json();
+        setEmailStatus(data);
+        toast({
+          title: "Email status loaded",
+          description: data.customSmtpConfigured ? "Custom SMTP configured" : "Default SMTP",
+        });
+      } else {
+        const error = await response.json();
+        setEmailStatus({
+          adminConnectivity: false,
+          emailConfirm: false,
+          passwordless: false,
+          environment: "unknown",
+          timestamp: new Date().toISOString(),
+          supabaseUrl: "error",
+          customSmtpConfigured: false,
+          userCount: 0,
+          error: error.message || `HTTP ${response.status}`,
+          details: error.details
+        });
+        throw new Error(error.message || `HTTP ${response.status}`);
+      }
+    } catch (error) {
+      toast({
+        title: "Email status failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingEmail(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-2 mb-6">
@@ -177,7 +230,7 @@ export default function Debug() {
       </Card>
 
       {/* Server Debug Endpoints */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
         {/* Session Debug */}
         <Card>
           <CardHeader>
@@ -246,6 +299,74 @@ export default function Debug() {
                         <li key={index} className="truncate">{id}</li>
                       ))}
                     </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Email Provider Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              Email Provider Status
+            </CardTitle>
+            <CardDescription>
+              GET /api/dev/debug/email endpoint
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Button 
+                onClick={fetchEmailStatus}
+                disabled={isLoadingEmail}
+                className="w-full"
+                data-testid="fetch-email-status"
+              >
+                {isLoadingEmail && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Check Email Provider
+              </Button>
+              
+              {emailStatus && (
+                <div className="bg-muted p-3 rounded-md">
+                  <div className="font-mono text-sm space-y-2">
+                    <div className="flex items-center gap-2">
+                      <strong>Admin Connectivity:</strong> 
+                      <Badge variant={emailStatus.adminConnectivity ? "default" : "destructive"}>
+                        {emailStatus.adminConnectivity ? "✓" : "✗"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <strong>Email Confirm:</strong> 
+                      <Badge variant={emailStatus.emailConfirm ? "default" : "destructive"}>
+                        {emailStatus.emailConfirm ? "✓" : "✗"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <strong>Magic Links:</strong> 
+                      <Badge variant={emailStatus.passwordless ? "default" : "destructive"}>
+                        {emailStatus.passwordless ? "✓" : "✗"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <strong>Custom SMTP:</strong> 
+                      <Badge variant={emailStatus.customSmtpConfigured ? "default" : "secondary"}>
+                        {emailStatus.customSmtpConfigured ? "Resend" : "Default"}
+                      </Badge>
+                    </div>
+                    <div><strong>Environment:</strong> {emailStatus.environment}</div>
+                    <div><strong>User Count:</strong> {emailStatus.userCount}</div>
+                    <div><strong>Checked:</strong> {new Date(emailStatus.timestamp).toLocaleTimeString()}</div>
+                    {emailStatus.error && (
+                      <div className="text-red-600">
+                        <strong>Error:</strong> {emailStatus.error}
+                        {emailStatus.details && (
+                          <div className="text-xs mt-1">{emailStatus.details}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
