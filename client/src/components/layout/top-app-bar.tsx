@@ -1,4 +1,4 @@
-import { Activity, Sun, Moon, User, LogOut, Settings } from "lucide-react"
+import { Activity, Sun, Moon, User, LogOut, Settings, Link as LinkIcon } from "lucide-react"
 import { useTheme } from "@/components/ui/theme-provider"
 import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/store/useAppStore"
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { SiGoogle } from "react-icons/si"
 
 export function TopAppBar() {
   const { theme, setTheme } = useTheme()
@@ -54,6 +55,37 @@ export function TopAppBar() {
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase()
+  }
+
+  const isGoogleLinked = () => {
+    return (profile as any)?.providers?.includes("google") || false
+  }
+
+  const handleLinkGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.linkIdentity({
+        provider: "google",
+      })
+
+      if (error) {
+        toast({
+          title: "Google linking failed",
+          description: error.message,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Google linking initiated",
+          description: "Please complete the linking process in the new window.",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Google linking failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -100,6 +132,15 @@ export function TopAppBar() {
                 )}
                 <span>Toggle theme</span>
               </DropdownMenuItem>
+              {!isGoogleLinked() && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLinkGoogle} data-testid="link-google">
+                    <SiGoogle className="mr-2 h-4 w-4" />
+                    <span>Link Google</span>
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} data-testid="sign-out">
                 <LogOut className="mr-2 h-4 w-4" />
