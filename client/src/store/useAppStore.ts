@@ -1414,12 +1414,8 @@ export const useAppStore = create<AppState>()(
       // Server data loading methods
       loadServerData: async (authToken: string) => {
         try {
-          const response = await fetch('/api/user/data', {
-            headers: {
-              'Authorization': `Bearer ${authToken}`,
-              'Content-Type': 'application/json'
-            }
-          });
+          const { authFetch } = await import('@/lib/authFetch');
+          const response = await authFetch('/api/user/data');
           
           if (!response.ok) {
             throw new Error('Failed to fetch user data');

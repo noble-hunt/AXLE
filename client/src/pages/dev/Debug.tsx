@@ -159,7 +159,7 @@ export default function Debug() {
           {user ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Badge variant="success">Authenticated</Badge>
+                <Badge variant="default" className="bg-green-500 text-white">Authenticated</Badge>
               </div>
               <div className="grid gap-2 font-mono text-sm">
                 <div><strong>User ID:</strong> {user.id}</div>
