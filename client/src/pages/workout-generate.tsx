@@ -112,7 +112,14 @@ export default function WorkoutGenerate() {
             
           if (error) {
             console.error('Failed to persist workout to database:', error);
-            throw new Error('Failed to save workout to database');
+            // Show a specific toast for sync failure
+            const { toast } = await import('@/hooks/use-toast');
+            toast({
+              title: "Sync Warning",
+              description: "Workout saved locally, but cloud sync failed. You can retry from History.",
+              variant: "destructive"
+            });
+            return { workout: generatedWorkout, dbSynced: false }; // Return early without rehydrating
           }
           
           console.log('✅ Workout persisted to database');
@@ -122,20 +129,31 @@ export default function WorkoutGenerate() {
           
         } catch (error) {
           console.error('Database persistence error:', error);
-          // Don't throw - workout is still saved locally
+          // Show a warning toast for other errors
+          const { toast } = await import('@/hooks/use-toast');
+          toast({
+            title: "Sync Warning", 
+            description: "Workout saved locally, but cloud sync failed. You can retry from History.",
+            variant: "destructive"
+          });
+          return { workout: generatedWorkout, dbSynced: false };
         }
       }
       
-      return generatedWorkout
+      return { workout: generatedWorkout, dbSynced: isAuthenticated && user ? true : false }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       const { isAuthenticated } = useAppStore.getState()
-      toast({
-        title: "Workout Saved!",
-        description: isAuthenticated 
-          ? "Your workout has been saved and synced to your account."
-          : "Your generated workout has been added to your workout history.",
-      })
+      if (result) {
+        toast({
+          title: "Workout Saved!",
+          description: isAuthenticated && result.dbSynced
+            ? "Your workout has been saved and synced to your account."
+            : isAuthenticated && !result.dbSynced
+            ? "Workout saved locally. Cloud sync failed - you can retry from History."
+            : "Your generated workout has been added to your workout history.",
+        })
+      }
       setLocation('/history')
     },
     onError: (error: any) => {

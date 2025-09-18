@@ -87,17 +87,22 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setAuth(session.user, session);
           if (!initializedRef.current) {
-            await hydrateFromDb(session.user.id);
-            initializedRef.current = true;
+            try {
+              await hydrateFromDb(session.user.id);
+              initializedRef.current = true;
+            } catch (hydrateError) {
+              console.error('❌ Database hydration failed, using local data:', hydrateError);
+              // Don't clear auth - keep authenticated state but use local data
+            }
           }
         } else {
           clearAuth();
           clearStoreForGuest();
         }
       } catch (error) {
-        console.error('❌ Auth initialization failed:', error);
-        clearAuth();
-        clearStoreForGuest();
+        console.error('❌ Auth session check failed:', error);
+        // Don't clear auth on transient network/session check failures
+        // Keep existing auth state and let user retry
       } finally {
         setAuthInitialized(true);
       }
@@ -109,7 +114,13 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
           setAuth(session.user, session);
           // Only hydrate on actual sign-in events, not initial session
           if (evt === 'SIGNED_IN' && !initializedRef.current) {
-            await hydrateFromDb(session.user.id);
+            try {
+              await hydrateFromDb(session.user.id);
+              initializedRef.current = true;
+            } catch (hydrateError) {
+              console.error('❌ Database hydration failed on sign-in, using local data:', hydrateError);
+              // Keep authenticated state but log hydration failure
+            }
           }
         } else {
           clearAuth();
@@ -118,8 +129,12 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('❌ Auth state change failed:', error);
-        clearAuth();
-        clearStoreForGuest();
+        // Only clear auth if auth state check itself failed
+        if (session === null) {
+          clearAuth();
+          clearStoreForGuest();
+          initializedRef.current = false;
+        }
       } finally {
         setAuthInitialized(true);
       }
