@@ -349,19 +349,19 @@ export interface HealthReport {
 export interface WorkoutState {
   workouts: Workout[];
   activeWorkout: Workout | null;
-  addWorkout: (workout: Omit<Workout, 'id' | 'createdAt'>) => void;
-  updateWorkout: (id: string, updates: Partial<Workout>) => void;
-  deleteWorkout: (id: string) => void;
+  addWorkout: (workout: Omit<Workout, 'id' | 'createdAt'>) => Promise<void>;
+  updateWorkout: (id: string, updates: Partial<Workout>) => Promise<void>;
+  deleteWorkout: (id: string) => Promise<void>;
   getWorkout: (id: string) => Workout | undefined;
   setActiveWorkout: (workout: Workout | null) => void;
-  completeWorkout: (id: string, feedback: WorkoutFeedback) => void;
+  completeWorkout: (id: string, feedback: WorkoutFeedback) => Promise<void>;
 }
 
 export interface PRState {
   prs: PR[];
-  addPR: (pr: Omit<PR, 'id' | 'createdAt'>) => void;
-  updatePR: (id: string, updates: Partial<PR>) => void;
-  deletePR: (id: string) => void;
+  addPR: (pr: Omit<PR, 'id' | 'createdAt'>) => Promise<void>;
+  updatePR: (id: string, updates: Partial<PR>) => Promise<void>;
+  deletePR: (id: string) => Promise<void>;
   // Legacy methods for backwards compatibility
   getPRsByExercise: (exercise: string) => PR[];
   getBestPR: (exercise: string) => PR | undefined;
@@ -375,10 +375,10 @@ export interface PRState {
 export interface AchievementState {
   achievements: Achievement[];
   updateProgress: (id: string, progress: number) => void;
-  unlockAchievement: (id: string) => void;
+  unlockAchievement: (id: string) => Promise<void>;
   getCompletedAchievements: () => Achievement[];
   getProgressAchievements: () => Achievement[];
-  recomputeAchievements: () => Achievement[]; // Returns newly unlocked achievements
+  recomputeAchievements: () => Promise<Achievement[]>; // Returns newly unlocked achievements
 }
 
 export interface WearableState {
@@ -386,10 +386,10 @@ export interface WearableState {
   addWearable: (wearable: Omit<WearableConnection, 'id' | 'createdAt'>) => void;
   updateWearable: (id: string, updates: Partial<WearableConnection>) => void;
   removeWearable: (id: string) => void;
-  connectWearable: (id: string) => void;
-  disconnectWearable: (id: string) => void;
+  connectWearable: (id: string) => Promise<void>;
+  disconnectWearable: (id: string) => Promise<void>;
   getConnectedWearables: () => WearableConnection[];
-  syncWearableData: (id: string) => void;
+  syncWearableData: (id: string) => Promise<void>;
 }
 
 export interface ReportState {
@@ -416,6 +416,22 @@ export interface AppState extends WorkoutState, PRState, AchievementState, Weara
   // Server data loading
   loadServerData: (authToken: string) => Promise<void>;
   clearUserData: () => void;
+  
+  // Offline handling
+  offlineQueue: Array<{
+    id: string;
+    operation: string;
+    url: string;
+    method: string;
+    data?: any;
+    timestamp: Date;
+    retryCount: number;
+  }>;
+  addToOfflineQueue: (operation: string, url: string, method: string, data?: any) => void;
+  processOfflineQueue: () => Promise<void>;
+  
+  // Type validation
+  validatePayload: (schema: any, data: any) => boolean;
   
   // Computed properties for compatibility
   streak: number;

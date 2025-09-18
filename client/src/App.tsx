@@ -79,7 +79,7 @@ function Router() {
 }
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setAuth, clearAuth, setAuthInitialized, loadServerData, clearUserData } = useAppStore();
+  const { setAuth, clearAuth, setAuthInitialized, loadServerData, clearUserData, processOfflineQueue } = useAppStore();
 
   useEffect(() => {
     // Get initial session
@@ -90,6 +90,8 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuth(session.user, session);
         // Load server data for existing session
         await loadServerData(session.access_token);
+        // Process any offline queue items
+        await processOfflineQueue();
       } else {
         console.log('❌ No session found, clearing auth');
         clearAuth();
@@ -111,6 +113,9 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
           console.log('📊 Loading server data...');
           await loadServerData(session.access_token);
+          // Process any offline queue items after loading server data
+          console.log('🔄 Processing offline queue...');
+          await processOfflineQueue();
         }
       } else {
         console.log('❌ Auth state: Clearing auth');
@@ -122,7 +127,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [setAuth, clearAuth, setAuthInitialized, loadServerData, clearUserData]);
+  }, [setAuth, clearAuth, setAuthInitialized, loadServerData, clearUserData, processOfflineQueue]);
 
   return <>{children}</>;
 }

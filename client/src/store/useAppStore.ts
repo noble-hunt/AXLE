@@ -733,27 +733,156 @@ export const useAppStore = create<AppState>()(
       workouts: seedWorkouts,
       activeWorkout: null,
       
-      addWorkout: (workoutData) => {
+      addWorkout: async (workoutData) => {
         const workout: Workout = {
           ...workoutData,
           id: generateId(),
           createdAt: new Date(),
         };
+        
+        // Optimistic update
         set((state) => ({ workouts: [workout, ...state.workouts] }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            const response = await apiRequest('POST', '/api/workouts', {
+              title: workout.name,
+              category: workout.category,
+              description: workout.description,
+              duration: workout.duration,
+              intensity: workout.intensity,
+              sets: workout.sets,
+              date: workout.date,
+              completed: workout.completed,
+              notes: workout.notes
+            });
+            
+            const dbWorkout = await response.json();
+            
+            // Replace optimistic workout with server workout to reconcile IDs
+            set((state) => ({
+              workouts: state.workouts.map(w => 
+                w.id === workout.id ? {
+                  id: dbWorkout.id, // Use server ID
+                  name: dbWorkout.title || workout.name,
+                  category: workout.category, // Keep original category
+                  description: workout.description, // Keep original description
+                  duration: workout.duration, // Keep original duration
+                  intensity: workout.intensity, // Keep original intensity
+                  sets: dbWorkout.sets || workout.sets,
+                  date: workout.date, // Keep original date
+                  completed: dbWorkout.completed || false,
+                  notes: dbWorkout.notes || workout.notes,
+                  createdAt: new Date(dbWorkout.created_at),
+                  feedback: dbWorkout.feedback || undefined
+                } : w
+              )
+            }));
+            
+            console.log(`✅ Workout synced with server ID: ${dbWorkout.id}`);
+          } catch (error) {
+            console.error('Failed to sync workout to database:', error);
+            
+            // Check if it's a network error (offline) or server error
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const isNetworkError = error instanceof TypeError || 
+                                 errorMessage.includes('Failed to fetch') ||
+                                 errorMessage.includes('NetworkError') ||
+                                 errorMessage.includes('fetch');
+            
+            if (isNetworkError) {
+              // Add to offline queue for retry later
+              get().addToOfflineQueue(
+                'Add Workout',
+                '/api/workouts',
+                'POST',
+                {
+                  localId: workout.id, // Store local ID for reconciliation later
+                  title: workout.name,
+                  category: workout.category,
+                  description: workout.description,
+                  duration: workout.duration,
+                  intensity: workout.intensity,
+                  sets: workout.sets,
+                  date: workout.date,
+                  completed: workout.completed,
+                  notes: workout.notes
+                }
+              );
+              console.log('📝 Workout queued for sync when online');
+              return; // Keep optimistic update
+            } else {
+              // Rollback optimistic update on non-network errors
+              set((state) => ({
+                workouts: state.workouts.filter(w => w.id !== workout.id)
+              }));
+              throw error;
+            }
+          }
+        }
       },
       
-      updateWorkout: (id, updates) => {
+      updateWorkout: async (id, updates) => {
+        // Store previous state for rollback
+        const previousWorkout = get().workouts.find(w => w.id === id);
+        
+        // Optimistic update
         set((state) => ({
           workouts: state.workouts.map((workout) =>
             workout.id === id ? { ...workout, ...updates } : workout
           ),
         }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            await apiRequest('PUT', `/api/workouts/${id}`, updates);
+          } catch (error) {
+            console.error('Failed to update workout in database:', error);
+            // Rollback optimistic update on error
+            if (previousWorkout) {
+              set((state) => ({
+                workouts: state.workouts.map((workout) =>
+                  workout.id === id ? previousWorkout : workout
+                ),
+              }));
+            }
+            throw error;
+          }
+        }
       },
       
-      deleteWorkout: (id) => {
+      deleteWorkout: async (id) => {
+        // Store deleted workout for rollback
+        const deletedWorkout = get().workouts.find(w => w.id === id);
+        
+        // Optimistic update
         set((state) => ({
           workouts: state.workouts.filter((workout) => workout.id !== id),
         }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            await apiRequest('DELETE', `/api/workouts/${id}`);
+          } catch (error) {
+            console.error('Failed to delete workout from database:', error);
+            // Rollback optimistic update on error
+            if (deletedWorkout) {
+              set((state) => ({
+                workouts: [deletedWorkout, ...state.workouts]
+              }));
+            }
+            throw error;
+          }
+        }
       },
       
       getWorkout: (id) => {
@@ -765,68 +894,149 @@ export const useAppStore = create<AppState>()(
       },
       
       completeWorkout: async (id: string, feedback: WorkoutFeedback) => {
-        try {
-          // Update on server first
-          const response = await fetch(`/api/workouts/${id}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+        // Store previous state for rollback
+        const previousWorkout = get().workouts.find(w => w.id === id);
+        
+        // Optimistic update
+        set((state) => ({
+          workouts: state.workouts.map((workout) =>
+            workout.id === id 
+              ? { 
+                  ...workout, 
+                  completed: true, 
+                  feedback: feedback 
+                } 
+              : workout
+          ),
+        }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            await apiRequest('PUT', `/api/workouts/${id}`, {
               completed: true,
               feedback: feedback
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to update workout on server');
+            });
+          } catch (error) {
+            console.error('Failed to complete workout in database:', error);
+            // Rollback optimistic update on error
+            if (previousWorkout) {
+              set((state) => ({
+                workouts: state.workouts.map((workout) =>
+                  workout.id === id ? previousWorkout : workout
+                ),
+              }));
+            }
+            throw error;
           }
-
-          // Update local state
-          set((state) => ({
-            workouts: state.workouts.map((workout) =>
-              workout.id === id 
-                ? { 
-                    ...workout, 
-                    completed: true, 
-                    feedback: feedback 
-                  } 
-                : workout
-            ),
-          }));
-          
-          // Recompute achievements after workout completion
-          get().recomputeAchievements();
-        } catch (error) {
-          console.error('Failed to complete workout:', error);
-          throw error; // Re-throw so the UI can handle it
         }
+        
+        // Recompute achievements after workout completion
+        get().recomputeAchievements();
       },
 
       // PRs
       prs: seedPRs,
       
-      addPR: (prData) => {
+      addPR: async (prData) => {
         const pr: PR = {
           ...prData,
           id: generateId(),
           createdAt: new Date(),
         };
+        
+        // Optimistic update
         set((state) => ({ prs: [pr, ...state.prs] }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            await apiRequest('POST', '/api/prs', {
+              exercise: pr.exercise,
+              movement: pr.movement,
+              movementCategory: pr.movementCategory,
+              weight: pr.weight,
+              reps: pr.reps,
+              repMax: pr.repMax,
+              value: pr.value,
+              unit: pr.unit,
+              date: pr.date,
+              notes: pr.notes
+            });
+          } catch (error) {
+            console.error('Failed to sync PR to database:', error);
+            // Rollback optimistic update on error
+            set((state) => ({
+              prs: state.prs.filter(p => p.id !== pr.id)
+            }));
+            throw error;
+          }
+        }
+        
         // Recompute achievements after adding PR
         get().recomputeAchievements();
       },
       
-      updatePR: (id, updates) => {
+      updatePR: async (id, updates) => {
+        // Store previous state for rollback
+        const previousPR = get().prs.find(p => p.id === id);
+        
+        // Optimistic update
         set((state) => ({
           prs: state.prs.map((pr) => (pr.id === id ? { ...pr, ...updates } : pr)),
         }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            await apiRequest('PUT', `/api/prs/${id}`, updates);
+          } catch (error) {
+            console.error('Failed to update PR in database:', error);
+            // Rollback optimistic update on error
+            if (previousPR) {
+              set((state) => ({
+                prs: state.prs.map((pr) =>
+                  pr.id === id ? previousPR : pr
+                ),
+              }));
+            }
+            throw error;
+          }
+        }
       },
       
-      deletePR: (id) => {
+      deletePR: async (id) => {
+        // Store deleted PR for rollback
+        const deletedPR = get().prs.find(p => p.id === id);
+        
+        // Optimistic update
         set((state) => ({
           prs: state.prs.filter((pr) => pr.id !== id),
         }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            await apiRequest('DELETE', `/api/prs/${id}`);
+          } catch (error) {
+            console.error('Failed to delete PR from database:', error);
+            // Rollback optimistic update on error
+            if (deletedPR) {
+              set((state) => ({
+                prs: [deletedPR, ...state.prs]
+              }));
+            }
+            throw error;
+          }
+        }
       },
       
       getPRsByExercise: (exercise) => {
@@ -887,7 +1097,11 @@ export const useAppStore = create<AppState>()(
         }));
       },
       
-      unlockAchievement: (id) => {
+      unlockAchievement: async (id) => {
+        // Store previous state for rollback
+        const previousAchievement = get().achievements.find(a => a.id === id);
+        
+        // Optimistic update
         set((state) => ({
           achievements: state.achievements.map((achievement) =>
             achievement.id === id
@@ -895,6 +1109,29 @@ export const useAppStore = create<AppState>()(
               : achievement
           ),
         }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            await apiRequest('PUT', `/api/achievements/${id}`, {
+              completed: true,
+              unlockedAt: new Date()
+            });
+          } catch (error) {
+            console.error('Failed to unlock achievement in database:', error);
+            // Rollback optimistic update on error
+            if (previousAchievement) {
+              set((state) => ({
+                achievements: state.achievements.map((achievement) =>
+                  achievement.id === id ? previousAchievement : achievement
+                ),
+              }));
+            }
+            throw error;
+          }
+        }
       },
       
       getCompletedAchievements: () => {
@@ -905,13 +1142,35 @@ export const useAppStore = create<AppState>()(
         return get().achievements.filter((achievement) => !achievement.completed);
       },
 
-      recomputeAchievements: () => {
+      recomputeAchievements: async () => {
         const state = get();
         const oldAchievements = state.achievements;
         const newAchievements = computeAllAchievements(oldAchievements, state.workouts, state.prs);
         const newlyUnlocked = getNewlyUnlocked(oldAchievements, newAchievements);
         
+        // Update local state
         set({ achievements: newAchievements });
+        
+        // If authenticated and there are newly unlocked achievements, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated && newlyUnlocked.length > 0) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            // Batch update newly unlocked achievements
+            await apiRequest('PUT', '/api/achievements/batch', {
+              achievements: newlyUnlocked.map(a => ({
+                id: a.id,
+                completed: true,
+                unlockedAt: a.unlockedAt,
+                progress: a.progress
+              }))
+            });
+          } catch (error) {
+            console.error('Failed to sync achievements to database:', error);
+            // Note: Not rolling back here as achievement computation is client-side
+            // The next load will fix any inconsistencies
+          }
+        }
         
         return newlyUnlocked;
       },
@@ -942,7 +1201,11 @@ export const useAppStore = create<AppState>()(
         }));
       },
       
-      connectWearable: (id) => {
+      connectWearable: async (id) => {
+        // Store previous state for rollback
+        const previousWearable = get().wearables.find(w => w.id === id);
+        
+        // Optimistic update
         set((state) => ({
           wearables: state.wearables.map((wearable) =>
             wearable.id === id
@@ -950,21 +1213,70 @@ export const useAppStore = create<AppState>()(
               : wearable
           ),
         }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            await apiRequest('PUT', `/api/wearables/${id}`, {
+              connected: true,
+              lastSync: new Date()
+            });
+          } catch (error) {
+            console.error('Failed to connect wearable in database:', error);
+            // Rollback optimistic update on error
+            if (previousWearable) {
+              set((state) => ({
+                wearables: state.wearables.map((wearable) =>
+                  wearable.id === id ? previousWearable : wearable
+                ),
+              }));
+            }
+            throw error;
+          }
+        }
       },
       
-      disconnectWearable: (id) => {
+      disconnectWearable: async (id) => {
+        // Store previous state for rollback
+        const previousWearable = get().wearables.find(w => w.id === id);
+        
+        // Optimistic update
         set((state) => ({
           wearables: state.wearables.map((wearable) =>
             wearable.id === id ? { ...wearable, connected: false } : wearable
           ),
         }));
+        
+        // If authenticated, sync to database
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            await apiRequest('PUT', `/api/wearables/${id}`, {
+              connected: false
+            });
+          } catch (error) {
+            console.error('Failed to disconnect wearable in database:', error);
+            // Rollback optimistic update on error
+            if (previousWearable) {
+              set((state) => ({
+                wearables: state.wearables.map((wearable) =>
+                  wearable.id === id ? previousWearable : wearable
+                ),
+              }));
+            }
+            throw error;
+          }
+        }
       },
       
       getConnectedWearables: () => {
         return get().wearables.filter((wearable) => wearable.connected);
       },
 
-      syncWearableData: (id: string) => {
+      syncWearableData: async (id: string) => {
         const state = get();
         
         // Update wearable lastSync timestamp
@@ -978,7 +1290,34 @@ export const useAppStore = create<AppState>()(
         const wearable = state.wearables.find((w) => w.id === id);
         if (!wearable || !wearable.connected) return;
         
-        // Generate realistic mock metrics based on device capabilities
+        // If authenticated, sync with server
+        const { isAuthenticated } = get();
+        if (isAuthenticated) {
+          try {
+            const { apiRequest } = await import('@/lib/queryClient');
+            const response = await apiRequest('POST', `/api/wearables/${id}/sync`, {});
+            const data = await response.json();
+            
+            // Update wearable sync time in database
+            await apiRequest('PUT', `/api/wearables/${id}`, {
+              lastSync: new Date()
+            });
+            
+            // If the server returned a health report, add it to state
+            if (data.report) {
+              set((state) => ({
+                reports: [data.report, ...state.reports.filter(r => r.id !== data.report.id)]
+              }));
+            }
+            
+            return;
+          } catch (error) {
+            console.error('Failed to sync wearable data with server:', error);
+            // Fall through to local mock data generation
+          }
+        }
+        
+        // Generate realistic mock metrics locally (fallback for guest mode or sync errors)
         const mockMetrics = {
           heartRate: {
             resting: Math.floor(Math.random() * 20) + 50, // 50-70
@@ -1060,9 +1399,11 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ reports: [report, ...state.reports] }));
       },
       
-      getRecentReports: (days) => {
+      getRecentReports: (days = 14) => {
         const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-        return get().reports.filter((report) => report.date >= cutoffDate);
+        return get().reports.filter((report) => report.date >= cutoffDate)
+          .sort((a, b) => b.date.getTime() - a.date.getTime())
+          .slice(0, days); // Limit to last N days
       },
       
       getLatestReport: () => {
@@ -1130,7 +1471,7 @@ export const useAppStore = create<AppState>()(
             unlockedAt: ach.unlocked ? new Date(ach.updated_at) : undefined
           }));
           
-          const transformedReports = data.healthReports.map((report: any) => ({
+          const transformedReports = (data.healthReports || []).map((report: any) => ({
             id: report.id,
             date: new Date(report.date),
             metrics: report.metrics,
@@ -1181,8 +1522,106 @@ export const useAppStore = create<AppState>()(
           prs: seedPRs,
           achievements: seedAchievements,
           wearables: seedWearables,
-          reports: seedReports
+          reports: seedReports,
+          offlineQueue: [] // Clear offline queue on logout
         });
+      },
+
+      // Offline handling
+      offlineQueue: [] as Array<{
+        id: string;
+        operation: string;
+        url: string;
+        method: string;
+        data?: any;
+        timestamp: Date;
+        retryCount: number;
+      }>,
+
+      addToOfflineQueue: (operation: string, url: string, method: string, data?: any) => {
+        const queueItem = {
+          id: generateId(),
+          operation,
+          url,
+          method,
+          data,
+          timestamp: new Date(),
+          retryCount: 0
+        };
+        set((state) => ({
+          offlineQueue: [...state.offlineQueue, queueItem]
+        }));
+      },
+
+      processOfflineQueue: async () => {
+        const { offlineQueue } = get();
+        if (offlineQueue.length === 0) return;
+
+        const { apiRequest } = await import('@/lib/queryClient');
+        const processedItems: string[] = [];
+
+        for (const item of offlineQueue) {
+          try {
+            const response = await apiRequest(item.method, item.url, item.data);
+            
+            // Handle ID reconciliation for workout creation
+            if (item.operation === 'Add Workout' && item.method === 'POST' && item.data.localId) {
+              const dbWorkout = await response.json();
+              
+              // Replace local workout with server workout to reconcile IDs
+              set((state) => ({
+                workouts: state.workouts.map(w => 
+                  w.id === item.data.localId ? {
+                    id: dbWorkout.id, // Use server ID
+                    name: dbWorkout.title || item.data.title,
+                    category: item.data.category, // Keep original category
+                    description: item.data.description, // Keep original description
+                    duration: item.data.duration, // Keep original duration
+                    intensity: item.data.intensity, // Keep original intensity
+                    sets: dbWorkout.sets || item.data.sets,
+                    date: new Date(item.data.date), // Keep original date
+                    completed: dbWorkout.completed || false,
+                    notes: dbWorkout.notes || item.data.notes,
+                    createdAt: new Date(dbWorkout.created_at),
+                    feedback: dbWorkout.feedback || undefined
+                  } : w
+                )
+              }));
+              
+              console.log(`✅ Offline workout synced with server ID: ${dbWorkout.id}`);
+            }
+            
+            processedItems.push(item.id);
+            console.log(`✅ Offline operation processed: ${item.operation}`);
+          } catch (error) {
+            item.retryCount++;
+            // Remove items that have failed too many times (max 3 retries)
+            if (item.retryCount >= 3) {
+              processedItems.push(item.id);
+              console.error(`❌ Offline operation failed permanently: ${item.operation}`, error);
+            } else {
+              console.log(`🔄 Retrying offline operation: ${item.operation} (${item.retryCount}/3)`);
+            }
+          }
+        }
+
+        // Remove processed items from queue
+        if (processedItems.length > 0) {
+          set((state) => ({
+            offlineQueue: state.offlineQueue.filter(item => !processedItems.includes(item.id))
+          }));
+        }
+      },
+
+      // Type validation helper
+      validatePayload: (schema: any, data: any): boolean => {
+        try {
+          schema.parse(data);
+          return true;
+        } catch (error) {
+          console.error('Payload validation failed:', error);
+          return false;
+        }
       },
     }),
     {

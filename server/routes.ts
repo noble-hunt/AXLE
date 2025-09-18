@@ -28,7 +28,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         listWorkouts(userId, { limit: 20 }),
         listPRs(userId),
         listAchievements(userId),
-        listReports(userId, { days: 7 }),
+        listReports(userId, { days: 14 }),
         listWearables(userId)
       ]);
 
@@ -69,6 +69,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/workouts", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      
+      // Validate request body
+      const workoutData = insertWorkoutSchema.parse({
+        title: req.body.title,
+        category: req.body.category,
+        description: req.body.description,
+        duration: req.body.duration,
+        intensity: req.body.intensity,
+        sets: req.body.sets,
+        date: req.body.date,
+        completed: req.body.completed,
+        notes: req.body.notes
+      });
+      
+      const workout = await insertWorkout({
+        userId: authReq.user.id,
+        workout: workoutData
+      });
+      
+      res.json(workout);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid workout data", errors: error.issues });
+      }
+      console.error("Failed to create workout:", error);
+      res.status(500).json({ message: "Failed to create workout" });
+    }
+  });
+
   app.put("/api/workouts/:id", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
@@ -84,6 +116,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/workouts/:id", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { deleteWorkout } = await import("./dal/workouts");
+      const success = await deleteWorkout(authReq.user.id, req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
+      res.json({ message: "Workout deleted successfully" });
+    } catch (error) {
+      console.error("Failed to delete workout:", error);
+      res.status(500).json({ message: "Failed to delete workout" });
+    }
+  });
+
   // Personal Records routes
   app.get("/api/personal-records", requireAuth, async (req, res) => {
     try {
@@ -92,6 +139,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(prs);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch personal records" });
+    }
+  });
+
+  app.post("/api/personal-records", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      
+      // Validate request body with Zod schema
+      const validatedData = insertPersonalRecordSchema.parse({
+        movement: req.body.exercise || req.body.movement,
+        category: req.body.category || req.body.movementCategory,
+        weight_kg: req.body.unit === 'LBS' ? req.body.weight / 2.20462 : req.body.weight,
+        rep_max: req.body.reps || req.body.repMax,
+        date: req.body.date
+      });
+      
+      const { insertPR } = await import("./dal/prs");
+      const pr = await insertPR({
+        userId: authReq.user.id,
+        category: validatedData.category,
+        movement: validatedData.movement,
+        repMax: validatedData.rep_max,
+        weightKg: validatedData.weight_kg,
+        date: validatedData.date
+      });
+      
+      res.json(pr);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid PR data", errors: error.issues });
+      }
+      console.error("Failed to create PR:", error);
+      res.status(500).json({ message: "Failed to create personal record" });
+    }
+  });
+
+  app.delete("/api/personal-records/:id", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { deletePR } = await import("./dal/prs");
+      const success = await deletePR(authReq.user.id, req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Personal record not found" });
+      }
+      res.json({ message: "Personal record deleted successfully" });
+    } catch (error) {
+      console.error("Failed to delete PR:", error);
+      res.status(500).json({ message: "Failed to delete personal record" });
     }
   });
 
@@ -106,11 +201,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/achievements/batch", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { achievements } = req.body;
+      
+      // Validate achievements array with Zod schema
+      const achievementBatchSchema = z.object({
+        achievements: z.array(z.object({
+          id: z.string(),
+          description: z.string().optional(),
+          progress: z.number().min(0).max(100),
+          completed: z.boolean().optional(),
+          unlocked: z.boolean().optional()
+        }))
+      });
+      
+      const validatedData = achievementBatchSchema.parse({ achievements });
+      
+      const { upsertMany } = await import("./dal/achievements");
+      const results = await upsertMany(authReq.user.id, validatedData.achievements.map(a => ({
+        name: a.id, // Map client ID to achievement name
+        description: a.description || '',
+        progress: a.progress,
+        unlocked: a.completed || a.unlocked || false
+      })));
+      
+      res.json(results);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid achievements data", errors: error.issues });
+      }
+      console.error("Failed to batch update achievements:", error);
+      res.status(500).json({ message: "Failed to update achievements" });
+    }
+  });
+
   // Health Reports routes
   app.get("/api/health-reports", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
-      const days = parseInt(req.query.days as string) || 7;
+      const days = parseInt(req.query.days as string) || 14;
       const reports = await listReports(authReq.user.id, { days });
       res.json(reports);
     } catch (error) {
@@ -126,6 +257,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(wearables);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch wearables" });
+    }
+  });
+
+  // Individual wearable update
+  app.put("/api/wearables/:id", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { connected, lastSync } = req.body;
+      
+      // Find existing wearable first
+      const wearables = await listWearables(authReq.user.id);
+      const existingWearable = wearables.find(w => w.id === req.params.id);
+      
+      if (!existingWearable) {
+        return res.status(404).json({ message: "Wearable not found" });
+      }
+      
+      // Use upsert to update the wearable
+      const { upsertWearable } = await import("./dal/wearables");
+      const wearable = await upsertWearable({
+        userId: authReq.user.id,
+        provider: existingWearable.provider,
+        connected: connected !== undefined ? connected : existingWearable.connected,
+        lastSync: lastSync ? new Date(lastSync).toISOString() : existingWearable.last_sync
+      });
+      
+      if (!wearable) {
+        return res.status(404).json({ message: "Wearable not found" });
+      }
+      
+      res.json(wearable);
+    } catch (error) {
+      console.error("Failed to update wearable:", error);
+      res.status(500).json({ message: "Failed to update wearable" });
     }
   });
 
@@ -150,7 +315,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Wearable sync
+  // Individual wearable sync
+  app.post("/api/wearables/:id/sync", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      
+      // Find the wearable by ID first
+      const wearables = await listWearables(authReq.user.id);
+      const wearable = wearables.find(w => w.id === req.params.id);
+      
+      if (!wearable) {
+        return res.status(404).json({ message: "Wearable not found" });
+      }
+      
+      // Generate and insert mock health report for today
+      const { insertReport } = await import("./dal/reports");
+      const today = new Date().toISOString().split('T')[0];
+      
+      const mockMetrics = {
+        restingHeartRate: Math.floor(Math.random() * (75 - 45) + 45),
+        hrv: Math.floor(Math.random() * (80 - 20) + 20),
+        sleepScore: Math.floor(Math.random() * (100 - 60) + 60),
+        steps: Math.floor(Math.random() * 5000) + 7000,
+        calories: Math.floor(Math.random() * 1000) + 2200,
+        workoutsCompleted: Math.floor(Math.random() * 2),
+        totalWorkoutTime: Math.floor(Math.random() * 60),
+        avgIntensity: Math.floor(Math.random() * 5) + 5,
+        newPRs: Math.floor(Math.random() * 2),
+        streakDays: Math.floor(Math.random() * 10),
+        weeklyGoalProgress: Math.floor(Math.random() * 30) + 70
+      };
+      
+      const report = await insertReport({
+        userId: authReq.user.id,
+        date: today,
+        summary: `Health data synced from ${wearable.provider}`,
+        metrics: mockMetrics,
+        suggestions: [
+          `Data synced from ${wearable.provider}`,
+          'Your metrics look good today',
+          'Keep up the great work!'
+        ]
+      });
+      
+      res.json({ wearable: wearable.provider, report });
+    } catch (error) {
+      console.error("Failed to sync wearable:", error);
+      res.status(500).json({ message: "Failed to sync wearable data" });
+    }
+  });
+
+  // Wearable sync (legacy endpoint)
   app.post("/api/wearables/sync", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
