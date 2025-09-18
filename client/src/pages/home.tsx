@@ -49,8 +49,8 @@ function QuickStats() {
       </Card>
       <Card className="p-4 text-center">
         <Flame className="w-6 h-6 text-warning mx-auto mb-2" />
-        <p className="text-heading font-bold text-foreground">{currentStreak} days</p>
-        <p className="text-caption text-muted-foreground">Streak</p>
+        <p className="text-heading font-bold text-foreground">{currentStreak}</p>
+        <p className="text-caption text-muted-foreground">Day Streak</p>
       </Card>
     </div>
   )
@@ -95,7 +95,7 @@ function HealthInsights() {
 
 export default function Home() {
   const [showWorkoutGenerator, setShowWorkoutGenerator] = useState(false)
-  const { workouts, user } = useAppStore()
+  const { workouts, user, profile } = useAppStore()
   const [, setLocation] = useLocation()
 
   // Get recent workouts (last 3) - avoid mutating store array
@@ -141,11 +141,19 @@ export default function Home() {
           <div className="relative z-10 flex items-center justify-between text-white">
             <div>
               <h1 className="text-subheading font-bold">Welcome back!</h1>
-              <h2 className="text-heading font-bold">{user?.email?.split('@')[0] || 'Athlete'}</h2>
+              <h2 className="text-heading font-bold">{profile?.username || user?.email?.split('@')[0] || 'Athlete'}</h2>
               <p className="text-body opacity-90 mt-1">Ready to crush your goals?</p>
             </div>
-            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center">
-              <User className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center overflow-hidden">
+              {profile?.avatar_url ? (
+                <img 
+                  src={profile.avatar_url} 
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User className="w-8 h-8 text-white" />
+              )}
             </div>
           </div>
         </motion.div>
