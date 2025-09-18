@@ -53,6 +53,10 @@ export default function WorkoutDetail() {
   }
 
   const handleCompleteWorkout = async (data: z.infer<typeof feedbackSchema>) => {
+    console.log('🎯 handleCompleteWorkout called with data:', data)
+    console.log('🎯 Workout ID:', id, 'Type:', typeof id)
+    console.log('🎯 Current workout:', workout)
+    
     try {
       const feedback: WorkoutFeedback = {
         difficulty: data.difficulty,
@@ -60,7 +64,9 @@ export default function WorkoutDetail() {
         completedAt: new Date(),
       }
 
+      console.log('🎯 About to call completeWorkout with feedback:', feedback)
       await completeWorkout(id as string, feedback)
+      console.log('🎯 completeWorkout call completed successfully')
 
       setShowCompletionSheet(false)
       setShowSuccessState(true)
