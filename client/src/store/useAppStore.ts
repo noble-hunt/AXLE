@@ -752,7 +752,7 @@ export const useAppStore = create<AppState>()(
           // Fetch data in parallel using client Supabase (RLS will scope by user)
           const [workoutsResult, prsResult, achievementsResult, reportsResult, wearablesResult, profileResult] = await Promise.all([
             supabase.from('workouts').select('*').order('created_at', { ascending: false }).limit(20),
-            supabase.from('personal_records').select('*'),
+            supabase.from('prs').select('*'),
             supabase.from('achievements').select('*'),
             supabase.from('health_reports').select('*').order('date', { ascending: false }).limit(7),
             supabase.from('wearable_connections').select('*'),
