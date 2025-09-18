@@ -28,6 +28,7 @@ export default function WorkoutDetail() {
   const { workouts, getWorkout, completeWorkout } = useAppStore()
   const [showCompletionSheet, setShowCompletionSheet] = useState(false)
   const [showSuccessState, setShowSuccessState] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   
   const workout = getWorkout(id as string)
@@ -53,9 +54,17 @@ export default function WorkoutDetail() {
   }
 
   const handleCompleteWorkout = async (data: z.infer<typeof feedbackSchema>) => {
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      console.log('🎯 Already submitting, ignoring duplicate request')
+      return
+    }
+    
     console.log('🎯 handleCompleteWorkout called with data:', data)
     console.log('🎯 Workout ID:', id, 'Type:', typeof id)
     console.log('🎯 Current workout:', workout)
+    
+    setIsSubmitting(true)
     
     try {
       const feedback: WorkoutFeedback = {
@@ -65,7 +74,17 @@ export default function WorkoutDetail() {
       }
 
       console.log('🎯 About to call completeWorkout with feedback:', feedback)
-      await completeWorkout(id as string, feedback)
+      
+      // Add timeout protection to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Completion timeout')), 10000)
+      )
+      
+      await Promise.race([
+        completeWorkout(id as string, feedback),
+        timeoutPromise
+      ])
+      
       console.log('🎯 completeWorkout call completed successfully')
 
       setShowCompletionSheet(false)
@@ -82,12 +101,17 @@ export default function WorkoutDetail() {
       })
 
     } catch (error) {
-      console.error('Error completing workout:', error)
+      console.error('🎯 Error completing workout:', error)
       toast({
         title: "Error",
-        description: "Failed to complete workout. Please try again.",
+        description: error instanceof Error && error.message === 'Completion timeout' 
+          ? "Completion timed out. Please try again." 
+          : "Failed to complete workout. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsSubmitting(false)
+      console.log('🎯 isSubmitting reset to false')
     }
   }
 
@@ -318,9 +342,10 @@ export default function WorkoutDetail() {
               <Button
                 type="submit"
                 className="w-full"
+                disabled={isSubmitting}
                 data-testid="submit-feedback-button"
               >
-                Complete Workout
+                {isSubmitting ? "Completing..." : "Complete Workout"}
               </Button>
               <Button
                 type="button"
