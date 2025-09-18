@@ -45,20 +45,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Profile provider management
+  // Profile provider management - GET current profile with providers
+  app.get("/api/profiles/providers", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      
+      // Import the profiles get function
+      const { getProfile } = await import("./dal/profiles");
+      
+      // Get current profile using authenticated user ID
+      const profile = await getProfile(authReq.user.id);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      res.json({ profile });
+    } catch (error) {
+      console.error("Failed to get profile providers:", error);
+      res.status(500).json({ message: "Failed to get providers" });
+    }
+  });
+
+  // Profile provider management - POST to add a provider
   app.post("/api/profiles/providers", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const { provider } = req.body;
       
-      if (!provider || typeof provider !== 'string') {
-        return res.status(400).json({ message: "Provider is required" });
+      // Validate provider against whitelist
+      const allowedProviders = ['google'] as const;
+      if (!provider || !allowedProviders.includes(provider)) {
+        return res.status(400).json({ message: "Invalid provider" });
       }
 
       // Import the profiles update function
       const { updateProfileProviders } = await import("./dal/profiles");
       
-      // Update the user's providers array
+      // Use authenticated user ID from middleware (security fix)
       const updatedProfile = await updateProfileProviders(authReq.user.id, provider);
       
       if (!updatedProfile) {
