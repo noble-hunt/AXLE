@@ -24,6 +24,7 @@ import DevEnv from "@/pages/dev-env";
 import Debug from "@/pages/dev/Debug";
 import Tokens from "@/pages/dev/Tokens";
 import Components from "@/pages/dev/Components";
+import Compare from "@/pages/dev/Compare";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Callback from "@/pages/auth/Callback";
@@ -84,6 +85,7 @@ function OverlayWrapper() {
         <Route path="/dev/debug" component={Debug} />
         <Route path="/dev/tokens" component={Tokens} />
         <Route path="/dev/components" component={Components} />
+        <Route path="/dev/compare" component={Compare} />
         <Route component={NotFound} />
       </Switch>
       
