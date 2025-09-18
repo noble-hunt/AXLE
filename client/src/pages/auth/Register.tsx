@@ -16,6 +16,8 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
+  const [isResendLoading, setIsResendLoading] = useState(false);
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
   const { toast } = useToast();
 
   const handleEmailPasswordRegister = async (e: React.FormEvent) => {
@@ -54,15 +56,11 @@ export default function Register() {
           variant: "destructive",
         });
       } else {
+        setShowVerificationMessage(true);
         toast({
-          title: "Welcome to AXLE!",
-          description: "Your account has been created successfully.",
+          title: "Check your email!",
+          description: "We've sent you a verification link to complete your registration.",
         });
-        
-        // Wait a bit for the auth state to propagate before redirecting
-        setTimeout(() => {
-          setLocation("/");
-        }, 1000);
       }
     } catch (error) {
       toast({
@@ -115,6 +113,48 @@ export default function Register() {
       });
     } finally {
       setIsMagicLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsResendLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: { emailRedirectTo: window.location.origin + "/auth/callback" }
+      });
+
+      if (error) {
+        toast({
+          title: "Resend failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Verification email sent!",
+          description: "Check your email for the verification link.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Resend failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResendLoading(false);
     }
   };
 
@@ -229,6 +269,33 @@ export default function Register() {
             </Button>
           </CardContent>
         </Card>
+
+        {showVerificationMessage && (
+          <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+            <CardContent className="p-4">
+              <div className="text-center space-y-3">
+                <Mail className="w-12 h-12 mx-auto text-blue-600 dark:text-blue-400" />
+                <div>
+                  <h3 className="font-semibold text-blue-900 dark:text-blue-100">Check your email to verify your account</h3>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    We've sent a verification link to <strong>{email}</strong>
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResendVerification}
+                  disabled={isResendLoading}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
+                  data-testid="button-resend-verification"
+                >
+                  {isResendLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Resend verification email
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="text-center text-sm">
           <span className="text-muted-foreground">Already have an account? </span>
