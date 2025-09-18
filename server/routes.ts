@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
   insertWorkoutSchema, 
-  insertPersonalRecordSchema, 
+  insertPRSchema, 
   insertAchievementSchema 
 } from "@shared/schema";
 import { generateWorkout } from "./workoutGenerator";
@@ -152,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authReq = req as AuthenticatedRequest;
       
       // Validate request body with Zod schema
-      const validatedData = insertPersonalRecordSchema.parse({
+      const validatedData = insertPRSchema.parse({
         movement: req.body.exercise || req.body.movement,
         category: req.body.category || req.body.movementCategory,
         weight_kg: req.body.unit === 'LBS' ? req.body.weight / 2.20462 : req.body.weight,

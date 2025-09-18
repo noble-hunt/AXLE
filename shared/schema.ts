@@ -1,50 +1,72 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, uuid, integer, timestamp, jsonb, boolean, numeric, smallint, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+// PROFILES - User profile data (references Supabase auth.users)
+export const profiles = pgTable("profiles", {
+  userId: uuid("user_id").primaryKey(), // References auth.users(id) in Supabase
+  username: text("username"),
+  avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// WORKOUTS
 export const workouts = pgTable("workouts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  name: text("name").notNull(),
-  date: timestamp("date").notNull(),
-  duration: integer("duration").notNull(), // in minutes
-  exercises: jsonb("exercises").notNull(), // array of exercise objects
-  notes: text("notes"),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
   createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const personalRecords = pgTable("personal_records", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  exercise: text("exercise").notNull(),
-  weight: integer("weight").notNull(), // in pounds
-  reps: integer("reps"),
-  date: timestamp("date").notNull(),
-  workoutId: varchar("workout_id").references(() => workouts.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const achievements = pgTable("achievements", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  type: text("type").notNull(), // 'streak', 'workout_count', 'pr_count', etc.
+  request: jsonb("request").notNull(),
   title: text("title").notNull(),
+  notes: text("notes"),
+  sets: jsonb("sets").notNull(),
+  completed: boolean("completed").default(false),
+  feedback: jsonb("feedback"),
+});
+
+// PRS (Personal Records)
+export const prs = pgTable("prs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  category: text("category").notNull(),
+  movement: text("movement").notNull(),
+  repMax: smallint("rep_max").notNull(), // Check constraint: in (1,3,5,10)
+  weightKg: numeric("weight_kg").notNull(),
+  date: date("date").notNull().default(sql`current_date`),
+});
+
+// ACHIEVEMENTS
+export const achievements = pgTable("achievements", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  name: text("name").notNull(),
   description: text("description").notNull(),
-  unlockedAt: timestamp("unlocked_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  progress: numeric("progress").notNull().default(sql`0`),
+  unlocked: boolean("unlocked").notNull().default(false),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// WEARABLE CONNECTIONS
+export const wearableConnections = pgTable("wearable_connections", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  provider: text("provider").notNull(),
+  connected: boolean("connected").notNull().default(false),
+  lastSync: timestamp("last_sync"),
+});
+
+// HEALTH REPORTS
+export const healthReports = pgTable("health_reports", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  date: date("date").notNull(),
+  summary: text("summary"),
+  metrics: jsonb("metrics").notNull().default(sql`'{}'`),
+  suggestions: text("suggestions").array().notNull().default(sql`'{}'`),
 });
 
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
+export const insertProfileSchema = createInsertSchema(profiles).omit({
   createdAt: true,
 });
 
@@ -53,28 +75,41 @@ export const insertWorkoutSchema = createInsertSchema(workouts).omit({
   createdAt: true,
 });
 
-export const insertPersonalRecordSchema = createInsertSchema(personalRecords).omit({
+export const insertPRSchema = createInsertSchema(prs).omit({
   id: true,
-  createdAt: true,
 });
 
 export const insertAchievementSchema = createInsertSchema(achievements).omit({
   id: true,
-  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWearableConnectionSchema = createInsertSchema(wearableConnections).omit({
+  id: true,
+});
+
+export const insertHealthReportSchema = createInsertSchema(healthReports).omit({
+  id: true,
 });
 
 // Types
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type InsertProfile = z.infer<typeof insertProfileSchema>;
+export type Profile = typeof profiles.$inferSelect;
 
 export type InsertWorkout = z.infer<typeof insertWorkoutSchema>;
 export type Workout = typeof workouts.$inferSelect;
 
-export type InsertPersonalRecord = z.infer<typeof insertPersonalRecordSchema>;
-export type PersonalRecord = typeof personalRecords.$inferSelect;
+export type InsertPR = z.infer<typeof insertPRSchema>;
+export type PR = typeof prs.$inferSelect;
 
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 export type Achievement = typeof achievements.$inferSelect;
+
+export type InsertWearableConnection = z.infer<typeof insertWearableConnectionSchema>;
+export type WearableConnection = typeof wearableConnections.$inferSelect;
+
+export type InsertHealthReport = z.infer<typeof insertHealthReportSchema>;
+export type HealthReport = typeof healthReports.$inferSelect;
 
 // Workout generation schemas
 export enum Category {
@@ -122,3 +157,11 @@ export type WorkoutRequest = z.infer<typeof workoutRequestSchema>;
 export type WorkoutSet = z.infer<typeof workoutSetSchema>;
 export type GeneratedWorkout = z.infer<typeof generatedWorkoutSchema>;
 export type WorkoutFeedback = z.infer<typeof workoutFeedbackSchema>;
+
+// Legacy aliases for backward compatibility
+export const users = profiles; // Alias for compatibility
+export const personalRecords = prs; // Alias for compatibility
+export type User = Profile;
+export type InsertUser = InsertProfile;
+export type PersonalRecord = PR;
+export type InsertPersonalRecord = InsertPR;
