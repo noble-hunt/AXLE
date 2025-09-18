@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -78,29 +78,51 @@ function Router() {
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setAuth, clearAuth, setAuthInitialized, hydrateFromDb, clearStoreForGuest } = useAppStore();
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setAuth(session.user, session);
-        await hydrateFromDb(session.user.id);
-      } else {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setAuth(session.user, session);
+          if (!initializedRef.current) {
+            await hydrateFromDb(session.user.id);
+            initializedRef.current = true;
+          }
+        } else {
+          clearAuth();
+          clearStoreForGuest();
+        }
+      } catch (error) {
+        console.error('❌ Auth initialization failed:', error);
         clearAuth();
         clearStoreForGuest();
+      } finally {
+        setAuthInitialized(true);
       }
-      setAuthInitialized(true);
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_evt, session) => {
-      if (session?.user) {
-        setAuth(session.user, session);
-        await hydrateFromDb(session.user.id);
-      } else {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (evt, session) => {
+      try {
+        if (session?.user) {
+          setAuth(session.user, session);
+          // Only hydrate on actual sign-in events, not initial session
+          if (evt === 'SIGNED_IN' && !initializedRef.current) {
+            await hydrateFromDb(session.user.id);
+          }
+        } else {
+          clearAuth();
+          clearStoreForGuest();
+          initializedRef.current = false;
+        }
+      } catch (error) {
+        console.error('❌ Auth state change failed:', error);
         clearAuth();
         clearStoreForGuest();
+      } finally {
+        setAuthInitialized(true);
       }
-      setAuthInitialized(true);
     });
 
     return () => sub.subscription.unsubscribe();

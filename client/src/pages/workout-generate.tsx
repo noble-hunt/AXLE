@@ -73,7 +73,9 @@ export default function WorkoutGenerate() {
     mutationFn: async () => {
       if (!generatedWorkout) return
       
-      // Add to store
+      const { isAuthenticated, user, hydrateFromDb } = useAppStore.getState()
+      
+      // Add to store first
       addWorkout({
         name: generatedWorkout.name,
         category: generatedWorkout.category,
@@ -86,12 +88,53 @@ export default function WorkoutGenerate() {
         notes: 'AI Generated Workout',
       })
       
+      // If authenticated, persist to Supabase
+      if (isAuthenticated && user) {
+        try {
+          const { supabase } = await import('@/lib/supabase');
+          
+          const workoutData = {
+            title: generatedWorkout.name,
+            notes: 'AI Generated Workout',
+            sets: generatedWorkout.sets || [],
+            completed: false,
+            request: {
+              category: generatedWorkout.category,
+              duration: generatedWorkout.duration,
+              intensity: generatedWorkout.intensity
+            },
+            feedback: null
+          };
+          
+          const { error } = await supabase
+            .from('workouts')
+            .insert([workoutData]);
+            
+          if (error) {
+            console.error('Failed to persist workout to database:', error);
+            throw new Error('Failed to save workout to database');
+          }
+          
+          console.log('✅ Workout persisted to database');
+          
+          // Refresh data from database to sync
+          await hydrateFromDb(user.id);
+          
+        } catch (error) {
+          console.error('Database persistence error:', error);
+          // Don't throw - workout is still saved locally
+        }
+      }
+      
       return generatedWorkout
     },
     onSuccess: () => {
+      const { isAuthenticated } = useAppStore.getState()
       toast({
         title: "Workout Saved!",
-        description: "Your generated workout has been added to your workout history.",
+        description: isAuthenticated 
+          ? "Your workout has been saved and synced to your account."
+          : "Your generated workout has been added to your workout history.",
       })
       setLocation('/history')
     },
