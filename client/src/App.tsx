@@ -47,11 +47,7 @@ function Router() {
           <WorkoutDetail />
         </ProtectedRoute>
       )} />
-      <Route path="/history" component={() => (
-        <ProtectedRoute>
-          <History />
-        </ProtectedRoute>
-      )} />
+      <Route path="/history" component={History} />
       <Route path="/prs" component={() => (
         <ProtectedRoute>
           <PRs />
