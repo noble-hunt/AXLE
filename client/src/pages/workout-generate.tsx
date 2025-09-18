@@ -14,7 +14,6 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
 import { Category, WorkoutRequest, workoutRequestSchema } from "@shared/schema"
 import { useAppStore } from "@/store/useAppStore"
-import { apiRequest } from "@/lib/queryClient"
 import { Dumbbell, Clock, Target, Zap, Sparkles } from "lucide-react"
 
 type WorkoutRequestForm = WorkoutRequest
@@ -25,11 +24,6 @@ export default function WorkoutGenerate() {
   const [, setLocation] = useLocation()
   const { toast } = useToast()
 
-  // Debug readout
-  console.log('Workout Generate Page State:', { 
-    generatedWorkout: !!generatedWorkout,
-    categories: Object.values(Category)
-  })
 
   const form = useForm<WorkoutRequestForm>({
     resolver: zodResolver(workoutRequestSchema),
@@ -42,7 +36,6 @@ export default function WorkoutGenerate() {
 
   const generateMutation = useMutation({
     mutationFn: async (data: WorkoutRequestForm) => {
-      console.log('Generating workout with:', data)
       const { authFetch } = await import('@/lib/authFetch');
       const response = await authFetch('/api/generate-workout', {
         method: 'POST',
@@ -51,17 +44,23 @@ export default function WorkoutGenerate() {
       })
       
       if (!response.ok) {
-        const error = await response.json()
+        let errorMessage = `Server error: ${response.status}`
+        try {
+          const error = await response.json()
+          errorMessage = error.message || errorMessage
+        } catch {
+          // Ignore JSON parsing errors for non-JSON responses
+        }
+        
         if (response.status === 401) {
           throw new Error('Authentication required. Please sign in to generate workouts.')
         }
-        throw new Error(error.message || `Server error: ${response.status}`)
+        throw new Error(errorMessage)
       }
       
       return await response.json()
     },
     onSuccess: (data) => {
-      console.log('Generated workout:', data)
       setGeneratedWorkout(data)
       toast({
         title: "Workout Generated!",
