@@ -7,7 +7,7 @@ const navItems = [
   { icon: Activity, label: "Workout", path: "/workout" },
   { icon: Calendar, label: "History", path: "/history" },
   { icon: Trophy, label: "PRs", path: "/prs" },
-  { icon: MoreHorizontal, label: "More", path: "/achievements" }
+  { icon: MoreHorizontal, label: "More", path: "/profile" }
 ]
 
 export function BottomNavigation() {

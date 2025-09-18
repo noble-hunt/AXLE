@@ -17,6 +17,7 @@ import WorkoutDetail from "@/pages/workout-detail";
 import History from "@/pages/history";
 import PRs from "@/pages/prs";
 import Achievements from "@/pages/achievements";
+import Profile from "@/pages/profile";
 import Connect from "@/pages/connect";
 import Reports from "@/pages/reports";
 import WorkoutGenerate from "@/pages/workout-generate";
@@ -66,6 +67,7 @@ function OverlayWrapper() {
         <Route path="/history" component={History} />
         <Route path="/prs" component={PRs} />
         <Route path="/achievements" component={Achievements} />
+        <Route path="/profile" component={Profile} />
         <Route path="/connect" component={() => (
           <ProtectedRoute>
             <Connect />
