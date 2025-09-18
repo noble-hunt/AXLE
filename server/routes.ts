@@ -414,6 +414,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const authReq = req as AuthenticatedRequest;
       
+      // Debug logging for auth and DB operations
+      const hasBearer = req.headers.authorization?.startsWith('Bearer ') || false;
+      const userId = authReq.user?.id;
+      
+      console.log(`🔍 Generate Workout Debug:`, {
+        userId: userId,
+        email: authReq.user?.email,
+        hasBearer: hasBearer,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (!authReq.user) {
+        console.log(`❌ Missing user in request despite requireAuth`);
+        return res.status(401).json({ message: "missing bearer" });
+      }
+      
       // Enhanced schema with context data
       const enhancedWorkoutRequestSchema = workoutRequestSchema.extend({
         recentPRs: z.array(z.object({
@@ -443,6 +459,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const generatedWorkout = await generateWorkout(validatedData);
       
       // Insert workout into database
+      console.log(`📝 About to insert workout for user: ${authReq.user.id}`);
+      
       const dbWorkout = await insertWorkout({
         userId: authReq.user.id,
         workout: {
@@ -453,6 +471,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           completed: false
         }
       });
+      
+      console.log(`✅ Successfully inserted workout with ID: ${dbWorkout.id}`);
       
       // Return the DB row id for navigation
       res.json({ 
@@ -604,6 +624,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "DAL test failed", 
         error: error instanceof Error ? error.message : "Unknown error" 
       });
+    }
+  });
+
+  // Debug endpoints for monitoring auth and database operations
+  app.get("/api/debug/session", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      res.json({
+        userId: authReq.user.id,
+        email: authReq.user.email
+      });
+    } catch (error) {
+      console.error("Debug session error:", error);
+      res.status(500).json({ message: "Failed to get session debug info" });
+    }
+  });
+
+  app.get("/api/debug/workouts", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      
+      // Get count and last 5 workout IDs
+      const { data: workouts, error: workoutsError } = await supabaseAdmin
+        .from('workouts')
+        .select('id, created_at')
+        .eq('user_id', authReq.user.id)
+        .order('created_at', { ascending: false });
+      
+      if (workoutsError) {
+        throw new Error(`Workouts query failed: ${workoutsError.message}`);
+      }
+
+      res.json({
+        count: workouts?.length || 0,
+        last5Ids: workouts?.slice(0, 5).map(w => w.id) || []
+      });
+    } catch (error) {
+      console.error("Debug workouts error:", error);
+      res.status(500).json({ message: "Failed to get workouts debug info" });
     }
   });
 
