@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Mail, Lock, User, Loader2, ArrowLeft } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,6 +18,7 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
   const [isResendLoading, setIsResendLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showVerificationMessage, setShowVerificationMessage] = useState(false);
   const { toast } = useToast();
 
@@ -113,6 +115,35 @@ export default function Register() {
       });
     } finally {
       setIsMagicLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        toast({
+          title: "Google sign-in failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Google sign-in failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -266,6 +297,18 @@ export default function Register() {
               {isMagicLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Mail className="w-4 h-4 mr-2" />
               Send Magic Link
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading}
+              data-testid="button-google-signin"
+            >
+              {isGoogleLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <SiGoogle className="w-4 h-4 mr-2" />
+              Continue with Google
             </Button>
           </CardContent>
         </Card>
