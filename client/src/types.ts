@@ -399,7 +399,23 @@ export interface ReportState {
   getLatestReport: () => HealthReport | undefined;
 }
 
-export interface AppState extends WorkoutState, PRState, AchievementState, WearableState, ReportState {
+export interface Profile {
+  user_id: string;
+  username: string;
+  email: string;
+  avatar_url?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ProfileState {
+  profile: Profile | null;
+  setProfile: (profile: Profile) => void;
+  upsertProfile: (userId: string, email: string, username?: string) => Promise<void>;
+  clearProfile: () => void;
+}
+
+export interface AppState extends WorkoutState, PRState, AchievementState, WearableState, ReportState, ProfileState {
   // Global state
   theme: 'light' | 'dark' | 'system';
   setTheme: (theme: 'light' | 'dark' | 'system') => void;

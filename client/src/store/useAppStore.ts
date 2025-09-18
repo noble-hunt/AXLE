@@ -678,6 +678,52 @@ export const useAppStore = create<AppState>()(
       theme: 'light',
       setTheme: (theme) => set({ theme }),
       
+      // Profile state
+      profile: null,
+      setProfile: (profile) => set({ profile }),
+      upsertProfile: async (userId: string, email: string, username?: string) => {
+        try {
+          const { supabase } = await import('@/lib/supabase');
+          
+          // Create username from email if not provided
+          const finalUsername = username || email.split('@')[0];
+          
+          const profileData = {
+            user_id: userId,
+            username: finalUsername,
+            email,
+            updated_at: new Date()
+          };
+          
+          // Upsert profile in database
+          const { data, error } = await supabase
+            .from('profiles')
+            .upsert(profileData, { onConflict: 'user_id' })
+            .select()
+            .single();
+            
+          if (error) {
+            console.error('Failed to upsert profile:', error);
+            return;
+          }
+          
+          // Update local store
+          set({ 
+            profile: {
+              ...data,
+              created_at: new Date(data.created_at),
+              updated_at: new Date(data.updated_at)
+            }
+          });
+          
+          console.log('✅ Profile upserted successfully');
+          
+        } catch (error) {
+          console.error('Profile upsert error:', error);
+        }
+      },
+      clearProfile: () => set({ profile: null }),
+      
       // Authentication state
       isAuthenticated: false,
       user: null,
@@ -693,7 +739,8 @@ export const useAppStore = create<AppState>()(
       clearAuth: () => set({ 
         user: null, 
         session: null, 
-        isAuthenticated: false 
+        isAuthenticated: false,
+        profile: null
       }),
 
       // Hydrate from database using client Supabase with RLS
@@ -703,12 +750,13 @@ export const useAppStore = create<AppState>()(
           const { supabase } = await import('@/lib/supabase');
 
           // Fetch data in parallel using client Supabase (RLS will scope by user)
-          const [workoutsResult, prsResult, achievementsResult, reportsResult, wearablesResult] = await Promise.all([
+          const [workoutsResult, prsResult, achievementsResult, reportsResult, wearablesResult, profileResult] = await Promise.all([
             supabase.from('workouts').select('*').order('created_at', { ascending: false }).limit(20),
             supabase.from('personal_records').select('*'),
             supabase.from('achievements').select('*'),
             supabase.from('health_reports').select('*').order('date', { ascending: false }).limit(7),
-            supabase.from('wearable_connections').select('*')
+            supabase.from('wearable_connections').select('*'),
+            supabase.from('profiles').select('*').eq('user_id', userId).single()
           ]);
 
           if (workoutsResult.error) throw workoutsResult.error;
@@ -716,6 +764,10 @@ export const useAppStore = create<AppState>()(
           if (achievementsResult.error) throw achievementsResult.error;
           if (reportsResult.error) throw reportsResult.error;
           if (wearablesResult.error) throw wearablesResult.error;
+          // Profile error is non-fatal - it may not exist yet
+          if (profileResult.error && profileResult.error.code !== 'PGRST116') {
+            console.warn('Profile fetch error:', profileResult.error);
+          }
 
           // Transform and update store
           const transformedWorkouts = workoutsResult.data.map((w: any) => ({
@@ -796,7 +848,12 @@ export const useAppStore = create<AppState>()(
             prs: transformedPRs,
             achievements: transformedAchievements,
             reports: transformedReports,
-            wearables: transformedWearables
+            wearables: transformedWearables,
+            profile: profileResult.data ? {
+              ...profileResult.data,
+              created_at: new Date(profileResult.data.created_at),
+              updated_at: new Date(profileResult.data.updated_at)
+            } : null
           });
 
           console.log('✅ Database hydration complete');
@@ -814,7 +871,8 @@ export const useAppStore = create<AppState>()(
           prs: seedPRs,
           achievements: seedAchievements,
           reports: seedReports,
-          wearables: seedWearables
+          wearables: seedWearables,
+          profile: null
         });
       },
       
