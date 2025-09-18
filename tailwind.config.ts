@@ -5,14 +5,33 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      // 8pt spacing scale for SwiftUI consistency
+      spacing: {
+        '0.5': '2px',   // 2px
+        '1': '4px',     // 4px
+        '1.5': '6px',   // 6px
+        '2': '8px',     // 8px
+        '3': '12px',    // 12px
+        '4': '16px',    // 16px
+        '5': '20px',    // 20px
+        '6': '24px',    // 24px
+        '8': '32px',    // 32px
+        '10': '40px',   // 40px
+      },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
+        md: "12px",     // SwiftUI medium radius
+        xl: "16px",     // SwiftUI large radius
+        "2xl": "24px",  // SwiftUI extra large radius
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        surface: {
+          DEFAULT: "var(--surface)",
+          foreground: "var(--surface-foreground)",
+        },
         card: {
           DEFAULT: "var(--card)",
           foreground: "var(--card-foreground)",
@@ -66,6 +85,14 @@ export default {
         sans: ["var(--font-sans)"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
+      },
+      // SwiftUI-inspired typography scale
+      fontSize: {
+        'display': ['34px', { lineHeight: '40px', fontWeight: '700' }],  // display(34/40/700)
+        'title': ['28px', { lineHeight: '34px', fontWeight: '700' }],    // title(28/34/700)
+        'headline': ['22px', { lineHeight: '28px', fontWeight: '600' }], // headline(22/28/600)
+        'body': ['16px', { lineHeight: '24px', fontWeight: '500' }],     // body(16/24/500)
+        'caption': ['13px', { lineHeight: '18px', fontWeight: '500' }],  // caption(13/18/500)
       },
       keyframes: {
         "accordion-down": {

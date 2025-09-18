@@ -21,6 +21,7 @@ import Reports from "@/pages/reports";
 import WorkoutGenerate from "@/pages/workout-generate";
 import DevEnv from "@/pages/dev-env";
 import Debug from "@/pages/dev/Debug";
+import Tokens from "@/pages/dev/Tokens";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Callback from "@/pages/auth/Callback";
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/generate-workout" component={WorkoutGenerate} />
       <Route path="/dev/env" component={DevEnv} />
       <Route path="/dev/debug" component={Debug} />
+      <Route path="/dev/tokens" component={Tokens} />
       <Route component={NotFound} />
     </Switch>
   );
