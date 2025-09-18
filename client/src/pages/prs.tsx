@@ -5,7 +5,7 @@ import { MovementCategory, getMovementsByCategory, Movement } from '../types'
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
-import { SegmentedControl } from "@/components/swift/segmented-control"
+import { SegmentedControl, Segment } from "@/components/swift/segmented-control"
 import { StatBadge } from "@/components/swift/stat-badge"
 import { Sheet } from "@/components/swift/sheet"
 import { Field } from "@/components/swift/field"
@@ -168,30 +168,40 @@ export default function PRs() {
       </div>
 
       {/* Filter Controls */}
-      <div className="space-y-6">
-        <div className="space-y-3">
+      <div className="space-y-4">
+        <div className="space-y-2">
           <label className="text-body font-medium text-foreground">Category</label>
           <SegmentedControl
-            options={categoryOptions}
             value={activeCategory}
-            onChange={(value) => setActiveCategory(value as MovementCategory)}
+            onValueChange={(value) => setActiveCategory(value as MovementCategory)}
             data-testid="category-tabs"
-          />
+          >
+            {categoryOptions.map((option) => (
+              <Segment key={option.value} value={option.value}>
+                {option.label}
+              </Segment>
+            ))}
+          </SegmentedControl>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <label className="text-body font-medium text-foreground">Units</label>
           <SegmentedControl
-            options={unitOptions}
             value={unit}
-            onChange={(value) => setUnit(value as "lbs" | "kg")}
+            onValueChange={(value) => setUnit(value as "lbs" | "kg")}
             data-testid="unit-switch"
-          />
+          >
+            {unitOptions.map((option) => (
+              <Segment key={option.value} value={option.value}>
+                {option.label}
+              </Segment>
+            ))}
+          </SegmentedControl>
         </div>
       </div>
 
       {/* Movements Grid */}
-      <div className="space-y-5 pt-2">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-subheading font-semibold text-foreground">
             {activeCategory} Movements
@@ -208,7 +218,7 @@ export default function PRs() {
         </div>
 
         {movements.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <div className="flex flex-col items-center justify-center py-8 space-y-3">
             <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
               <Target className="w-8 h-8 text-muted-foreground" />
             </div>
@@ -377,11 +387,16 @@ export default function PRs() {
             <div className="space-y-2">
               <label className="text-body font-medium text-foreground">Unit</label>
               <SegmentedControl
-                options={unitOptions}
                 value={unit}
-                onChange={(value) => setUnit(value as "lbs" | "kg")}
+                onValueChange={(value) => setUnit(value as "lbs" | "kg")}
                 data-testid="pr-unit-selector"
-              />
+              >
+                {unitOptions.map((option) => (
+                  <Segment key={option.value} value={option.value}>
+                    {option.label}
+                  </Segment>
+                ))}
+              </SegmentedControl>
             </div>
           </div>
 

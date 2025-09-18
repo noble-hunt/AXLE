@@ -16,9 +16,9 @@ const statBadgeVariants = cva(
         destructive: "bg-destructive/10 text-destructive",
       },
       size: {
-        sm: "h-6 px-2 text-[11px]",
-        default: "h-8 px-3",
-        lg: "h-10 px-4 text-body",
+        sm: "min-h-6 px-2 py-1 text-[11px]",
+        default: "min-h-12 px-3 py-2",
+        lg: "min-h-14 px-4 py-3 text-body",
       },
     },
     defaultVariants: {
