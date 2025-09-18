@@ -1113,8 +1113,11 @@ export const useAppStore = create<AppState>()(
           }
         }
         
-        // Recompute achievements after workout completion
-        await get().recomputeAchievements();
+        // Recompute achievements after workout completion (non-blocking)
+        get().recomputeAchievements().catch(error => {
+          console.error('Failed to recompute achievements:', error);
+          // Don't throw - achievements are non-critical for completion
+        });
       },
 
       // PRs

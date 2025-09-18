@@ -184,15 +184,15 @@ export default function WorkoutDetail() {
 
         {/* Request Meta Chips */}
         <div className="flex flex-wrap gap-2" data-testid="request-chips">
-          <Chip variant="outline">
+          <Chip variant="secondary">
             <Activity className="w-3 h-3 mr-1" />
             {workout.category}
           </Chip>
-          <Chip variant="outline">
+          <Chip variant="secondary">
             <Clock className="w-3 h-3 mr-1" />
             {workout.duration} min
           </Chip>
-          <Chip variant="outline">
+          <Chip variant="secondary">
             <Target className="w-3 h-3 mr-1" />
             Intensity {workout.intensity}/10
           </Chip>
