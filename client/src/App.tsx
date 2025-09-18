@@ -84,11 +84,14 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('🔍 Initial session check:', session ? 'Found session' : 'No session');
       if (session) {
+        console.log('🔐 Setting auth with user:', session.user.email);
         setAuth(session.user, session);
         // Load server data for existing session
         await loadServerData(session.access_token);
       } else {
+        console.log('❌ No session found, clearing auth');
         clearAuth();
         clearUserData();
       }
@@ -100,13 +103,17 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 Auth state change:', event, session ? 'with session' : 'no session');
       if (session) {
+        console.log('🔐 Auth state: Setting auth with user:', session.user.email);
         setAuth(session.user, session);
         // Load server data when user logs in or session is restored
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          console.log('📊 Loading server data...');
           await loadServerData(session.access_token);
         }
       } else {
+        console.log('❌ Auth state: Clearing auth');
         clearAuth();
         clearUserData();
       }

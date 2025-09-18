@@ -42,7 +42,7 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
@@ -58,7 +58,11 @@ export default function Register() {
           title: "Welcome to AXLE!",
           description: "Your account has been created successfully.",
         });
-        setLocation("/");
+        
+        // Wait a bit for the auth state to propagate before redirecting
+        setTimeout(() => {
+          setLocation("/");
+        }, 1000);
       }
     } catch (error) {
       toast({
