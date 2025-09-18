@@ -148,19 +148,19 @@ export default function PRs() {
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4">
         <StatBadge
-          icon={Trophy}
+          icon={<Trophy className="w-4 h-4" />}
           value={totalPRs.toString()}
           label="Total PRs"
           data-testid="total-prs"
         />
         <StatBadge
-          icon={TrendingUp}
+          icon={<TrendingUp className="w-4 h-4" />}
           value={recentPRs.toString()}
           label="This Month"
           data-testid="recent-prs"
         />
         <StatBadge
-          icon={BarChart3}
+          icon={<BarChart3 className="w-4 h-4" />}
           value={categoryPRs.toString()}
           label={categoryOptions.find(c => c.value === activeCategory)?.label || "Current"}
           data-testid="category-prs"

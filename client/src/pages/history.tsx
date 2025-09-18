@@ -14,8 +14,8 @@ import { Category } from "../types"
 import { format } from "date-fns"
 
 // Category icon mapping
-const getCategoryIcon = (category: Category) => {
-  const iconMap = {
+const getCategoryIcon = (category: Category): React.ComponentType<React.SVGProps<SVGSVGElement>> => {
+  const iconMap: Record<Category, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
     [Category.CROSSFIT]: Zap,
     [Category.HIIT]: Timer,
     [Category.POWERLIFTING]: Dumbbell,
@@ -172,19 +172,19 @@ export default function History() {
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4">
         <StatBadge
-          icon={Calendar}
+          icon={<Calendar className="w-4 h-4" />}
           value={filteredWorkouts.length.toString()}
           label="Workouts"
           data-testid="total-workouts"
         />
         <StatBadge
-          icon={Clock}
+          icon={<Clock className="w-4 h-4" />}
           value={totalTime.toString()}
           label="Minutes"
           data-testid="total-time"
         />
         <StatBadge
-          icon={CheckCircle}
+          icon={<CheckCircle className="w-4 h-4" />}
           value={completedCount.toString()}
           label="Completed"
           data-testid="completed-count"
