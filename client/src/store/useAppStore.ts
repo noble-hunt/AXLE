@@ -681,7 +681,7 @@ export const useAppStore = create<AppState>()(
       // Profile state
       profile: null,
       setProfile: (profile) => set({ profile }),
-      upsertProfile: async (userId: string, email: string, username?: string) => {
+      upsertProfile: async (userId: string, email: string, username?: string, firstName?: string, lastName?: string) => {
         try {
           const { supabase } = await import('@/lib/supabase');
           
@@ -691,8 +691,9 @@ export const useAppStore = create<AppState>()(
           const profileData = {
             user_id: userId,
             username: finalUsername,
-            email,
-            updated_at: new Date()
+            first_name: firstName,
+            last_name: lastName,
+            email
           };
           
           // Upsert profile in database
@@ -710,9 +711,13 @@ export const useAppStore = create<AppState>()(
           // Update local store
           set({ 
             profile: {
-              ...data,
-              created_at: new Date(data.created_at),
-              updated_at: new Date(data.updated_at)
+              userId: data.user_id,
+              username: data.username,
+              firstName: data.first_name,
+              lastName: data.last_name,
+              avatarUrl: data.avatar_url,
+              providers: data.providers,
+              createdAt: new Date(data.created_at)
             }
           });
           
@@ -850,9 +855,13 @@ export const useAppStore = create<AppState>()(
             reports: transformedReports,
             wearables: transformedWearables,
             profile: profileResult.data ? {
-              ...profileResult.data,
-              created_at: new Date(profileResult.data.created_at),
-              updated_at: new Date(profileResult.data.updated_at)
+              userId: profileResult.data.user_id,
+              username: profileResult.data.username,
+              firstName: profileResult.data.first_name,
+              lastName: profileResult.data.last_name,
+              avatarUrl: profileResult.data.avatar_url,
+              providers: profileResult.data.providers,
+              createdAt: new Date(profileResult.data.created_at)
             } : null
           });
 

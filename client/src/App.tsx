@@ -115,7 +115,9 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!initializedRef.current) {
             try {
               // Upsert profile first (create if doesn't exist)
-              await get().upsertProfile(session.user.id, session.user.email || '');
+              const firstName = session.user.user_metadata?.first_name;
+              const lastName = session.user.user_metadata?.last_name;
+              await get().upsertProfile(session.user.id, session.user.email || '', undefined, firstName, lastName);
               
               // Then hydrate all data
               await hydrateFromDb(session.user.id);
@@ -150,7 +152,9 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
           if (evt === 'SIGNED_IN' && !initializedRef.current) {
             try {
               // Upsert profile first (create if doesn't exist)
-              await get().upsertProfile(session.user.id, session.user.email || '');
+              const firstName = session.user.user_metadata?.first_name;
+              const lastName = session.user.user_metadata?.last_name;
+              await get().upsertProfile(session.user.id, session.user.email || '', undefined, firstName, lastName);
               
               // Then hydrate all data
               await hydrateFromDb(session.user.id);

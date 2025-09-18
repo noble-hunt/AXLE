@@ -1,9 +1,11 @@
 import { useLocation } from "wouter"
+import { useRef, useState } from "react"
 import { useAppStore } from "@/store/useAppStore"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
+import { useToast } from "@/hooks/use-toast"
 import { 
   User, 
   Trophy,
@@ -17,7 +19,8 @@ import {
   LogOut,
   ChevronRight,
   Settings,
-  Award
+  Award,
+  Camera
 } from "lucide-react"
 
 // Health connections component
@@ -165,13 +168,18 @@ function SettingsSection() {
 }
 
 export default function Profile() {
-  const { user, profile } = useAppStore()
+  const { user, profile, setProfile } = useAppStore()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const { toast } = useToast()
   
   // Get user info with fallbacks
-  const displayName = profile?.username || user?.email?.split('@')[0] || 'Athlete'
+  const firstName = profile?.firstName || user?.user_metadata?.first_name || ''
+  const lastName = profile?.lastName || user?.user_metadata?.last_name || ''
+  const fullName = firstName && lastName ? `${firstName} ${lastName}` : (profile?.username || user?.email?.split('@')[0] || 'Athlete')
   const userEmail = user?.email || 'athlete@axlapp.com'
-  const avatarUrl = profile?.avatar_url
-  const memberSince = profile?.created_at || user?.created_at || new Date('2021-08-20')
+  const avatarUrl = profile?.avatarUrl
+  const memberSince = profile?.createdAt || user?.created_at || new Date('2021-08-20')
   
   // Format member since date
   const formatMemberSince = (date: Date) => {
@@ -180,6 +188,81 @@ export default function Profile() {
       day: 'numeric', 
       year: 'numeric' 
     }).format(new Date(date))
+  }
+
+  // Photo editing handlers
+  const handleEditPhoto = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image smaller than 5MB.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsUploadingPhoto(true)
+
+    try {
+      // Convert to base64 for now (could be replaced with Supabase storage later)
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const base64String = e.target?.result as string
+        
+        // Update profile with new avatar (safely handle null profile)
+        setProfile(prev => ({
+          ...prev,
+          avatarUrl: base64String
+        }))
+        
+        // Also update in database if user is authenticated
+        if (user?.id) {
+          try {
+            const { supabase } = await import('@/lib/supabase')
+            await supabase
+              .from('profiles')
+              .update({ avatar_url: base64String })
+              .eq('user_id', user.id)
+          } catch (error) {
+            console.error('Failed to update avatar in database:', error)
+          }
+        }
+
+        toast({
+          title: "Profile photo updated!",
+          description: "Your new profile photo has been saved.",
+        })
+      }
+      
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error('Photo upload error:', error)
+      toast({
+        title: "Upload failed",
+        description: "Failed to update your profile photo. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploadingPhoto(false)
+    }
   }
   
   return (
@@ -197,22 +280,40 @@ export default function Profile() {
 
         {/* User Info Section */}
         <motion.div className="text-center space-y-4" variants={slideUp}>
-          <div className="w-24 h-24 mx-auto rounded-full bg-primary flex items-center justify-center overflow-hidden">
-            {avatarUrl ? (
-              <img 
-                src={avatarUrl} 
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-2xl font-bold text-white">
-                {displayName.charAt(0).toUpperCase()}
-              </span>
-            )}
+          <div className="relative">
+            <div className="w-24 h-24 mx-auto rounded-full bg-primary flex items-center justify-center overflow-hidden">
+              {avatarUrl ? (
+                <img 
+                  src={avatarUrl} 
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-2xl font-bold text-white">
+                  {fullName.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleEditPhoto}
+              disabled={isUploadingPhoto}
+              className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 w-8 h-8 bg-primary rounded-full flex items-center justify-center border-2 border-background hover:bg-primary/90 transition-colors disabled:opacity-50"
+              data-testid="button-edit-photo"
+            >
+              <Camera className="w-4 h-4 text-white" />
+            </button>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="hidden"
+              ref={fileInputRef}
+              data-testid="input-photo-upload"
+            />
           </div>
           
           <div>
-            <h2 className="text-subheading font-bold text-foreground">{displayName}</h2>
+            <h2 className="text-subheading font-bold text-foreground">{fullName}</h2>
             <p className="text-body text-muted-foreground">{userEmail}</p>
             <p className="text-caption text-muted-foreground mt-1">
               Member since {formatMemberSince(memberSince)}

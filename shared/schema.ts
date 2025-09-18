@@ -7,6 +7,8 @@ import { z } from "zod";
 export const profiles = pgTable("profiles", {
   userId: uuid("user_id").primaryKey(), // References auth.users(id) in Supabase
   username: text("username"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   avatarUrl: text("avatar_url"),
   providers: text("providers").array().notNull().default(sql`'{}'`), // Array of linked identity providers
   createdAt: timestamp("created_at").defaultNow(),

@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Register() {
   const [, setLocation] = useLocation();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -24,6 +26,15 @@ export default function Register() {
 
   const handleEmailPasswordRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!firstName.trim() || !lastName.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter your first and last name.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (password !== confirmPassword) {
       toast({
@@ -46,18 +57,30 @@ export default function Register() {
     setIsLoading(true);
 
     try {
+      console.log('Attempting signup with:', { email, firstName, lastName });
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          }
+        }
       });
 
+      console.log('Signup response:', { data, error });
+
       if (error) {
+        console.error('Signup error:', error);
         toast({
           title: "Registration failed",
           description: error.message,
           variant: "destructive",
         });
       } else {
+        console.log('Signup successful:', data);
         setShowVerificationMessage(true);
         toast({
           title: "Check your email!",
@@ -65,6 +88,7 @@ export default function Register() {
         });
       }
     } catch (error) {
+      console.error('Signup caught error:', error);
       toast({
         title: "Registration failed",
         description: "An unexpected error occurred. Please try again.",
@@ -214,6 +238,42 @@ export default function Register() {
           </CardHeader>
           <CardContent className="space-y-6">
             <form onSubmit={handleEmailPasswordRegister} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="First name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="pl-10"
+                      required
+                      data-testid="input-first-name"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="lastName"
+                      type="text"
+                      placeholder="Last name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="pl-10"
+                      required
+                      data-testid="input-last-name"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">

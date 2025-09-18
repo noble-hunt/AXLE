@@ -141,13 +141,18 @@ export default function Home() {
           <div className="relative z-10 flex items-center justify-between text-white">
             <div>
               <h1 className="text-subheading font-bold">Welcome back!</h1>
-              <h2 className="text-heading font-bold">{profile?.username || user?.email?.split('@')[0] || 'Athlete'}</h2>
+              <h2 className="text-heading font-bold">{(() => {
+                const firstName = profile?.firstName || user?.user_metadata?.first_name || ''
+                const lastName = profile?.lastName || user?.user_metadata?.last_name || ''
+                return firstName && lastName ? `${firstName} ${lastName}` : 
+                       firstName || profile?.username || user?.email?.split('@')[0] || 'Athlete'
+              })()}</h2>
               <p className="text-body opacity-90 mt-1">Ready to crush your goals?</p>
             </div>
             <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center overflow-hidden">
-              {profile?.avatar_url ? (
+              {profile?.avatarUrl ? (
                 <img 
-                  src={profile.avatar_url} 
+                  src={profile.avatarUrl} 
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />
