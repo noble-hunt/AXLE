@@ -36,28 +36,16 @@ function Router() {
       {/* Home route - accessible to all */}
       <Route path="/" component={Home} />
       
-      {/* Protected routes */}
-      <Route path="/workout" component={() => (
-        <ProtectedRoute>
-          <Workout />
-        </ProtectedRoute>
-      )} />
+      {/* Main navigation routes - accessible to guests and authenticated users */}
+      <Route path="/workout" component={Workout} />
       <Route path="/workout/:id" component={() => (
         <ProtectedRoute>
           <WorkoutDetail />
         </ProtectedRoute>
       )} />
       <Route path="/history" component={History} />
-      <Route path="/prs" component={() => (
-        <ProtectedRoute>
-          <PRs />
-        </ProtectedRoute>
-      )} />
-      <Route path="/achievements" component={() => (
-        <ProtectedRoute>
-          <Achievements />
-        </ProtectedRoute>
-      )} />
+      <Route path="/prs" component={PRs} />
+      <Route path="/achievements" component={Achievements} />
       <Route path="/connect" component={() => (
         <ProtectedRoute>
           <Connect />
@@ -95,15 +83,19 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
               // Don't clear auth - keep authenticated state but use local data
             }
           }
+          // Set authInitialized after auth state is set
+          setAuthInitialized(true);
         } else {
           clearAuth();
           clearStoreForGuest();
+          // Set authInitialized after clearing auth state
+          setAuthInitialized(true);
         }
       } catch (error) {
         console.error('❌ Auth session check failed:', error);
         // Don't clear auth on transient network/session check failures
         // Keep existing auth state and let user retry
-      } finally {
+        // Still set initialized to true so app doesn't get stuck
         setAuthInitialized(true);
       }
     })();
@@ -122,10 +114,12 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
               // Keep authenticated state but log hydration failure
             }
           }
+          setAuthInitialized(true);
         } else {
           clearAuth();
           clearStoreForGuest();
           initializedRef.current = false;
+          setAuthInitialized(true);
         }
       } catch (error) {
         console.error('❌ Auth state change failed:', error);
@@ -135,7 +129,6 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
           clearStoreForGuest();
           initializedRef.current = false;
         }
-      } finally {
         setAuthInitialized(true);
       }
     });
