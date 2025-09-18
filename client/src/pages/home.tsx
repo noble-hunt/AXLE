@@ -1,217 +1,126 @@
 import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
-import { useMutation } from "@tanstack/react-query"
 import { useLocation } from "wouter"
-import { useToast } from "@/hooks/use-toast"
-import { Category, WorkoutRequest, workoutRequestSchema } from "@shared/schema"
 import { useAppStore } from "@/store/useAppStore"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
-import { SegmentedControl, Segment } from "@/components/swift/segmented-control"
-import { Chip } from "@/components/swift/chip"
-import { Field } from "@/components/swift/field"
+import { Sheet } from "@/components/swift/sheet"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
-import { Dumbbell, Clock, Target, Zap, Sparkles, Play } from "lucide-react"
+import { 
+  Dumbbell, 
+  Clock, 
+  Target, 
+  Trophy, 
+  Flame, 
+  Heart, 
+  Activity, 
+  TrendingUp,
+  ChevronRight,
+  Sparkles,
+  User
+} from "lucide-react"
 
-type WorkoutRequestForm = WorkoutRequest
+// Quick Stats Component
+function QuickStats() {
+  const { workouts, prs } = useAppStore()
+  
+  // Calculate stats
+  const thisWeekWorkouts = workouts.filter(w => {
+    const workoutDate = new Date(w.date)
+    const now = new Date()
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    return workoutDate >= weekAgo
+  }).length
 
-const categoryLabels = {
-  [Category.CROSSFIT]: "CrossFit",
-  [Category.STRENGTH]: "Strength", 
-  [Category.HIIT]: "HIIT",
-  [Category.CARDIO]: "Cardio",
-  [Category.POWERLIFTING]: "Powerlifting"
+  const totalPRs = prs.length
+  const currentStreak = 7 // This could be calculated based on consecutive workout days
+
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      <Card className="p-4 text-center">
+        <Activity className="w-6 h-6 text-primary mx-auto mb-2" />
+        <p className="text-heading font-bold text-foreground">{thisWeekWorkouts}</p>
+        <p className="text-caption text-muted-foreground">Workouts This Week</p>
+      </Card>
+      <Card className="p-4 text-center">
+        <Trophy className="w-6 h-6 text-accent mx-auto mb-2" />
+        <p className="text-heading font-bold text-foreground">{totalPRs}</p>
+        <p className="text-caption text-muted-foreground">Personal Records</p>
+      </Card>
+      <Card className="p-4 text-center">
+        <Flame className="w-6 h-6 text-warning mx-auto mb-2" />
+        <p className="text-heading font-bold text-foreground">{currentStreak} days</p>
+        <p className="text-caption text-muted-foreground">Streak</p>
+      </Card>
+    </div>
+  )
 }
 
-const intensityLabels = {
-  1: "Light",
-  2: "Easy", 
-  3: "Moderate",
-  4: "Moderate+",
-  5: "Medium",
-  6: "Medium+",
-  7: "Hard",
-  8: "Very Hard",
-  9: "Intense",
-  10: "Max"
+// Health Insights Component  
+function HealthInsights() {
+  return (
+    <div className="space-y-3">
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+              <Heart className="w-5 h-5 text-success" />
+            </div>
+            <div>
+              <p className="text-body font-medium text-foreground">Resting Heart Rate</p>
+              <p className="text-caption text-muted-foreground">↓ 3 bpm this week</p>
+            </div>
+          </div>
+          <p className="text-subheading font-bold text-success">62 bpm</p>
+        </div>
+      </Card>
+      
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-body font-medium text-foreground">Recovery Score</p>
+              <p className="text-caption text-muted-foreground">Good recovery</p>
+            </div>
+          </div>
+          <p className="text-subheading font-bold text-primary">85%</p>
+        </div>
+      </Card>
+    </div>
+  )
 }
 
 export default function Home() {
-  const [generatedWorkout, setGeneratedWorkout] = useState<any>(null)
-  const { addWorkout } = useAppStore()
+  const [showWorkoutGenerator, setShowWorkoutGenerator] = useState(false)
+  const { workouts, user } = useAppStore()
   const [, setLocation] = useLocation()
-  const { toast } = useToast()
 
-  const form = useForm<WorkoutRequestForm>({
-    resolver: zodResolver(workoutRequestSchema),
-    defaultValues: {
-      category: Category.STRENGTH,
-      duration: 30,
-      intensity: 5,
-    },
-  })
+  // Get recent workouts (last 3)
+  const recentWorkouts = workouts
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 3)
 
-  const category = form.watch("category")
-  const duration = form.watch("duration")
-  const intensity = form.watch("intensity")
-
-  const generateMutation = useMutation({
-    mutationFn: async (data: WorkoutRequestForm) => {
-      console.log('Generating workout with:', data)
-      const { authFetch } = await import('@/lib/authFetch');
-      const response = await authFetch('/api/generate-workout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      return await response.json()
-    },
-    onSuccess: (data) => {
-      console.log('Generated workout:', data)
-      setGeneratedWorkout(data)
-      toast({
-        title: "Workout Generated!",
-        description: `Generated a ${data.duration}-minute ${data.category} workout.`,
-      })
-    },
-    onError: (error: any) => {
-      console.error('Generate workout error:', error)
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate workout. Please try again.",
-        variant: "destructive",
-      })
-    },
-  })
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!generatedWorkout) return
-      
-      const { isAuthenticated, user, hydrateFromDb, addWorkout, workouts } = useAppStore.getState()
-      
-      // Create the workout data with generated ID
-      const workoutToSave = {
-        name: generatedWorkout.name,
-        category: generatedWorkout.category,
-        description: generatedWorkout.description,
-        duration: generatedWorkout.duration,
-        intensity: generatedWorkout.intensity,
-        sets: generatedWorkout.sets,
-        date: new Date(),
-        completed: false,
-        notes: 'AI Generated Workout',
-      }
-      
-      // Add to local store (this will generate an ID and add to workouts array)
-      await addWorkout(workoutToSave)
-      
-      // Get the newly added workout from the store (should be first in array)
-      const updatedWorkouts = useAppStore.getState().workouts
-      const savedWorkout = updatedWorkouts[0] // Most recent workout should be first
-      
-      return { workout: savedWorkout, dbSynced: isAuthenticated && user ? true : false }
-    },
-    onSuccess: (result) => {
-      const { isAuthenticated } = useAppStore.getState()
-      if (result) {
-        toast({
-          title: "Workout Saved!",
-          description: isAuthenticated && result.dbSynced
-            ? "Your workout has been saved and synced to your account."
-            : "Your generated workout has been added to your workout history.",
-        })
-      }
-      setLocation(`/workout/${result?.workout?.id || 'generated'}`)
-    },
-    onError: (error: any) => {
-      console.error('Save workout error:', error)
-      toast({
-        title: "Save Failed",
-        description: "Failed to save workout. Please try again.",
-        variant: "destructive",
-      })
-    },
-  })
-
-  const onSubmit = (data: WorkoutRequestForm) => {
-    generateMutation.mutate(data)
+  const handleGenerateWorkout = () => {
+    setShowWorkoutGenerator(true)
   }
 
-  const handleSaveWorkout = () => {
-    saveMutation.mutate()
+  const handleSeeAllWorkouts = () => {
+    setLocation('/history')
   }
 
-  const handleGenerateNew = () => {
-    setGeneratedWorkout(null)
-    form.reset()
-  }
-
-  if (generatedWorkout) {
-    return (
-      <div className="min-h-screen pb-safe-area-inset-bottom">
-        <motion.div 
-          className="space-y-6 pb-[calc(theme(spacing.20)+env(safe-area-inset-bottom))]"
-          variants={fadeIn}
-          initial="initial"
-          animate="animate"
-        >
-          {/* Header */}
-          <div className="text-center space-y-2">
-            <motion.div 
-              className="mx-auto w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center"
-              variants={slideUp}
-            >
-              <Sparkles className="w-8 h-8 text-primary" />
-            </motion.div>
-            <h1 className="text-heading font-bold text-foreground">Workout Generated!</h1>
-            <p className="text-body text-muted-foreground">{generatedWorkout.name}</p>
-          </div>
-
-          {/* Workout Summary */}
-          <Card className="p-6">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
-                <p className="text-2xl font-bold text-foreground">{generatedWorkout.duration}</p>
-                <p className="text-caption text-muted-foreground">minutes</p>
-              </div>
-              <div>
-                <Target className="w-5 h-5 text-accent mx-auto mb-2" />
-                <p className="text-2xl font-bold text-foreground">{generatedWorkout.intensity}/10</p>
-                <p className="text-caption text-muted-foreground">intensity</p>
-              </div>
-              <div>
-                <Dumbbell className="w-5 h-5 text-secondary mx-auto mb-2" />
-                <p className="text-2xl font-bold text-foreground">{generatedWorkout.sets?.length || 0}</p>
-                <p className="text-caption text-muted-foreground">exercises</p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <Button 
-              variant="secondary" 
-              onClick={handleGenerateNew}
-              data-testid="generate-new-workout"
-            >
-              Generate New
-            </Button>
-            <Button 
-              onClick={handleSaveWorkout}
-              disabled={saveMutation.isPending}
-              data-testid="save-workout"
-            >
-              {saveMutation.isPending ? 'Saving...' : 'Save & Start'}
-            </Button>
-          </div>
-        </motion.div>
-      </div>
-    )
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date()
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+    
+    if (diffInHours < 24) {
+      return diffInHours === 0 ? 'Today' : diffInHours === 1 ? 'Yesterday' : `${diffInHours}h ago`
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24)
+      return diffInDays === 1 ? 'Yesterday' : `${diffInDays} days ago`
+    }
   }
 
   return (
@@ -222,130 +131,121 @@ export default function Home() {
         initial="initial"
         animate="animate"
       >
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <motion.div 
-            className="mx-auto w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center"
-            variants={slideUp}
-          >
-            <Sparkles className="w-8 h-8 text-primary" />
-          </motion.div>
-          <h1 className="text-heading font-bold text-foreground">Generate Workout</h1>
-          <p className="text-body text-muted-foreground">AI-powered personalized fitness</p>
-        </div>
-
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          
-          {/* Category Selection */}
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Dumbbell className="w-5 h-5 text-primary" />
-                <h3 className="text-subheading font-semibold text-foreground">Workout Type</h3>
-              </div>
-
-              <SegmentedControl
-                value={category}
-                onValueChange={(value) => form.setValue("category", value as Category)}
-                data-testid="category-selector"
-              >
-                {Object.entries(categoryLabels).map(([value, label]) => (
-                  <Segment key={value} value={value}>
-                    {label}
-                  </Segment>
-                ))}
-              </SegmentedControl>
+        {/* Welcome Banner */}
+        <motion.div
+          className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-primary to-accent"
+          variants={slideUp}
+        >
+          <div className="relative z-10 flex items-center justify-between text-white">
+            <div>
+              <h1 className="text-subheading font-bold">Welcome back!</h1>
+              <h2 className="text-heading font-bold">Athlete</h2>
+              <p className="text-body opacity-90 mt-1">Ready to crush your goals?</p>
             </div>
-          </Card>
-
-          {/* Duration Slider */}
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-primary" />
-                  <h3 className="text-subheading font-semibold text-foreground">Duration</h3>
-                </div>
-                <span className="text-subheading font-bold text-primary">{duration} min</span>
-              </div>
-
-              <div className="space-y-4">
-                <input
-                  type="range"
-                  min="15"
-                  max="120"
-                  step="15"
-                  value={duration}
-                  onChange={(e) => form.setValue("duration", parseInt(e.target.value))}
-                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer slider"
-                  data-testid="duration-slider"
-                />
-                <div className="flex justify-between text-caption text-muted-foreground">
-                  <span>15 min</span>
-                  <span>60 min</span>
-                  <span>120 min</span>
-                </div>
-              </div>
+            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center">
+              <User className="w-8 h-8 text-white" />
             </div>
-          </Card>
+          </div>
+        </motion.div>
 
-          {/* Intensity Slider */}
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-primary" />
-                  <h3 className="text-subheading font-semibold text-foreground">Intensity</h3>
-                </div>
-                <div className="text-right">
-                  <span className="text-subheading font-bold text-primary">{intensity}/10</span>
-                  <p className="text-caption text-muted-foreground">{intensityLabels[intensity as keyof typeof intensityLabels]}</p>
-                </div>
-              </div>
+        {/* Quick Stats */}
+        <motion.div variants={slideUp}>
+          <h3 className="text-subheading font-semibold text-foreground mb-4">Quick Stats</h3>
+          <QuickStats />
+        </motion.div>
 
-              <div className="space-y-4">
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  step="1"
-                  value={intensity}
-                  onChange={(e) => form.setValue("intensity", parseInt(e.target.value))}
-                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer slider"
-                  data-testid="intensity-slider"
-                />
-                <div className="flex justify-between text-caption text-muted-foreground">
-                  <span>Light</span>
-                  <span>Medium</span>
-                  <span>Intense</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-        </form>
-
-        {/* Fixed Bottom Generate Button */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t border-border">
-          <div className="max-w-md mx-auto">
-            <Button 
-              onClick={form.handleSubmit(onSubmit)}
-              className="w-full h-14 text-subheading font-semibold"
-              disabled={generateMutation.isPending}
-              data-testid="generate-workout-button"
-            >
-              {generateMutation.isPending ? (
-                'Generating...'
-              ) : (
-                <>
-                  <Sparkles className="w-6 h-6 mr-2" />
-                  Generate Workout
-                </>
-              )}
+        {/* Recent Workouts */}
+        <motion.div variants={slideUp}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-subheading font-semibold text-foreground">Recent Workouts</h3>
+            <Button variant="ghost" size="sm" onClick={handleSeeAllWorkouts} data-testid="see-all-workouts">
+              <span className="text-primary">See All</span>
+              <ChevronRight className="w-4 h-4 ml-1 text-primary" />
             </Button>
           </div>
-        </div>
+          
+          <div className="space-y-3">
+            {recentWorkouts.map((workout) => (
+              <Card key={workout.id} className="p-4" data-testid={`recent-workout-${workout.id}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Dumbbell className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-body font-medium text-foreground">{workout.name}</p>
+                      <p className="text-caption text-muted-foreground">{workout.category}</p>
+                    </div>
+                  </div>
+                  <p className="text-caption text-muted-foreground">{formatTimeAgo(new Date(workout.date))}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* AI Workout Suggestion */}
+        <motion.div variants={slideUp}>
+          <Card className="p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5 text-accent" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-subheading font-semibold text-foreground mb-1">AI Workout Suggestion</h3>
+                <p className="text-caption text-muted-foreground mb-4">Based on your recent training</p>
+                <p className="text-body text-foreground mb-4">
+                  Today would be perfect for a lower body strength session. Focus on compound movements!
+                </p>
+                <Button 
+                  className="w-full"
+                  onClick={handleGenerateWorkout}
+                  data-testid="generate-workout-button"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Workout
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Health Insights */}
+        <motion.div variants={slideUp}>
+          <h3 className="text-subheading font-semibold text-foreground mb-4">Health Insights</h3>
+          <HealthInsights />
+        </motion.div>
       </motion.div>
+
+      {/* Workout Generation Sheet */}
+      <Sheet 
+        open={showWorkoutGenerator} 
+        onOpenChange={setShowWorkoutGenerator}
+        data-testid="workout-generator-sheet"
+      >
+        <div className="p-6 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+              <Sparkles className="w-6 h-6 text-primary" />
+            </div>
+            <h2 className="text-subheading font-bold text-foreground">Generate Workout</h2>
+            <p className="text-body text-muted-foreground">AI-powered personalized fitness</p>
+          </div>
+
+          <Button 
+            variant="secondary"
+            className="w-full"
+            onClick={() => {
+              setShowWorkoutGenerator(false)
+              setLocation('/workout')
+            }}
+            data-testid="open-workout-generator"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Open Workout Generator
+          </Button>
+        </div>
+      </Sheet>
     </div>
   )
 }
