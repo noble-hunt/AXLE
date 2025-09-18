@@ -11,6 +11,11 @@ export default function Callback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        // Check URL params to determine the type of authentication flow
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlHash = window.location.hash;
+        const isEmailVerification = urlParams.has('type') || urlHash.includes('type=') || urlHash.includes('confirmation');
+        
         // Get the session from URL parameters
         const { data: { session }, error } = await supabase.auth.getSession();
 
@@ -26,10 +31,18 @@ export default function Callback() {
         }
 
         if (session) {
-          toast({
-            title: "Welcome back!",
-            description: "You've been signed in successfully.",
-          });
+          // Check if this was an email verification flow
+          if (isEmailVerification) {
+            toast({
+              title: "Email verified!",
+              description: "Your account has been verified successfully. Welcome to AXLE!",
+            });
+          } else {
+            toast({
+              title: "Welcome back!",
+              description: "You've been signed in successfully.",
+            });
+          }
           setLocation("/");
         } else {
           // No session found, redirect to login
