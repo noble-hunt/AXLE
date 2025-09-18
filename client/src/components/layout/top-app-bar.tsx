@@ -16,7 +16,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 
 export function TopAppBar() {
   const { theme, setTheme } = useTheme()
-  const { user, clearAuth } = useAppStore()
+  const { user, profile, clearAuth } = useAppStore()
   const { toast } = useToast()
   const [, setLocation] = useLocation()
 
@@ -81,7 +81,12 @@ export function TopAppBar() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <div className="flex items-center justify-start gap-2 p-2">
                 <div className="flex flex-col space-y-1 leading-none">
-                  <p className="text-sm font-medium leading-none" data-testid="user-email">
+                  {profile?.username && (
+                    <p className="text-sm font-medium leading-none" data-testid="user-username">
+                      {profile.username}
+                    </p>
+                  )}
+                  <p className="text-sm text-muted-foreground" data-testid="user-email">
                     {user.email}
                   </p>
                 </div>

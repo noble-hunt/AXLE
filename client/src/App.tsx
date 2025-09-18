@@ -67,6 +67,9 @@ function Router() {
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setAuth, clearAuth, setAuthInitialized, hydrateFromDb, clearStoreForGuest } = useAppStore();
   const initializedRef = useRef(false);
+  
+  // Access store's get method for upsertProfile
+  const get = useAppStore.getState;
 
   useEffect(() => {
     (async () => {
@@ -76,6 +79,10 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
           setAuth(session.user, session);
           if (!initializedRef.current) {
             try {
+              // Upsert profile first (create if doesn't exist)
+              await get().upsertProfile(session.user.id, session.user.email || '');
+              
+              // Then hydrate all data
               await hydrateFromDb(session.user.id);
               initializedRef.current = true;
             } catch (hydrateError) {
@@ -107,6 +114,10 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
           // Only hydrate on actual sign-in events, not initial session
           if (evt === 'SIGNED_IN' && !initializedRef.current) {
             try {
+              // Upsert profile first (create if doesn't exist)
+              await get().upsertProfile(session.user.id, session.user.email || '');
+              
+              // Then hydrate all data
               await hydrateFromDb(session.user.id);
               initializedRef.current = true;
             } catch (hydrateError) {
