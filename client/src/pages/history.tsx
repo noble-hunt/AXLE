@@ -5,7 +5,7 @@ import { Link } from "wouter"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
-import { SegmentedControl } from "@/components/swift/segmented-control"
+import { SegmentedControl, Segment } from "@/components/swift/segmented-control"
 import { StatBadge } from "@/components/swift/stat-badge"
 import { fadeIn } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
@@ -141,8 +141,8 @@ export default function History() {
       </div>
 
       {/* Filter Chips */}
-      <div className="space-y-6">
-        <div className="space-y-3">
+      <div className="space-y-4">
+        <div className="space-y-2">
           <label className="text-body font-medium text-foreground">Category</label>
           <div className="flex flex-wrap gap-3" data-testid="category-filter-chips">
             {categoryOptions.map((option) => (
@@ -158,14 +158,19 @@ export default function History() {
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <label className="text-body font-medium text-foreground">Status</label>
           <SegmentedControl
-            options={completionOptions}
             value={completionFilter}
-            onChange={setCompletionFilter}
+            onValueChange={setCompletionFilter}
             data-testid="completion-filter"
-          />
+          >
+            {completionOptions.map((option) => (
+              <Segment key={option.value} value={option.value}>
+                {option.label}
+              </Segment>
+            ))}
+          </SegmentedControl>
         </div>
       </div>
 
@@ -192,9 +197,9 @@ export default function History() {
       </div>
 
       {/* Workout List */}
-      <div className="space-y-8 pt-2">
+      <div className="space-y-6 pt-1">
         {Object.entries(groupedWorkouts).map(([dateKey, dateGroup]) => (
-          <div key={dateKey} className="space-y-3">
+          <div key={dateKey} className="space-y-4">
             <h2 className="text-subheading font-semibold text-foreground">{dateGroup.label}</h2>
             
             {dateGroup.workouts.map((workout) => {

@@ -171,32 +171,36 @@ export default function PRs() {
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="text-body font-medium text-foreground">Category</label>
-          <SegmentedControl
-            value={activeCategory}
-            onValueChange={(value) => setActiveCategory(value as MovementCategory)}
-            data-testid="category-tabs"
-          >
-            {categoryOptions.map((option) => (
-              <Segment key={option.value} value={option.value}>
-                {option.label}
-              </Segment>
-            ))}
-          </SegmentedControl>
+          <div className="-ml-1">
+            <SegmentedControl
+              value={activeCategory}
+              onValueChange={(value) => setActiveCategory(value as MovementCategory)}
+              data-testid="category-tabs"
+            >
+              {categoryOptions.map((option) => (
+                <Segment key={option.value} value={option.value}>
+                  {option.label}
+                </Segment>
+              ))}
+            </SegmentedControl>
+          </div>
         </div>
 
         <div className="space-y-2">
           <label className="text-body font-medium text-foreground">Units</label>
-          <SegmentedControl
-            value={unit}
-            onValueChange={(value) => setUnit(value as "lbs" | "kg")}
-            data-testid="unit-switch"
-          >
-            {unitOptions.map((option) => (
-              <Segment key={option.value} value={option.value}>
-                {option.label}
-              </Segment>
-            ))}
-          </SegmentedControl>
+          <div className="ml-1">
+            <SegmentedControl
+              value={unit}
+              onValueChange={(value) => setUnit(value as "lbs" | "kg")}
+              data-testid="unit-switch"
+            >
+              {unitOptions.map((option) => (
+                <Segment key={option.value} value={option.value}>
+                  {option.label}
+                </Segment>
+              ))}
+            </SegmentedControl>
+          </div>
         </div>
       </div>
 
