@@ -45,6 +45,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile provider management
+  app.post("/api/profiles/providers", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { provider } = req.body;
+      
+      if (!provider || typeof provider !== 'string') {
+        return res.status(400).json({ message: "Provider is required" });
+      }
+
+      // Import the profiles update function
+      const { updateProfileProviders } = await import("./dal/profiles");
+      
+      // Update the user's providers array
+      const updatedProfile = await updateProfileProviders(authReq.user.id, provider);
+      
+      if (!updatedProfile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      res.json({ message: "Provider linked successfully", profile: updatedProfile });
+    } catch (error) {
+      console.error("Failed to update profile providers:", error);
+      res.status(500).json({ message: "Failed to link provider" });
+    }
+  });
+
   // Workout routes
   app.get("/api/workouts", requireAuth, async (req, res) => {
     try {

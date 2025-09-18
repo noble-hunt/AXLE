@@ -38,10 +38,48 @@ export default function Callback() {
               description: "Your account has been verified successfully. Welcome to AXLE!",
             });
           } else {
-            toast({
-              title: "Welcome back!",
-              description: "You've been signed in successfully.",
-            });
+            // Check if this is a Google OAuth flow
+            const isGoogleOAuth = session.user.app_metadata?.providers?.includes('google') || 
+                                 session.user.user_metadata?.provider === 'google';
+            
+            // Check if this is an identity linking flow (user already had an account)
+            const isIdentityLinking = session.user.identities && session.user.identities.length > 1;
+            
+            if (isGoogleOAuth && isIdentityLinking) {
+              // This is identity linking - user already had an account and linked Google
+              toast({
+                title: "Google account linked!",
+                description: "Your Google account has been successfully linked to your AXLE profile.",
+              });
+              
+              // Update the profile's providers array
+              try {
+                await fetch('/api/profiles/providers', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    userId: session.user.id,
+                    provider: 'google'
+                  }),
+                });
+              } catch (error) {
+                console.error('Failed to update providers:', error);
+              }
+            } else if (isGoogleOAuth) {
+              // This is a fresh Google sign-in
+              toast({
+                title: "Welcome to AXLE!",
+                description: "You've signed in with Google successfully.",
+              });
+            } else {
+              // Regular sign-in (magic link, etc.)
+              toast({
+                title: "Welcome back!",
+                description: "You've been signed in successfully.",
+              });
+            }
           }
           setLocation("/");
         } else {
