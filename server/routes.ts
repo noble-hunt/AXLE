@@ -75,20 +75,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validate request body
       const workoutData = insertWorkoutSchema.parse({
-        title: req.body.title,
-        category: req.body.category,
-        description: req.body.description,
+        name: req.body.title || req.body.name,
+        date: req.body.date ? new Date(req.body.date) : new Date(),
         duration: req.body.duration,
-        intensity: req.body.intensity,
-        sets: req.body.sets,
-        date: req.body.date,
-        completed: req.body.completed,
+        exercises: req.body.sets || req.body.exercises || [],
         notes: req.body.notes
       });
       
       const workout = await insertWorkout({
         userId: authReq.user.id,
-        workout: workoutData
+        workout: {
+          title: workoutData.name,
+          request: req.body,
+          sets: req.body.sets || [],
+          notes: workoutData.notes,
+          completed: false
+        }
       });
       
       res.json(workout);
@@ -119,7 +121,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/workouts/:id", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
-      const { deleteWorkout } = await import("./dal/workouts");
+      // deleteWorkout not implemented yet
+      // const { deleteWorkout } = await import("./dal/workouts");
+      res.status(501).json({ message: "Delete workout not implemented" });
+      return;
       const success = await deleteWorkout(authReq.user.id, req.params.id);
       if (!success) {
         return res.status(404).json({ message: "Workout not found" });
@@ -158,11 +163,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { insertPR } = await import("./dal/prs");
       const pr = await insertPR({
         userId: authReq.user.id,
-        category: validatedData.category,
-        movement: validatedData.movement,
-        repMax: validatedData.rep_max,
-        weightKg: validatedData.weight_kg,
-        date: validatedData.date
+        exercise: validatedData.movement,
+        weight: validatedData.weight_kg,
+        reps: validatedData.rep_max,
+        date: new Date(validatedData.date)
       });
       
       res.json(pr);
