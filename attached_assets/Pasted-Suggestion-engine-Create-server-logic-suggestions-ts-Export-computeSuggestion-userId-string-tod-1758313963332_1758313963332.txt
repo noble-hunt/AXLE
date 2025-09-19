@@ -1,0 +1,81 @@
+Suggestion engine
+
+Create server/logic/suggestions.ts:
+
+Export computeSuggestion(userId: string, today = new Date()).
+
+Fetch:
+
+last1 workout (yesterday if any)
+
+last7 workouts (rolling 7d)
+
+last28 workouts (rolling 28d)
+
+latest health_reports row (if any)
+
+Compute helper values:
+
+// Category sets for balancing/complements
+const LEG_HEAVY: Category[] = ["Powerlifting","Olympic Weightlifting","Bodybuilding Lower"];
+const UPPER_HEAVY: Category[] = ["Bodybuilding Upper"];
+const FULL_BODY: Category[] = ["CrossFit/HIIT","Bodybuilding Full"];
+const SKILL: Category[] = ["Gymnastics"];
+const ENGINE: Category[] = ["Aerobic"];
+
+function complementCategory(lastCat: Category | undefined, weeklyCounts: Record<Category, number>): Category {
+  // Prefer categories with lower counts in 7d window.
+  // If last was leg-heavy → prefer SKILL or ENGINE.
+  // If last was ENGINE → prefer STRENGTH/LEG or SKILL depending on weeklyCounts.
+  // Else fallback to the lowest-count category overall.
+}
+
+
+Scoring/weights (feel free to inline constants):
+
+weights:
+  recency (yesterday):             0.60
+  weekly balance (7d distribution):0.25
+  monthly balance (28d):           0.10
+  wearables moderation:            0.05  (modifier, also clamps intensity)
+
+fatigue (0..1):
+  start at 0.5
+  if health.HRV is >1 std below 14d baseline → +0.25
+  if restingHR is >1 std above 14d baseline → +0.15
+  if sleepScore < 60 → +0.15; 60..74 → +0.05; >=85 → -0.10
+  if stress >= 7/10 → +0.20; 4..6 → +0.10; 0..3 → -0.05
+  clamp 0..1
+
+
+Determine category:
+
+If no history → "Aerobic" (easy run/row/bike) or "Gymnastics" bodyweight; alternate daily by date parity.
+
+Else complementCategory(lastCat, weeklyCounts) favoring lower-frequency categories.
+
+Determine duration:
+
+Start from user’s 14d median duration (or 30).
+
+If fatigue ≥ 0.7 → reduce by 25% (min 15). If fatigue ≤ 0.3 → increase by 20% (max 60).
+
+Determine intensity (1–10):
+
+Start from min(7, round(avg last7 intensity)).
+
+Apply fatigue clamp:
+
+fatigue ≥ 0.8 → clamp to 3–5
+
+0.6..0.8 → clamp to 4–6
+
+0.3..0.6 → clamp to 5–7
+
+<0.3 → clamp to 6–8
+
+Smooth: avoid repeating exact same intensity 3 days in a row → nudge ±1.
+
+Build rationale.rulesApplied (strings) explaining decisions (e.g., “High stress detected, reducing intensity”, “Leg-heavy yesterday, suggesting Gymnastics”).
+
+Return { date: YYYY-MM-DD, request: {category, durationMinutes, intensity}, rationale }.
