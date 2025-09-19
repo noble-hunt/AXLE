@@ -1104,10 +1104,18 @@ export const useAppStore = create<AppState>()(
         if (isAuthenticated) {
           try {
             const { apiRequest } = await import('@/lib/queryClient');
-            await apiRequest('PUT', `/api/workouts/${id}`, {
-              completed: true,
-              feedback: feedback
-            });
+            
+            // Add timeout to prevent hanging API calls
+            await Promise.race([
+              apiRequest('PUT', `/api/workouts/${id}`, {
+                completed: true,
+                feedback: feedback
+              }),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('API call timeout')), 10000)
+              )
+            ]);
+            
           } catch (error) {
             console.error('Failed to complete workout in database:', error);
             // Rollback optimistic update on error
