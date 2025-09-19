@@ -39,16 +39,6 @@ const getIntensityVariant = (intensity: number) => {
 function SuggestedWorkoutCard({ setLocation }: { setLocation: (path: string) => void }) {
   const { data: suggestion, isLoading, error } = useQuery({
     queryKey: ['/api/suggestions/today'],
-    queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      const response = await fetch('/api/suggestions/today', {
-        headers: {
-          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
-        }
-      })
-      if (!response.ok) throw new Error('Failed to fetch suggestion')
-      return response.json()
-    },
     staleTime: 1000 * 60 * 60, // 1 hour
     retry: 1
   })
@@ -110,13 +100,13 @@ function SuggestedWorkoutCard({ setLocation }: { setLocation: (path: string) => 
             </div>
             
             <div className="flex space-x-2">
-              <Chip size="sm" variant="outline" data-testid={`chip-category`}>
+              <Chip size="sm" variant="default" data-testid={`chip-category`}>
                 {suggestion.category}
               </Chip>
               <Chip size="sm" variant={getIntensityVariant(suggestion.intensity)} data-testid={`chip-intensity`}>
                 {suggestion.intensity}/10
               </Chip>
-              <Chip size="sm" variant="outline" data-testid={`chip-duration`}>
+              <Chip size="sm" variant="default" data-testid={`chip-duration`}>
                 <Clock className="w-3 h-3" />
                 {suggestion.duration}min
               </Chip>

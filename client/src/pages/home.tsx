@@ -99,16 +99,6 @@ function HealthInsights() {
 function DailySuggestionCard({ setLocation }: { setLocation: (path: string) => void }) {
   const { data: suggestion, isLoading, error } = useQuery({
     queryKey: ['/api/suggestions/today'],
-    queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      const response = await fetch('/api/suggestions/today', {
-        headers: {
-          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
-        }
-      })
-      if (!response.ok) throw new Error('Failed to fetch suggestion')
-      return response.json()
-    },
     staleTime: 1000 * 60 * 60, // 1 hour
     retry: 1
   })
