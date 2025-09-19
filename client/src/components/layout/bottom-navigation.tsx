@@ -1,11 +1,11 @@
-import { Home, Activity, Calendar, Trophy, MoreHorizontal } from "lucide-react"
+import { Home, Activity, Heart, Trophy, MoreHorizontal } from "lucide-react"
 import { Link, useLocation } from "wouter"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: Activity, label: "Workout", path: "/workout" },
-  { icon: Calendar, label: "History", path: "/history" },
+  { icon: Heart, label: "Health", path: "/health" },
   { icon: Trophy, label: "PRs", path: "/prs" },
   { icon: MoreHorizontal, label: "More", path: "/profile" }
 ]
