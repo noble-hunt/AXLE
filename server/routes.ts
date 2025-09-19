@@ -775,6 +775,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Development debug route for email provider status
+  // Development user creation endpoint (bypasses email confirmation)
+  app.post("/api/dev/create-test-user", async (req, res) => {
+    try {
+      // Only allow in development mode
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(404).json({ message: "Not found" });
+      }
+
+      const { supabaseAdmin } = await import("./lib/supabaseAdmin");
+      
+      // Create test user with email confirmation bypassed
+      const testEmail = "athlete@axlapp.com";
+      const testPassword = "password123!";
+      
+      // Check if user already exists
+      const { data: existingUser } = await supabaseAdmin.auth.admin.getUserById(testEmail);
+      
+      if (existingUser?.user) {
+        return res.json({
+          message: "Test user already exists",
+          email: testEmail,
+          userId: existingUser.user.id
+        });
+      }
+      
+      // Create user with email_confirm_change: false to bypass email verification
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: testEmail,
+        password: testPassword,
+        email_confirm: true, // Mark email as confirmed
+        user_metadata: {
+          first_name: "Test",
+          last_name: "Athlete"
+        }
+      });
+      
+      if (createError) {
+        console.error("Failed to create test user:", createError);
+        return res.status(500).json({
+          error: "Failed to create test user",
+          details: createError.message
+        });
+      }
+
+      res.json({
+        message: "Test user created successfully",
+        email: testEmail,
+        userId: newUser.user?.id,
+        instructions: "Use these credentials to sign in: athlete@axlapp.com / password123!"
+      });
+
+    } catch (error) {
+      console.error("Create test user error:", error);
+      res.status(500).json({
+        error: "Failed to create test user",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   app.get("/api/dev/debug/email", async (req, res) => {
     try {
       // Only allow in development mode
