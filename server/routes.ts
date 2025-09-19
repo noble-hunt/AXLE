@@ -789,14 +789,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const testEmail = "athlete@axlapp.com";
       const testPassword = "password123!";
       
-      // Check if user already exists
-      const { data: existingUser } = await supabaseAdmin.auth.admin.getUserById(testEmail);
+      // Check if user already exists by email
+      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+      const existingUser = existingUsers.users?.find(user => user.email === testEmail);
       
-      if (existingUser?.user) {
+      if (existingUser) {
         return res.json({
           message: "Test user already exists",
           email: testEmail,
-          userId: existingUser.user.id
+          userId: existingUser.id
         });
       }
       

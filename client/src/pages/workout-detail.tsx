@@ -3,6 +3,7 @@ import { useParams, useLocation } from "wouter"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { useQuery } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
 import type { WorkoutFeedback } from "../types"
@@ -31,7 +32,17 @@ export default function WorkoutDetail() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   
-  const workout = getWorkout(id as string)
+  // First try local store, then API if not found
+  const localWorkout = getWorkout(id as string)
+  
+  // Fetch from API if not in local store (for suggestions)
+  const { data: apiWorkout, isLoading, error } = useQuery({
+    queryKey: ['/api/workouts', id],
+    enabled: !localWorkout && !!id, // Only fetch if not in local store and ID exists
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+  
+  const workout = localWorkout || apiWorkout
 
   const form = useForm<z.infer<typeof feedbackSchema>>({
     resolver: zodResolver(feedbackSchema),
@@ -95,6 +106,20 @@ export default function WorkoutDetail() {
     }
   }
 
+  // Show loading state while fetching from API
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
+          <Dumbbell className="w-8 h-8 text-muted-foreground animate-pulse" />
+        </div>
+        <h2 className="text-heading font-bold text-foreground">Loading Workout...</h2>
+        <p className="text-body text-muted-foreground text-center">Fetching your workout details.</p>
+      </div>
+    )
+  }
+
+  // Show not found only after loading is complete and no workout found
   if (!workout) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">

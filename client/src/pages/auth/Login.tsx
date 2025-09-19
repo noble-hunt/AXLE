@@ -21,6 +21,7 @@ export default function Login() {
 
   const handleEmailPasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Login attempt starting', { email, hasPassword: !!password });
     setIsLoading(true);
 
     try {
@@ -28,6 +29,8 @@ export default function Login() {
         email,
         password,
       });
+
+      console.log('Login response', { error: error?.message });
 
       if (error) {
         toast({
@@ -43,12 +46,14 @@ export default function Login() {
         setLocation("/");
       }
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: "Login failed",
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
+      console.log('Login process complete, setting loading to false');
       setIsLoading(false);
     }
   };
@@ -187,7 +192,7 @@ export default function Login() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading}
+                disabled={isLoading || !email.trim() || !password.trim()}
                 data-testid="button-login"
               >
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
