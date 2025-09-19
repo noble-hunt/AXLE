@@ -745,7 +745,8 @@ export const useAppStore = create<AppState>()(
         user: null, 
         session: null, 
         isAuthenticated: false,
-        profile: null
+        profile: null,
+        authInitialized: true  // Keep authInitialized as true so components know auth check is complete
       }),
 
       // Hydrate from database using client Supabase with RLS

@@ -33,10 +33,19 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // Redirect immediately if not authenticated - no loading screen
+  // If not authenticated, show loading while redirect happens via useEffect
   if (!user || !session) {
-    setLocation("/auth/login");
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+          <div>
+            <h2 className="text-lg font-semibold">Redirecting...</h2>
+            <p className="text-muted-foreground text-sm">Taking you to login</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

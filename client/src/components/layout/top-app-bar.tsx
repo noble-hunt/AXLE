@@ -28,26 +28,28 @@ export function TopAppBar() {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut()
-      
-      if (error) {
-        toast({
-          title: "Sign out failed",
-          description: error.message,
-          variant: "destructive",
-        })
-        return
-      }
-
+      // Clear auth state first
       clearAuth()
+      
+      // Also call clearStoreForGuest to ensure all user data is removed  
+      const { clearStoreForGuest } = useAppStore.getState()
+      clearStoreForGuest()
+      
+      // Call Supabase sign out to clear server session
+      await supabase.auth.signOut()
+      
       toast({
         title: "Signed out",
         description: "You've been signed out successfully.",
       })
+      
+      // Redirect to login
       setLocation("/auth/login")
+      
     } catch (error) {
+      console.error("Sign out error:", error)
       toast({
-        title: "Sign out failed",
+        title: "Sign out failed", 
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       })

@@ -69,7 +69,11 @@ function OverlayWrapper() {
         <Route path="/health" component={Health} />
         <Route path="/prs" component={PRs} />
         <Route path="/achievements" component={Achievements} />
-        <Route path="/profile" component={Profile} />
+        <Route path="/profile" component={() => (
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        )} />
         <Route path="/connect" component={() => (
           <ProtectedRoute>
             <Connect />
