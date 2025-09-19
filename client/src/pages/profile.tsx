@@ -1,6 +1,7 @@
 import { useLocation } from "wouter"
 import { useRef, useState } from "react"
 import { useAppStore } from "@/store/useAppStore"
+import { supabase } from "@/lib/supabase"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
@@ -123,6 +124,40 @@ function YourStats() {
 // Settings section component
 function SettingsSection() {
   const [, setLocation] = useLocation()
+  const { clearAuth } = useAppStore()
+  const { toast } = useToast()
+  
+  const handleSignOut = async () => {
+    try {
+      console.log('Sign out clicked - starting sign out process')
+      const { error } = await supabase.auth.signOut()
+      
+      if (error) {
+        console.error('Sign out error:', error)
+        toast({
+          title: "Sign out failed",
+          description: error.message,
+          variant: "destructive",
+        })
+        return
+      }
+
+      clearAuth()
+      toast({
+        title: "Signed out",
+        description: "You've been signed out successfully.",
+      })
+      console.log('Sign out successful, redirecting to login')
+      setLocation("/auth/login")
+    } catch (error) {
+      console.error('Unexpected sign out error:', error)
+      toast({
+        title: "Sign out failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
   
   const settingsItems = [
     { icon: Award, label: "Achievements", path: "/achievements", color: "text-accent" },
@@ -152,10 +187,7 @@ function SettingsSection() {
         ))}
         
         <button
-          onClick={() => {
-            // Handle sign out logic here
-            console.log('Sign out clicked')
-          }}
+          onClick={handleSignOut}
           className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors"
           data-testid="settings-sign-out"
         >

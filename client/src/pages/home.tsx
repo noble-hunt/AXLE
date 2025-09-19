@@ -1,5 +1,7 @@
 import { useState } from "react"
 import { useLocation } from "wouter"
+import { useQuery } from "@tanstack/react-query"
+import { supabase } from "@/lib/supabase"
 import { useAppStore } from "@/store/useAppStore"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
@@ -90,6 +92,116 @@ function HealthInsights() {
         </div>
       </Card>
     </div>
+  )
+}
+
+// Daily Suggestion Card Component for Home Page
+function DailySuggestionCard({ setLocation }: { setLocation: (path: string) => void }) {
+  const { data: suggestion, isLoading, error } = useQuery({
+    queryKey: ['/api/suggestions/today'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('/api/suggestions/today', {
+        headers: {
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        }
+      })
+      if (!response.ok) throw new Error('Failed to fetch suggestion')
+      return response.json()
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour
+    retry: 1
+  })
+
+  const handleViewWorkout = () => {
+    if (suggestion?.id) {
+      setLocation(`/workout/${suggestion.id}`)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <Card className="p-6" data-testid="daily-suggestion-loading">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-5 h-5 text-accent" />
+          </div>
+          <div className="flex-1 space-y-3">
+            <div>
+              <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
+              <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>
+            </div>
+            <div className="animate-pulse space-y-2">
+              <div className="h-4 bg-muted rounded w-3/4"></div>
+              <div className="h-3 bg-muted rounded w-1/2"></div>
+            </div>
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
+  if (error || !suggestion) {
+    return (
+      <Card className="p-6" data-testid="daily-suggestion-error">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-5 h-5 text-accent" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
+            <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>
+            <p className="text-body text-foreground mb-4">
+              Unable to generate your personalized workout suggestion right now.
+            </p>
+            <Button 
+              className="w-full"
+              variant="secondary"
+              onClick={() => setLocation('/generate-workout')}
+              data-testid="fallback-generate-workout"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Create Custom Workout
+            </Button>
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="p-6" data-testid="daily-suggestion-card">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+          <Sparkles className="w-5 h-5 text-accent" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
+          <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>
+          
+          <div className="mb-4">
+            <p className="text-body font-medium text-foreground mb-2">{suggestion.name}</p>
+            <p className="text-body text-foreground mb-2">
+              {suggestion.category} • {suggestion.intensity}/10 intensity • {suggestion.duration} minutes
+            </p>
+            {suggestion.rationale && suggestion.rationale.length > 0 && (
+              <p className="text-caption text-muted-foreground">
+                {suggestion.rationale[0]}
+              </p>
+            )}
+          </div>
+          
+          <Button 
+            className="w-full"
+            onClick={handleViewWorkout}
+            data-testid="view-suggested-workout"
+          >
+            <Target className="w-4 h-4 mr-2" />
+            View Workout
+          </Button>
+        </div>
+      </div>
+    </Card>
   )
 }
 
@@ -199,30 +311,9 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* AI Workout Suggestion */}
+        {/* Daily Suggested Workout */}
         <motion.div variants={slideUp}>
-          <Card className="p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-5 h-5 text-accent" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-subheading font-semibold text-foreground mb-1">AI Workout Suggestion</h3>
-                <p className="text-caption text-muted-foreground mb-4">Based on your recent training</p>
-                <p className="text-body text-foreground mb-4">
-                  Today would be perfect for a lower body strength session. Focus on compound movements!
-                </p>
-                <Button 
-                  className="w-full"
-                  onClick={handleGenerateWorkout}
-                  data-testid="generate-workout-button"
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Workout
-                </Button>
-              </div>
-            </div>
-          </Card>
+          <DailySuggestionCard setLocation={setLocation} />
         </motion.div>
 
         {/* Health Insights */}

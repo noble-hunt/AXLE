@@ -187,6 +187,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Daily Workout Suggestions endpoint
+  app.get("/api/suggestions/today", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user?.id;
+
+      if (!authReq.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      console.log(`🎯 Getting daily suggestion for user: ${userId}`);
+
+      // Import supabaseAdmin dynamically
+      const { supabaseAdmin } = await import("./lib/supabaseAdmin");
+
+      // Check if we already have a suggestion for today
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const existingSuggestion = await supabaseAdmin
+        .from('workouts')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('request->meta->>origin', 'suggestion')
+        .eq('request->meta->>suggestedFor', today)
+        .single();
+
+      if (existingSuggestion.data && !existingSuggestion.error) {
+        console.log(`✅ Returning existing suggestion for ${today}`);
+        return res.json({
+          ...existingSuggestion.data,
+          id: existingSuggestion.data.id,
+          name: existingSuggestion.data.title,
+          category: existingSuggestion.data.request?.category || 'CARDIO', // Use enum value
+          description: existingSuggestion.data.notes || '',
+          duration: existingSuggestion.data.request?.duration || 35,
+          intensity: existingSuggestion.data.request?.intensity || 6,
+          sets: existingSuggestion.data.sets,
+          rationale: existingSuggestion.data.request?.meta?.rationale || [],
+          isExisting: true
+        });
+      }
+
+      // Generate new suggestion
+      console.log(`🎯 Generating new suggestion for ${today}`);
+      
+      // Fetch context data
+      const [workoutsResult, prsResult, healthResult] = await Promise.all([
+        supabaseAdmin.from('workouts').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(14),
+        supabaseAdmin.from('prs').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(5),
+        supabaseAdmin.from('health_reports').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(1)
+      ]);
+
+      const context = {
+        lastWorkouts: workoutsResult.data?.map((w: any) => ({
+          id: w.id,
+          title: w.title,
+          category: w.request?.category || 'Strength',
+          intensity: w.request?.intensity || 6,
+          duration: w.request?.duration || 35,
+          createdAt: new Date(w.created_at),
+          request: w.request
+        })) || [],
+        recentPRs: prsResult.data?.map((pr: any) => ({
+          exercise: `${pr.movement} (${pr.category})`,
+          weight: pr.weight_kg ? parseFloat(pr.weight_kg.toString()) * 2.20462 : undefined, // Convert kg to lbs
+          reps: pr.rep_max,
+          date: pr.date,
+          unit: 'lbs'
+        })) || [],
+        healthReport: healthResult.data?.[0] || undefined
+      };
+
+      // Compute suggestion target using intelligent algorithm
+      const { computeDailySuggestion } = await import('./suggestionEngine');
+      const suggestionTarget = computeDailySuggestion(context);
+
+      console.log(`🎯 Suggestion target:`, suggestionTarget);
+
+      // Generate workout using existing AI system with suggestion target
+      const enhancedRequest = {
+        category: suggestionTarget.category,
+        duration: suggestionTarget.duration,
+        intensity: suggestionTarget.intensity,
+        recentPRs: context.recentPRs,
+        lastWorkouts: context.lastWorkouts.slice(0, 3).map((w: any) => ({
+          name: w.title,
+          category: w.category,
+          duration: w.duration,
+          intensity: w.intensity,
+          date: w.createdAt.toISOString(),
+          exercises: [] // Could extract from sets if needed
+        })),
+        todaysReport: context.healthReport?.metrics ? {
+          energy: (context.healthReport.metrics as any)?.recovery?.score ? Math.round((context.healthReport.metrics as any).recovery.score / 10) : 7,
+          stress: 5, // Would come from wearables
+          sleep: (context.healthReport.metrics as any)?.sleep?.duration ? Math.round((context.healthReport.metrics as any).sleep.duration) : 7,
+          soreness: 4 // Would come from user input or wearables
+        } : undefined
+      };
+
+      const generatedWorkout = await generateWorkout(enhancedRequest);
+
+      // Store the suggestion in database
+      const suggestionWorkout = {
+        userId: authReq.user.id,
+        workout: {
+          title: generatedWorkout.name,
+          request: {
+            ...enhancedRequest,
+            meta: {
+              origin: 'suggestion',
+              suggestedFor: today,
+              version: '1.0',
+              rationale: suggestionTarget.rationale
+            }
+          },
+          sets: generatedWorkout.sets || [],
+          notes: generatedWorkout.description,
+          completed: false
+        }
+      };
+
+      const dbWorkout = await insertWorkout(suggestionWorkout);
+
+      console.log(`✅ Stored daily suggestion with ID: ${dbWorkout.id}`);
+
+      // Return the suggestion with proper category normalization
+      res.json({
+        ...generatedWorkout,
+        id: dbWorkout.id,
+        dbId: dbWorkout.id,
+        category: suggestionTarget.category, // Use enum value from suggestion target
+        rationale: suggestionTarget.rationale,
+        isExisting: false
+      });
+
+    } catch (error) {
+      console.error("Daily suggestion error:", error);
+      res.status(500).json({ 
+        message: "Failed to generate daily suggestion",
+        error: "An internal error occurred while generating your daily suggestion. Please try again." 
+      });
+    }
+  });
+
   // Personal Records routes
   app.get("/api/personal-records", requireAuth, async (req, res) => {
     try {
