@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, integer, timestamp, jsonb, boolean, numeric, smallint, date } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, uuid, integer, timestamp, jsonb, boolean, numeric, smallint, date, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -68,6 +68,19 @@ export const healthReports = pgTable("health_reports", {
   suggestions: text("suggestions").array().notNull().default(sql`'{}'`),
 });
 
+// SUGGESTED WORKOUTS - Daily workout suggestions per user
+export const suggestedWorkouts = pgTable("suggested_workouts", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  date: date("date").notNull(), // suggestion day (UTC)
+  request: jsonb("request").notNull(), // WorkoutRequest { category, duration, intensity }
+  rationale: jsonb("rationale").notNull(), // SuggestionRationale with rulesApplied, scores, sources
+  workoutId: uuid("workout_id"), // the generated workouts.id if we also generated one
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userDateIdx: uniqueIndex('suggested_workouts_user_date_idx').on(table.userId, table.date),
+}));
+
 // Insert schemas
 export const insertProfileSchema = createInsertSchema(profiles).omit({
   createdAt: true,
@@ -95,6 +108,11 @@ export const insertHealthReportSchema = createInsertSchema(healthReports).omit({
   id: true,
 });
 
+export const insertSuggestedWorkoutSchema = createInsertSchema(suggestedWorkouts).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type Profile = typeof profiles.$inferSelect;
@@ -113,6 +131,9 @@ export type WearableConnection = typeof wearableConnections.$inferSelect;
 
 export type InsertHealthReport = z.infer<typeof insertHealthReportSchema>;
 export type HealthReport = typeof healthReports.$inferSelect;
+
+export type InsertSuggestedWorkout = z.infer<typeof insertSuggestedWorkoutSchema>;
+export type SuggestedWorkout = typeof suggestedWorkouts.$inferSelect;
 
 // Workout generation schemas
 export enum Category {
@@ -160,6 +181,32 @@ export type WorkoutRequest = z.infer<typeof workoutRequestSchema>;
 export type WorkoutSet = z.infer<typeof workoutSetSchema>;
 export type GeneratedWorkout = z.infer<typeof generatedWorkoutSchema>;
 export type WorkoutFeedback = z.infer<typeof workoutFeedbackSchema>;
+
+// Suggestion system types
+export type SuggestionRationale = {
+  rulesApplied: string[];
+  scores: {
+    recency: number;  // 0..1, weight from yesterday
+    weeklyBalance: number; // 0..1
+    monthlyBalance: number; // 0..1
+    fatigue: number;  // 0..1   higher = more fatigued
+    novelty: number;  // 0..1   reward doing something different
+  };
+  sources: {
+    lastWorkout?: Workout | null;
+    weeklyCounts?: Record<Category, number>;
+    monthlyCounts?: Record<Category, number>;
+    health?: { hrv?: number|null; sleepScore?: number|null; restingHR?: number|null; stress?: number|null };
+  };
+};
+
+export type SuggestedWorkoutData = {
+  id?: string;
+  date: string; // YYYY-MM-DD
+  request: WorkoutRequest; // {category, duration, intensity}
+  rationale: SuggestionRationale;
+  workoutId?: string | null;
+};
 
 // Legacy aliases for backward compatibility
 export const users = profiles; // Alias for compatibility
