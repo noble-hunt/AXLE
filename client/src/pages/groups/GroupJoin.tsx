@@ -19,7 +19,9 @@ interface Group {
 }
 
 export default function GroupJoin() {
-  const [, params] = useRoute("/groups/join/:id");
+  // Handle both /groups/join/:id and /join/:code routes  
+  const [, groupJoinParams] = useRoute("/groups/join/:id");
+  const [, inviteCodeParams] = useRoute("/join/:code");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -27,13 +29,22 @@ export default function GroupJoin() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [isInviteCodeRoute, setIsInviteCodeRoute] = useState(false);
 
-  const groupId = params?.id;
+  const groupId = groupJoinParams?.id;
+  const inviteCode = inviteCodeParams?.code;
 
   useEffect(() => {
-    if (!groupId) return;
+    // Determine which route we're on
+    if (inviteCode) {
+      setIsInviteCodeRoute(true);
+      loadGroupFromInvite();
+    } else if (groupId) {
+      setIsInviteCodeRoute(false);
+      loadGroupById();
+    }
 
-    async function loadGroup() {
+    async function loadGroupById() {
       try {
         setLoading(true);
         const response = await authFetch(`/api/groups/${groupId}`);
@@ -63,31 +74,79 @@ export default function GroupJoin() {
       }
     }
 
-    loadGroup();
-  }, [groupId, toast]);
+    async function loadGroupFromInvite() {
+      try {
+        setLoading(true);
+        // For invite codes, we need to validate the code first
+        // The backend will return group info if the invite is valid
+        setGroup(null); // We'll get group info after accepting invite
+      } catch (error) {
+        console.error("Failed to process invite:", error);
+        toast({
+          title: "Invalid invite",
+          description: "This invite link is invalid or expired",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+  }, [groupId, inviteCode, toast]);
 
   const handleJoinGroup = async () => {
-    if (!groupId) return;
+    if (!groupId && !inviteCode) return;
 
     setJoining(true);
 
     try {
-      const response = await authFetch(`/api/groups/${groupId}/members`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
+      let response;
+      
+      if (isInviteCodeRoute && inviteCode) {
+        // Handle invite code route - call /api/invites/accept
+        response = await authFetch("/api/invites/accept", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ code: inviteCode }),
+        });
+      } else if (groupId) {
+        // Handle public group join route - call /api/groups/:id/members
+        response = await authFetch(`/api/groups/${groupId}/members`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        });
+      }
 
-      if (response.ok) {
+      if (response && response.ok) {
+        const result = await response.json();
         setJoined(true);
+        
+        // For invite codes, we get group info from the result
+        if (isInviteCodeRoute && result.membership) {
+          // Load group info after successful invite acceptance
+          const groupResponse = await authFetch(`/api/groups/${result.groupId}`);
+          if (groupResponse.ok) {
+            const groupData = await groupResponse.json();
+            setGroup(groupData);
+          }
+        }
+        
         toast({
           title: "Welcome to the group!",
-          description: `You've successfully joined ${group?.name}`,
+          description: `You've successfully joined ${group?.name || 'the group'}`,
         });
+        
+        // Redirect to the group feed if we have the group ID
+        const targetGroupId = result.groupId || groupId;
+        if (targetGroupId) {
+          setTimeout(() => setLocation(`/groups/${targetGroupId}`), 2000);
+        }
       } else {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response?.json().catch(() => ({}));
         toast({
           title: "Failed to join group",
           description: errorData.message || "Unable to join the group",
@@ -137,7 +196,8 @@ export default function GroupJoin() {
     );
   }
 
-  if (!group) {
+  // For invite code routes, show join interface even without group details
+  if (!group && !isInviteCodeRoute) {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <div className="flex items-center gap-4">
@@ -161,6 +221,53 @@ export default function GroupJoin() {
           <Button onClick={() => setLocation("/groups")}>
             Browse Groups
           </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // Handle invite code route without group details
+  if (isInviteCodeRoute && !group && !joined) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setLocation("/groups")}
+            data-testid="back-button"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Groups
+          </Button>
+          <SectionTitle title="Join Group" />
+        </div>
+        <Card className="p-6">
+          <div className="text-center p-4 bg-muted/50 rounded-lg mb-4">
+            <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="font-semibold mb-2">You've been invited to join a group</h3>
+            <p className="text-sm text-muted-foreground">
+              Click the button below to accept this invitation and join the group.
+            </p>
+          </div>
+          
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setLocation("/groups")}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleJoinGroup}
+              disabled={joining}
+              className="flex-1"
+              data-testid="join-group-button"
+            >
+              {joining ? "Joining..." : "Accept Invitation"}
+            </Button>
+          </div>
         </Card>
       </div>
     );
@@ -224,13 +331,16 @@ export default function GroupJoin() {
           <div className="text-center p-6 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
             <CheckCircle className="w-16 h-16 text-green-600 dark:text-green-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
-              You're already in this group!
+              {isInviteCodeRoute ? "Welcome to the group!" : "You're already in this group!"}
             </h3>
             <p className="text-green-700 dark:text-green-300 mb-4">
-              Start participating in conversations and sharing your fitness journey.
+              {isInviteCodeRoute 
+                ? "You've successfully joined the group. You'll be redirected to the group feed shortly."
+                : "Start participating in conversations and sharing your fitness journey."
+              }
             </p>
-            <Button onClick={() => setLocation("/groups")}>
-              View All Groups
+            <Button onClick={() => setLocation(group ? `/groups/${groupId || 'mine'}` : "/groups")}>
+              {group ? "Go to Group" : "View All Groups"}
             </Button>
           </div>
         ) : (
@@ -259,7 +369,7 @@ export default function GroupJoin() {
                 className="flex-1"
                 data-testid="join-group-button"
               >
-                {joining ? "Joining..." : "Join Group"}
+                {joining ? "Joining..." : (isInviteCodeRoute ? "Accept Invitation" : "Join Group")}
               </Button>
             </div>
           </div>

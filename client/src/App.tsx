@@ -117,6 +117,11 @@ function OverlayWrapper() {
             <GroupJoin />
           </ProtectedRoute>
         )} />
+        <Route path="/join/:code" component={() => (
+          <ProtectedRoute>
+            <GroupJoin />
+          </ProtectedRoute>
+        )} />
         <Route path="/dev/env" component={DevEnv} />
         <Route path="/dev/debug" component={Debug} />
         <Route path="/dev/tokens" component={Tokens} />
