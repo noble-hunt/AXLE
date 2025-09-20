@@ -1,54 +1,152 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, CheckCircle } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, CheckCircle, AlertCircle, Clock } from "lucide-react"
 import { useAppStore } from "@/store/useAppStore"
 import { useToast } from "@/hooks/use-toast"
 
 export default function Connect() {
-  const { wearables, connectWearable, disconnectWearable, syncWearableData } = useAppStore()
+  const { 
+    providers, 
+    connections, 
+    loadingProviders, 
+    loadingConnections,
+    fetchProviders, 
+    fetchConnections, 
+    connectProvider, 
+    disconnectProvider,
+    syncProviderNow 
+  } = useAppStore()
   const { toast } = useToast()
-  const [syncingIds, setSyncingIds] = useState<string[]>([])
+  const [syncingProviders, setSyncingProviders] = useState<string[]>([])
+  const [devMode, setDevMode] = useState(false)
+  const [mockStress, setMockStress] = useState(5)
+  const [mockSleep, setMockSleep] = useState(75)
   
-  // Debug readout
-  console.log('Connect Page State:', { 
-    totalWearables: wearables.length,
-    connectedWearables: wearables.filter(w => w.connected).length,
-    wearableTypes: wearables.map(w => ({ name: w.name, type: w.type, connected: w.connected, brand: w.brand }))
-  })
+  // Load providers and connections on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await fetchProviders()
+        await fetchConnections()
+      } catch (error) {
+        console.error('Failed to load provider data:', error)
+      }
+    }
+    loadData()
+  }, [fetchProviders, fetchConnections])
   
-  // Map wearable brand/name to icon
-  const getIcon = (name: string, type: string) => {
-    if (name.includes('Apple Health')) return Smartphone
-    if (name.includes('Apple Watch')) return Watch
-    if (name.includes('Garmin')) return Watch
-    if (name.includes('WHOOP')) return Heart
-    if (name.includes('Fitbit')) return Heart
-    if (name.includes('Oura')) return Heart
+  // Map provider ID to icon and display info
+  const getProviderInfo = (providerId: string) => {
+    const providerMap: Record<string, { icon: any, displayName: string, description: string }> = {
+      'Apple Health': { 
+        icon: Smartphone, 
+        displayName: 'Apple Health', 
+        description: 'iOS Health App integration' 
+      },
+      'Garmin': { 
+        icon: Watch, 
+        displayName: 'Garmin Connect', 
+        description: 'Garmin wearable devices' 
+      },
+      'WHOOP': { 
+        icon: Heart, 
+        displayName: 'WHOOP 4.0', 
+        description: 'WHOOP fitness tracker' 
+      },
+      'Fitbit': { 
+        icon: Heart, 
+        displayName: 'Fitbit', 
+        description: 'Fitbit wearable devices' 
+      },
+      'Oura': { 
+        icon: Heart, 
+        displayName: 'Oura Ring', 
+        description: 'Oura ring health tracker' 
+      },
+      'Mock': { 
+        icon: Settings, 
+        displayName: 'Mock Provider', 
+        description: 'Development testing provider' 
+      },
+    }
     
-    // Fallback to type-based icons
-    switch (type) {
-      case 'smartwatch': return Watch
-      case 'fitness_tracker': return Heart
-      case 'heart_rate_monitor': return Heart
-      case 'smartphone': return Smartphone
-      default: return Wifi
+    return providerMap[providerId] || { 
+      icon: Wifi, 
+      displayName: providerId, 
+      description: 'Health data provider' 
     }
   }
 
-  const handleSync = async (wearableId: string, wearableName: string) => {
-    setSyncingIds(prev => [...prev, wearableId])
+  const getConnectionForProvider = (providerId: string) => {
+    return connections.find((conn: any) => conn.provider === providerId)
+  }
+
+  const getStatusInfo = (connection: any) => {
+    if (!connection) {
+      return { status: 'disconnected', color: 'bg-gray-500', text: 'Disconnected' }
+    }
+    
+    if (connection.connected) {
+      return { status: 'connected', color: 'bg-green-500', text: 'Connected' }
+    }
+    
+    if (connection.error) {
+      return { status: 'error', color: 'bg-red-500', text: 'Error' }
+    }
+    
+    return { status: 'pending', color: 'bg-yellow-500', text: 'Pending' }
+  }
+
+  const handleConnect = async (providerId: string) => {
+    try {
+      await connectProvider(providerId)
+      toast({
+        title: "Connection Started",
+        description: `Connecting to ${getProviderInfo(providerId).displayName}...`,
+      })
+    } catch (error) {
+      toast({
+        title: "Connection Failed", 
+        description: "Unable to connect. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDisconnect = async (providerId: string) => {
+    try {
+      await disconnectProvider(providerId)
+      toast({
+        title: "Disconnected",
+        description: `Disconnected from ${getProviderInfo(providerId).displayName}`,
+      })
+    } catch (error) {
+      toast({
+        title: "Disconnect Failed", 
+        description: "Unable to disconnect. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSync = async (providerId: string) => {
+    setSyncingProviders(prev => [...prev, providerId])
     
     try {
-      // Simulate sync delay
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      const params = providerId === 'Mock' && devMode ? {
+        stress: mockStress,
+        sleep: mockSleep
+      } : undefined
       
-      syncWearableData(wearableId)
+      await syncProviderNow(providerId, params)
       
       toast({
         title: "Sync Complete",
-        description: `Successfully synced data from ${wearableName}`,
+        description: `Successfully synced data from ${getProviderInfo(providerId).displayName}`,
       })
     } catch (error) {
       toast({
@@ -57,15 +155,28 @@ export default function Connect() {
         variant: "destructive",
       })
     } finally {
-      setSyncingIds(prev => prev.filter(id => id !== wearableId))
+      setSyncingProviders(prev => prev.filter(id => id !== providerId))
     }
   }
   
-  const connectedCount = wearables.filter(w => w.connected).length
+  const connectedCount = connections.filter((conn: any) => conn.connected).length
+  const availableCount = providers.length
+
+  if (loadingProviders) {
+    return (
+      <div className="space-y-6">
+        <SectionTitle title="Connect Health Providers" />
+        <div className="text-center py-8">
+          <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading health providers...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <>
-      <SectionTitle title="Connect & Share" />
+    <div className="space-y-6">
+      <SectionTitle title="Connect Health Providers" />
 
       {/* Connection Stats */}
       <div className="grid grid-cols-2 gap-4">
@@ -77,47 +188,142 @@ export default function Connect() {
         
         <Card className="p-4 card-shadow border border-border text-center" data-testid="available-services">
           <Share className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{wearables.length}</p>
+          <p className="text-lg font-bold text-foreground">{availableCount}</p>
           <p className="text-xs text-muted-foreground">Available</p>
         </Card>
       </div>
 
-      {/* App Integrations */}
+      {/* Dev Mode Toggle (only show if Mock provider exists) */}
+      {providers.some((p: any) => p.id === 'Mock') && (
+        <Card className="p-4 card-shadow border border-border">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Settings className="w-5 h-5 text-muted-foreground" />
+              <h3 className="text-lg font-semibold text-foreground">Development Mode</h3>
+            </div>
+            <Switch 
+              checked={devMode} 
+              onCheckedChange={setDevMode}
+              data-testid="dev-mode-toggle"
+            />
+          </div>
+          
+          {devMode && (
+            <div className="space-y-4 p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">Simulate health metrics for Mock provider:</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Stress Level (1-10)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={mockStress}
+                      onChange={(e) => setMockStress(Number(e.target.value))}
+                      className="flex-1"
+                      data-testid="stress-slider"
+                    />
+                    <Badge variant="outline" className="w-8 h-6 text-xs justify-center">
+                      {mockStress}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Sleep Score (0-100)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={mockSleep}
+                      onChange={(e) => setMockSleep(Number(e.target.value))}
+                      className="flex-1"
+                      data-testid="sleep-slider"
+                    />
+                    <Badge variant="outline" className="w-10 h-6 text-xs justify-center">
+                      {mockSleep}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Health Providers Grid */}
       <div className="space-y-4">
-        <SectionTitle title="App Integrations" />
+        <SectionTitle title="Health Providers" />
         
-        {wearables.map((wearable) => {
-          const Icon = getIcon(wearable.name, wearable.type)
+        {providers.map((provider: any) => {
+          const providerInfo = getProviderInfo(provider.id)
+          const connection = getConnectionForProvider(provider.id)
+          const statusInfo = getStatusInfo(connection)
+          const Icon = providerInfo.icon
+          const isConnected = connection?.connected
+          const isConfigured = provider.hasConfig
+          const lastSync = connection?.lastSync ? new Date(connection.lastSync) : null
+          
           return (
-            <Card key={wearable.id} className="p-4 card-shadow border border-border" data-testid={`wearable-${wearable.id}`}>
+            <Card key={provider.id} className="p-4 card-shadow border border-border" data-testid={`provider-${provider.id}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center relative">
                     <Icon className="w-6 h-6 text-muted-foreground" />
+                    <div 
+                      className={`absolute -bottom-1 -right-1 w-4 h-4 ${statusInfo.color} rounded-full border-2 border-background`}
+                    />
                   </div>
                   
                   <div>
-                    <h4 className="font-semibold text-foreground">{wearable.name}</h4>
-                    <p className="text-sm text-muted-foreground">{wearable.brand} • {wearable.type.replace('_', ' ')}</p>
-                    {wearable.batteryLevel && (
-                      <p className="text-xs text-muted-foreground">Battery: {wearable.batteryLevel}%</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-foreground">{providerInfo.displayName}</h4>
+                      {!isConfigured && provider.id !== 'Mock' && (
+                        <Badge variant="secondary" className="text-xs">
+                          Not Configured
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{providerInfo.description}</p>
+                    {lastSync && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <Clock className="w-3 h-3 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">
+                          Last sync: {lastSync.toLocaleTimeString()}
+                        </p>
+                      </div>
+                    )}
+                    {connection?.error && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <AlertCircle className="w-3 h-3 text-destructive" />
+                        <p className="text-xs text-destructive">{connection.error}</p>
+                      </div>
                     )}
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  {wearable.connected ? (
+                  <Badge 
+                    variant={statusInfo.status === 'connected' ? 'default' : 'secondary'}
+                    className="text-xs"
+                  >
+                    {statusInfo.text}
+                  </Badge>
+                  
+                  {isConnected ? (
                     <>
-                      <div className="w-2 h-2 bg-chart-2 rounded-full" />
                       <Button 
                         variant="outline" 
                         size="sm" 
                         className="rounded-xl" 
-                        data-testid={`sync-${wearable.id}`}
-                        onClick={() => handleSync(wearable.id, wearable.name)}
-                        disabled={syncingIds.includes(wearable.id)}
+                        data-testid={`sync-${provider.id}`}
+                        onClick={() => handleSync(provider.id)}
+                        disabled={syncingProviders.includes(provider.id)}
                       >
-                        {syncingIds.includes(wearable.id) ? (
+                        {syncingProviders.includes(provider.id) ? (
                           <>
                             <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
                             Syncing...
@@ -132,11 +338,10 @@ export default function Connect() {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="rounded-xl text-chart-2" 
-                        data-testid={`disconnect-${wearable.id}`}
-                        onClick={() => disconnectWearable(wearable.id)}
+                        className="rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10" 
+                        data-testid={`disconnect-${provider.id}`}
+                        onClick={() => handleDisconnect(provider.id)}
                       >
-                        <CheckCircle className="w-3 h-3 mr-1" />
                         Disconnect
                       </Button>
                     </>
@@ -144,8 +349,9 @@ export default function Connect() {
                     <Button 
                       size="sm" 
                       className="rounded-xl bg-primary text-primary-foreground" 
-                      data-testid={`connect-${wearable.id}`}
-                      onClick={() => connectWearable(wearable.id)}
+                      data-testid={`connect-${provider.id}`}
+                      onClick={() => handleConnect(provider.id)}
+                      disabled={!isConfigured && provider.id !== 'Mock'}
                     >
                       Connect
                     </Button>
@@ -155,6 +361,14 @@ export default function Connect() {
             </Card>
           )
         })}
+        
+        {providers.length === 0 && (
+          <Card className="p-8 text-center" data-testid="no-providers">
+            <Wifi className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No Providers Available</h3>
+            <p className="text-muted-foreground">Health providers will appear here when configured.</p>
+          </Card>
+        )}
       </div>
 
       {/* Privacy Settings */}
@@ -167,25 +381,21 @@ export default function Connect() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Share workout data</p>
-              <p className="text-sm text-muted-foreground">Allow connected apps to access workout information</p>
+              <p className="font-medium text-foreground">Share health data</p>
+              <p className="text-sm text-muted-foreground">Allow connected providers to access health information</p>
             </div>
-            <Button variant="outline" size="sm" className="rounded-xl" data-testid="toggle-workout-sharing">
-              Enabled
-            </Button>
+            <Switch defaultChecked data-testid="toggle-health-sharing" />
           </div>
           
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-foreground">Share personal records</p>
-              <p className="text-sm text-muted-foreground">Allow sharing of PR achievements</p>
+              <p className="font-medium text-foreground">Data retention</p>
+              <p className="text-sm text-muted-foreground">Keep health data for analysis and insights</p>
             </div>
-            <Button variant="outline" size="sm" className="rounded-xl" data-testid="toggle-pr-sharing">
-              Enabled
-            </Button>
+            <Switch defaultChecked data-testid="toggle-data-retention" />
           </div>
         </div>
       </Card>
-    </>
+    </div>
   )
 }
