@@ -29,6 +29,7 @@ import {
 interface VoiceRecognition {
   start: () => void;
   stop: () => void;
+  abort: () => void;
   onresult: (event: any) => void;
   onerror: (event: any) => void;
   onend: () => void;
@@ -77,11 +78,86 @@ export default function LogFreeform() {
   const [isLogging, setIsLogging] = useState(false)
   const [showManualForm, setShowManualForm] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showDiagnostics, setShowDiagnostics] = useState(false)
+  const [diagnostics, setDiagnostics] = useState<any>(null)
   
   // Voice recognition
   const recognitionRef = useRef<VoiceRecognition | null>(null)
   const isVoiceSupported = typeof window !== 'undefined' && 
     ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+
+  // Run comprehensive voice diagnostics
+  const runVoiceDiagnostics = async () => {
+    const diag: any = {
+      timestamp: new Date().toISOString(),
+      isSecureContext: typeof window !== 'undefined' ? window.isSecureContext : false,
+      isInIframe: typeof window !== 'undefined' ? window.top !== window : false,
+      speechAPIPresent: isVoiceSupported,
+      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'N/A',
+      protocol: typeof window !== 'undefined' ? window.location.protocol : 'N/A',
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+      errors: []
+    }
+
+    // Test getUserMedia access
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        diag.microphoneAccess = 'granted'
+        
+        // Count audio input devices
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          diag.audioInputDevices = devices.filter(d => d.kind === 'audioinput').length
+        } catch (err) {
+          diag.audioInputDevices = 'unknown'
+        }
+        
+        // Clean up stream
+        stream.getTracks().forEach(track => track.stop())
+      } else {
+        diag.microphoneAccess = 'getUserMedia not available'
+      }
+    } catch (err: any) {
+      diag.microphoneAccess = 'denied'
+      diag.microphoneError = err.name + ': ' + err.message
+    }
+
+    // Test permissions API
+    try {
+      if ('permissions' in navigator) {
+        const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+        diag.permissionState = permission.state
+      } else {
+        diag.permissionState = 'API not available'
+      }
+    } catch (err: any) {
+      diag.permissionState = 'error: ' + err.message
+    }
+
+    // Test speech recognition instantiation
+    try {
+      if (isVoiceSupported) {
+        const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition
+        const testRecognition = new SpeechRecognition()
+        diag.speechRecognitionInstantiation = 'success'
+        
+        // Test basic config
+        testRecognition.continuous = true
+        testRecognition.interimResults = true
+        testRecognition.lang = 'en-US'
+        diag.speechRecognitionConfig = 'success'
+      } else {
+        diag.speechRecognitionInstantiation = 'API not supported'
+      }
+    } catch (err: any) {
+      diag.speechRecognitionInstantiation = 'error: ' + err.message
+    }
+
+    setDiagnostics(diag)
+    console.log('🔍 Voice Diagnostics:', diag)
+    return diag
+  }
 
   // Initialize voice recognition with better error handling
   const initVoiceRecognition = () => {
@@ -163,21 +239,49 @@ export default function LogFreeform() {
       return
     }
     
+    // Check environment constraints
+    if (typeof window !== 'undefined') {
+      if (!window.isSecureContext) {
+        setError('Voice recognition requires HTTPS. Please open this page in a secure context.')
+        return
+      }
+      
+      if (window.top !== window) {
+        setError('Voice recognition may be blocked in embedded frames. Try opening in a new tab.')
+        return
+      }
+    }
+    
     if (isRecording) {
-      recognitionRef.current?.stop()
+      recognitionRef.current?.abort()
       setIsRecording(false)
       return
     }
 
-    // Check microphone permission first
-    const hasPermission = await checkMicrophonePermission()
-    if (!hasPermission) {
-      setError('Microphone access is required. Please allow microphone permissions and try again.')
-      return
-    }
-    
     // Clear any previous errors
     setError(null)
+    
+    // Preflight check: verify microphone access
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        // Immediately stop the stream - we just needed to verify access
+        stream.getTracks().forEach(track => track.stop())
+      } else {
+        setError('Microphone access not available in this browser. Please use manual text entry.')
+        return
+      }
+    } catch (err: any) {
+      console.error('Microphone preflight failed:', err)
+      if (err.name === 'NotAllowedError') {
+        setError('Microphone access denied. Please allow microphone permissions and try again.')
+      } else if (err.name === 'NotFoundError') {
+        setError('No microphone found. Please check your audio devices and try again.')
+      } else {
+        setError('Failed to access microphone. Please check your settings and try again.')
+      }
+      return
+    }
     
     // Reinitialize recognition for each use to avoid stale state
     recognitionRef.current = initVoiceRecognition()
@@ -198,7 +302,7 @@ export default function LogFreeform() {
         if (err.name === 'InvalidStateError') {
           setError('Voice recognition is already running. Please wait and try again.')
         } else if (err.name === 'NotAllowedError') {
-          setError('Microphone access denied. Please allow microphone permissions and try again.')
+          setError('Voice recognition service not allowed. Please check browser settings.')
         } else {
           setError('Failed to start voice recording. Please try again or use manual text entry.')
         }
@@ -382,12 +486,79 @@ export default function LogFreeform() {
         </div>
       </div>
 
+      {/* Environmental Issues Warning */}
+      {typeof window !== 'undefined' && (!window.isSecureContext || window.top !== window) && (
+        <Card className="p-4 border-warning bg-warning/10">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-warning" />
+              <p className="text-sm font-medium text-warning">Voice recognition requires secure context</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {!window.isSecureContext && "HTTPS is required for voice recognition. "}
+              {window.top !== window && "Voice features may be blocked in embedded frames. "}
+              Try opening this page in a new tab for full functionality.
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => window.open(window.location.href, '_blank')}
+              data-testid="open-new-tab"
+            >
+              Open in New Tab (HTTPS)
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Voice Diagnostics Panel */}
+      {showDiagnostics && diagnostics && (
+        <Card className="p-4 bg-muted/30">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Voice Recognition Diagnostics</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDiagnostics(false)}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="text-xs space-y-1 font-mono">
+              <div>🔒 Secure Context: {diagnostics.isSecureContext ? '✅' : '❌'}</div>
+              <div>🖼️ In Frame: {diagnostics.isInIframe ? '⚠️ Yes' : '✅ No'}</div>
+              <div>🎤 Microphone: {diagnostics.microphoneAccess}</div>
+              <div>🔊 Audio Devices: {diagnostics.audioInputDevices}</div>
+              <div>📋 Permission: {diagnostics.permissionState}</div>
+              <div>🎙️ Speech API: {diagnostics.speechRecognitionInstantiation}</div>
+              <div>🌐 Protocol: {diagnostics.protocol}</div>
+              <div>🖥️ Browser: {diagnostics.userAgent.includes('Chrome') ? 'Chrome' : diagnostics.userAgent.includes('Safari') ? 'Safari' : 'Other'}</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Error Display */}
       {error && (
         <Card className="p-4 border-destructive bg-destructive/5">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-destructive" />
             <p className="text-sm text-destructive">{error}</p>
+            {!showDiagnostics && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowDiagnostics(true)
+                  runVoiceDiagnostics()
+                }}
+                className="ml-auto"
+                data-testid="show-diagnostics"
+              >
+                Debug
+              </Button>
+            )}
           </div>
         </Card>
       )}
