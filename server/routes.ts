@@ -19,6 +19,7 @@ import { registerSuggestionRoutes } from "./routes/suggestions";
 import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron";
 import { registerWorkoutFreeformRoutes } from "./routes/workout-freeform";
 import { registerWhisperRoutes } from "./routes/whisper-transcription";
+import healthRoutes from "./routes/health";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register suggestion routes
@@ -29,6 +30,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register whisper transcription routes
   registerWhisperRoutes(app);
+  
+  // Register health provider routes
+  app.use("/api", healthRoutes);
   
   // Authenticated data fetching routes
   app.get("/api/user/data", requireAuth, async (req, res) => {
