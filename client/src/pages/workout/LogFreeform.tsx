@@ -461,6 +461,23 @@ export default function LogFreeform() {
       
       const data = await response.json()
       
+      // Update store directly to immediately show in home page
+      useAppStore.setState((state) => ({
+        workouts: [...state.workouts, {
+          id: data.id,
+          name: parsed.title,
+          category: parsed.request.category,
+          description: parsed.notes || '',
+          duration: parsed.request.durationMinutes || 30,
+          intensity: parsed.request.intensity || 5,
+          sets: parsed.sets,
+          date: new Date(),
+          completed: false,
+          notes: parsed.notes || '',
+          createdAt: new Date()
+        }]
+      }))
+      
       // Invalidate cache and navigate
       await queryClient.invalidateQueries({ queryKey: ['/api/workouts'] })
       setLocation(`/workout/${data.id}`)

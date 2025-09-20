@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useLocation } from "wouter"
+import { useLocation, Link } from "wouter"
 import { useAppStore } from "@/store/useAppStore"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
@@ -183,20 +183,25 @@ export default function Home() {
           
           <div className="space-y-3">
             {recentWorkouts.map((workout) => (
-              <Card key={workout.id} className="p-4" data-testid={`recent-workout-${workout.id}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Dumbbell className="w-5 h-5 text-primary" />
+              <Link key={workout.id} href={`/workout/${workout.id}`}>
+                <Card className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Dumbbell className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-body font-medium text-foreground">{workout.name}</p>
+                        <p className="text-caption text-muted-foreground">{workout.category}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-body font-medium text-foreground">{workout.name}</p>
-                      <p className="text-caption text-muted-foreground">{workout.category}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-caption text-muted-foreground">{formatTimeAgo(new Date(workout.date))}</p>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
-                  <p className="text-caption text-muted-foreground">{formatTimeAgo(new Date(workout.date))}</p>
-                </div>
-              </Card>
+                </Card>
+              </Link>
             ))}
           </div>
         </motion.div>
