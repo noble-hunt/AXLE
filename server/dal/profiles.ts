@@ -88,16 +88,43 @@ export async function updateProfile(userId: string, updates: {
   if (updates.dateOfBirth !== undefined) updateData.date_of_birth = updates.dateOfBirth;
   if (updates.avatarUrl !== undefined) updateData.avatar_url = updates.avatarUrl;
 
-  const { data, error } = await supabaseAdmin
+  // First try to update existing profile
+  const { data: updateResult, error: updateError } = await supabaseAdmin
     .from('profiles')
     .update(updateData)
     .eq('user_id', userId)
     .select()
     .single();
 
-  if (error) {
-    throw new Error(`Failed to update profile: ${error.message}`);
+  // If update succeeds, return the result
+  if (!updateError && updateResult) {
+    return updateResult;
   }
 
-  return data;
+  // If profile doesn't exist (PGRST116), create it with the provided data
+  if (updateError && updateError.code === 'PGRST116') {
+    const insertData = {
+      user_id: userId,
+      ...updateData,
+    };
+
+    const { data: insertResult, error: insertError } = await supabaseAdmin
+      .from('profiles')
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (insertError) {
+      throw new Error(`Failed to create profile: ${insertError.message}`);
+    }
+
+    return insertResult;
+  }
+
+  // If other error, throw it
+  if (updateError) {
+    throw new Error(`Failed to update profile: ${updateError.message}`);
+  }
+
+  return updateResult;
 }
