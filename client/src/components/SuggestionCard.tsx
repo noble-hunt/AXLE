@@ -101,12 +101,12 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
   if (isLoading) {
     return (
       <Card className={`p-6 ${className}`} data-testid="suggestion-card-loading">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
             <Sparkles className="w-5 h-5 text-accent" />
           </div>
-          <div className="flex-1 space-y-3">
-            <div>
+          <div className="flex-1 min-w-0 space-y-3">
+            <div className="text-left">
               <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
               <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>
             </div>
@@ -129,11 +129,11 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
   if (!suggestion) {
     return (
       <Card className={`p-6 ${className}`} data-testid="suggestion-card-empty">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
             <User className="w-5 h-5 text-accent" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0 text-left">
             <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
             <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>
             <p className="text-body text-foreground mb-4">
@@ -164,12 +164,12 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
   return (
     <>
       <Card className={`p-6 ${className}`} data-testid="suggestion-card">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
             <Sparkles className="w-5 h-5 text-accent" />
           </div>
-          <div className="flex-1 space-y-4">
-            <div>
+          <div className="flex-1 min-w-0 space-y-4">
+            <div className="text-left">
               <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
               <p className="text-caption text-muted-foreground">Personalized for today</p>
             </div>
@@ -191,7 +191,7 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
 
             {/* Brief rationale preview */}
             {suggestion.rationale && (
-              <div className="bg-muted/50 rounded-lg p-3">
+              <div className="bg-muted/50 rounded-lg p-3 text-left">
                 <p className="text-sm text-muted-foreground">
                   {suggestion.rationale.rulesApplied?.[0] || "Personalized workout based on your fitness profile"}
                 </p>
