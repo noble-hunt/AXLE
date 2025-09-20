@@ -16,6 +16,7 @@ import { list as listAchievements } from "./dal/achievements";
 import { listReports } from "./dal/reports";
 import { listWearables } from "./dal/wearables";
 import { registerSuggestionRoutes } from "./routes/suggestions";
+import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register suggestion routes
@@ -811,6 +812,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: "DAL test failed", 
         error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
+  // Health endpoint for suggestions system
+  app.get("/api/health/suggestions", async (req, res) => {
+    try {
+      const todayRows = await getTodaySuggestionsCount();
+      const lastRunAt = getLastRunAt();
+      
+      res.json({
+        todayRows,
+        lastRunAt: lastRunAt ? lastRunAt.toISOString() : null
+      });
+    } catch (error) {
+      console.error("Health check error:", error);
+      res.status(500).json({ message: "Failed to get suggestions health info" });
+    }
+  });
+
+  // Admin endpoint to manually trigger cron (for testing)
+  app.post("/api/admin/cron/suggestions", requireAuth, async (req, res) => {
+    try {
+      console.log("🔧 [ADMIN] Manual cron trigger requested");
+      const result = await generateDailySuggestions();
+      
+      res.json({
+        success: true,
+        message: "Daily suggestions cron executed manually",
+        result: result
+      });
+    } catch (error) {
+      console.error("Admin cron trigger error:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to execute cron job",
+        error: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });

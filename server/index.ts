@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { startSuggestionsCron } from "./jobs/suggestions-cron";
 
 // Server startup guard - ensure required environment variables are present
 ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].forEach((k) => {
@@ -59,6 +60,14 @@ app.use((req, res, next) => {
     await setupVite(app, server);
   } else {
     serveStatic(app);
+  }
+
+  // Start cron jobs if enabled (not in test mode)
+  if (process.env.SUGGESTIONS_CRON === 'true' && process.env.NODE_ENV !== 'test') {
+    startSuggestionsCron();
+    log("⏰ Suggestions cron job enabled");
+  } else {
+    log("⏰ Suggestions cron job disabled (SUGGESTIONS_CRON not set to 'true' or in test mode)");
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
