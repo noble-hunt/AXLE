@@ -62,8 +62,11 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Start cron jobs if enabled (not in test mode)
-  if (process.env.SUGGESTIONS_CRON === 'true' && process.env.NODE_ENV !== 'test') {
+  // Start cron jobs if enabled (default enabled in development)
+  const shouldEnableCron = process.env.SUGGESTIONS_CRON === 'true' || 
+                          (process.env.NODE_ENV === 'development' && process.env.SUGGESTIONS_CRON !== 'false');
+  
+  if (shouldEnableCron && process.env.NODE_ENV !== 'test') {
     startSuggestionsCron();
     log("⏰ Suggestions cron job enabled");
   } else {

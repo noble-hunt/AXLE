@@ -118,23 +118,28 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setAuth(session.user, session);
-          if (!initializedRef.current) {
-            try {
-              // Upsert profile first (create if doesn't exist)
-              const firstName = session.user.user_metadata?.first_name;
-              const lastName = session.user.user_metadata?.last_name;
-              await get().upsertProfile(session.user.id, session.user.email || '', undefined, firstName, lastName);
-              
-              // Then hydrate all data
-              await hydrateFromDb(session.user.id);
-              initializedRef.current = true;
-            } catch (hydrateError) {
-              console.error('❌ Database hydration failed, using local data:', hydrateError);
-              // Don't clear auth - keep authenticated state but use local data
-            }
-          }
-          // Set authInitialized after auth state is set
+          // Set authInitialized immediately after auth state is set
           setAuthInitialized(true);
+          
+          // Hydrate data in background (don't block auth initialization)
+          if (!initializedRef.current) {
+            // Run hydration in background without blocking
+            (async () => {
+              try {
+                // Upsert profile first (create if doesn't exist)
+                const firstName = session.user.user_metadata?.first_name;
+                const lastName = session.user.user_metadata?.last_name;
+                await get().upsertProfile(session.user.id, session.user.email || '', undefined, firstName, lastName);
+                
+                // Then hydrate all data
+                await hydrateFromDb(session.user.id);
+                initializedRef.current = true;
+              } catch (hydrateError) {
+                console.error('❌ Database hydration failed, using local data:', hydrateError);
+                // Don't clear auth - keep authenticated state but use local data
+              }
+            })();
+          }
         } else {
           clearAuth();
           clearStoreForGuest();
@@ -154,23 +159,27 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         if (session?.user) {
           setAuth(session.user, session);
+          setAuthInitialized(true);
+          
           // Only hydrate on actual sign-in events, not initial session
           if (evt === 'SIGNED_IN' && !initializedRef.current) {
-            try {
-              // Upsert profile first (create if doesn't exist)
-              const firstName = session.user.user_metadata?.first_name;
-              const lastName = session.user.user_metadata?.last_name;
-              await get().upsertProfile(session.user.id, session.user.email || '', undefined, firstName, lastName);
-              
-              // Then hydrate all data
-              await hydrateFromDb(session.user.id);
-              initializedRef.current = true;
-            } catch (hydrateError) {
-              console.error('❌ Database hydration failed on sign-in, using local data:', hydrateError);
-              // Keep authenticated state but log hydration failure
-            }
+            // Run hydration in background without blocking
+            (async () => {
+              try {
+                // Upsert profile first (create if doesn't exist)
+                const firstName = session.user.user_metadata?.first_name;
+                const lastName = session.user.user_metadata?.last_name;
+                await get().upsertProfile(session.user.id, session.user.email || '', undefined, firstName, lastName);
+                
+                // Then hydrate all data
+                await hydrateFromDb(session.user.id);
+                initializedRef.current = true;
+              } catch (hydrateError) {
+                console.error('❌ Database hydration failed on sign-in, using local data:', hydrateError);
+                // Keep authenticated state but log hydration failure
+              }
+            })();
           }
-          setAuthInitialized(true);
         } else {
           clearAuth();
           clearStoreForGuest();

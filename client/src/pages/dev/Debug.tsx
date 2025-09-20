@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { authFetch } from "@/lib/authFetch";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
-import { Loader2, Database, User as UserIcon, Zap, Mail } from "lucide-react";
+import { Loader2, Database, User as UserIcon, Zap, Mail, Sparkles, RotateCcw } from "lucide-react";
 
 interface DebugSessionData {
   userId: string;
@@ -32,6 +32,18 @@ interface EmailProviderData {
   details?: string;
 }
 
+interface SuggestionDebugData {
+  userId: string;
+  date: string;
+  inputs: {
+    workouts: any[];
+    health: any;
+    prs: any[];
+  };
+  suggestion?: any;
+  error?: string;
+}
+
 export default function Debug() {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
@@ -42,11 +54,17 @@ export default function Debug() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [emailStatus, setEmailStatus] = useState<EmailProviderData | null>(null);
   const [isLoadingEmail, setIsLoadingEmail] = useState(false);
+  const [suggestionDebug, setSuggestionDebug] = useState<SuggestionDebugData | null>(null);
+  const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     // Get current Supabase session
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Debug: Getting Supabase session...');
+      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('Debug: Session data:', session?.user?.id, session?.user?.email);
+      console.log('Debug: Session error:', error);
       setUser(session?.user || null);
     };
     
@@ -54,6 +72,7 @@ export default function Debug() {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Debug: Auth state change:', event, session?.user?.id);
       setUser(session?.user || null);
     });
 
@@ -190,6 +209,67 @@ export default function Debug() {
     }
   };
 
+  const fetchSuggestionDebug = async () => {
+    setIsLoadingSuggestion(true);
+    try {
+      const response = await authFetch("/api/suggestions/debug");
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestionDebug(data);
+        toast({
+          title: "Suggestion debug loaded",
+          description: `Found algorithm inputs for ${data.userId}`,
+        });
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || `HTTP ${response.status}`);
+      }
+    } catch (error) {
+      toast({
+        title: "Suggestion debug failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+      setSuggestionDebug(null);
+    } finally {
+      setIsLoadingSuggestion(false);
+    }
+  };
+
+  const recomputeSuggestion = async () => {
+    setIsRegenerating(true);
+    try {
+      const response = await authFetch("/api/suggestions/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ regenerate: true }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast({
+          title: "Suggestion recomputed",
+          description: `Generated new suggestion: ${data.suggestion?.request?.category}`,
+        });
+        // Refresh debug data
+        fetchSuggestionDebug();
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || `HTTP ${response.status}`);
+      }
+    } catch (error) {
+      toast({
+        title: "Recompute failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-2 mb-6">
@@ -221,16 +301,25 @@ export default function Debug() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Badge variant="destructive">Not Authenticated</Badge>
-              <span className="text-sm text-muted-foreground">No active session</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="warning">Session Loading</Badge>
+                <span className="text-sm text-muted-foreground">Checking authentication...</span>
+              </div>
+              <Button 
+                onClick={() => window.location.reload()} 
+                variant="outline" 
+                size="sm"
+              >
+                Refresh Page
+              </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* Server Debug Endpoints */}
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 gap-6">
         {/* Session Debug */}
         <Card>
           <CardHeader>
@@ -306,6 +395,86 @@ export default function Debug() {
           </CardContent>
         </Card>
 
+        {/* Suggestions Debug */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              Suggestions Debug
+            </CardTitle>
+            <CardDescription>
+              GET /api/suggestions/debug endpoint
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Button 
+                  onClick={fetchSuggestionDebug}
+                  disabled={isLoadingSuggestion || !user}
+                  className="flex-1"
+                  data-testid="fetch-suggestion-debug"
+                >
+                  {isLoadingSuggestion && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {!user ? "Sign in to test" : "Fetch Debug"}
+                </Button>
+                <Button 
+                  onClick={recomputeSuggestion}
+                  disabled={isRegenerating || !user}
+                  variant="secondary"
+                  data-testid="recompute-suggestion"
+                >
+                  {isRegenerating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {!user && (
+                <div className="text-sm text-muted-foreground">
+                  Authentication required: The suggestion debug buttons are disabled until user session loads. 
+                  If you're logged in but buttons remain disabled, try refreshing the page.
+                </div>
+              )}
+              
+              {suggestionDebug && (
+                <div className="bg-muted p-3 rounded-md">
+                  <div className="font-mono text-xs space-y-2 max-h-80 overflow-auto">
+                    <div><strong>User ID:</strong> {suggestionDebug.userId}</div>
+                    <div><strong>Date:</strong> {suggestionDebug.date}</div>
+                    
+                    <div className="mt-3">
+                      <strong>Algorithm Inputs:</strong>
+                    </div>
+                    <div className="ml-2 space-y-1">
+                      <div><strong>Workouts:</strong> {suggestionDebug.inputs.workouts?.length || 0} entries</div>
+                      <div><strong>Health Data:</strong> {suggestionDebug.inputs.health ? 'Available' : 'None'}</div>
+                      <div><strong>PRs:</strong> {suggestionDebug.inputs.prs?.length || 0} entries</div>
+                    </div>
+                    
+                    {suggestionDebug.suggestion && (
+                      <div className="mt-3">
+                        <strong>Current Suggestion:</strong>
+                        <pre className="mt-1 text-xs bg-background p-2 rounded border max-h-40 overflow-auto">
+                          {JSON.stringify(suggestionDebug.suggestion, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    
+                    <details className="mt-3">
+                      <summary className="cursor-pointer"><strong>Raw Debug Data:</strong></summary>
+                      <pre className="mt-1 text-xs bg-background p-2 rounded border max-h-60 overflow-auto">
+                        {JSON.stringify(suggestionDebug, null, 2)}
+                      </pre>
+                    </details>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid md:grid-cols-1 gap-6">
         {/* Email Provider Status */}
         <Card>
           <CardHeader>

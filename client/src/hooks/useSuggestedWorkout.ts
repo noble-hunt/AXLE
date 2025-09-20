@@ -1,40 +1,96 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { authFetch } from "@/lib/authFetch";
+import { useAppStore } from "@/store/useAppStore";
 import type { SuggestedWorkout } from "@shared/schema";
 
 export function useSuggestedWorkout() {
   const [suggestion, setSuggestion] = useState<SuggestedWorkout | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [, setLocation] = useLocation();
+  const { isAuthenticated } = useAppStore();
 
   const fetchToday = async () => {
+    if (!isAuthenticated) {
+      setSuggestion(null);
+      return;
+    }
+    
     setLoading(true);
     try {
       const res = await authFetch("/api/suggestions/today");
-      const data = await res.json();
-      setSuggestion(data);
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestion(data);
+      } else {
+        console.error("Failed to fetch suggestion:", res.status);
+        setSuggestion(null);
+      }
     } catch (error) {
       console.error("Error fetching today's suggestion:", error);
+      setSuggestion(null);
     } finally {
       setLoading(false);
     }
   };
 
+  // Automatically fetch today's suggestion when authenticated
+  useEffect(() => {
+    fetchToday();
+  }, [isAuthenticated]);
+
   const startNow = async () => {
-    setLoading(true);
+    if (!suggestion) return;
+    
+    setIsGenerating(true);
     try {
-      const res = await authFetch("/api/suggestions/generate", { method: "POST" });
-      const data = await res.json();
-      setSuggestion(data.suggestion);
-      // Navigate to the generated workout
-      setLocation(`/workout/${data.workout.id}`);
+      const res = await authFetch("/api/suggestions/generate", { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(suggestion)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Navigate to the generated workout
+        setLocation(`/workout/${data.workout.id}`);
+      } else {
+        console.error("Failed to start workout:", res.status);
+      }
     } catch (error) {
       console.error("Error generating workout:", error);
     } finally {
-      setLoading(false);
+      setIsGenerating(false);
     }
   };
 
-  return { suggestion, fetchToday, startNow, loading };
+  const regenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await authFetch("/api/suggestions/generate", { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regenerate: true })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestion(data.suggestion);
+      } else {
+        console.error("Failed to regenerate suggestion:", res.status);
+      }
+    } catch (error) {
+      console.error("Error regenerating suggestion:", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return { 
+    suggestion, 
+    isLoading: loading, 
+    isGenerating,
+    fetchToday, 
+    startNow, 
+    regenerate
+  };
 }

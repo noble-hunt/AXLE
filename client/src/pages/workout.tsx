@@ -4,10 +4,9 @@ import { Card } from "@/components/ui/card"
 import { Card as SwiftCard } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
+import { SuggestionCard } from "@/components/SuggestionCard"
 import { Play, Plus, Timer, Dumbbell, ChevronRight, Clock, Zap, CheckCircle, Activity, Heart, Move, Weight, Lightbulb } from "lucide-react"
 import { useLocation, Link } from "wouter"
-import { useQuery } from "@tanstack/react-query"
-import { supabase } from "@/lib/supabase"
 import { useAppStore } from "@/store/useAppStore"
 import { Category } from "../types"
 import { format } from "date-fns"
@@ -35,98 +34,6 @@ const getIntensityVariant = (intensity: number) => {
   return "destructive"
 }
 
-// Suggested Workout Card Component
-function SuggestedWorkoutCard({ setLocation }: { setLocation: (path: string) => void }) {
-  const { data: suggestion, isLoading, error } = useQuery({
-    queryKey: ['/api/suggestions/today'],
-    staleTime: 1000 * 60 * 60, // 1 hour
-    retry: 1
-  })
-
-  const handleViewWorkout = () => {
-    if (suggestion?.id) {
-      setLocation(`/workout/${suggestion.id}`)
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Suggested Workout</h3>
-        <SwiftCard className="p-6" data-testid="suggested-workout-loading">
-          <div className="animate-pulse">
-            <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-            <div className="h-3 bg-muted rounded w-1/2"></div>
-          </div>
-        </SwiftCard>
-      </div>
-    )
-  }
-
-  if (error || !suggestion) {
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Suggested Workout</h3>
-        <SwiftCard className="p-6" data-testid="suggested-workout-error">
-          <div className="text-center space-y-3">
-            <Lightbulb className="w-8 h-8 text-muted-foreground mx-auto" />
-            <div>
-              <h4 className="font-semibold text-foreground">No Suggestion Available</h4>
-              <p className="text-sm text-muted-foreground">Try creating a new workout below</p>
-            </div>
-          </div>
-        </SwiftCard>
-      </div>
-    )
-  }
-
-  const CategoryIcon = getCategoryIcon(suggestion.category as Category)
-
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Suggested Workout</h3>
-      
-      <SwiftCard className="p-6 card-shadow cursor-pointer hover:shadow-lg transition-shadow" onClick={handleViewWorkout} data-testid="suggested-workout-card">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 space-y-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <CategoryIcon className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-foreground">{suggestion.name}</h4>
-                <p className="text-sm text-muted-foreground">Personalized for today</p>
-              </div>
-            </div>
-            
-            <div className="flex space-x-2">
-              <Chip size="sm" variant="default" data-testid={`chip-category`}>
-                {suggestion.category}
-              </Chip>
-              <Chip size="sm" variant={getIntensityVariant(suggestion.intensity)} data-testid={`chip-intensity`}>
-                {suggestion.intensity}/10
-              </Chip>
-              <Chip size="sm" variant="default" data-testid={`chip-duration`}>
-                <Clock className="w-3 h-3" />
-                {suggestion.duration}min
-              </Chip>
-            </div>
-            
-            {suggestion.rationale && suggestion.rationale.length > 0 && (
-              <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground">
-                  {suggestion.rationale[0]}
-                </p>
-              </div>
-            )}
-          </div>
-          
-          <ChevronRight className="w-5 h-5 text-muted-foreground ml-4" />
-        </div>
-      </SwiftCard>
-    </div>
-  )
-}
 
 export default function Workout() {
   const [, setLocation] = useLocation()
@@ -173,7 +80,7 @@ export default function Workout() {
       <SectionTitle title="Workouts" />
 
       {/* Suggested Workout */}
-      <SuggestedWorkoutCard setLocation={setLocation} />
+      <SuggestionCard variant="workout" />
 
       {/* Create New Workout */}
       <PrimaryButton 

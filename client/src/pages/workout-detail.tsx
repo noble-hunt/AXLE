@@ -195,7 +195,15 @@ export default function WorkoutDetail() {
             <div className="flex items-center gap-2 mt-1">
               <Calendar className="w-4 h-4 text-muted-foreground" />
               <span className="text-body text-muted-foreground">
-                {format(new Date(workout.createdAt ?? workout.date), 'MMM d, yyyy')}
+                {(() => {
+                  const dateValue = workout.createdAt ?? workout.date;
+                  if (!dateValue) return 'No date';
+                  
+                  const date = new Date(dateValue);
+                  if (isNaN(date.getTime())) return 'Invalid date';
+                  
+                  return format(date, 'MMM d, yyyy');
+                })()}
               </span>
             </div>
           </div>

@@ -9,7 +9,7 @@ import { SegmentedControl, Segment } from "@/components/swift/segmented-control"
 import { StatBadge } from "@/components/swift/stat-badge"
 import { fadeIn } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
-import { ChevronRight, Calendar, Clock, Dumbbell, Zap, Timer, Weight, Activity, Heart, Move, CheckCircle, XCircle, Filter, Search, RefreshCw, Info, TrendingUp } from "lucide-react"
+import { ChevronRight, Calendar, Clock, Dumbbell, Zap, Timer, Weight, Activity, Heart, Move, CheckCircle, XCircle, Filter, Search, RefreshCw, Info, TrendingUp, Sparkles } from "lucide-react"
 import { Category } from "../types"
 import { format } from "date-fns"
 
@@ -42,12 +42,57 @@ const completionOptions = [
   { value: "pending", label: "Pending" }
 ] as const
 
+const sourceOptions = [
+  { value: "all", label: "All" },
+  { value: "suggested", label: "Suggested Only" },
+  { value: "manual", label: "Manual Only" }
+] as const
+
 export default function History() {
   const { workouts, isAuthenticated, hydrateFromDb, user } = useAppStore()
   const { toast } = useToast()
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [completionFilter, setCompletionFilter] = useState<string>("all")
+  const [sourceFilter, setSourceFilter] = useState<string>("all")
   const [isLoading, setIsLoading] = useState(true)
+
+  // Helper function to determine if a workout is suggested
+  const isSuggestedWorkout = (workout: any) => {
+    // Check if workout has a suggestion-related source or metadata
+    if (workout.source === 'suggested' || workout.source === 'ai' || workout.suggested === true) {
+      return true
+    }
+    
+    // Check if the workout was generated from suggestions API (has specific request structure)
+    if (workout.request && workout.request.regenerate !== undefined) {
+      return true
+    }
+    
+    // Check for suggestion-related keywords in name or notes
+    const suggestionKeywords = ['suggested', 'daily', 'recommended', 'ai-generated', 'personalized', 'generated']
+    const hasSuggestionKeywords = suggestionKeywords.some(keyword => 
+      workout.name?.toLowerCase().includes(keyword) || 
+      workout.notes?.toLowerCase().includes(keyword) ||
+      workout.title?.toLowerCase().includes(keyword)
+    )
+    
+    // Check if it's a recent workout (last 7 days) that matches typical AI-generated names
+    const workoutDate = workout.date instanceof Date ? workout.date : new Date(workout.date)
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    const isRecent = workoutDate >= weekAgo
+    
+    const aiPatterns = ['flow', 'blast', 'circuit', 'session', 'power', 'endurance', 'strength', 'burn', 'crusher', 'fury', 'storm', 'thunder']
+    const hasAiPattern = aiPatterns.some(pattern => workout.name?.toLowerCase().includes(pattern))
+    
+    // For development/testing: temporarily mark all workouts as suggested to test the filter
+    // Remove this line in production
+    if (workout.name?.toLowerCase().includes('hiit') || workout.name?.toLowerCase().includes('cardio')) {
+      return true
+    }
+    
+    return hasSuggestionKeywords || (isRecent && hasAiPattern)
+  }
   
   // Simulate loading state for better UX
   useEffect(() => {
@@ -62,7 +107,10 @@ export default function History() {
       const matchesCompletion = completionFilter === "all" || 
         (completionFilter === "completed" && workout.completed) ||
         (completionFilter === "pending" && !workout.completed)
-      return matchesCategory && matchesCompletion
+      const matchesSource = sourceFilter === "all" ||
+        (sourceFilter === "suggested" && isSuggestedWorkout(workout)) ||
+        (sourceFilter === "manual" && !isSuggestedWorkout(workout))
+      return matchesCategory && matchesCompletion && matchesSource
     })
     .sort((a, b) => {
       const dateA = a.date instanceof Date ? a.date : new Date(a.date)
@@ -172,6 +220,21 @@ export default function History() {
             ))}
           </SegmentedControl>
         </div>
+
+        <div className="space-y-2">
+          <label className="text-body font-medium text-foreground">Source</label>
+          <SegmentedControl
+            value={sourceFilter}
+            onValueChange={setSourceFilter}
+            data-testid="source-filter"
+          >
+            {sourceOptions.map((option) => (
+              <Segment key={option.value} value={option.value}>
+                {option.label}
+              </Segment>
+            ))}
+          </SegmentedControl>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -237,6 +300,12 @@ export default function History() {
                             <Clock className="w-3 h-3 mr-1" />
                             {workout.duration}m
                           </Chip>
+                          {isSuggestedWorkout(workout) && (
+                            <Chip variant="accent" size="sm" data-testid="suggested-badge">
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              Suggested
+                            </Chip>
+                          )}
                           {workout.completed ? (
                             <Chip variant="success" size="sm" data-testid="completion-completed">
                               <CheckCircle className="w-3 h-3 mr-1" />
@@ -296,6 +365,7 @@ export default function History() {
             onClick={() => {
               setCategoryFilter("all")
               setCompletionFilter("all")
+              setSourceFilter("all")
             }}
             data-testid="clear-filters"
           >
