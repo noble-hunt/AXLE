@@ -40,7 +40,8 @@ export interface RsvpParams {
 
 // Set user context for RLS
 async function setUserContext(userId: string) {
-  await db.execute(sql`SET LOCAL app.user_id = ${userId}`);
+  // Use string interpolation for session variables as they don't support parameterization
+  await db.execute(sql.raw(`SET LOCAL app.user_id = '${userId}'`));
 }
 
 // CREATE GROUP + ADD CREATOR AS OWNER

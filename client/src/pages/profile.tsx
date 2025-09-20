@@ -160,6 +160,7 @@ function SettingsSection() {
   }
   
   const settingsItems = [
+    { icon: Trophy, label: "Personal Records", path: "/prs", color: "text-accent" },
     { icon: Award, label: "Achievements", path: "/achievements", color: "text-accent" },
     { icon: Bell, label: "Notifications", path: "/notifications" },
     { icon: Shield, label: "Privacy", path: "/privacy" },
@@ -260,10 +261,19 @@ export default function Profile() {
         const base64String = e.target?.result as string
         
         // Update profile with new avatar (safely handle null profile)
-        setProfile(prev => ({
-          ...prev,
-          avatarUrl: base64String
-        }))
+        setProfile(prev => prev ? { 
+          ...prev, 
+          avatarUrl: base64String 
+        } : { 
+          avatarUrl: base64String,
+          userId: user?.id || '',
+          firstName: user?.user_metadata?.first_name || '',
+          lastName: user?.user_metadata?.last_name || '',
+          providers: ['email'],
+          username: user?.email?.split('@')[0] || '',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
         
         // Also update in database if user is authenticated
         if (user?.id) {

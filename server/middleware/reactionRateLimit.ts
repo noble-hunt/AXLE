@@ -15,15 +15,20 @@ const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 // Clean up old entries periodically to prevent memory leaks
 setInterval(() => {
   const now = Date.now();
-  for (const [userId, tracker] of reactionAttempts) {
-    // Remove old attempts beyond the rate limit window
-    tracker.attempts = tracker.attempts.filter(
-      attempt => now - attempt < RATE_LIMIT_WINDOW_MS
-    );
-    
-    // Remove users with no recent attempts
-    if (tracker.attempts.length === 0) {
-      reactionAttempts.delete(userId);
+  const userIds = Array.from(reactionAttempts.keys());
+  
+  for (const userId of userIds) {
+    const tracker = reactionAttempts.get(userId);
+    if (tracker) {
+      // Remove old attempts beyond the rate limit window
+      tracker.attempts = tracker.attempts.filter(
+        (attempt: number) => now - attempt < RATE_LIMIT_WINDOW_MS
+      );
+      
+      // Remove users with no recent attempts
+      if (tracker.attempts.length === 0) {
+        reactionAttempts.delete(userId);
+      }
     }
   }
 }, CLEANUP_INTERVAL_MS);
