@@ -16,7 +16,7 @@ const ALL_CATEGORIES = [Category.CROSSFIT, Category.STRENGTH, Category.HIIT, Cat
 /**
  * Fetches workout data for suggestion computation
  */
-async function fetchWorkoutData(userId: string, today: Date) {
+export async function fetchWorkoutData(userId: string, today: Date) {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   
@@ -51,7 +51,7 @@ async function fetchWorkoutData(userId: string, today: Date) {
 /**
  * Fetches the latest health report
  */
-async function fetchLatestHealthReport(userId: string): Promise<HealthReport | null> {
+export async function fetchLatestHealthReport(userId: string): Promise<HealthReport | null> {
   const reports = await db
     .select()
     .from(healthReports)
