@@ -5,7 +5,7 @@ import { Card as SwiftCard } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
 import { SuggestionCard } from "@/components/SuggestionCard"
-import { Play, Plus, Timer, Dumbbell, ChevronRight, Clock, Zap, CheckCircle, Activity, Heart, Move, Weight, Lightbulb } from "lucide-react"
+import { Play, Plus, Timer, Dumbbell, ChevronRight, Clock, Zap, CheckCircle, Activity, Heart, Move, Weight, Lightbulb, Edit3 } from "lucide-react"
 import { useLocation, Link } from "wouter"
 import { useAppStore } from "@/store/useAppStore"
 import { Category } from "../types"
@@ -41,6 +41,10 @@ export default function Workout() {
 
   const handleCreateWorkout = () => {
     setLocation('/generate-workout')
+  }
+
+  const handleLogWorkout = () => {
+    setLocation('/workout/log')
   }
 
   const handleStartTemplate = () => {
@@ -81,6 +85,16 @@ export default function Workout() {
 
       {/* Suggested Workout */}
       <SuggestionCard variant="workout" />
+
+      {/* Log Your Own Workout */}
+      <Button 
+        className="w-full h-12 bg-accent text-accent-foreground hover:bg-accent/90"
+        onClick={handleLogWorkout}
+        data-testid="log-workout-button"
+      >
+        <Edit3 className="w-5 h-5 mr-2" />
+        Log your own workout
+      </Button>
 
       {/* Create New Workout */}
       <PrimaryButton 

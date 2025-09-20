@@ -190,6 +190,8 @@ export interface WorkoutSet {
   distance?: number; // in meters
   restTime?: number; // in seconds
   notes?: string;
+  repScheme?: string; // e.g., "3x10", "EMOM 12", "AMRAP 20"
+  timeCapMinutes?: number; // time cap for timed workouts
 }
 
 export interface WorkoutFeedback {
@@ -413,6 +415,18 @@ export interface ProfileState {
   setProfile: (profile: Profile) => void;
   upsertProfile: (userId: string, email: string, username?: string) => Promise<void>;
   clearProfile: () => void;
+}
+
+// Freeform workout parsing types
+export type WorkoutFormat = "EMOM" | "AMRAP" | "For Time" | "Strength" | "Skill" | "Intervals" | "Circuit" | "Other";
+
+export interface FreeformParsed {
+  request: WorkoutRequest;        // { category, durationMinutes, intensity }
+  format: WorkoutFormat;
+  sets: WorkoutSet[];             // reuse existing shape
+  title: string;                  // e.g., "AMRAP 20 - Pull/Push/Squat"
+  notes?: string;
+  confidence: number;             // 0..1 from AI
 }
 
 export interface AppState extends WorkoutState, PRState, AchievementState, WearableState, ReportState, ProfileState {
