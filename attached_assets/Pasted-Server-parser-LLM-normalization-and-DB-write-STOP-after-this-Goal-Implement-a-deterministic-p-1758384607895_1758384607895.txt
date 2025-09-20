@@ -1,0 +1,112 @@
+Server parser (LLM), normalization, and DB write (STOP after this)
+
+Goal
+Implement a deterministic parser using our LLM, normalize outputs, and persist to public.workouts.
+
+Server
+
+Create server/routes/workout-freeform.ts with two routes (behind requireAuth):
+
+POST /api/workouts/parse-freeform
+
+POST /api/workouts/log-freeform
+
+Add server/logic/freeform.ts:
+
+parseFreeform(text: string, userId: string): Promise<FreeformParsed>
+
+Calls your existing LLM client (or add one using OPENAI_API_KEY) with a strict JSON schema instruction. Use the same categories you support (CrossFit/HIIT, Powerlifting, Olympic Weightlifting, Bodybuilding Upper/Lower/Full, Gymnastics, Aerobic).
+
+System prompt (use verbatim constraints):
+
+You are a workout parser. Return ONLY valid JSON. 
+Map the user description into:
+{
+  "request": { "category": <Category>, "durationMinutes": <int 5..120>, "intensity": <int 1..10> },
+  "format": "EMOM|AMRAP|For Time|Strength|Skill|Intervals|Circuit|Other",
+  "title": <short title>,
+  "sets": [
+    { "movement": <string>, "repScheme": <string|optional>, "reps": <int|optional>, "weightKg": <number|optional>, "timeCapMinutes": <int|optional>, "notes": <string|optional> }
+  ],
+  "notes": <string|optional>,
+  "confidence": <0..1>
+}
+Rules:
+- Convert any pounds to kilograms (1 lb = 0.45359237) and round to 0.5 kg.
+- Parse schemes like "5x5", "3 x 10", "EMOM 12" into repScheme/time.
+- If duration not stated, infer from format: EMOM N → N minutes; AMRAP usually 12–25; For Time use user-stated cap or 12–20.
+- If intensity not stated, infer from language: easy(3-4), moderate(5-6), hard(7-8), max(9-10).
+- Category inference examples:
+  * Back squat/deadlift/bench → Powerlifting
+  * Snatch/clean & jerk → Olympic Weightlifting
+  * Pull-ups/push-ups/HS push-ups → Gymnastics
+  * Runs/rows/rides/skis → Aerobic
+  * Mixed couplets/triplets/time caps → CrossFit/HIIT
+- Never invent unsafe values. If unsure, leave weightKg null and use repScheme text.
+
+
+Use response_format: json (if available) and validate with Zod (schemas.ts). On validation error, re-ask the model with the error messages (one retry).
+
+normalizeParsed(p: FreeformParsed):
+
+Ensure durationMinutes ∈ [5,120], clamp intensity 1..10.
+
+Clean title; collapse duplicate whitespace.
+
+Convert any lbs left in text to kg.
+
+Build a request object compatible with your generator (even though we’re logging, workouts.request must be filled).
+
+In POST /api/workouts/parse-freeform:
+
+Require text, call parseFreeform, return { parsed }.
+
+In POST /api/workouts/log-freeform:
+
+Body { parsed } (already edited by the user).
+
+Insert into public.workouts with:
+
+user_id = req.user.id
+
+title = parsed.title
+
+request = parsed.request
+
+sets = parsed.sets
+
+notes = parsed.notes
+
+completed = true
+
+feedback = { source: "freeform", confidence: parsed.confidence }
+
+Return { id }.
+
+Tests (lightweight)
+
+Add server/logic/__tests__/freeform.spec.ts with 3 inputs → expect category/format/duration parsed sensibly:
+
+“Powerlifting day: 5x5 back squat at 225 lb, bench 3x5 at 155 lb, 20 min total, intensity 7.”
+
+“20-minute AMRAP: 10 pull-ups, 15 push-ups, 20 squats. RPE 6.”
+
+“EMOM 12: 5 burpees, 10 kettlebell swings (24kg). Easy recovery.”
+
+Mock the LLM call to return canned JSON for tests.
+
+Security & reliability
+
+Use the server LLM client only (service key access); never expose keys client-side.
+
+Respect RLS by filtering on user_id = req.user.id for reads if needed.
+
+Add size limit middleware for text (e.g., 8–12 KB).
+
+Acceptance (then STOP)
+
+/api/workouts/parse-freeform returns a valid parsed object for the three test strings above.
+
+/api/workouts/log-freeform inserts a row; viewing /history shows the new entry, and /workout/:id displays the formatted sets.
+
+Units are normalized (lbs→kg), intensity 1–10, duration sane; confidence chip shows on the UI page.
