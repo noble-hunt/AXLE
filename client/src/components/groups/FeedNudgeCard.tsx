@@ -17,28 +17,33 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
   if (dismissed) return null;
 
   const handleGenerateWorkout = () => {
-    setLocation("/workout-generator");
+    // Navigate to group workout generation with group context
+    setLocation(`/generate-workout?groupId=${groupId}&mode=group`);
   };
 
   const handleSyncTonight = () => {
-    // Focus on post composer and set to event mode
-    const composer = document.querySelector('[data-testid="button-tonight"]') as HTMLButtonElement;
-    if (composer) {
-      composer.click();
-      composer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Focus on message input and suggest evening workout
+    const messageInput = document.querySelector('[data-testid="message-input"]') as HTMLTextAreaElement;
+    if (messageInput) {
+      messageInput.focus();
+      messageInput.value = "Let's sync up for a workout tonight! Who's in? 🏋️‍♀️";
+      // Trigger input event to update the component state
+      const event = new Event('input', { bubbles: true });
+      messageInput.dispatchEvent(event);
+      messageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
   const handleSharePlan = () => {
-    // Focus on post composer and set to text mode for sharing a plan
-    const composer = document.querySelector('[data-testid="textarea-message"]') as HTMLTextAreaElement;
-    if (composer) {
-      composer.focus();
-      composer.value = "Here's my workout plan for today: ";
+    // Focus on message input and pre-fill for sharing workout plan
+    const messageInput = document.querySelector('[data-testid="message-input"]') as HTMLTextAreaElement;
+    if (messageInput) {
+      messageInput.focus();
+      messageInput.value = "Here's my workout plan for today: ";
       // Trigger input event to update the component state
       const event = new Event('input', { bubbles: true });
-      composer.dispatchEvent(event);
-      composer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messageInput.dispatchEvent(event);
+      messageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
@@ -75,7 +80,7 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
           data-testid="button-generate-workout"
         >
           <Dumbbell className="w-4 h-4" />
-          Generate workout
+          Generate group workout
         </Button>
         
         <Button
