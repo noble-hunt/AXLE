@@ -324,6 +324,7 @@ export type SuggestedWorkoutData = {
 export const insertGroupSchema = createInsertSchema(groups).omit({
   id: true,
   createdAt: true,
+  ownerId: true, // Server sets this from authenticated user
 });
 export const insertGroupMemberSchema = createInsertSchema(groupMembers).omit({
   joinedAt: true,

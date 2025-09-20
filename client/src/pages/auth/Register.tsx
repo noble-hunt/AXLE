@@ -24,6 +24,13 @@ export default function Register() {
   const [showVerificationMessage, setShowVerificationMessage] = useState(false);
   const { toast } = useToast();
 
+  // Check if form is valid
+  const isFormValid = firstName.trim() && 
+                     lastName.trim() && 
+                     email.trim() && 
+                     password.length >= 6 && 
+                     password === confirmPassword;
+
   const handleEmailPasswordRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -328,7 +335,7 @@ export default function Register() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading}
+                disabled={isLoading || !isFormValid}
                 data-testid="button-register"
               >
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

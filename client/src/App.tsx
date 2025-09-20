@@ -29,6 +29,9 @@ import Tokens from "@/pages/dev/Tokens";
 import Components from "@/pages/dev/Components";
 import Compare from "@/pages/dev/Compare";
 import Groups from "@/pages/groups";
+import NewGroup from "@/pages/groups/NewGroup";
+import GroupInvite from "@/pages/groups/GroupInvite";
+import GroupJoin from "@/pages/groups/GroupJoin";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Callback from "@/pages/auth/Callback";
@@ -91,6 +94,21 @@ function OverlayWrapper() {
         <Route path="/groups" component={() => (
           <ProtectedRoute>
             <Groups />
+          </ProtectedRoute>
+        )} />
+        <Route path="/groups/new" component={() => (
+          <ProtectedRoute>
+            <NewGroup />
+          </ProtectedRoute>
+        )} />
+        <Route path="/groups/:id/invite" component={() => (
+          <ProtectedRoute>
+            <GroupInvite />
+          </ProtectedRoute>
+        )} />
+        <Route path="/groups/join/:id" component={() => (
+          <ProtectedRoute>
+            <GroupJoin />
           </ProtectedRoute>
         )} />
         <Route path="/dev/env" component={DevEnv} />
