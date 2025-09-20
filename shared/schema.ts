@@ -104,6 +104,17 @@ export const groupReactions = pgTable("group_reactions", {
   pk: { primaryKey: [table.groupId, table.postId, table.userId, table.emoji] }
 }));
 
+// GROUP EVENT RSVPS
+export const groupEventRsvps = pgTable("group_event_rsvps", {
+  groupId: uuid("group_id").notNull(),
+  postId: uuid("post_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  status: text("status").notNull(), // going|maybe|no
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  pk: { primaryKey: [table.groupId, table.postId, table.userId] }
+}));
+
 // GROUP INVITES
 export const groupInvites = pgTable("group_invites", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -339,6 +350,9 @@ export const insertGroupPostSchema = createInsertSchema(groupPosts).omit({
 export const insertGroupReactionSchema = createInsertSchema(groupReactions).omit({
   createdAt: true,
 });
+export const insertGroupEventRsvpSchema = createInsertSchema(groupEventRsvps).omit({
+  createdAt: true,
+});
 export const insertGroupInviteSchema = createInsertSchema(groupInvites).omit({
   id: true,
   createdAt: true,
@@ -363,6 +377,8 @@ export type GroupPost = typeof groupPosts.$inferSelect;
 export type InsertGroupPost = z.infer<typeof insertGroupPostSchema>;
 export type GroupReaction = typeof groupReactions.$inferSelect;
 export type InsertGroupReaction = z.infer<typeof insertGroupReactionSchema>;
+export type GroupEventRsvp = typeof groupEventRsvps.$inferSelect;
+export type InsertGroupEventRsvp = z.infer<typeof insertGroupEventRsvpSchema>;
 export type GroupInvite = typeof groupInvites.$inferSelect;
 export type InsertGroupInvite = z.infer<typeof insertGroupInviteSchema>;
 export type Referral = typeof referrals.$inferSelect;
