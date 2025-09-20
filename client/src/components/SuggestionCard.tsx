@@ -5,13 +5,11 @@ import { Chip } from "@/components/swift/chip"
 import { Sheet } from "@/components/swift/sheet"
 import { useSuggestedWorkout } from "@/hooks/useSuggestedWorkout"
 import { 
-  Sparkles, 
   Target, 
   Clock, 
   Zap, 
   RotateCcw, 
   Info,
-  User,
   TrendingUp,
   Activity
 } from "lucide-react"
@@ -100,15 +98,11 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
   // Render loading state
   if (isLoading) {
     return (
-      <Card className={`p-6 ${className}`} data-testid="suggestion-card-loading">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-accent" />
-          </div>
-          <div className="flex-1 min-w-0 space-y-3">
-            <div className="text-left">
+      <Card className={className} data-testid="suggestion-card-loading">
+        <div className={`${variant === 'workout' ? 'space-y-2' : 'space-y-3'}`}>
+            <div className="text-center">
               <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
-              <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>
+              {variant !== 'workout' && <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>}
             </div>
             <div className="animate-pulse space-y-2">
               <div className="h-4 bg-muted rounded w-3/4"></div>
@@ -119,7 +113,6 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
                 <div className="h-6 bg-muted rounded w-14"></div>
               </div>
             </div>
-          </div>
         </div>
       </Card>
     )
@@ -128,18 +121,13 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
   // Render empty state
   if (!suggestion) {
     return (
-      <Card className={`p-6 ${className}`} data-testid="suggestion-card-empty">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-            <User className="w-5 h-5 text-accent" />
-          </div>
-          <div className="flex-1 min-w-0 text-left">
+      <Card className={className} data-testid="suggestion-card-empty">
+        <div className="text-center">
             <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
-            <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>
+            {variant !== 'workout' && <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>}
             <p className="text-body text-foreground mb-4">
               Sign in to get daily suggestions tailored to your fitness goals and workout history.
             </p>
-          </div>
         </div>
       </Card>
     )
@@ -163,36 +151,37 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
 
   return (
     <>
-      <Card className={`p-6 ${className}`} data-testid="suggestion-card">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-accent" />
-          </div>
-          <div className="flex-1 min-w-0 space-y-4">
-            <div className="text-left">
+      <Card className={className} data-testid="suggestion-card">
+        <div className={`${variant === 'workout' ? 'space-y-3' : 'space-y-4'}`}>
+            <div className="text-center">
               <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
-              <p className="text-caption text-muted-foreground">Personalized for today</p>
+              {variant !== 'workout' && <p className="text-caption text-muted-foreground">Personalized for today</p>}
             </div>
             
             {/* Pills for category, duration, intensity */}
-            <div className="flex flex-wrap gap-2">
-              <Chip size="sm" variant="default" data-testid="chip-category">
-                {suggestion.request?.category || 'Strength'}
-              </Chip>
-              <Chip size="sm" variant={getIntensityVariant(suggestion.request?.intensity || 5)} data-testid="chip-intensity">
-                <Zap className="w-3 h-3 mr-1" />
-                {suggestion.request?.intensity || 5}/10
-              </Chip>
-              <Chip size="sm" variant="default" data-testid="chip-duration">
-                <Clock className="w-3 h-3 mr-1" />
-                {suggestion.request?.duration || 30}min
-              </Chip>
-            </div>
+            {suggestion?.request && (
+              <div className="flex flex-wrap gap-2 justify-center">
+                <Chip size="sm" variant="default" data-testid="chip-category">
+                  {(() => {
+                    const category = suggestion.request.category || 'Strength';
+                    return category.charAt(0).toUpperCase() + category.slice(1);
+                  })()}
+                </Chip>
+                <Chip size="sm" variant={getIntensityVariant(suggestion.request.intensity || 5)} data-testid="chip-intensity">
+                  <Zap className="w-3 h-3 mr-1" />
+                  {suggestion.request.intensity || 5}/10
+                </Chip>
+                <Chip size="sm" variant="default" data-testid="chip-duration">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {suggestion.request.duration || 30}min
+                </Chip>
+              </div>
+            )}
 
             {/* Brief rationale preview */}
-            {suggestion.rationale && (
-              <div className="bg-muted/50 rounded-lg p-3 text-left">
-                <p className="text-sm text-muted-foreground">
+            {suggestion?.rationale && variant !== 'workout' && (
+              <div className="bg-muted/50 rounded-lg p-3 text-center">
+                <p className="text-sm text-muted-foreground line-clamp-2">
                   {suggestion.rationale.rulesApplied?.[0] || "Personalized workout based on your fitness profile"}
                 </p>
               </div>
@@ -238,7 +227,6 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
                 </Button>
               </div>
             </div>
-          </div>
         </div>
       </Card>
 
@@ -261,11 +249,13 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
           <div className="space-y-3">
             <h3 className="text-body font-semibold text-foreground">Applied Logic</h3>
             <div className="space-y-2">
-              {suggestion?.rationale?.rulesApplied?.map((rule, index) => (
-                <div key={index} className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-sm text-foreground">{rule}</p>
-                </div>
-              )) || (
+              {suggestion?.rationale?.rulesApplied && suggestion.rationale.rulesApplied.length > 0 ? (
+                suggestion.rationale.rulesApplied.map((rule: string, index: number) => (
+                  <div key={index} className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-sm text-foreground">{rule}</p>
+                  </div>
+                ))
+              ) : (
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-sm text-foreground">
                     This workout was selected based on your fitness profile, recent activity, and recovery status.
