@@ -34,6 +34,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { formatDistanceToNow } from "date-fns";
 import { EventRsvpButtons } from "@/components/groups/EventRsvpButtons";
 import { EventReminderBanner } from "@/components/groups/EventReminderBanner";
+import { FeedNudgeCard } from "@/components/groups/FeedNudgeCard";
 import { queryClient } from "@/lib/queryClient";
 
 // Emoji picker emojis
@@ -294,6 +295,27 @@ export default function GroupFeedPage() {
     
     const oldestPost = posts[0]; // First post is oldest in ascending order
     loadPosts(oldestPost.createdAt);
+  };
+
+  // Determine if nudge should be shown
+  const shouldShowNudge = (): boolean => {
+    // Don't show if loading or typing members present (active)
+    if (loading || typingMembers.length > 0) return false;
+    
+    // Show if no posts at all
+    if (posts.length === 0) return true;
+    
+    // Check if most recent post is older than 24 hours
+    const mostRecentPost = posts[posts.length - 1]; // Newest post is at end
+    if (mostRecentPost) {
+      const lastPostTime = new Date(mostRecentPost.createdAt);
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      // Show nudge if most recent post is older than 24 hours and we have less than 10 posts total
+      return lastPostTime < twentyFourHoursAgo && posts.length < 10;
+    }
+    
+    return false;
   };
 
   const handleSendMessage = async () => {
@@ -921,6 +943,11 @@ export default function GroupFeedPage() {
         </div>
         
         <div ref={messagesEndRef} />
+        
+        {/* Show nudge when no posts or no recent activity (24h) and user is near bottom */}
+        {groupId && shouldShowNudge() && (
+          <FeedNudgeCard groupId={groupId} className="mx-4 mb-4" />
+        )}
         
         {posts.length === 0 && !loading && (
           <div className="text-center py-8">
