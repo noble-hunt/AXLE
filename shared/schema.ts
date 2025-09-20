@@ -56,6 +56,22 @@ export const wearableConnections = pgTable("wearable_connections", {
   provider: text("provider").notNull(),
   connected: boolean("connected").notNull().default(false),
   lastSync: timestamp("last_sync"),
+  providerUserId: text("provider_user_id"),
+  status: text("status").notNull().default("disconnected"), // disconnected|connected|error
+  error: text("error"),
+});
+
+// WEARABLE TOKENS - Secure storage for provider tokens
+export const wearableTokens = pgTable("wearable_tokens", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  provider: text("provider").notNull(),
+  accessToken: text("access_token").notNull(), // encrypted
+  refreshToken: text("refresh_token"), // encrypted
+  expiresAt: timestamp("expires_at"),
+  scope: text("scope"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // HEALTH REPORTS
@@ -104,6 +120,12 @@ export const insertWearableConnectionSchema = createInsertSchema(wearableConnect
   id: true,
 });
 
+export const insertWearableTokenSchema = createInsertSchema(wearableTokens).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertHealthReportSchema = createInsertSchema(healthReports).omit({
   id: true,
 });
@@ -128,6 +150,9 @@ export type Achievement = typeof achievements.$inferSelect;
 
 export type InsertWearableConnection = z.infer<typeof insertWearableConnectionSchema>;
 export type WearableConnection = typeof wearableConnections.$inferSelect;
+
+export type InsertWearableToken = z.infer<typeof insertWearableTokenSchema>;
+export type WearableToken = typeof wearableTokens.$inferSelect;
 
 export type InsertHealthReport = z.infer<typeof insertHealthReportSchema>;
 export type HealthReport = typeof healthReports.$inferSelect;
