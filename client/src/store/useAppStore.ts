@@ -684,41 +684,37 @@ export const useAppStore = create<AppState>()(
       setProfile: (profile) => set({ profile }),
       upsertProfile: async (userId: string, email: string, username?: string, firstName?: string, lastName?: string) => {
         try {
-          const { supabase } = await import('@/lib/supabase');
+          const { apiRequest } = await import('@/lib/queryClient');
           
           // Create username from email if not provided
           const finalUsername = username || email.split('@')[0];
           
           const profileData = {
-            user_id: userId,
             username: finalUsername,
-            first_name: firstName,
-            last_name: lastName
+            firstName: firstName,
+            lastName: lastName
           };
           
-          // Upsert profile in database
-          const { data, error } = await supabase
-            .from('profiles')
-            .upsert(profileData, { onConflict: 'user_id' })
-            .select()
-            .single();
+          // Upsert profile via server API
+          const result = await apiRequest('POST', '/api/profiles/upsert', profileData);
+          const responseData = await result.json();
             
-          if (error) {
-            console.error('Failed to upsert profile:', error);
+          if (!result.ok) {
+            console.error('Failed to upsert profile:', responseData.message);
             return;
           }
           
-          // Update local store
+          // Update local store with response data
           set({ 
             profile: {
-              userId: data.user_id,
-              username: data.username,
-              firstName: data.first_name,
-              lastName: data.last_name,
-              avatarUrl: data.avatar_url,
-              dateOfBirth: data.date_of_birth,
-              providers: data.providers,
-              createdAt: new Date(data.created_at)
+              userId: responseData.profile.user_id,
+              username: responseData.profile.username,
+              firstName: responseData.profile.first_name,
+              lastName: responseData.profile.last_name,
+              avatarUrl: responseData.profile.avatar_url,
+              dateOfBirth: responseData.profile.date_of_birth,
+              providers: responseData.profile.providers || ['email'],
+              createdAt: new Date(responseData.profile.created_at)
             }
           });
           

@@ -122,7 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     firstName: z.string().optional(),
     lastName: z.string().optional(),
     username: z.string().optional(),
-    dateOfBirth: z.string().nullable().optional(), // ISO date string or null
+    dateOfBirth: z.string().optional().nullable(), // ISO date string or null
     avatarUrl: z.string().optional(),
   });
 
@@ -148,6 +148,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Failed to update profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Profile upsert - POST to create/update profile fields
+  const upsertProfileSchema = z.object({
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    username: z.string().optional(),
+  });
+
+  app.post("/api/profiles/upsert", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const validatedData = upsertProfileSchema.parse(req.body);
+      
+      // Import the profiles functions
+      const { updateProfile, getProfile } = await import("./dal/profiles");
+      
+      // Try to get existing profile first
+      let profile = await getProfile(authReq.user.id);
+      
+      if (!profile) {
+        // Profile doesn't exist, create new one by updating with data
+        profile = await updateProfile(authReq.user.id, validatedData);
+      } else {
+        // Profile exists, update it
+        profile = await updateProfile(authReq.user.id, validatedData);
+      }
+      
+      res.json({ message: "Profile upserted successfully", profile });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      console.error("Failed to upsert profile:", error);
+      res.status(500).json({ message: "Failed to upsert profile" });
     }
   });
 

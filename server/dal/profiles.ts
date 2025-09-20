@@ -76,7 +76,7 @@ export async function updateProfile(userId: string, updates: {
   firstName?: string;
   lastName?: string;
   username?: string;
-  dateOfBirth?: string;
+  dateOfBirth?: string | null;
   avatarUrl?: string;
 }) {
   const updateData: any = {};
