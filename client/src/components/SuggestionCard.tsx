@@ -102,7 +102,7 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
         <div className={`${variant === 'workout' ? 'space-y-2' : 'space-y-3'}`}>
             <div className="text-center">
               <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
-              {variant !== 'workout' && <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>}
+              <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>
             </div>
             <div className="animate-pulse space-y-2">
               <div className="h-4 bg-muted rounded w-3/4"></div>
@@ -124,7 +124,7 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
       <Card className={className} data-testid="suggestion-card-empty">
         <div className="text-center">
             <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
-            {variant !== 'workout' && <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>}
+            <p className="text-caption text-muted-foreground mb-4">Personalized for today</p>
             <p className="text-body text-foreground mb-4">
               Sign in to get daily suggestions tailored to your fitness goals and workout history.
             </p>
@@ -155,7 +155,7 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
         <div className={`${variant === 'workout' ? 'space-y-3' : 'space-y-4'}`}>
             <div className="text-center">
               <h3 className="text-subheading font-semibold text-foreground mb-1">Daily Suggested Workout</h3>
-              {variant !== 'workout' && <p className="text-caption text-muted-foreground">Personalized for today</p>}
+              <p className="text-caption text-muted-foreground">Personalized for today</p>
             </div>
             
             {/* Pills for category, duration, intensity */}
@@ -179,7 +179,7 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
             )}
 
             {/* Brief rationale preview */}
-            {suggestion?.rationale && variant !== 'workout' && (
+            {suggestion?.rationale && (
               <div className="bg-muted/50 rounded-lg p-3 text-center">
                 <p className="text-sm text-muted-foreground line-clamp-2">
                   {suggestion.rationale.rulesApplied?.[0] || "Personalized workout based on your fitness profile"}
