@@ -18,7 +18,10 @@ import {
   getPostRsvps,
   deleteGroupPost,
   removeMemberFromGroup,
-  deleteGroup
+  deleteGroup,
+  updateGroup,
+  getGroupMembers,
+  addMemberToGroup
 } from "../dal/groups";
 import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements";
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
@@ -130,6 +133,85 @@ export function registerGroupRoutes(app: Express) {
       console.error("Error leaving group:", error);
       res.status(500).json({ 
         message: "Failed to leave group",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // PATCH /api/groups/:id → update group details (owner only)
+  const updateGroupSchema = z.object({
+    name: z.string().min(1).max(100).optional(),
+    description: z.string().max(500).optional(),
+    photoUrl: z.string().url().optional(),
+  });
+
+  app.patch("/api/groups/:id", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const { id: groupId } = req.params;
+      
+      const validatedData = updateGroupSchema.parse(req.body);
+      
+      const updatedGroup = await updateGroup(userId, groupId, validatedData);
+      res.json(updatedGroup);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      console.error("Error updating group:", error);
+      const statusCode = error instanceof Error && error.message.includes('Only group owners') ? 403 : 500;
+      res.status(statusCode).json({ 
+        message: "Failed to update group",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // GET /api/groups/:id/members → list all group members (members only)
+  app.get("/api/groups/:id/members", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const { id: groupId } = req.params;
+
+      const members = await getGroupMembers(userId, groupId);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching group members:", error);
+      const statusCode = error instanceof Error && error.message.includes('Only group members') ? 403 : 500;
+      res.status(statusCode).json({ 
+        message: "Failed to fetch group members",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // POST /api/groups/:id/members/admin-add → add member by userId (owner/admin only)
+  const addMemberSchema = z.object({
+    userId: z.string().uuid(),
+    role: z.enum(["member", "admin"]).optional(),
+  });
+
+  app.post("/api/groups/:id/members/admin-add", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const { id: groupId } = req.params;
+      
+      const validatedData = addMemberSchema.parse(req.body);
+      
+      const newMember = await addMemberToGroup(userId, groupId, validatedData.userId, validatedData.role);
+      res.status(201).json(newMember);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      console.error("Error adding member:", error);
+      const statusCode = error instanceof Error && 
+        (error.message.includes('Only group owners') || error.message.includes('already a member')) ? 403 : 500;
+      res.status(statusCode).json({ 
+        message: "Failed to add member",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }

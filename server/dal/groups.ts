@@ -778,3 +778,130 @@ export async function deleteGroup(userId: string, groupId: string) {
 
   return { success: true, deletedGroup: result };
 }
+
+// UPDATE GROUP - owners only
+export async function updateGroup(userId: string, groupId: string, updates: {
+  name?: string;
+  description?: string;
+  photoUrl?: string;
+}) {
+  await setUserContext(userId);
+  
+  // Verify user is owner
+  const membership = await db
+    .select()
+    .from(groupMembers)
+    .where(and(
+      eq(groupMembers.groupId, groupId),
+      eq(groupMembers.userId, userId),
+      eq(groupMembers.role, "owner")
+    ));
+  
+  if (membership.length === 0) {
+    throw new Error('Only group owners can update group details');
+  }
+
+  const updateData: Record<string, any> = {};
+  if (updates.name !== undefined) updateData.name = updates.name;
+  if (updates.description !== undefined) updateData.description = updates.description;
+  if (updates.photoUrl !== undefined) updateData.photoUrl = updates.photoUrl;
+
+  if (Object.keys(updateData).length === 0) {
+    throw new Error('No fields to update');
+  }
+
+  const updatedGroup = await db
+    .update(groups)
+    .set(updateData)
+    .where(eq(groups.id, groupId))
+    .returning();
+
+  if (updatedGroup.length === 0) {
+    throw new Error('Group not found');
+  }
+
+  return updatedGroup[0];
+}
+
+// GET GROUP MEMBERS - all members can see this
+export async function getGroupMembers(userId: string, groupId: string) {
+  await setUserContext(userId);
+  
+  // Verify user is a member
+  const membership = await db
+    .select()
+    .from(groupMembers)
+    .where(and(
+      eq(groupMembers.groupId, groupId),
+      eq(groupMembers.userId, userId)
+    ));
+  
+  if (membership.length === 0) {
+    throw new Error('Only group members can view member list');
+  }
+
+  const members = await db
+    .select({
+      userId: groupMembers.userId,
+      role: groupMembers.role,
+      joinedAt: groupMembers.joinedAt,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
+      username: profiles.username,
+      avatarUrl: profiles.avatarUrl,
+    })
+    .from(groupMembers)
+    .leftJoin(profiles, eq(groupMembers.userId, profiles.userId))
+    .where(eq(groupMembers.groupId, groupId))
+    .orderBy(asc(groupMembers.role), asc(groupMembers.joinedAt));
+
+  return members;
+}
+
+// ADD MEMBER TO GROUP - owners/admins only
+export async function addMemberToGroup(userId: string, groupId: string, memberUserId: string, role: string = "member") {
+  await setUserContext(userId);
+  
+  // Verify user is owner or admin
+  const membership = await db
+    .select()
+    .from(groupMembers)
+    .where(and(
+      eq(groupMembers.groupId, groupId),
+      eq(groupMembers.userId, userId),
+      sql`${groupMembers.role} IN ('owner', 'admin')`
+    ));
+  
+  if (membership.length === 0) {
+    throw new Error('Only group owners and admins can add members');
+  }
+
+  // Check if member already exists
+  const existingMember = await db
+    .select()
+    .from(groupMembers)
+    .where(and(
+      eq(groupMembers.groupId, groupId),
+      eq(groupMembers.userId, memberUserId)
+    ));
+
+  if (existingMember.length > 0) {
+    throw new Error('User is already a member of this group');
+  }
+
+  // Add the member
+  const newMember = await db
+    .insert(groupMembers)
+    .values({
+      groupId: groupId,
+      userId: memberUserId,
+      role: role === "admin" && membership[0].role === "owner" ? "admin" : "member",
+    })
+    .returning();
+
+  if (newMember.length === 0) {
+    throw new Error('Failed to add member');
+  }
+
+  return newMember[0];
+}
