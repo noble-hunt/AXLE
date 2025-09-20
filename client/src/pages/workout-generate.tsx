@@ -1,71 +1,188 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { useMutation } from "@tanstack/react-query"
-import { useLocation } from "wouter"
+import { useLocation, useSearch } from "wouter"
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { Input } from "@/components/ui/input"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
 import { Category, WorkoutRequest, workoutRequestSchema } from "@shared/schema"
 import { useAppStore } from "@/store/useAppStore"
-import { Dumbbell, Clock, Target, Zap, Sparkles } from "lucide-react"
+import { Dumbbell, Clock, Target, Zap, Sparkles, Calendar, Users } from "lucide-react"
+
+// Extended form schema for group workouts with scheduling
+const groupWorkoutSchema = workoutRequestSchema.extend({
+  scheduledDate: z.string().min(1, "Please select a date"),
+  scheduledTime: z.string().min(1, "Please select a time"),
+  location: z.string().optional(),
+})
 
 type WorkoutRequestForm = WorkoutRequest
+type GroupWorkoutRequestForm = z.infer<typeof groupWorkoutSchema>
 
 export default function WorkoutGenerate() {
   const [generatedWorkout, setGeneratedWorkout] = useState<any>(null)
   const { addWorkout } = useAppStore()
   const [, setLocation] = useLocation()
   const { toast } = useToast()
+  const search = useSearch()
+  
+  // Parse URL parameters for group mode
+  const urlParams = new URLSearchParams(search)
+  const groupId = urlParams.get("groupId")
+  const mode = urlParams.get("mode")
+  const isGroupMode = mode === "group" && groupId
 
 
-  const form = useForm<WorkoutRequestForm>({
-    resolver: zodResolver(workoutRequestSchema),
+  // Use different form schema based on mode
+  const form = useForm<GroupWorkoutRequestForm>({
+    resolver: zodResolver(isGroupMode ? groupWorkoutSchema : workoutRequestSchema),
     defaultValues: {
       category: Category.STRENGTH,
       duration: 30,
       intensity: 5,
+      ...(isGroupMode && {
+        scheduledDate: "",
+        scheduledTime: "",
+        location: "",
+      }),
     },
   })
+  
+  // Set default date and time for group workouts
+  useEffect(() => {
+    if (isGroupMode && !form.getValues("scheduledDate")) {
+      const today = new Date()
+      const tomorrow = new Date(today)
+      tomorrow.setDate(today.getDate() + 1)
+      
+      // Default to tomorrow at 6 PM (using local date formatting)
+      const year = tomorrow.getFullYear()
+      const month = String(tomorrow.getMonth() + 1).padStart(2, '0')
+      const day = String(tomorrow.getDate()).padStart(2, '0')
+      const defaultDate = `${year}-${month}-${day}`
+      
+      form.setValue("scheduledDate", defaultDate)
+      form.setValue("scheduledTime", "18:00")
+    }
+  }, [isGroupMode, form])
 
   const generateMutation = useMutation({
-    mutationFn: async (data: WorkoutRequestForm) => {
+    mutationFn: async (data: GroupWorkoutRequestForm) => {
       const { authFetch } = await import('@/lib/authFetch');
-      const response = await authFetch('/api/generate-workout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
       
-      if (!response.ok) {
-        let errorMessage = `Server error: ${response.status}`
-        try {
-          const error = await response.json()
-          errorMessage = error.message || errorMessage
-        } catch {
-          // Ignore JSON parsing errors for non-JSON responses
+      // For group mode, first generate the workout, then create group event
+      if (isGroupMode) {
+        // Generate the workout first
+        const workoutRequest = {
+          category: data.category,
+          duration: data.duration,
+          intensity: data.intensity
         }
         
-        if (response.status === 401) {
-          throw new Error('Authentication required. Please sign in to generate workouts.')
+        const workoutResponse = await authFetch('/api/generate-workout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(workoutRequest)
+        })
+        
+        if (!workoutResponse.ok) {
+          let errorMessage = `Server error: ${workoutResponse.status}`
+          try {
+            const error = await workoutResponse.json()
+            errorMessage = error.message || errorMessage
+          } catch {
+            // Ignore JSON parsing errors for non-JSON responses
+          }
+          
+          if (workoutResponse.status === 401) {
+            throw new Error('Authentication required. Please sign in to generate workouts.')
+          }
+          throw new Error(errorMessage)
         }
-        throw new Error(errorMessage)
+        
+        const generatedWorkout = await workoutResponse.json()
+        
+        // Create group event with workout data (using local time, not forcing UTC)
+        const [year, month, day] = data.scheduledDate.split('-').map(Number)
+        const [hours, minutes] = data.scheduledTime.split(':').map(Number)
+        const scheduledDateTime = new Date(year, month - 1, day, hours, minutes)
+        
+        const eventData = {
+          kind: "event",
+          content: {
+            title: `Group Workout: ${generatedWorkout.name}`,
+            description: `${generatedWorkout.description}\n\nWorkout Details:\n• Duration: ${generatedWorkout.duration} minutes\n• Intensity: ${generatedWorkout.intensity}/10\n• ${generatedWorkout.sets?.length || 0} exercises`,
+            startAt: scheduledDateTime.toISOString(),
+            durationMinutes: generatedWorkout.duration,
+            location: data.location || undefined,
+            workoutData: generatedWorkout // Include full workout data
+          },
+          groupIds: [groupId!]
+        }
+        
+        const eventResponse = await authFetch('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(eventData)
+        })
+        
+        if (!eventResponse.ok) {
+          throw new Error('Failed to create group workout event')
+        }
+        
+        const eventPost = await eventResponse.json()
+        return { ...generatedWorkout, isGroupWorkout: true, eventPost }
+      } else {
+        // Individual workout mode - existing logic
+        const response = await authFetch('/api/generate-workout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
+        
+        if (!response.ok) {
+          let errorMessage = `Server error: ${response.status}`
+          try {
+            const error = await response.json()
+            errorMessage = error.message || errorMessage
+          } catch {
+            // Ignore JSON parsing errors for non-JSON responses
+          }
+          
+          if (response.status === 401) {
+            throw new Error('Authentication required. Please sign in to generate workouts.')
+          }
+          throw new Error(errorMessage)
+        }
+        
+        return await response.json()
       }
-      
-      return await response.json()
     },
     onSuccess: (data) => {
       setGeneratedWorkout(data)
-      toast({
-        title: "Workout Generated!",
-        description: `Generated a ${data.duration}-minute ${data.category} workout.`,
-      })
+      if (data.isGroupWorkout) {
+        toast({
+          title: "Group Workout Created!",
+          description: `Created a scheduled group workout for ${data.duration} minutes.`,
+        })
+        // Redirect back to group feed after 2 seconds to show the new event
+        setTimeout(() => {
+          setLocation(`/groups/${groupId}`)
+        }, 2000)
+      } else {
+        toast({
+          title: "Workout Generated!",
+          description: `Generated a ${data.duration}-minute ${data.category} workout.`,
+        })
+      }
     },
     onError: (error: any) => {
       console.error('Generate workout error:', error)
@@ -184,7 +301,7 @@ export default function WorkoutGenerate() {
     },
   })
 
-  const onSubmit = (data: WorkoutRequestForm) => {
+  const onSubmit = (data: GroupWorkoutRequestForm) => {
     generateMutation.mutate(data)
   }
 
@@ -200,7 +317,7 @@ export default function WorkoutGenerate() {
   if (generatedWorkout) {
     return (
       <>
-        <SectionTitle title="Generated Workout" />
+        <SectionTitle title={isGroupMode ? "Group Workout Created!" : "Generated Workout"} />
 
         <Card className="p-6 card-shadow border border-border">
           <div className="space-y-4">
@@ -499,6 +616,89 @@ export default function WorkoutGenerate() {
             />
           </Card>
 
+          {/* Group Mode Scheduling Fields */}
+          {isGroupMode && (
+            <>
+              <Card className="p-6 card-shadow border border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-lg">Group Workout Schedule</h3>
+                </div>
+                
+                <div className="space-y-4">
+                  {/* Date Field */}
+                  <FormField
+                    control={form.control}
+                    name="scheduledDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-medium text-foreground flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          Date
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            className="rounded-xl"
+                            data-testid="scheduled-date-input"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Time Field */}
+                  <FormField
+                    control={form.control}
+                    name="scheduledTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-medium text-foreground flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          Time
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            className="rounded-xl"
+                            data-testid="scheduled-time-input"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Location Field */}
+                  <FormField
+                    control={form.control}
+                    name="location"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-medium text-foreground flex items-center gap-2">
+                          <Target className="w-4 h-4" />
+                          Location (Optional)
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Main Gym, Central Park, Home"
+                            className="rounded-xl"
+                            data-testid="location-input"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </Card>
+            </>
+          )}
+
           {/* Generate Button */}
           <Button 
             type="submit" 
@@ -514,7 +714,7 @@ export default function WorkoutGenerate() {
             ) : (
               <>
                 <Sparkles className="w-5 h-5 mr-2" />
-                Generate Workout
+{isGroupMode ? "Create Group Workout" : "Generate Workout"}
               </>
             )}
           </Button>
