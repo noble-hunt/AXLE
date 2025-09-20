@@ -266,7 +266,8 @@ export default function GroupFeedPage() {
     };
 
     fetchAchievements();
-  }, [groupId, checkForNewUnlocks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId]); // Only run when groupId changes, not when checkForNewUnlocks identity changes
 
   // Virtual list for ascending order (newest at bottom)
   const virtualizer = useVirtualizer({
@@ -410,6 +411,9 @@ export default function GroupFeedPage() {
         const updatedGroup = await response.json();
         setGroup(updatedGroup);
         setIsEditingGroup(false);
+        // Invalidate related cache
+        queryClient.invalidateQueries({ queryKey: ['/api/groups', group.id] });
+        queryClient.invalidateQueries({ queryKey: ['/api/groups'] });
         toast({
           title: "Group updated",
           description: "Your group details have been saved"
@@ -456,7 +460,7 @@ export default function GroupFeedPage() {
   };
 
   const addMemberToGroup = async () => {
-    if (!group || !newMemberUserId || addingMember) return;
+    if (!group || !newMemberUserId || addingMember || group.userRole !== 'owner') return;
     
     try {
       setAddingMember(true);
@@ -490,6 +494,35 @@ export default function GroupFeedPage() {
       });
     } finally {
       setAddingMember(false);
+    }
+  };
+
+  const removeMemberFromGroup = async (userId: string) => {
+    if (!group || !userId || group.userRole !== 'owner') return;
+    
+    try {
+      const response = await authFetch(`/api/groups/${group.id}/members/${userId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        // Refresh members list
+        loadGroupMembers();
+        toast({
+          title: "Member removed",
+          description: "Member has been removed from the group"
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to remove member');
+      }
+    } catch (error) {
+      console.error("Failed to remove member:", error);
+      toast({
+        title: "Failed to remove member",
+        description: error instanceof Error ? error.message : "Unable to remove member",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1220,37 +1253,38 @@ export default function GroupFeedPage() {
                 </div>
               </div>
 
-              {/* Member Management Section */}
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium">Member Management</h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={loadGroupMembers}
-                    disabled={loadingMembers}
-                    data-testid="load-members-button"
-                  >
-                    {showMembers ? "Refresh Members" : "View Members"}
-                  </Button>
-                </div>
-                
-                {/* Add Member */}
-                <div className="flex gap-2 mb-3">
-                  <Input
-                    placeholder="User ID to add"
-                    value={newMemberUserId}
-                    onChange={(e) => setNewMemberUserId(e.target.value)}
-                    data-testid="add-member-input"
-                  />
-                  <Button
-                    onClick={addMemberToGroup}
-                    disabled={!newMemberUserId.trim() || addingMember}
-                    data-testid="add-member-button"
-                  >
-                    {addingMember ? "Adding..." : "Add Member"}
-                  </Button>
-                </div>
+              {/* Member Management Section - Owner only */}
+              {group.userRole === 'owner' && (
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium">Member Management</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={loadGroupMembers}
+                      disabled={loadingMembers}
+                      data-testid="load-members-button"
+                    >
+                      {showMembers ? "Refresh Members" : "View Members"}
+                    </Button>
+                  </div>
+                  
+                  {/* Add Member */}
+                  <div className="flex gap-2 mb-3">
+                    <Input
+                      placeholder="User ID to add"
+                      value={newMemberUserId}
+                      onChange={(e) => setNewMemberUserId(e.target.value)}
+                      data-testid="add-member-input"
+                    />
+                    <Button
+                      onClick={addMemberToGroup}
+                      disabled={!newMemberUserId.trim() || addingMember}
+                      data-testid="add-member-button"
+                    >
+                      {addingMember ? "Adding..." : "Add Member"}
+                    </Button>
+                  </div>
 
                 {/* Members List */}
                 {showMembers && (
@@ -1278,11 +1312,12 @@ export default function GroupFeedPage() {
                               {member.role}
                             </Badge>
                           </div>
-                          {member.role !== 'owner' && (
+                          {member.role !== 'owner' && group.userRole === 'owner' && (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="text-destructive h-6 px-2"
+                              onClick={() => removeMemberFromGroup(member.userId)}
                               data-testid={`remove-member-${member.userId}`}
                             >
                               Remove
@@ -1293,9 +1328,11 @@ export default function GroupFeedPage() {
                     )}
                   </div>
                 )}
-              </div>
+                </div>
+              )}
 
-              {/* Chat & Group Actions */}
+              {/* Chat & Group Actions - Owner only */}
+              {group.userRole === 'owner' && (
               <div className="border-t pt-4 space-y-3">
                 <h3 className="font-medium">Group Actions</h3>
                 <div className="flex gap-2">
@@ -1317,7 +1354,8 @@ export default function GroupFeedPage() {
                     {deletingGroup ? "Deleting..." : "Delete Group"}
                   </Button>
                 </div>
-              </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>
