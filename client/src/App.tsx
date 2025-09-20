@@ -19,6 +19,7 @@ import Health from "@/pages/health";
 import PRs from "@/pages/prs";
 import Achievements from "@/pages/achievements";
 import Profile from "@/pages/profile";
+import EditProfile from "@/pages/EditProfile";
 import Connect from "@/pages/connect";
 import Reports from "@/pages/reports";
 import WorkoutGenerate from "@/pages/workout-generate";
@@ -79,6 +80,11 @@ function OverlayWrapper() {
         <Route path="/profile" component={() => (
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        )} />
+        <Route path="/profile/edit" component={() => (
+          <ProtectedRoute>
+            <EditProfile />
           </ProtectedRoute>
         )} />
         <Route path="/connect" component={() => (

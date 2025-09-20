@@ -117,6 +117,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile update - PATCH to update profile fields
+  const updateProfileSchema = z.object({
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    username: z.string().optional(),
+    dateOfBirth: z.string().nullable().optional(), // ISO date string or null
+    avatarUrl: z.string().optional(),
+  });
+
+  app.patch("/api/profiles", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const validatedData = updateProfileSchema.parse(req.body);
+      
+      // Import the profiles update function
+      const { updateProfile } = await import("./dal/profiles");
+      
+      // Update profile with validated data
+      const updatedProfile = await updateProfile(authReq.user.id, validatedData);
+      
+      if (!updatedProfile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      res.json({ message: "Profile updated successfully", profile: updatedProfile });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      console.error("Failed to update profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
   // Workout routes
   app.get("/api/workouts", requireAuth, async (req, res) => {
     try {

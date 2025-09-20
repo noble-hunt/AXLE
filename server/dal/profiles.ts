@@ -71,3 +71,33 @@ export async function getProfile(userId: string) {
 
   return data;
 }
+
+export async function updateProfile(userId: string, updates: {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  dateOfBirth?: string;
+  avatarUrl?: string;
+}) {
+  const updateData: any = {};
+  
+  // Map frontend field names to database column names
+  if (updates.firstName !== undefined) updateData.first_name = updates.firstName;
+  if (updates.lastName !== undefined) updateData.last_name = updates.lastName;
+  if (updates.username !== undefined) updateData.username = updates.username;
+  if (updates.dateOfBirth !== undefined) updateData.date_of_birth = updates.dateOfBirth;
+  if (updates.avatarUrl !== undefined) updateData.avatar_url = updates.avatarUrl;
+
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .update(updateData)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update profile: ${error.message}`);
+  }
+
+  return data;
+}

@@ -716,6 +716,7 @@ export const useAppStore = create<AppState>()(
               firstName: data.first_name,
               lastName: data.last_name,
               avatarUrl: data.avatar_url,
+              dateOfBirth: data.date_of_birth,
               providers: data.providers,
               createdAt: new Date(data.created_at)
             }
@@ -861,6 +862,7 @@ export const useAppStore = create<AppState>()(
               firstName: profileResult.data.first_name,
               lastName: profileResult.data.last_name,
               avatarUrl: profileResult.data.avatar_url,
+              dateOfBirth: profileResult.data.date_of_birth,
               providers: profileResult.data.providers,
               createdAt: new Date(profileResult.data.created_at)
             } : null

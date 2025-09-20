@@ -10,6 +10,7 @@ export const profiles = pgTable("profiles", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   avatarUrl: text("avatar_url"),
+  dateOfBirth: date("date_of_birth"),
   providers: text("providers").array().notNull().default(sql`'{}'`), // Array of linked identity providers
   createdAt: timestamp("created_at").defaultNow(),
 });

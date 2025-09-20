@@ -160,6 +160,7 @@ function SettingsSection() {
   }
   
   const settingsItems = [
+    { icon: Settings, label: "Edit Profile", path: "/profile/edit", color: "text-primary" },
     { icon: Trophy, label: "Personal Records", path: "/prs", color: "text-accent" },
     { icon: Award, label: "Achievements", path: "/achievements", color: "text-accent" },
     { icon: Bell, label: "Notifications", path: "/notifications" },
@@ -271,8 +272,7 @@ export default function Profile() {
           lastName: user?.user_metadata?.last_name || '',
           providers: ['email'],
           username: user?.email?.split('@')[0] || '',
-          createdAt: new Date(),
-          updatedAt: new Date()
+          createdAt: new Date()
         })
         
         // Also update in database if user is authenticated
