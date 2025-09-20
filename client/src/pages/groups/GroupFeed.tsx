@@ -1116,7 +1116,8 @@ export default function GroupFeedPage() {
     <div className="flex flex-col h-screen">
       {/* Header */}
       <div className="flex-shrink-0 p-4 border-b bg-background">
-        <div className="flex items-center gap-4">
+        {/* First line: Back button, Avatar, Group name and info */}
+        <div className="flex items-center gap-3 mb-3">
           <BackButton fallbackPath="/groups" />
           
           <Avatar className="w-8 h-8">
@@ -1128,14 +1129,14 @@ export default function GroupFeedPage() {
           
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="font-semibold">{group.name}</h1>
+              <h1 className="font-semibold text-lg">{group.name}</h1>
               {group.isPublic ? (
                 <Globe className="w-4 h-4 text-muted-foreground" />
               ) : (
                 <Lock className="w-4 h-4 text-muted-foreground" />
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{group.memberCount || 0} members</span>
               {onlineMembers.length > 0 && (
                 <>
@@ -1148,48 +1149,49 @@ export default function GroupFeedPage() {
               )}
             </div>
           </div>
+        </div>
+        
+        {/* Second line: Action buttons */}
+        <div className="flex gap-2 ml-11">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLocation(`/groups/${groupId}/invite`)}
+            data-testid="invite-button"
+          >
+            <Users className="w-4 h-4 mr-2" />
+            Invite
+          </Button>
           
-          <div className="flex gap-2">
+          {/* Group Management - owners only get edit button, others get leave option */}
+          {group.userRole === 'owner' ? (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setLocation(`/groups/${groupId}/invite`)}
-              data-testid="invite-button"
+              onClick={() => setIsEditingGroup(!isEditingGroup)}
+              data-testid="edit-group-button"
             >
-              <Users className="w-4 h-4 mr-2" />
-              Invite
+              {isEditingGroup ? "Cancel" : "Edit Group"}
             </Button>
-            
-            {/* Group Management - owners only get edit button, others get leave option */}
-            {group.userRole === 'owner' ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditingGroup(!isEditingGroup)}
-                data-testid="edit-group-button"
-              >
-                {isEditingGroup ? "Cancel" : "Edit Group"}
-              </Button>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" data-testid="group-menu-button">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem 
-                    onClick={() => setShowLeaveConfirm(true)}
-                    disabled={leavingGroup}
-                    data-testid="leave-group-button"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    {leavingGroup ? "Leaving..." : "Leave Group"}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" data-testid="group-menu-button">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={() => setShowLeaveConfirm(true)}
+                  disabled={leavingGroup}
+                  data-testid="leave-group-button"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  {leavingGroup ? "Leaving..." : "Leave Group"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 

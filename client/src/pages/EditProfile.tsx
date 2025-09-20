@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
-import { Save } from "lucide-react"
+import { Save, KeyRound, Mail } from "lucide-react"
 import { BackButton } from "@/components/ui/back-button"
 import { apiRequest } from "@/lib/queryClient"
+import { supabase } from "@/lib/supabase"
 
 export default function EditProfile() {
   const [, setLocation] = useLocation()
@@ -22,6 +23,10 @@ export default function EditProfile() {
   const [firstName, setFirstName] = useState(profile?.firstName || '')
   const [lastName, setLastName] = useState(profile?.lastName || '')
   const [dateOfBirth, setDateOfBirth] = useState(profile?.dateOfBirth || '')
+  
+  // Password reset state
+  const [resetEmail, setResetEmail] = useState(user?.email || '')
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
 
   const handleSave = async () => {
     if (!user?.id) return
@@ -72,6 +77,42 @@ export default function EditProfile() {
       })
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    if (!resetEmail.trim()) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address to reset your password.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsResettingPassword(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/auth/reset-password`
+      })
+      
+      if (error) {
+        throw error
+      }
+      
+      toast({
+        title: "Password reset sent!",
+        description: "Check your email for instructions to reset your password.",
+      })
+    } catch (error) {
+      console.error('Password reset error:', error)
+      toast({
+        title: "Reset failed",
+        description: error instanceof Error ? error.message : "Failed to send password reset email. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsResettingPassword(false)
     }
   }
 
@@ -164,6 +205,50 @@ export default function EditProfile() {
                 <Save className="w-4 h-4 mr-2" />
                 {isSaving ? "Saving..." : "Save Changes"}
               </Button>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Password Reset Section */}
+        <motion.div variants={slideUp}>
+          <Card className="p-6 space-y-4">
+            <div className="flex items-center gap-2 pb-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">Password & Security</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Reset your password by entering your email address. You'll receive instructions via email.
+              </p>
+              
+              <div>
+                <Label htmlFor="resetEmail" className="text-body font-medium text-foreground">
+                  Email Address
+                </Label>
+                <Input
+                  id="resetEmail"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="Enter your email address"
+                  className="mt-2"
+                  data-testid="input-reset-email"
+                />
+              </div>
+              
+              <div className="flex justify-start pt-2">
+                <Button 
+                  variant="outline"
+                  onClick={handlePasswordReset} 
+                  disabled={isResettingPassword || !resetEmail.trim()}
+                  className="min-w-[160px]"
+                  data-testid="button-reset-password"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  {isResettingPassword ? "Sending..." : "Send Reset Email"}
+                </Button>
+              </div>
             </div>
           </Card>
         </motion.div>
