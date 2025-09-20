@@ -16,6 +16,7 @@ import {
   removeRsvp,
   getPostRsvps
 } from "../dal/groups";
+import { recomputeAndUpdateGroupAchievements } from "../dal/groupAchievements";
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -191,6 +192,16 @@ export function registerGroupRoutes(app: Express) {
       }
 
       const post = await createPost(userId, { kind, content, groupIds });
+      
+      // Recompute achievements for affected groups (async, don't block response)
+      groupIds.forEach(async (groupId) => {
+        try {
+          await recomputeAndUpdateGroupAchievements(groupId);
+        } catch (error) {
+          console.error(`Failed to update group achievements for group ${groupId}:`, error);
+        }
+      });
+      
       res.status(201).json(post);
     } catch (error) {
       console.error("Error creating post:", error);
@@ -245,6 +256,14 @@ export function registerGroupRoutes(app: Express) {
 
       const params = schema.parse(req.body);
       const result = await toggleReaction(userId, params);
+      
+      // Recompute achievements for the group (async, don't block response)
+      try {
+        await recomputeAndUpdateGroupAchievements(params.groupId);
+      } catch (error) {
+        console.error(`Failed to update group achievements for group ${params.groupId}:`, error);
+      }
+      
       res.json(result);
     } catch (error) {
       console.error("Error toggling reaction:", error);
@@ -275,6 +294,14 @@ export function registerGroupRoutes(app: Express) {
 
       const params = schema.parse(req.body);
       const result = await toggleReaction(userId, params);
+      
+      // Recompute achievements for the group (async, don't block response)
+      try {
+        await recomputeAndUpdateGroupAchievements(params.groupId);
+      } catch (error) {
+        console.error(`Failed to update group achievements for group ${params.groupId}:`, error);
+      }
+      
       res.json(result);
     } catch (error) {
       console.error("Error removing reaction:", error);
