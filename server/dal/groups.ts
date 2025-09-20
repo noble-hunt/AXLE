@@ -6,6 +6,7 @@ import {
   posts, 
   groupPosts, 
   groupReactions, 
+  groupEventRsvps,
   groupInvites, 
   referrals,
   profiles 
@@ -29,6 +30,12 @@ export interface ReactionParams {
   groupId: string;
   postId: string;
   emoji: string;
+}
+
+export interface RsvpParams {
+  groupId: string;
+  postId: string;
+  status: "going" | "maybe" | "no";
 }
 
 // Set user context for RLS
@@ -498,4 +505,101 @@ export async function getReactionSummary(userId: string, groupId: string, postId
     .groupBy(groupReactions.emoji);
 
   return reactions;
+}
+
+// RSVP TO EVENT POST
+export async function upsertRsvp(userId: string, params: RsvpParams) {
+  await setUserContext(userId);
+
+  // Check if RSVP already exists
+  const existing = await db
+    .select()
+    .from(groupEventRsvps)
+    .where(
+      and(
+        eq(groupEventRsvps.groupId, params.groupId),
+        eq(groupEventRsvps.postId, params.postId),
+        eq(groupEventRsvps.userId, userId)
+      )
+    )
+    .limit(1);
+
+  if (existing[0]) {
+    // Update existing RSVP
+    const updated = await db
+      .update(groupEventRsvps)
+      .set({ status: params.status })
+      .where(
+        and(
+          eq(groupEventRsvps.groupId, params.groupId),
+          eq(groupEventRsvps.postId, params.postId),
+          eq(groupEventRsvps.userId, userId)
+        )
+      )
+      .returning();
+    return { action: "updated", rsvp: updated[0] };
+  } else {
+    // Create new RSVP
+    const rsvp = await db
+      .insert(groupEventRsvps)
+      .values({
+        groupId: params.groupId,
+        postId: params.postId,
+        userId,
+        status: params.status,
+      })
+      .returning();
+    return { action: "created", rsvp: rsvp[0] };
+  }
+}
+
+// REMOVE RSVP
+export async function removeRsvp(userId: string, groupId: string, postId: string) {
+  await setUserContext(userId);
+
+  await db
+    .delete(groupEventRsvps)
+    .where(
+      and(
+        eq(groupEventRsvps.groupId, groupId),
+        eq(groupEventRsvps.postId, postId),
+        eq(groupEventRsvps.userId, userId)
+      )
+    );
+  
+  return { action: "removed" };
+}
+
+// GET RSVPS FOR POST
+export async function getPostRsvps(userId: string, groupId: string, postId: string) {
+  await setUserContext(userId);
+
+  const rsvps = await db
+    .select({
+      userId: groupEventRsvps.userId,
+      status: groupEventRsvps.status,
+      createdAt: groupEventRsvps.createdAt,
+      userUsername: profiles.username,
+      userFirstName: profiles.firstName,
+      userLastName: profiles.lastName,
+      userAvatarUrl: profiles.avatarUrl,
+    })
+    .from(groupEventRsvps)
+    .innerJoin(profiles, eq(groupEventRsvps.userId, profiles.userId))
+    .where(
+      and(
+        eq(groupEventRsvps.groupId, groupId),
+        eq(groupEventRsvps.postId, postId)
+      )
+    )
+    .orderBy(groupEventRsvps.createdAt);
+
+  // Group by status
+  const grouped = {
+    going: rsvps.filter(r => r.status === "going"),
+    maybe: rsvps.filter(r => r.status === "maybe"),
+    no: rsvps.filter(r => r.status === "no"),
+  };
+
+  return grouped;
 }

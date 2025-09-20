@@ -11,7 +11,10 @@ import {
   createPost,
   getGroupFeed,
   toggleReaction,
-  getReactionSummary
+  getReactionSummary,
+  upsertRsvp,
+  removeRsvp,
+  getPostRsvps
 } from "../dal/groups";
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
 import { z } from "zod";
@@ -306,6 +309,69 @@ export function registerGroupRoutes(app: Express) {
       console.error("Error fetching reaction summary:", error);
       res.status(500).json({ 
         message: "Failed to fetch reaction summary",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // POST /api/groups/:groupId/posts/:postId/rsvp → create/update RSVP
+  app.post("/api/groups/:groupId/posts/:postId/rsvp", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const { groupId, postId } = req.params;
+      const { status } = req.body;
+
+      // Validate RSVP status
+      const validStatuses = ["going", "maybe", "no"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ 
+          message: "Invalid RSVP status. Must be 'going', 'maybe', or 'no'" 
+        });
+      }
+
+      const result = await upsertRsvp(userId, { groupId, postId, status });
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating RSVP:", error);
+      res.status(500).json({ 
+        message: "Failed to update RSVP",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // DELETE /api/groups/:groupId/posts/:postId/rsvp → remove RSVP
+  app.delete("/api/groups/:groupId/posts/:postId/rsvp", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const { groupId, postId } = req.params;
+
+      const result = await removeRsvp(userId, groupId, postId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error removing RSVP:", error);
+      res.status(500).json({ 
+        message: "Failed to remove RSVP",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // GET /api/groups/:groupId/posts/:postId/rsvps → get all RSVPs for post
+  app.get("/api/groups/:groupId/posts/:postId/rsvps", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const { groupId, postId } = req.params;
+
+      const rsvps = await getPostRsvps(userId, groupId, postId);
+      res.json(rsvps);
+    } catch (error) {
+      console.error("Error fetching RSVPs:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch RSVPs",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
