@@ -22,6 +22,7 @@ import Profile from "@/pages/profile";
 import Connect from "@/pages/connect";
 import Reports from "@/pages/reports";
 import WorkoutGenerate from "@/pages/workout-generate";
+import LogFreeform from "@/pages/workout/LogFreeform";
 import DevEnv from "@/pages/dev-env";
 import Debug from "@/pages/dev/Debug";
 import Tokens from "@/pages/dev/Tokens";
@@ -64,6 +65,7 @@ function OverlayWrapper() {
         
         {/* Main navigation routes - accessible to guests and authenticated users */}
         <Route path="/workout" component={Workout} />
+        <Route path="/workout/log" component={LogFreeform} />
         <Route path="/workout/:id" component={WorkoutDetail} />
         <Route path="/history" component={History} />
         <Route path="/health" component={Health} />

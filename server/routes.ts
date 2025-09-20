@@ -17,6 +17,11 @@ import { listReports } from "./dal/reports";
 import { listWearables } from "./dal/wearables";
 import { registerSuggestionRoutes } from "./routes/suggestions";
 import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron";
+import OpenAI from "openai";
+
+// Initialize OpenAI client
+// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register suggestion routes
@@ -189,6 +194,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to delete workout:", error);
       res.status(500).json({ message: "Failed to delete workout" });
+    }
+  });
+
+  // Freeform workout parsing endpoint
+  app.post("/api/workouts/parse-freeform", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { text } = req.body;
+      
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        return res.status(400).json({ message: "Text description is required" });
+      }
+      
+      // Parse workout using OpenAI
+      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      const response = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          {
+            role: "system",
+            content: `You are a fitness expert assistant that parses workout descriptions into structured data. 
+            
+            Parse the workout description and return JSON with this exact structure:
+            {
+              "request": {
+                "category": "CrossFit" | "HIIT" | "Powerlifting" | "Olympic Lifting" | "Gymnastics" | "Cardio" | "Strength" | "Mobility",
+                "duration": number (5-120 minutes),
+                "intensity": number (1-10 scale)
+              },
+              "format": "EMOM" | "AMRAP" | "For Time" | "Strength" | "Skill" | "Intervals" | "Circuit" | "Other",
+              "sets": [
+                {
+                  "id": "unique-id",
+                  "exercise": "exercise name",
+                  "weight": number | null,
+                  "reps": number | null,
+                  "duration": number | null,
+                  "repScheme": "3x10" | "EMOM 12" | "AMRAP 20" | null,
+                  "notes": "any additional notes" | null
+                }
+              ],
+              "title": "descriptive workout title",
+              "notes": "any general workout notes or context",
+              "confidence": number (0.0-1.0 confidence score)
+            }
+            
+            Guidelines:
+            - Infer category from workout style/movements
+            - Estimate duration from description or use reasonable defaults
+            - Assess intensity from effort level, weight percentages, time pressure
+            - Extract individual exercises with sets/reps/weights
+            - Use appropriate repScheme format (3x10, EMOM 12, etc.)
+            - Generate a concise but descriptive title
+            - Set confidence high (0.8+) for clear descriptions, lower for ambiguous ones`
+          },
+          {
+            role: "user",
+            content: text.trim()
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+      
+      const parsedData = JSON.parse(response.choices[0].message.content || '{}');
+      
+      // Validate and sanitize the parsed data
+      if (!parsedData.request || !parsedData.sets || !parsedData.title) {
+        throw new Error("Invalid parsed data structure");
+      }
+      
+      // Ensure sets have proper IDs
+      parsedData.sets = parsedData.sets.map((set: any, index: number) => ({
+        ...set,
+        id: set.id || `set-${Date.now()}-${index}`
+      }));
+      
+      res.json({ parsed: parsedData });
+    } catch (error) {
+      console.error("Failed to parse workout:", error);
+      res.status(500).json({ 
+        message: "Failed to parse workout description",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Freeform workout logging endpoint
+  app.post("/api/workouts/log-freeform", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { parsed } = req.body;
+      
+      if (!parsed || !parsed.request || !parsed.sets || !parsed.title) {
+        return res.status(400).json({ message: "Invalid parsed workout data" });
+      }
+      
+      // Convert the parsed data to our workout format
+      const workoutData = {
+        name: parsed.title,
+        date: new Date(),
+        duration: parsed.request.duration,
+        exercises: parsed.sets.map((set: any) => ({
+          id: set.id,
+          exercise: set.exercise,
+          weight: set.weight || undefined,
+          reps: set.reps || undefined,
+          duration: set.duration || undefined,
+          notes: set.notes || undefined,
+          repScheme: set.repScheme || undefined
+        })),
+        notes: parsed.notes || undefined
+      };
+      
+      // Insert the workout using the existing format
+      const workout = await insertWorkout({
+        userId: authReq.user.id,
+        workout: {
+          title: parsed.title,
+          request: {
+            category: parsed.request.category,
+            duration: parsed.request.duration,
+            intensity: parsed.request.intensity
+          },
+          sets: parsed.sets,
+          notes: parsed.notes,
+          completed: true
+        }
+      });
+      
+      res.json({ id: workout.id });
+    } catch (error) {
+      console.error("Failed to log freeform workout:", error);
+      res.status(500).json({ 
+        message: "Failed to save workout",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
