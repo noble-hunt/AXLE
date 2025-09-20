@@ -28,6 +28,7 @@ import Debug from "@/pages/dev/Debug";
 import Tokens from "@/pages/dev/Tokens";
 import Components from "@/pages/dev/Components";
 import Compare from "@/pages/dev/Compare";
+import Groups from "@/pages/groups";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Callback from "@/pages/auth/Callback";
@@ -87,6 +88,11 @@ function OverlayWrapper() {
           </ProtectedRoute>
         )} />
         <Route path="/generate-workout" component={WorkoutGenerate} />
+        <Route path="/groups" component={() => (
+          <ProtectedRoute>
+            <Groups />
+          </ProtectedRoute>
+        )} />
         <Route path="/dev/env" component={DevEnv} />
         <Route path="/dev/debug" component={Debug} />
         <Route path="/dev/tokens" component={Tokens} />
