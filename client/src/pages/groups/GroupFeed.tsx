@@ -153,6 +153,20 @@ export default function GroupFeedPage() {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Group editing state
+  const [isEditingGroup, setIsEditingGroup] = useState(false);
+  const [editingGroupName, setEditingGroupName] = useState("");
+  const [editingGroupDescription, setEditingGroupDescription] = useState("");
+  const [editingGroupPhoto, setEditingGroupPhoto] = useState("");
+  const [savingGroupChanges, setSavingGroupChanges] = useState(false);
+  
+  // Member management state
+  const [showMembers, setShowMembers] = useState(false);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [newMemberUserId, setNewMemberUserId] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
+
   const groupId = params?.id;
   const parentRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -357,6 +371,126 @@ export default function GroupFeedPage() {
     }
     
     return false;
+  };
+
+  // Group editing functions
+  const startEditingGroup = () => {
+    if (group) {
+      setEditingGroupName(group.name);
+      setEditingGroupDescription(group.description || "");
+      setEditingGroupPhoto(group.photoUrl || "");
+      setIsEditingGroup(true);
+    }
+  };
+
+  const cancelEditingGroup = () => {
+    setIsEditingGroup(false);
+    setEditingGroupName("");
+    setEditingGroupDescription("");
+    setEditingGroupPhoto("");
+  };
+
+  const saveGroupChanges = async () => {
+    if (!group || savingGroupChanges) return;
+    
+    try {
+      setSavingGroupChanges(true);
+      
+      const response = await authFetch(`/api/groups/${group.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingGroupName,
+          description: editingGroupDescription,
+          photoUrl: editingGroupPhoto || null
+        })
+      });
+
+      if (response.ok) {
+        const updatedGroup = await response.json();
+        setGroup(updatedGroup);
+        setIsEditingGroup(false);
+        toast({
+          title: "Group updated",
+          description: "Your group details have been saved"
+        });
+      } else {
+        throw new Error('Failed to update group');
+      }
+    } catch (error) {
+      console.error("Failed to update group:", error);
+      toast({
+        title: "Failed to update group",
+        description: "Unable to save changes. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingGroupChanges(false);
+    }
+  };
+
+  const loadGroupMembers = async () => {
+    if (!group || loadingMembers) return;
+    
+    try {
+      setLoadingMembers(true);
+      const response = await authFetch(`/api/groups/${group.id}/members`);
+      
+      if (response.ok) {
+        const members = await response.json();
+        setGroupMembers(members);
+        setShowMembers(true);
+      } else {
+        throw new Error('Failed to load members');
+      }
+    } catch (error) {
+      console.error("Failed to load group members:", error);
+      toast({
+        title: "Failed to load members",
+        description: "Unable to fetch group members",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const addMemberToGroup = async () => {
+    if (!group || !newMemberUserId || addingMember) return;
+    
+    try {
+      setAddingMember(true);
+      const response = await authFetch(`/api/groups/${group.id}/members/admin-add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: newMemberUserId,
+          role: 'member'
+        })
+      });
+
+      if (response.ok) {
+        setNewMemberUserId("");
+        // Refresh members list
+        loadGroupMembers();
+        toast({
+          title: "Member added",
+          description: "New member has been added to the group"
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add member');
+      }
+    } catch (error) {
+      console.error("Failed to add member:", error);
+      toast({
+        title: "Failed to add member",
+        description: error instanceof Error ? error.message : "Unable to add member",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingMember(false);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -993,24 +1127,24 @@ export default function GroupFeedPage() {
               Invite
             </Button>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" data-testid="group-menu-button">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {group.userRole === 'owner' ? (
-                  <DropdownMenuItem 
-                    onClick={() => setShowDeleteConfirm(true)}
-                    disabled={deletingGroup}
-                    className="text-destructive focus:text-destructive"
-                    data-testid="delete-group-button"
-                  >
-                    <Trash className="w-4 h-4 mr-2" />
-                    {deletingGroup ? "Deleting..." : "Delete Group"}
-                  </DropdownMenuItem>
-                ) : (
+            {/* Group Management - owners only get edit button, others get leave option */}
+            {group.userRole === 'owner' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditingGroup(!isEditingGroup)}
+                data-testid="edit-group-button"
+              >
+                {isEditingGroup ? "Cancel" : "Edit Group"}
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid="group-menu-button">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
                   <DropdownMenuItem 
                     onClick={() => setShowLeaveConfirm(true)}
                     disabled={leavingGroup}
@@ -1019,12 +1153,175 @@ export default function GroupFeedPage() {
                     <LogOut className="w-4 h-4 mr-2" />
                     {leavingGroup ? "Leaving..." : "Leave Group"}
                   </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Group Edit Interface - Only for owners when editing */}
+      {isEditingGroup && group.userRole === 'owner' && (
+        <div className="flex-shrink-0 p-4 border-b bg-muted/50">
+          <Card className="p-4">
+            <div className="space-y-4">
+              {/* Group Details Section */}
+              <div>
+                <h3 className="font-medium mb-3">Group Details</h3>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="group-name">Group Name</Label>
+                    <Input
+                      id="group-name"
+                      value={editingGroupName}
+                      onChange={(e) => setEditingGroupName(e.target.value)}
+                      placeholder="Enter group name"
+                      data-testid="edit-group-name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="group-description">Description</Label>
+                    <Textarea
+                      id="group-description"
+                      value={editingGroupDescription}
+                      onChange={(e) => setEditingGroupDescription(e.target.value)}
+                      placeholder="Describe your group..."
+                      className="min-h-[60px]"
+                      data-testid="edit-group-description"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="group-photo">Photo URL</Label>
+                    <Input
+                      id="group-photo"
+                      value={editingGroupPhoto}
+                      onChange={(e) => setEditingGroupPhoto(e.target.value)}
+                      placeholder="https://example.com/photo.jpg"
+                      data-testid="edit-group-photo"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={saveGroupChanges}
+                      disabled={savingGroupChanges || !editingGroupName.trim()}
+                      data-testid="save-group-changes"
+                    >
+                      {savingGroupChanges ? "Saving..." : "Save Changes"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={cancelEditingGroup}
+                      disabled={savingGroupChanges}
+                      data-testid="cancel-group-edit"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Member Management Section */}
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium">Member Management</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadGroupMembers}
+                    disabled={loadingMembers}
+                    data-testid="load-members-button"
+                  >
+                    {showMembers ? "Refresh Members" : "View Members"}
+                  </Button>
+                </div>
+                
+                {/* Add Member */}
+                <div className="flex gap-2 mb-3">
+                  <Input
+                    placeholder="User ID to add"
+                    value={newMemberUserId}
+                    onChange={(e) => setNewMemberUserId(e.target.value)}
+                    data-testid="add-member-input"
+                  />
+                  <Button
+                    onClick={addMemberToGroup}
+                    disabled={!newMemberUserId.trim() || addingMember}
+                    data-testid="add-member-button"
+                  >
+                    {addingMember ? "Adding..." : "Add Member"}
+                  </Button>
+                </div>
+
+                {/* Members List */}
+                {showMembers && (
+                  <div className="space-y-2">
+                    {loadingMembers ? (
+                      <div className="text-center py-2">
+                        <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+                      </div>
+                    ) : (
+                      groupMembers.map((member) => (
+                        <div
+                          key={member.userId}
+                          className="flex items-center justify-between p-2 rounded-lg bg-background"
+                          data-testid={`member-${member.userId}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Avatar className="w-6 h-6">
+                              <AvatarImage src={member.avatar} alt={member.displayName} />
+                              <AvatarFallback className="text-xs">
+                                {member.displayName?.substring(0, 1)?.toUpperCase() || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{member.displayName || 'Unknown User'}</span>
+                            <Badge variant={member.role === 'owner' ? 'default' : 'secondary'} className="text-xs">
+                              {member.role}
+                            </Badge>
+                          </div>
+                          {member.role !== 'owner' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive h-6 px-2"
+                              data-testid={`remove-member-${member.userId}`}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Chat & Group Actions */}
+              <div className="border-t pt-4 space-y-3">
+                <h3 className="font-medium">Group Actions</h3>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLocation(`/groups/${groupId}/invite`)}
+                    data-testid="manage-invites"
+                  >
+                    Manage Invites
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deletingGroup}
+                    data-testid="delete-group-from-edit"
+                  >
+                    {deletingGroup ? "Deleting..." : "Delete Group"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Feed */}
       <div 
