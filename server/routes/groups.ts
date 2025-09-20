@@ -16,7 +16,7 @@ import {
   removeRsvp,
   getPostRsvps
 } from "../dal/groups";
-import { recomputeAndUpdateGroupAchievements } from "../dal/groupAchievements";
+import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements";
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -399,6 +399,22 @@ export function registerGroupRoutes(app: Express) {
       console.error("Error fetching RSVPs:", error);
       res.status(500).json({ 
         message: "Failed to fetch RSVPs",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // GET /api/groups/:id/achievements → get group achievements
+  app.get("/api/groups/:id/achievements", requireAuth, async (req, res) => {
+    try {
+      const { id: groupId } = req.params;
+      
+      const achievements = await getGroupAchievements(groupId);
+      res.json(achievements);
+    } catch (error) {
+      console.error("Error fetching group achievements:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch group achievements",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
