@@ -35,6 +35,7 @@ import { formatDistanceToNow } from "date-fns";
 import { EventRsvpButtons } from "@/components/groups/EventRsvpButtons";
 import { EventReminderBanner } from "@/components/groups/EventReminderBanner";
 import { FeedNudgeCard } from "@/components/groups/FeedNudgeCard";
+import { GroupWorkoutEventCard } from "@/components/groups/GroupWorkoutEventCard";
 import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
 import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
@@ -710,45 +711,65 @@ export default function GroupFeedPage() {
           )}
           
           {post.kind === "event" && (
-            <Card 
-              className="p-3 max-w-md cursor-pointer"
-              onContextMenu={(e) => handlePostInteraction(e, post.id)}
-              onTouchStart={(e) => {
-                const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
-                e.currentTarget.dataset.pressTimer = timeout.toString();
-              }}
-              onTouchEnd={(e) => {
-                const timer = e.currentTarget.dataset.pressTimer;
-                if (timer) {
-                  clearTimeout(parseInt(timer));
-                  delete e.currentTarget.dataset.pressTimer;
-                }
-              }}
-              data-testid={`post-${post.id}`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-4 h-4 text-primary" />
-                <span className="font-medium text-sm">{post.content.title}</span>
-              </div>
-              
-              {/* Event Details */}
-              <div className="text-xs text-muted-foreground mb-3 space-y-1">
-                <div>
-                  📅 {new Date(post.content.start_at).toLocaleString()}
+            // Use enhanced component for group workout events, standard component for regular events
+            post.content.workoutData ? (
+              <GroupWorkoutEventCard
+                post={post}
+                groupId={groupId!}
+                onContextMenu={handlePostInteraction}
+                onTouchStart={(e) => {
+                  const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
+                  e.currentTarget.dataset.pressTimer = timeout.toString();
+                }}
+                onTouchEnd={(e) => {
+                  const timer = e.currentTarget.dataset.pressTimer;
+                  if (timer) {
+                    clearTimeout(parseInt(timer));
+                    delete e.currentTarget.dataset.pressTimer;
+                  }
+                }}
+              />
+            ) : (
+              <Card 
+                className="p-3 max-w-md cursor-pointer"
+                onContextMenu={(e) => handlePostInteraction(e, post.id)}
+                onTouchStart={(e) => {
+                  const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
+                  e.currentTarget.dataset.pressTimer = timeout.toString();
+                }}
+                onTouchEnd={(e) => {
+                  const timer = e.currentTarget.dataset.pressTimer;
+                  if (timer) {
+                    clearTimeout(parseInt(timer));
+                    delete e.currentTarget.dataset.pressTimer;
+                  }
+                }}
+                data-testid={`post-${post.id}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <span className="font-medium text-sm">{post.content.title}</span>
                 </div>
-                <div>
-                  ⏰ {post.content.duration_min} minutes
-                </div>
-                {post.content.location && (
+                
+                {/* Event Details */}
+                <div className="text-xs text-muted-foreground mb-3 space-y-1">
                   <div>
-                    📍 {post.content.location}
+                    📅 {new Date(post.content.start_at).toLocaleString()}
                   </div>
-                )}
-              </div>
+                  <div>
+                    ⏰ {post.content.duration_min} minutes
+                  </div>
+                  {post.content.location && (
+                    <div>
+                      📍 {post.content.location}
+                    </div>
+                  )}
+                </div>
 
-              {/* RSVP Buttons */}
-              <EventRsvpButtons postId={post.id} groupId={groupId!} />
-            </Card>
+                {/* RSVP Buttons */}
+                <EventRsvpButtons postId={post.id} groupId={groupId!} />
+              </Card>
+            )
           )}
           
           {/* Reactions */}

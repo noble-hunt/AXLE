@@ -120,8 +120,8 @@ export default function WorkoutGenerate() {
           content: {
             title: `Group Workout: ${generatedWorkout.name}`,
             description: `${generatedWorkout.description}\n\nWorkout Details:\n• Duration: ${generatedWorkout.duration} minutes\n• Intensity: ${generatedWorkout.intensity}/10\n• ${generatedWorkout.sets?.length || 0} exercises`,
-            startAt: scheduledDateTime.toISOString(),
-            durationMinutes: generatedWorkout.duration,
+            start_at: scheduledDateTime.toISOString(),
+            duration_min: generatedWorkout.duration,
             location: data.location || undefined,
             workoutData: generatedWorkout // Include full workout data
           },
