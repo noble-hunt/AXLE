@@ -35,6 +35,7 @@ import { formatDistanceToNow } from "date-fns";
 import { EventRsvpButtons } from "@/components/groups/EventRsvpButtons";
 import { EventReminderBanner } from "@/components/groups/EventReminderBanner";
 import { FeedNudgeCard } from "@/components/groups/FeedNudgeCard";
+import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
 
 // Emoji picker emojis
@@ -212,6 +213,28 @@ export default function GroupFeedPage() {
       });
     }
   }, [posts, groupId]);
+
+  // Group achievements hook for confetti celebrations
+  const { achievements, checkForNewUnlocks } = useGroupAchievements();
+
+  // Fetch group achievements and check for new unlocks
+  useEffect(() => {
+    if (!groupId) return;
+    
+    const fetchAchievements = async () => {
+      try {
+        const response = await authFetch(`/api/groups/${groupId}/achievements`);
+        if (response.ok) {
+          const data = await response.json();
+          checkForNewUnlocks(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch group achievements:", error);
+      }
+    };
+
+    fetchAchievements();
+  }, [groupId, checkForNewUnlocks]);
 
   // Virtual list for ascending order (newest at bottom)
   const virtualizer = useVirtualizer({

@@ -196,7 +196,10 @@ export function registerGroupRoutes(app: Express) {
       // Recompute achievements for affected groups (async, don't block response)
       groupIds.forEach(async (groupId) => {
         try {
-          await recomputeAndUpdateGroupAchievements(groupId);
+          const result = await recomputeAndUpdateGroupAchievements(groupId);
+          if (result.newlyUnlocked.length > 0) {
+            console.log(`New achievements unlocked for group ${groupId}:`, result.newlyUnlocked);
+          }
         } catch (error) {
           console.error(`Failed to update group achievements for group ${groupId}:`, error);
         }
@@ -259,7 +262,10 @@ export function registerGroupRoutes(app: Express) {
       
       // Recompute achievements for the group (async, don't block response)
       try {
-        await recomputeAndUpdateGroupAchievements(params.groupId);
+        const result = await recomputeAndUpdateGroupAchievements(params.groupId);
+        if (result.newlyUnlocked.length > 0) {
+          console.log(`New achievements unlocked for group ${params.groupId}:`, result.newlyUnlocked);
+        }
       } catch (error) {
         console.error(`Failed to update group achievements for group ${params.groupId}:`, error);
       }
@@ -297,7 +303,10 @@ export function registerGroupRoutes(app: Express) {
       
       // Recompute achievements for the group (async, don't block response)
       try {
-        await recomputeAndUpdateGroupAchievements(params.groupId);
+        const result = await recomputeAndUpdateGroupAchievements(params.groupId);
+        if (result.newlyUnlocked.length > 0) {
+          console.log(`New achievements unlocked for group ${params.groupId}:`, result.newlyUnlocked);
+        }
       } catch (error) {
         console.error(`Failed to update group achievements for group ${params.groupId}:`, error);
       }
