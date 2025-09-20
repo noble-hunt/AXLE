@@ -110,7 +110,6 @@ async function seedGroups() {
   
   const groupsData = [
     {
-      id: "group-1",
       name: "💪 Strength Squad",
       description: "Powerlifters and strength training enthusiasts unite! Share PRs, tips, and motivation.",
       isPublic: true,
@@ -118,7 +117,6 @@ async function seedGroups() {
       photoUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop"
     },
     {
-      id: "group-2", 
       name: "🏃‍♀️ Cardio Crew",
       description: "Running, cycling, swimming - all cardio welcome! Let's get our heart rates up together.",
       isPublic: true,
@@ -126,7 +124,6 @@ async function seedGroups() {
       photoUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop"
     },
     {
-      id: "group-3",
       name: "🥷 Elite Athletes",
       description: "Private group for serious competitors and advanced athletes only.",
       isPublic: false,
@@ -135,19 +132,22 @@ async function seedGroups() {
     }
   ];
 
+  const createdGroups = [];
   for (const groupData of groupsData) {
-    await db.insert(groups).values(groupData).onConflictDoNothing();
+    const groupResult = await db.insert(groups).values(groupData).returning();
+    const createdGroup = { ...groupData, id: groupResult[0].id };
+    createdGroups.push(createdGroup);
     
     // Add owner as member
     await db.insert(groupMembers).values({
-      groupId: groupData.id,
-      userId: groupData.ownerId,
+      groupId: createdGroup.id,
+      userId: createdGroup.ownerId,
       role: "owner"
     }).onConflictDoNothing();
   }
 
-  console.log(`✅ Seeded ${groupsData.length} groups`);
-  return groupsData;
+  console.log(`✅ Seeded ${createdGroups.length} groups`);
+  return createdGroups;
 }
 
 async function seedMembers(groupsData: any[]) {
@@ -191,8 +191,8 @@ async function seedPosts(groupsData: any[]) {
       const randomMember = members[Math.floor(Math.random() * members.length)];
       const randomPost = SAMPLE_POSTS[Math.floor(Math.random() * SAMPLE_POSTS.length)];
       
-      // Create one event post per group (for the first group)
-      const postData = group.id === "group-1" && i === 0 
+      // Create one event post for the first group only (and only on first iteration)
+      const postData = i === 0 && group.name === "💪 Strength Squad"
         ? await createEventPost(randomMember.userId)
         : randomPost;
       
