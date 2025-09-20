@@ -1376,8 +1376,14 @@ export const useAppStore = create<AppState>()(
         return newlyUnlocked;
       },
 
-      // Wearables
+      // Wearables - Health Provider System
       wearables: seedWearables,
+      
+      // Health Provider Connections
+      providers: [],
+      connections: [],
+      loadingProviders: false,
+      loadingConnections: false,
       
       addWearable: (wearableData) => {
         const wearable: WearableConnection = {
@@ -1475,6 +1481,129 @@ export const useAppStore = create<AppState>()(
       
       getConnectedWearables: () => {
         return get().wearables.filter((wearable) => wearable.connected);
+      },
+
+      // New Health Provider Actions
+      fetchProviders: async () => {
+        set({ loadingProviders: true });
+        try {
+          const { apiRequest } = await import('@/lib/queryClient');
+          const response = await apiRequest('GET', '/api/connect/providers');
+          const data = await response.json();
+          set({ providers: data.providers, loadingProviders: false });
+        } catch (error) {
+          console.error('Failed to fetch providers:', error);
+          set({ loadingProviders: false });
+          throw error;
+        }
+      },
+      
+      fetchConnections: async () => {
+        set({ loadingConnections: true });
+        try {
+          const { apiRequest } = await import('@/lib/queryClient');
+          const response = await apiRequest('GET', '/api/connect/providers');
+          const data = await response.json();
+          set({ connections: data.connections || [], loadingConnections: false });
+        } catch (error) {
+          console.error('Failed to fetch connections:', error);
+          set({ loadingConnections: false });
+          throw error;
+        }
+      },
+      
+      connectProvider: async (providerId: string) => {
+        try {
+          const { apiRequest } = await import('@/lib/queryClient');
+          const response = await apiRequest('POST', `/api/connect/${providerId}/start`);
+          const data = await response.json();
+          
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+          } else if (data.connected) {
+            // For Mock provider, immediately update connection status
+            await get().fetchConnections();
+          }
+        } catch (error) {
+          console.error('Failed to connect provider:', error);
+          throw error;
+        }
+      },
+      
+      disconnectProvider: async (providerId: string) => {
+        try {
+          // TODO: Implement disconnect endpoint when added to backend
+          console.log('Disconnect provider:', providerId);
+          // For now, just refresh connections to get updated status
+          await get().fetchConnections();
+        } catch (error) {
+          console.error('Failed to disconnect provider:', error);
+          throw error;
+        }
+      },
+      
+      syncProviderNow: async (providerId: string, params?: Record<string, any>) => {
+        try {
+          const { apiRequest } = await import('@/lib/queryClient');
+          const url = new URL('/api/health/sync', window.location.origin);
+          
+          // Add query parameters for dev toggles
+          if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+              url.searchParams.append(key, value.toString());
+            });
+          }
+          
+          const response = await apiRequest('POST', url.pathname + url.search);
+          const data = await response.json();
+          
+          if (data.report) {
+            // Update reports with new data
+            set((state) => ({
+              reports: [data.report, ...state.reports.filter(r => r.id !== data.report.id)]
+            }));
+          }
+          
+          // Refresh connections to update last sync time
+          await get().fetchConnections();
+          
+          return data;
+        } catch (error) {
+          console.error('Failed to sync provider:', error);
+          throw error;
+        }
+      },
+      
+      fetchReports: async () => {
+        try {
+          const { apiRequest } = await import('@/lib/queryClient');
+          const response = await apiRequest('GET', '/api/health/reports');
+          const data = await response.json();
+          
+          const transformedReports = data.map((report: any) => ({
+            id: report.id,
+            date: new Date(report.date),
+            metrics: report.metrics,
+            workoutsCompleted: report.metrics?.workoutsCompleted || 0,
+            totalWorkoutTime: report.metrics?.totalWorkoutTime || 0,
+            avgIntensity: report.metrics?.avgIntensity || 0,
+            newPRs: report.metrics?.newPRs || 0,
+            streakDays: report.metrics?.streakDays || 0,
+            weeklyGoalProgress: report.metrics?.weeklyGoalProgress || 0,
+            insights: report.suggestions || [],
+            createdAt: new Date(report.created_at || report.date),
+            restingHeartRate: report.metrics?.heartRate?.resting,
+            hrv: report.metrics?.recovery?.hrv,
+            sleepScore: report.metrics?.sleep?.quality === 'excellent' ? 100 : 
+                        report.metrics?.sleep?.quality === 'good' ? 80 :
+                        report.metrics?.sleep?.quality === 'fair' ? 60 : 40
+          }));
+          
+          set({ reports: transformedReports });
+        } catch (error) {
+          console.error('Failed to fetch health reports:', error);
+          throw error;
+        }
       },
 
       syncWearableData: async (id: string) => {

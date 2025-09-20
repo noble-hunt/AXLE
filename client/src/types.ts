@@ -392,6 +392,18 @@ export interface WearableState {
   disconnectWearable: (id: string) => Promise<void>;
   getConnectedWearables: () => WearableConnection[];
   syncWearableData: (id: string) => Promise<void>;
+  
+  // Health Provider System
+  providers: any[];
+  connections: any[];
+  loadingProviders: boolean;
+  loadingConnections: boolean;
+  fetchProviders: () => Promise<void>;
+  fetchConnections: () => Promise<void>;
+  connectProvider: (providerId: string) => Promise<void>;
+  disconnectProvider: (providerId: string) => Promise<void>;
+  syncProviderNow: (providerId: string, params?: Record<string, any>) => Promise<any>;
+  fetchReports: () => Promise<void>;
 }
 
 export interface ReportState {
