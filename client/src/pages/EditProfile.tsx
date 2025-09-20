@@ -43,6 +43,9 @@ export default function EditProfile() {
       const result = await apiRequest('PATCH', '/api/profiles', updateData)
       const responseData = await result.json()
 
+      console.log('API Response:', responseData)
+      console.log('Profile data:', responseData.profile)
+
       if (responseData.profile) {
         // Update local store with response data
         setProfile((prev: any) => prev ? {
