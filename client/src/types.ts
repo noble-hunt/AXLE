@@ -401,21 +401,7 @@ export interface ReportState {
   getLatestReport: () => HealthReport | undefined;
 }
 
-export interface Profile {
-  user_id: string;
-  username: string;
-  email: string;
-  avatar_url?: string;
-  created_at: Date;
-  updated_at: Date;
-}
 
-export interface ProfileState {
-  profile: Profile | null;
-  setProfile: (profile: Profile) => void;
-  upsertProfile: (userId: string, email: string, username?: string) => Promise<void>;
-  clearProfile: () => void;
-}
 
 // Freeform workout parsing types
 export type WorkoutFormat = "EMOM" | "AMRAP" | "For Time" | "Strength" | "Skill" | "Intervals" | "Circuit" | "Other";
@@ -429,7 +415,13 @@ export interface FreeformParsed {
   confidence: number;             // 0..1 from AI
 }
 
-export interface AppState extends WorkoutState, PRState, AchievementState, WearableState, ReportState, ProfileState {
+export interface AppState extends WorkoutState, PRState, AchievementState, WearableState, ReportState {
+  // Profile state
+  profile: any; // Will be typed properly when imported from @shared/schema
+  setProfile: (profile: any) => void;
+  upsertProfile: (userId: string, email: string, username?: string, firstName?: string, lastName?: string) => Promise<void>;
+  clearProfile: () => void;
+  
   // Global state
   theme: 'light' | 'dark' | 'system';
   setTheme: (theme: 'light' | 'dark' | 'system') => void;

@@ -710,7 +710,7 @@ export const useAppStore = create<AppState>()(
           // Update local store
           set({ 
             profile: {
-              user_id: data.user_id,
+              userId: data.user_id,
               username: data.username,
               firstName: data.first_name,
               lastName: data.last_name,
