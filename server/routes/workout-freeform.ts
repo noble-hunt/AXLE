@@ -52,13 +52,27 @@ export function registerWorkoutFreeformRoutes(app: Express) {
         return res.status(400).json({ message: "Invalid parsed workout data" });
       }
       
+      // Transform freeform parsed data to match UI schema
+      const transformedSets = parsed.sets.map((set: any, index: number) => ({
+        id: `freeform-${index}`, // Generate IDs for the sets
+        exercise: set.movement, // Convert 'movement' to 'exercise'
+        weight: set.weightKg ? Math.round(set.weightKg * 2.20462 * 2) / 2 : undefined, // Convert kg to lbs, round to nearest 0.5
+        reps: set.reps,
+        duration: set.timeCapMinutes ? set.timeCapMinutes * 60 : undefined, // Convert minutes to seconds
+        distance: undefined, // Not provided in freeform parsing
+        restTime: undefined, // Not provided in freeform parsing  
+        notes: set.notes,
+        repScheme: set.repScheme, // Keep repScheme for reference
+        timeCapMinutes: set.timeCapMinutes
+      }));
+
       // Insert workout into database
       const workout = await insertWorkout({
         userId: authReq.user.id,
         workout: {
           title: parsed.title,
           request: parsed.request,
-          sets: parsed.sets,
+          sets: transformedSets, // Use transformed sets
           notes: parsed.notes || null,
           completed: true,
           feedback: {
