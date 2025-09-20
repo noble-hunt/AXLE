@@ -30,6 +30,7 @@ import { authFetch } from "@/lib/authFetch";
 import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useGroupRealtime } from "@/hooks/useGroupRealtime";
+import { useAppStore } from "@/store/useAppStore";
 import { formatDistanceToNow } from "date-fns";
 
 // Emoji picker emojis
@@ -92,6 +93,7 @@ export default function GroupFeedPage() {
   const [, params] = useRoute("/groups/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAppStore();
   
   const [group, setGroup] = useState<Group | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -415,7 +417,7 @@ export default function GroupFeedPage() {
 
   // Toggle reaction with optimistic UI
   const toggleReaction = async (postId: string, emoji: string) => {
-    if (!groupId) return;
+    if (!groupId || !user) return;
 
     // Optimistic update
     const currentReactions = postReactions[postId] || [];
@@ -423,18 +425,18 @@ export default function GroupFeedPage() {
     
     let optimisticReactions: Reaction[];
     if (existingReaction?.userReacted) {
-      // Remove reaction
+      // Remove reaction - only update count and userReacted flag, let server handle users
       optimisticReactions = currentReactions.map(r => 
         r.emoji === emoji 
-          ? { ...r, count: r.count - 1, userReacted: false, users: r.users.filter(u => u.id !== 'current-user') }
+          ? { ...r, count: r.count - 1, userReacted: false }
           : r
       ).filter(r => r.count > 0);
     } else {
-      // Add reaction
+      // Add reaction - only update count and userReacted flag, let server handle users
       if (existingReaction) {
         optimisticReactions = currentReactions.map(r => 
           r.emoji === emoji 
-            ? { ...r, count: r.count + 1, userReacted: true, users: [...r.users, { id: 'current-user', name: 'You' }] }
+            ? { ...r, count: r.count + 1, userReacted: true }
             : r
         );
       } else {
@@ -442,7 +444,7 @@ export default function GroupFeedPage() {
           emoji, 
           count: 1, 
           userReacted: true, 
-          users: [{ id: 'current-user', name: 'You' }] 
+          users: [] // Let server populate users to avoid ID mismatches
         }];
       }
     }
@@ -664,23 +666,59 @@ export default function GroupFeedPage() {
           )}
           
           {/* Reactions */}
-          {reactions.length > 0 && (
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {reactions.map((reaction) => (
+          <div className="flex gap-2 mt-2 flex-wrap">
+            {REACTION_EMOJIS.map((emoji) => {
+              const reaction = reactions.find(r => r.emoji === emoji);
+              const count = reaction?.count || 0;
+              const userReacted = reaction?.userReacted || false;
+              
+              // Only show if there are reactions or user hasn't reacted yet
+              if (count === 0 && !userReacted) {
+                return (
+                  <Button
+                    key={emoji}
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs h-7 px-2 rounded-full opacity-60 hover:opacity-100"
+                    onClick={() => toggleReaction(post.id, emoji)}
+                    data-testid={`reaction-${emoji}-${post.id}`}
+                  >
+                    <span>{emoji}</span>
+                  </Button>
+                );
+              }
+              
+              return (
                 <Button
-                  key={reaction.emoji}
+                  key={emoji}
                   size="sm"
-                  variant={reaction.userReacted ? "default" : "outline"}
+                  variant={userReacted ? "default" : "outline"}
                   className="text-xs h-7 px-2 rounded-full"
-                  onClick={() => toggleReaction(post.id, reaction.emoji)}
-                  data-testid={`reaction-${reaction.emoji}-${post.id}`}
+                  onClick={() => toggleReaction(post.id, emoji)}
+                  data-testid={`reaction-${emoji}-${post.id}`}
+                  title={reaction ? reaction.users.slice(0, 3).map(u => u.name).join(', ') : ''}
                 >
-                  <span className="mr-1">{reaction.emoji}</span>
-                  <span>{reaction.count}</span>
+                  <span className="mr-1">{emoji}</span>
+                  <span>{count}</span>
+                  {reaction && reaction.users.length > 0 && (
+                    <div className="ml-1 flex -space-x-1">
+                      {reaction.users.slice(0, 3).map((user, idx) => (
+                        <Avatar key={user.id} className="w-4 h-4 border border-background">
+                          {user.avatar ? (
+                            <AvatarImage src={user.avatar} alt={user.name} />
+                          ) : (
+                            <AvatarFallback className="text-xs">
+                              {user.name.substring(0, 1).toUpperCase()}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                      ))}
+                    </div>
+                  )}
                 </Button>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
       </div>
     );
