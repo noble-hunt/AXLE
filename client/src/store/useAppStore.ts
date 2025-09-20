@@ -21,6 +21,7 @@ import {
   Unit,
   WorkoutFeedback
 } from '../types';
+import { Profile } from '@shared/schema';
 import { computeAllAchievements, getNewlyUnlocked } from '../utils/achievementsEngine';
 
 // Seed data
