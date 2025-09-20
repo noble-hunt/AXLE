@@ -17,11 +17,14 @@ import { listReports } from "./dal/reports";
 import { listWearables } from "./dal/wearables";
 import { registerSuggestionRoutes } from "./routes/suggestions";
 import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron";
-import { parseFreeform, type ValidatedFreeformParsed, FreeformParsedSchema } from "./logic/freeform";
+import { registerWorkoutFreeformRoutes } from "./routes/workout-freeform";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register suggestion routes
   registerSuggestionRoutes(app);
+  
+  // Register workout freeform routes
+  registerWorkoutFreeformRoutes(app);
   
   // Authenticated data fetching routes
   app.get("/api/user/data", requireAuth, async (req, res) => {
@@ -193,84 +196,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Freeform workout parsing endpoint
-  app.post("/api/workouts/parse-freeform", requireAuth, async (req, res) => {
-    try {
-      const authReq = req as AuthenticatedRequest;
-      const { text } = req.body;
-      
-      if (!text || typeof text !== 'string' || text.trim().length === 0) {
-        return res.status(400).json({ message: "Text description is required" });
-      }
-      
-      // Parse workout using extracted logic
-      const parsed = await parseFreeform(text, authReq.user.id);
-      res.json({ parsed });
-    } catch (error) {
-      console.error("Failed to parse workout:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      
-      // Return appropriate status codes based on error type
-      if (errorMessage.includes("Rate limit exceeded")) {
-        return res.status(429).json({ message: errorMessage });
-      }
-      if (errorMessage.includes("too long")) {
-        return res.status(400).json({ message: errorMessage });
-      }
-      if (errorMessage.includes("required") || errorMessage.includes("Invalid")) {
-        return res.status(400).json({ message: errorMessage });
-      }
-      
-      res.status(500).json({ 
-        message: "Failed to parse workout description",
-        error: errorMessage
-      });
-    }
-  });
-
-
-  // Freeform workout logging endpoint
-  app.post("/api/workouts/log-freeform", requireAuth, async (req, res) => {
-    try {
-      const authReq = req as AuthenticatedRequest;
-      const { parsed, originalText } = req.body;
-      
-      // Re-validate parsed data with Zod schema to ensure robustness
-      const validatedParsed = FreeformParsedSchema.parse(parsed);
-      
-      // Insert the workout with proper metadata
-      const workout = await insertWorkout({
-        userId: authReq.user.id,
-        workout: {
-          title: validatedParsed.title,
-          request: validatedParsed.request,
-          sets: validatedParsed.sets,
-          notes: validatedParsed.notes,
-          completed: true,
-          feedback: {
-            source: 'freeform',
-            confidence: validatedParsed.confidence,
-            originalText: originalText || '',
-            parsedAt: new Date().toISOString()
-          }
-        }
-      });
-      
-      res.json({ id: workout.id });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid workout data", 
-          errors: error.issues 
-        });
-      }
-      console.error("Failed to log freeform workout:", error);
-      res.status(500).json({ 
-        message: "Failed to save workout",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
 
 
   // Personal Records routes

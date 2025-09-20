@@ -5,169 +5,114 @@ import { z } from "zod";
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Validation schemas aligned with shared/schema.ts
-const FreeformWorkoutSetSchema = z.object({
-  id: z.string(),
-  exercise: z.string().min(1),
-  weight: z.number().positive().nullable(),
-  reps: z.number().positive().nullable(),
-  duration: z.number().positive().nullable(),
-  repScheme: z.string().nullable(),
-  notes: z.string().nullable()
+// Schema for freeform parsed workout
+const FreeformSetSchema = z.object({
+  movement: z.string(),
+  repScheme: z.string().optional(),
+  reps: z.number().int().optional(),
+  weightKg: z.number().optional(),
+  timeCapMinutes: z.number().int().optional(),
+  notes: z.string().optional()
 });
 
 const FreeformRequestSchema = z.object({
   category: z.enum([
-    "CrossFit", 
-    "HIIT", 
-    "Powerlifting", 
-    "Cardio", // Use existing enum values from shared schema
-    "Strength"
+    "CrossFit", "HIIT", "Powerlifting", "Olympic Weightlifting", 
+    "Bodybuilding Upper", "Bodybuilding Lower", "Bodybuilding Full", 
+    "Gymnastics", "Aerobic"
   ]),
-  duration: z.number().min(5).max(120), // Clamped 5-120 minutes
-  intensity: z.number().min(1).max(10)   // Clamped 1-10 scale
+  durationMinutes: z.number().int().min(5).max(120),
+  intensity: z.number().int().min(1).max(10)
 });
 
 const FreeformParsedSchema = z.object({
   request: FreeformRequestSchema,
   format: z.enum([
-    "EMOM", 
-    "AMRAP", 
-    "For Time", 
-    "Strength", 
-    "Skill", 
-    "Intervals", 
-    "Circuit", 
-    "Other"
+    "EMOM", "AMRAP", "For Time", "Strength", "Skill", 
+    "Intervals", "Circuit", "Other"
   ]),
-  sets: z.array(FreeformWorkoutSetSchema),
-  title: z.string().min(1),
-  notes: z.string().nullable(),
+  title: z.string(),
+  sets: z.array(FreeformSetSchema),
+  notes: z.string().optional(),
   confidence: z.number().min(0).max(1)
 });
 
-export type ValidatedFreeformParsed = z.infer<typeof FreeformParsedSchema>;
+export type FreeformParsed = z.infer<typeof FreeformParsedSchema>;
 
-// Export schema for validation in routes
-export { FreeformParsedSchema };
-
-export async function parseFreeform(text: string, userId: string): Promise<ValidatedFreeformParsed> {
-  if (!text || text.trim().length === 0) {
-    throw new Error("Text description is required");
-  }
-
-  if (text.length > 10000) {
-    throw new Error("Workout description too long (max 10,000 characters)");
-  }
-
-  const systemPrompt = `You are a fitness expert assistant that parses workout descriptions into structured data. 
-
-Parse the workout description and return JSON with this exact structure:
+export async function parseFreeform(text: string, userId: string): Promise<FreeformParsed> {
+  const systemPrompt = `You are a workout parser. Return ONLY valid JSON. 
+Map the user description into:
 {
-  "request": {
-    "category": "CrossFit" | "HIIT" | "Powerlifting" | "Olympic Weightlifting" | "Gymnastics" | "Aerobic" | "Strength" | "Mobility",
-    "duration": number (5-120 minutes),
-    "intensity": number (1-10 scale)
-  },
-  "format": "EMOM" | "AMRAP" | "For Time" | "Strength" | "Skill" | "Intervals" | "Circuit" | "Other",
+  "request": { "category": <Category>, "durationMinutes": <int 5..120>, "intensity": <int 1..10> },
+  "format": "EMOM|AMRAP|For Time|Strength|Skill|Intervals|Circuit|Other",
+  "title": <short title>,
   "sets": [
-    {
-      "id": "unique-id",
-      "exercise": "exercise name",
-      "weight": number | null,
-      "reps": number | null,
-      "duration": number | null,
-      "repScheme": "3x10" | "EMOM 12" | "AMRAP 20" | null,
-      "notes": "any additional notes" | null
-    }
+    { "movement": <string>, "repScheme": <string|optional>, "reps": <int|optional>, "weightKg": <number|optional>, "timeCapMinutes": <int|optional>, "notes": <string|optional> }
   ],
-  "title": "descriptive workout title",
-  "notes": "any general workout notes or context",
-  "confidence": number (0.0-1.0 confidence score)
+  "notes": <string|optional>,
+  "confidence": <0..1>
 }
-
-Guidelines:
-- Use exact category names: "CrossFit", "HIIT", "Powerlifting", "Cardio", "Strength"
-- Duration must be 5-120 minutes based on description or reasonable defaults
-- Intensity must be 1-10 based on effort level, weight percentages, time pressure
-- Extract individual exercises with sets/reps/weights
-- Use appropriate repScheme format (3x10, EMOM 12, etc.)
-- Generate a concise but descriptive title (3-8 words)
-- Set confidence high (0.8+) for clear descriptions, lower for ambiguous ones
-- Ensure all required fields are present and properly typed`;
+Rules:
+- Convert any pounds to kilograms (1 lb = 0.45359237) and round to 0.5 kg.
+- Parse schemes like "5x5", "3 x 10", "EMOM 12" into repScheme/time.
+- If duration not stated, infer from format: EMOM N → N minutes; AMRAP usually 12–25; For Time use user-stated cap or 12–20.
+- If intensity not stated, infer from language: easy(3-4), moderate(5-6), hard(7-8), max(9-10).
+- Category inference examples:
+  * Back squat/deadlift/bench → Powerlifting
+  * Snatch/clean & jerk → Olympic Weightlifting
+  * Pull-ups/push-ups/HS push-ups → Gymnastics
+  * Runs/rows/rides/skis → Aerobic
+  * Mixed couplets/triplets/time caps → CrossFit/HIIT
+- Never invent unsafe values. If unsure, leave weightKg null and use repScheme text.`;
 
   let attempt = 0;
   const maxAttempts = 2;
-  let currentSystemPrompt = systemPrompt; // Make mutable copy
 
   while (attempt < maxAttempts) {
     try {
-      // Create AbortController for proper timeout handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-
       const response = await openai.chat.completions.create({
         model: "gpt-5",
         messages: [
-          { role: "system", content: currentSystemPrompt },
+          { role: "system", content: systemPrompt },
           { role: "user", content: text.trim() }
         ],
         response_format: { type: "json_object" }
-      }, {
-        signal: controller.signal
       });
 
-      clearTimeout(timeoutId);
       const rawParsed = JSON.parse(response.choices[0].message.content || '{}');
       
-      // Validate with Zod and normalize
+      // Validate with Zod
       const validated = FreeformParsedSchema.parse(rawParsed);
+      
+      // Normalize the parsed data
       return normalizeParsed(validated);
 
     } catch (error: unknown) {
       attempt++;
       
-      // Handle Zod validation errors with prompt retry
       if (error instanceof z.ZodError && attempt < maxAttempts) {
+        // Retry with validation errors in prompt
         const validationErrors = error.issues.map(issue => 
           `${issue.path.join('.')}: ${issue.message}`
         ).join(', ');
         
-        currentSystemPrompt += `\n\nIMPORTANT: Previous attempt failed validation with these errors: ${validationErrors}. Please fix these issues.`;
-        continue;
-      }
-      
-      // Handle transient errors with exponential backoff retry
-      const isTransientError = (error && typeof error === 'object' && (
-        ('status' in error && typeof error.status === 'number' && (error.status === 429 || error.status >= 500)) ||
-        ('code' in error && (error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND')) ||
-        ('name' in error && error.name === 'AbortError')
-      ));
-      
-      if (isTransientError && attempt < maxAttempts) {
-        // Exponential backoff with jitter (1-3 seconds)
-        const backoffMs = Math.random() * 2000 + 1000;
-        await new Promise(resolve => setTimeout(resolve, backoffMs));
-        continue;
-      }
-      
-      // Final error handling
-      if (error instanceof z.ZodError) {
-        throw new Error(`Invalid workout structure: ${error.issues[0].message}`);
-      }
-      if (error && typeof error === 'object' && 'code' in error) {
-        const errorCode = error.code;
-        if (errorCode === 'ENOTFOUND' || errorCode === 'ETIMEDOUT') {
-          throw new Error("OpenAI service temporarily unavailable. Please try again.");
-        }
-      }
-      if (error && typeof error === 'object' && 'status' in error) {
-        const errorStatus = error.status;
-        if (errorStatus === 429) {
-          throw new Error("Rate limit exceeded. Please wait a moment and try again.");
-        }
-        if (errorStatus === 401) {
-          throw new Error("AI service configuration error");
+        const retryPrompt = systemPrompt + `\n\nPrevious attempt failed validation with these errors: ${validationErrors}. Please fix these issues.`;
+        
+        try {
+          const retryResponse = await openai.chat.completions.create({
+            model: "gpt-5",
+            messages: [
+              { role: "system", content: retryPrompt },
+              { role: "user", content: text.trim() }
+            ],
+            response_format: { type: "json_object" }
+          });
+
+          const retryRawParsed = JSON.parse(retryResponse.choices[0].message.content || '{}');
+          const retryValidated = FreeformParsedSchema.parse(retryRawParsed);
+          return normalizeParsed(retryValidated);
+        } catch (retryError) {
+          throw new Error("Failed to parse workout after retry");
         }
       }
       
@@ -179,30 +124,29 @@ Guidelines:
   throw new Error("Failed to parse workout after multiple attempts");
 }
 
-function normalizeParsed(parsed: ValidatedFreeformParsed): ValidatedFreeformParsed {
+function normalizeParsed(parsed: FreeformParsed): FreeformParsed {
   return {
     ...parsed,
     request: {
       ...parsed.request,
-      // Clamp duration and intensity to valid ranges
-      duration: Math.max(5, Math.min(120, parsed.request.duration)),
+      // Ensure durationMinutes is within [5,120]
+      durationMinutes: Math.max(5, Math.min(120, parsed.request.durationMinutes)),
+      // Clamp intensity to 1..10
       intensity: Math.max(1, Math.min(10, parsed.request.intensity))
     },
-    // Clean title: trim whitespace and limit length
-    title: parsed.title.trim().slice(0, 100),
-    // Clean notes
-    notes: parsed.notes ? parsed.notes.trim() || null : null,
-    // Normalize sets
-    sets: parsed.sets.map((set, index) => ({
+    // Clean title - collapse duplicate whitespace
+    title: parsed.title.replace(/\s+/g, ' ').trim(),
+    // Process sets to convert any remaining lbs to kg
+    sets: parsed.sets.map(set => ({
       ...set,
-      id: set.id || `set-${Date.now()}-${index}`,
-      exercise: set.exercise.trim(),
-      // Convert lbs to kg (round to 0.5kg)
-      weight: set.weight && set.notes?.toLowerCase().includes('lbs') 
-        ? Math.round((set.weight / 2.20462) * 2) / 2 
-        : set.weight,
-      notes: set.notes ? set.notes.trim() || null : null,
-      repScheme: set.repScheme ? set.repScheme.trim() || null : null
-    }))
+      // Convert lbs to kg if weight is specified and notes mention lbs
+      weightKg: set.weightKg && set.notes?.toLowerCase().includes('lb') 
+        ? Math.round((set.weightKg / 0.45359237) * 2) / 2  // Round to 0.5 kg
+        : set.weightKg,
+      // Clean notes
+      notes: set.notes ? set.notes.replace(/\s+/g, ' ').trim() : set.notes
+    })),
+    // Clean notes
+    notes: parsed.notes ? parsed.notes.replace(/\s+/g, ' ').trim() : parsed.notes
   };
 }
