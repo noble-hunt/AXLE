@@ -29,7 +29,9 @@ export function useGroupRealtime(
   groupId: string | null,
   onNewPost?: (post: any) => void,
   onNewReaction?: (reaction: any) => void,
-  onReactionRemoved?: (reaction: any) => void
+  onReactionRemoved?: (reaction: any) => void,
+  onRsvpChanged?: (rsvp: any) => void,
+  onRsvpRemoved?: (rsvp: any) => void
 ): GroupRealtimeData {
   const { user } = useAppStore();
   const [onlineMembers, setOnlineMembers] = useState<GroupPresence[]>([]);
@@ -132,6 +134,51 @@ export function useGroupRealtime(
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'group_event_rsvps',
+          filter: `group_id=eq.${groupId}`,
+        },
+        (payload: RealtimePayload) => {
+          console.log('📅 [Realtime] New RSVP:', payload.new);
+          if (onRsvpChanged) {
+            onRsvpChanged(payload.new);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'group_event_rsvps',
+          filter: `group_id=eq.${groupId}`,
+        },
+        (payload: RealtimePayload) => {
+          console.log('📅 [Realtime] RSVP updated:', payload.new);
+          if (onRsvpChanged) {
+            onRsvpChanged(payload.new);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'group_event_rsvps',
+          filter: `group_id=eq.${groupId}`,
+        },
+        (payload: RealtimePayload) => {
+          console.log('📅 [Realtime] RSVP removed:', payload.old);
+          if (onRsvpRemoved) {
+            onRsvpRemoved(payload.old);
+          }
+        }
+      )
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState() as RealtimePresenceState<GroupPresence>;
         const members: GroupPresence[] = [];
@@ -195,7 +242,7 @@ export function useGroupRealtime(
       setTypingMembers([]);
       setIsTypingState(false);
     };
-  }, [groupId, user, displayName, onNewPost, onNewReaction, onReactionRemoved]);
+  }, [groupId, user, displayName, onNewPost, onNewReaction, onReactionRemoved, onRsvpChanged, onRsvpRemoved]);
 
   return {
     onlineMembers,

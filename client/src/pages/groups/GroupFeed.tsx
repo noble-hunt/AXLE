@@ -33,6 +33,8 @@ import { useGroupRealtime } from "@/hooks/useGroupRealtime";
 import { useAppStore } from "@/store/useAppStore";
 import { formatDistanceToNow } from "date-fns";
 import { EventRsvpButtons } from "@/components/groups/EventRsvpButtons";
+import { EventReminderBanner } from "@/components/groups/EventReminderBanner";
+import { queryClient } from "@/lib/queryClient";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -166,6 +168,28 @@ export default function GroupFeedPage() {
       // Refresh reactions for the post
       if (reaction.postId) {
         loadReactionsForPost(reaction.postId);
+      }
+    },
+    // onRsvpChanged callback
+    (rsvp) => {
+      console.log('RSVP changed:', rsvp);
+      // Invalidate RSVP queries for the specific post (use snake_case from DB)
+      const postId = rsvp.postId ?? rsvp.post_id;
+      if (postId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/groups', groupId, 'posts', postId, 'rsvps'] 
+        });
+      }
+    },
+    // onRsvpRemoved callback
+    (rsvp) => {
+      console.log('RSVP removed:', rsvp);
+      // Invalidate RSVP queries for the specific post (use snake_case from DB)
+      const postId = rsvp.postId ?? rsvp.post_id;
+      if (postId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/groups', groupId, 'posts', postId, 'rsvps'] 
+        });
       }
     }
   );
@@ -837,6 +861,9 @@ export default function GroupFeedPage() {
             <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
           </div>
         )}
+        
+        {/* Event reminder banner */}
+        {groupId && <EventReminderBanner groupId={groupId} />}
         
         <div
           style={{
