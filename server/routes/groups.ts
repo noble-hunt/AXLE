@@ -1,5 +1,6 @@
 import { Express } from "express";
 import { requireAuth, AuthenticatedRequest } from "../middleware/requireAuth";
+import { reactionRateLimit } from "../middleware/reactionRateLimit";
 import {
   createGroup,
   getUserGroups,
@@ -248,7 +249,7 @@ export function registerGroupRoutes(app: Express) {
   });
 
   // POST /api/reactions → upsert (toggle on/off)
-  app.post("/api/reactions", requireAuth, async (req, res) => {
+  app.post("/api/reactions", requireAuth, reactionRateLimit, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
@@ -289,7 +290,7 @@ export function registerGroupRoutes(app: Express) {
   });
 
   // DELETE /api/reactions → remove reaction
-  app.delete("/api/reactions", requireAuth, async (req, res) => {
+  app.delete("/api/reactions", requireAuth, reactionRateLimit, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
