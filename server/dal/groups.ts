@@ -99,6 +99,105 @@ export async function getUserGroups(userId: string) {
   return userGroups;
 }
 
+// MODERATION: Delete post from group (owners/admins only)
+export async function deleteGroupPost(userId: string, groupId: string, postId: string) {
+  await setUserContext(userId);
+  
+  // Check if user is owner or admin
+  const membership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId)
+      )
+    );
+    
+  if (!membership[0] || !['owner', 'admin'].includes(membership[0].role)) {
+    throw new Error('Only owners and admins can delete posts');
+  }
+  
+  // Delete group_posts mapping (keep canonical post if cross-posted elsewhere)
+  const deleted = await db
+    .delete(groupPosts)
+    .where(
+      and(
+        eq(groupPosts.groupId, groupId),
+        eq(groupPosts.postId, postId)
+      )
+    )
+    .returning();
+    
+  if (deleted.length === 0) {
+    throw new Error('Post not found in this group');
+  }
+  
+  // Also delete reactions for this post in this group
+  await db
+    .delete(groupReactions)
+    .where(
+      and(
+        eq(groupReactions.groupId, groupId),
+        eq(groupReactions.postId, postId)
+      )
+    );
+    
+  return { success: true };
+}
+
+// MODERATION: Remove member from group (owners/admins only)
+export async function removeMemberFromGroup(userId: string, groupId: string, targetUserId: string) {
+  await setUserContext(userId);
+  
+  // Check if user is owner or admin
+  const membership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId)
+      )
+    );
+    
+  if (!membership[0] || !['owner', 'admin'].includes(membership[0].role)) {
+    throw new Error('Only owners and admins can remove members');
+  }
+  
+  // Can't remove the owner
+  const targetMembership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers) 
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, targetUserId)
+      )
+    );
+    
+  if (targetMembership[0]?.role === 'owner') {
+    throw new Error('Cannot remove the group owner');
+  }
+  
+  // Remove member
+  const removed = await db
+    .delete(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, targetUserId)
+      )
+    )
+    .returning();
+    
+  if (removed.length === 0) {
+    throw new Error('Member not found in this group');
+  }
+  
+  return { success: true };
+}
+
 // GET GROUP PROFILE + MEMBERSHIP ROLE + BASIC COUNTS
 export async function getGroupProfile(userId: string, groupId: string) {
   await setUserContext(userId);

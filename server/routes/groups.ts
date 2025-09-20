@@ -14,7 +14,9 @@ import {
   getReactionSummary,
   upsertRsvp,
   removeRsvp,
-  getPostRsvps
+  getPostRsvps,
+  deleteGroupPost,
+  removeMemberFromGroup
 } from "../dal/groups";
 import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements";
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
@@ -424,6 +426,44 @@ export function registerGroupRoutes(app: Express) {
       console.error("Error fetching group achievements:", error);
       res.status(500).json({ 
         message: "Failed to fetch group achievements",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // DELETE /api/groups/:groupId/posts/:postId → delete post from group (moderation)
+  app.delete("/api/groups/:groupId/posts/:postId", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const { groupId, postId } = req.params;
+
+      const result = await deleteGroupPost(userId, groupId, postId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error deleting group post:", error);
+      const statusCode = error instanceof Error && error.message.includes('Only owners') ? 403 : 500;
+      res.status(statusCode).json({ 
+        message: "Failed to delete post",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // DELETE /api/groups/:groupId/members/:userId → remove member (moderation)
+  app.delete("/api/groups/:groupId/members/:userId", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUserId = authReq.user.id;
+      const { groupId, userId: targetUserId } = req.params;
+
+      const result = await removeMemberFromGroup(currentUserId, groupId, targetUserId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error removing group member:", error);
+      const statusCode = error instanceof Error && error.message.includes('Only owners') ? 403 : 500;
+      res.status(statusCode).json({ 
+        message: "Failed to remove member",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
