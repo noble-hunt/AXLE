@@ -37,6 +37,7 @@ import { EventReminderBanner } from "@/components/groups/EventReminderBanner";
 import { FeedNudgeCard } from "@/components/groups/FeedNudgeCard";
 import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
+import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -99,6 +100,10 @@ export default function GroupFeedPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user } = useAppStore();
+  
+  // Rate limiting hooks
+  const reactionRateLimit = useReactionRateLimit();
+  const composerRateLimit = useComposerRateLimit();
   
   const [group, setGroup] = useState<Group | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -346,41 +351,43 @@ export default function GroupFeedPage() {
 
     const targetGroups = crossPost && selectedGroups.length > 0 ? selectedGroups : [groupId!];
     
-    setPosting(true);
-    try {
-      const response = await authFetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "text",
-          content: { message: message.trim() },
-          groupIds: targetGroups,
-        }),
-      });
-
-      if (response.ok) {
-        // Don't add locally - let real-time handle it to avoid duplication
-        setMessage("");
-        setCrossPost(false);
-        setSelectedGroups([]);
-        
-        toast({
-          title: "Message sent!",
-          description: crossPost ? `Posted to ${targetGroups.length} groups` : "Posted to group",
+    await composerRateLimit.execute(async () => {
+      setPosting(true);
+      try {
+        const response = await authFetch("/api/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: "text",
+            content: { message: message.trim() },
+            groupIds: targetGroups,
+          }),
         });
-      } else {
-        throw new Error("Failed to send message");
+
+        if (response.ok) {
+          // Don't add locally - let real-time handle it to avoid duplication
+          setMessage("");
+          setCrossPost(false);
+          setSelectedGroups([]);
+          
+          toast({
+            title: "Message sent!",
+            description: crossPost ? `Posted to ${targetGroups.length} groups` : "Posted to group",
+          });
+        } else {
+          throw new Error("Failed to send message");
+        }
+      } catch (error) {
+        console.error("Failed to send message:", error);
+        toast({
+          title: "Failed to send message",
+          description: "Please try again",
+          variant: "destructive",
+        });
+      } finally {
+        setPosting(false);
       }
-    } catch (error) {
-      console.error("Failed to send message:", error);
-      toast({
-        title: "Failed to send message",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    } finally {
-      setPosting(false);
-    }
+    });
   };
 
   const handleShareWorkout = async (workout: Workout) => {
@@ -489,69 +496,71 @@ export default function GroupFeedPage() {
   const toggleReaction = async (postId: string, emoji: string) => {
     if (!groupId || !user) return;
 
-    // Optimistic update
-    const currentReactions = postReactions[postId] || [];
-    const existingReaction = currentReactions.find(r => r.emoji === emoji);
-    
-    let optimisticReactions: Reaction[];
-    if (existingReaction?.userReacted) {
-      // Remove reaction - only update count and userReacted flag, let server handle users
-      optimisticReactions = currentReactions.map(r => 
-        r.emoji === emoji 
-          ? { ...r, count: r.count - 1, userReacted: false }
-          : r
-      ).filter(r => r.count > 0);
-    } else {
-      // Add reaction - only update count and userReacted flag, let server handle users
-      if (existingReaction) {
+    await reactionRateLimit.execute(async () => {
+      // Optimistic update
+      const currentReactions = postReactions[postId] || [];
+      const existingReaction = currentReactions.find(r => r.emoji === emoji);
+      
+      let optimisticReactions: Reaction[];
+      if (existingReaction?.userReacted) {
+        // Remove reaction - only update count and userReacted flag, let server handle users
         optimisticReactions = currentReactions.map(r => 
           r.emoji === emoji 
-            ? { ...r, count: r.count + 1, userReacted: true }
+            ? { ...r, count: r.count - 1, userReacted: false }
             : r
-        );
+        ).filter(r => r.count > 0);
       } else {
-        optimisticReactions = [...currentReactions, { 
-          emoji, 
-          count: 1, 
-          userReacted: true, 
-          users: [] // Let server populate users to avoid ID mismatches
-        }];
-      }
-    }
-
-    setPostReactions(prev => ({
-      ...prev,
-      [postId]: optimisticReactions
-    }));
-
-    try {
-      const response = await authFetch("/api/reactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          groupId,
-          postId,
-          emoji,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to toggle reaction");
+        // Add reaction - only update count and userReacted flag, let server handle users
+        if (existingReaction) {
+          optimisticReactions = currentReactions.map(r => 
+            r.emoji === emoji 
+              ? { ...r, count: r.count + 1, userReacted: true }
+              : r
+          );
+        } else {
+          optimisticReactions = [...currentReactions, { 
+            emoji, 
+            count: 1, 
+            userReacted: true, 
+            users: [] // Let server populate users to avoid ID mismatches
+          }];
+        }
       }
 
-      // Refresh reactions to get accurate data
-      loadReactionsForPost(postId);
-    } catch (error) {
-      console.error("Failed to toggle reaction:", error);
-      // Rollback optimistic update
-      loadReactionsForPost(postId);
-      
-      toast({
-        title: "Failed to react",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    }
+      setPostReactions(prev => ({
+        ...prev,
+        [postId]: optimisticReactions
+      }));
+
+      try {
+        const response = await authFetch("/api/reactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            groupId,
+            postId,
+            emoji,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to toggle reaction");
+        }
+
+        // Refresh reactions to get accurate data
+        loadReactionsForPost(postId);
+      } catch (error) {
+        console.error("Failed to toggle reaction:", error);
+        // Rollback optimistic update
+        loadReactionsForPost(postId);
+        
+        toast({
+          title: "Failed to react",
+          description: "Please try again",
+          variant: "destructive",
+        });
+      }
+    });
   };
 
   // Handle long-press or right-click
