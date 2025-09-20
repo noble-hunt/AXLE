@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
-import { ArrowLeft, Save } from "lucide-react"
+import { Save } from "lucide-react"
+import { BackButton } from "@/components/ui/back-button"
 import { apiRequest } from "@/lib/queryClient"
 
 export default function EditProfile() {
@@ -94,14 +95,12 @@ export default function EditProfile() {
       >
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Button
+          <BackButton 
+            fallbackPath="/profile"
             variant="ghost"
             size="sm"
-            onClick={() => setLocation("/profile")}
-            data-testid="button-back"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
+            showText={false}
+          />
           <h1 className="text-heading font-bold text-foreground">Edit Profile</h1>
         </div>
 

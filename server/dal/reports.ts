@@ -6,6 +6,7 @@ export interface InsertReportParams {
   summary?: string;
   metrics: Record<string, any>;
   suggestions: string[];
+  fatigueScore?: number;
 }
 
 export interface ListReportsOptions {
@@ -20,7 +21,8 @@ export async function insertReport(params: InsertReportParams) {
       date: params.date,
       summary: params.summary,
       metrics: params.metrics,
-      suggestions: params.suggestions
+      suggestions: params.suggestions,
+      fatigue_score: params.fatigueScore
     })
     .select()
     .single();

@@ -153,7 +153,7 @@ function complementCategory(lastCat: Category | undefined, weeklyCounts: Record<
  *   + (stress>=7 ? +0.20 : stress>=4 ? +0.10 : -0.05)
  * )
  */
-function computeFatigue(health: HealthReport | null, last14Workouts: Workout[], rulesApplied: string[]): number {
+export function computeFatigue(health: HealthReport | null, last14Workouts: Workout[], rulesApplied: string[]): number {
   let fatigue = 0.5; // Start at 0.5
 
   if (health?.metrics && typeof health.metrics === 'object') {

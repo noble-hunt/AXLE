@@ -8,6 +8,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,7 +26,10 @@ import {
   Calendar,
   Check,
   Bell,
-  ExternalLink
+  ExternalLink,
+  MoreHorizontal,
+  LogOut,
+  Trash
 } from "lucide-react";
 import { authFetch } from "@/lib/authFetch";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +41,7 @@ import { EventRsvpButtons } from "@/components/groups/EventRsvpButtons";
 import { EventReminderBanner } from "@/components/groups/EventReminderBanner";
 import { FeedNudgeCard } from "@/components/groups/FeedNudgeCard";
 import { GroupWorkoutEventCard } from "@/components/groups/GroupWorkoutEventCard";
+import { BackButton } from "@/components/ui/back-button";
 import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
 import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
@@ -140,6 +146,12 @@ export default function GroupFeedPage() {
   const [postReactions, setPostReactions] = useState<PostReactions>({});
   const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
   const [emojiPickerPosition, setEmojiPickerPosition] = useState({ x: 0, y: 0 });
+
+  // Group management state
+  const [leavingGroup, setLeavingGroup] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const groupId = params?.id;
   const parentRef = useRef<HTMLDivElement>(null);
@@ -576,6 +588,82 @@ export default function GroupFeedPage() {
     setShowEmojiPicker(postId);
   };
 
+  const handleLeaveGroup = async () => {
+    if (!groupId || !user || leavingGroup) return;
+
+    setLeavingGroup(true);
+    try {
+      const response = await authFetch(`/api/groups/${groupId}/members`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        // Invalidate group queries - align with actual query keys used in the app
+        queryClient.invalidateQueries({ queryKey: ['/api/groups/mine'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/groups', groupId] });
+        queryClient.invalidateQueries({ queryKey: ['/api/groups', groupId, 'feed'] });
+        
+        toast({
+          title: "Left group",
+          description: "You have left the group successfully",
+        });
+        // Redirect to groups page
+        setLocation('/groups');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to leave group');
+      }
+    } catch (error) {
+      console.error('Failed to leave group:', error);
+      toast({
+        title: "Failed to leave group",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setLeavingGroup(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!groupId || !user || deletingGroup) return;
+
+    setDeletingGroup(true);
+    try {
+      const response = await authFetch(`/api/groups/${groupId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        // Invalidate group queries - align with actual query keys used in the app
+        queryClient.invalidateQueries({ queryKey: ['/api/groups/mine'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/groups', groupId] });
+        queryClient.invalidateQueries({ queryKey: ['/api/groups', groupId, 'feed'] });
+        
+        toast({
+          title: "Group deleted",
+          description: "The group has been deleted successfully",
+        });
+        // Redirect to groups page
+        setLocation('/groups');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete group');
+      }
+    } catch (error) {
+      console.error('Failed to delete group:', error);
+      toast({
+        title: "Failed to delete group",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingGroup(false);
+    }
+  };
+
   const loadRecentWorkouts = async () => {
     setLoadingWorkouts(true);
     try {
@@ -862,15 +950,7 @@ export default function GroupFeedPage() {
       {/* Header */}
       <div className="flex-shrink-0 p-4 border-b bg-background">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setLocation("/groups")}
-            data-testid="back-button"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
+          <BackButton fallbackPath="/groups" />
           
           <Avatar className="w-8 h-8">
             <AvatarImage src={group.photoUrl} alt={group.name} />
@@ -902,15 +982,47 @@ export default function GroupFeedPage() {
             </div>
           </div>
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setLocation(`/groups/${groupId}/invite`)}
-            data-testid="invite-button"
-          >
-            <Users className="w-4 h-4 mr-2" />
-            Invite
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation(`/groups/${groupId}/invite`)}
+              data-testid="invite-button"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Invite
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" data-testid="group-menu-button">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {group.userRole === 'owner' ? (
+                  <DropdownMenuItem 
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deletingGroup}
+                    className="text-destructive focus:text-destructive"
+                    data-testid="delete-group-button"
+                  >
+                    <Trash className="w-4 h-4 mr-2" />
+                    {deletingGroup ? "Deleting..." : "Delete Group"}
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem 
+                    onClick={() => setShowLeaveConfirm(true)}
+                    disabled={leavingGroup}
+                    data-testid="leave-group-button"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    {leavingGroup ? "Leaving..." : "Leave Group"}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
@@ -1350,6 +1462,56 @@ export default function GroupFeedPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Leave Group Confirmation Dialog */}
+      <AlertDialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+        <AlertDialogContent data-testid="leave-group-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to leave "{group?.name}"? You'll need an invitation to rejoin this group.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="leave-cancel-button">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLeaveGroup}
+              disabled={leavingGroup}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="leave-confirm-button"
+            >
+              {leavingGroup ? "Leaving..." : "Leave Group"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Group Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent data-testid="delete-group-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete "{group?.name}"? This action cannot be undone. All posts, messages, and group data will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="delete-cancel-button">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteGroup}
+              disabled={deletingGroup}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="delete-confirm-button"
+            >
+              {deletingGroup ? "Deleting..." : "Delete Group"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

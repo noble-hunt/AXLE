@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, integer, timestamp, jsonb, boolean, numeric, smallint, date, uniqueIndex, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, uuid, integer, timestamp, jsonb, boolean, numeric, smallint, date, uniqueIndex, pgEnum, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -180,6 +180,7 @@ export const healthReports = pgTable("health_reports", {
   summary: text("summary"),
   metrics: jsonb("metrics").notNull().default(sql`'{}'`),
   suggestions: text("suggestions").array().notNull().default(sql`'{}'`),
+  fatigueScore: real("fatigue_score"), // 0.0-1.0 fatigue score based on health metrics
 });
 
 // SUGGESTED WORKOUTS - Daily workout suggestions per user

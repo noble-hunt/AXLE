@@ -17,7 +17,8 @@ import {
   removeRsvp,
   getPostRsvps,
   deleteGroupPost,
-  removeMemberFromGroup
+  removeMemberFromGroup,
+  deleteGroup
 } from "../dal/groups";
 import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements";
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
@@ -465,6 +466,25 @@ export function registerGroupRoutes(app: Express) {
       const statusCode = error instanceof Error && error.message.includes('Only owners') ? 403 : 500;
       res.status(statusCode).json({ 
         message: "Failed to remove member",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // DELETE /api/groups/:id → delete entire group (owners only)
+  app.delete("/api/groups/:id", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const { id: groupId } = req.params;
+
+      const result = await deleteGroup(userId, groupId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      const statusCode = error instanceof Error && error.message.includes('Only group owners') ? 403 : 500;
+      res.status(statusCode).json({ 
+        message: "Failed to delete group",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }

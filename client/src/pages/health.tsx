@@ -54,6 +54,7 @@ export default function Health() {
                    report.metrics?.sleep?.quality === 'fair' ? 60 : 
                    report.metrics?.sleep?.quality === 'poor' ? 40 : null,
     stress: null, // Stress data comes from sync parameters, not stored metrics
+    fatigue: report.fatigueScore ? Math.round(report.fatigueScore * 100) : null, // Convert 0-1 to 0-100 scale
   })).reverse() // Show chronologically
   
   // Get today's metrics from latest report
@@ -65,6 +66,7 @@ export default function Health() {
                 latestReport.metrics?.sleep?.quality === 'fair' ? 60 : 
                 latestReport.metrics?.sleep?.quality === 'poor' ? 40 : null,
     stress: null, // Stress data comes from sync parameters, not stored metrics
+    fatigue: latestReport.fatigueScore ? Math.round(latestReport.fatigueScore * 100) : null, // Convert 0-1 to 0-100 scale
   } : null
 
   if (loading) {
@@ -126,10 +128,10 @@ export default function Health() {
                 data-testid="today-sleep-score"
               />
               <StatBadge
-                icon={<Brain className="w-4 h-4" />}
-                value={todayMetrics?.stress ? `${todayMetrics.stress}` : "--"}
-                label="Stress Level"
-                data-testid="today-stress"
+                icon={<BatteryLow className="w-4 h-4" />}
+                value={todayMetrics?.fatigue ? `${todayMetrics.fatigue}%` : "--"}
+                label="Fatigue Score"
+                data-testid="today-fatigue"
               />
             </div>
           </div>
@@ -264,11 +266,11 @@ export default function Health() {
               </div>
             </Card>
 
-            {/* Stress Level Chart */}
-            <Card className="p-4" data-testid="stress-chart">
+            {/* Fatigue Score Chart */}
+            <Card className="p-4" data-testid="fatigue-chart">
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Brain className="w-4 h-4 text-orange-500" />
-                Stress Level
+                <BatteryLow className="w-4 h-4 text-amber-500" />
+                Fatigue Score
               </h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -281,7 +283,7 @@ export default function Health() {
                       tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                     />
                     <YAxis 
-                      domain={[1, 10]}
+                      domain={[0, 100]}
                       axisLine={false}
                       tickLine={false}
                       tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
@@ -295,11 +297,11 @@ export default function Health() {
                     />
                     <Line 
                       type="monotone" 
-                      dataKey="stress" 
-                      stroke="#f97316" 
+                      dataKey="fatigue" 
+                      stroke="#f59e0b" 
                       strokeWidth={3}
-                      dot={{ fill: '#f97316', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, stroke: '#f97316', strokeWidth: 2 }}
+                      dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#f59e0b', strokeWidth: 2 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>

@@ -703,3 +703,78 @@ export async function getPostRsvps(userId: string, groupId: string, postId: stri
 
   return grouped;
 }
+
+// DELETE GROUP (owners only)
+export async function deleteGroup(userId: string, groupId: string) {
+  await setUserContext(userId);
+
+  // Check if user is owner
+  const membership = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId)
+      )
+    )
+    .limit(1);
+
+  if (!membership[0]) {
+    throw new Error('Group not found or access denied');
+  }
+  
+  if (membership[0].role !== 'owner') {
+    throw new Error('Only group owners can delete groups');
+  }
+
+  // Perform all deletions in a transaction for data integrity
+  const result = await db.transaction(async (tx) => {
+    // Delete all related data (cascade deletion)
+    // Order matters: delete child records first, then parent records
+    
+    // Delete all RSVPs for posts in this group
+    await tx
+      .delete(groupEventRsvps)
+      .where(eq(groupEventRsvps.groupId, groupId));
+
+    // Delete all reactions for posts in this group
+    await tx
+      .delete(groupReactions)
+      .where(eq(groupReactions.groupId, groupId));
+
+    // Delete all group posts
+    await tx
+      .delete(groupPosts)
+      .where(eq(groupPosts.groupId, groupId));
+
+    // Delete all group invites
+    await tx
+      .delete(groupInvites)
+      .where(eq(groupInvites.groupId, groupId));
+
+    // Delete all referrals related to this group
+    await tx
+      .delete(referrals)
+      .where(eq(referrals.groupId, groupId));
+
+    // Delete all group memberships
+    await tx
+      .delete(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
+
+    // Finally, delete the group itself
+    const deletedGroup = await tx
+      .delete(groups)
+      .where(eq(groups.id, groupId))
+      .returning();
+
+    if (deletedGroup.length === 0) {
+      throw new Error('Group not found');
+    }
+
+    return deletedGroup[0];
+  });
+
+  return { success: true, deletedGroup: result };
+}

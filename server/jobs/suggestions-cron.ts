@@ -1,8 +1,8 @@
 import * as cron from "node-cron";
 import { db } from "../db";
 import { workouts, suggestedWorkouts, wearableConnections, healthReports } from "@shared/schema";
-import { sql, eq, and, gte } from "drizzle-orm";
-import { computeSuggestion } from "../logic/suggestions";
+import { sql, eq, and, gte, desc } from "drizzle-orm";
+import { computeSuggestion, computeFatigue } from "../logic/suggestions";
 import { MockHealthProvider } from "../providers/health/mock";
 import { FitbitHealthProvider } from "../providers/health/fitbit";
 import { OuraHealthProvider } from "../providers/health/oura";
@@ -68,7 +68,47 @@ async function syncHealthDataIfNeeded(userId: string, today: string): Promise<vo
       console.log(`📊 [CRON] Fetching health data from ${device.provider} for user ${userId}`);
       const healthSnapshot = await provider.fetchLatest(userId);
       
-      // Create health report
+      // Fetch last 14 days of workouts for fatigue calculation
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      
+      const last14Workouts = await db
+        .select()
+        .from(workouts)
+        .where(and(
+          eq(workouts.userId, userId),
+          gte(workouts.createdAt, fourteenDaysAgo)
+        ))
+        .orderBy(desc(workouts.createdAt));
+
+      // Create temporary health report object for fatigue calculation
+      const tempHealthReport = {
+        id: '', // Not needed for calculation
+        userId: userId,
+        date: today,
+        metrics: {
+          hrv: healthSnapshot.hrv,
+          restingHR: healthSnapshot.restingHR,
+          sleepScore: healthSnapshot.sleepScore,
+          stress: healthSnapshot.stress,
+          steps: healthSnapshot.steps,
+          calories: healthSnapshot.calories,
+        },
+        summary: null,
+        suggestions: [],
+        fatigueScore: null
+      };
+
+      // Calculate fatigue score
+      const rulesApplied: string[] = [];
+      const fatigueScore = computeFatigue(tempHealthReport, last14Workouts, rulesApplied);
+      
+      console.log(`🧮 [CRON] Calculated fatigue score ${fatigueScore.toFixed(2)} for user ${userId}`);
+      if (rulesApplied.length > 0) {
+        console.log(`📋 [CRON] Fatigue rules applied: ${rulesApplied.join(', ')}`);
+      }
+      
+      // Create health report with fatigue score
       await db
         .insert(healthReports)
         .values({
@@ -84,6 +124,7 @@ async function syncHealthDataIfNeeded(userId: string, today: string): Promise<vo
             calories: healthSnapshot.calories,
           },
           suggestions: [],
+          fatigueScore: fatigueScore,
         });
 
       console.log(`✅ [CRON] Created health report from ${device.provider} for user ${userId}`);
