@@ -162,7 +162,7 @@ export default function Connect() {
   const connectedCount = connections.filter((conn: any) => conn.connected).length
   const availableCount = providers.length
 
-  if (loadingProviders) {
+  if (loadingProviders || loadingConnections) {
     return (
       <div className="space-y-6">
         <SectionTitle title="Connect Health Providers" />

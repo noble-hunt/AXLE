@@ -45,30 +45,27 @@ export default function Health() {
   
   // Prepare chart data for last 14 days
   const chartData = recentReports.map((report, index) => ({
-    date: report.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    day: report.date.getDate(),
-    hrv: report.metrics?.recovery?.hrv || Math.floor(Math.random() * 20) + 35,
-    restingHR: report.metrics?.heartRate?.resting || Math.floor(Math.random() * 20) + 50,
+    date: new Date(report.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    day: new Date(report.date).getDate(),
+    hrv: report.metrics?.recovery?.hrv || null,
+    restingHR: report.metrics?.heartRate?.resting || null,
     sleepScore: report.metrics?.sleep?.quality === 'excellent' ? 100 : 
                    report.metrics?.sleep?.quality === 'good' ? 80 :
-                   report.metrics?.sleep?.quality === 'fair' ? 60 : 40,
-    stress: Math.floor(Math.random() * 6) + 2, // Mock stress data 2-8
+                   report.metrics?.sleep?.quality === 'fair' ? 60 : 
+                   report.metrics?.sleep?.quality === 'poor' ? 40 : null,
+    stress: null, // Stress data comes from sync parameters, not stored metrics
   })).reverse() // Show chronologically
   
   // Get today's metrics from latest report
   const todayMetrics = latestReport ? {
-    hrv: latestReport.metrics?.recovery?.hrv || 42,
-    restingHR: latestReport.metrics?.heartRate?.resting || 65,
+    hrv: latestReport.metrics?.recovery?.hrv || null,
+    restingHR: latestReport.metrics?.heartRate?.resting || null,
     sleepScore: latestReport.metrics?.sleep?.quality === 'excellent' ? 100 : 
                 latestReport.metrics?.sleep?.quality === 'good' ? 80 :
-                latestReport.metrics?.sleep?.quality === 'fair' ? 60 : 40,
-    stress: Math.floor(Math.random() * 6) + 3,
-  } : {
-    hrv: 0,
-    restingHR: 0,
-    sleepScore: 0,
-    stress: 0,
-  }
+                latestReport.metrics?.sleep?.quality === 'fair' ? 60 : 
+                latestReport.metrics?.sleep?.quality === 'poor' ? 40 : null,
+    stress: null, // Stress data comes from sync parameters, not stored metrics
+  } : null
 
   if (loading) {
     return (
@@ -112,25 +109,25 @@ export default function Health() {
             <div className="grid grid-cols-2 gap-4">
               <StatBadge
                 icon={<Activity className="w-4 h-4" />}
-                value={`${todayMetrics.hrv}`}
+                value={todayMetrics?.hrv ? `${todayMetrics.hrv}` : "--"}
                 label="HRV"
                 data-testid="today-hrv"
               />
               <StatBadge
                 icon={<Heart className="w-4 h-4" />}
-                value={`${todayMetrics.restingHR}`}
+                value={todayMetrics?.restingHR ? `${todayMetrics.restingHR}` : "--"}
                 label="Resting HR"
                 data-testid="today-resting-hr"
               />
               <StatBadge
                 icon={<Clock className="w-4 h-4" />}
-                value={`${todayMetrics.sleepScore}`}
+                value={todayMetrics?.sleepScore ? `${todayMetrics.sleepScore}` : "--"}
                 label="Sleep Score"
                 data-testid="today-sleep-score"
               />
               <StatBadge
                 icon={<Brain className="w-4 h-4" />}
-                value={`${todayMetrics.stress}`}
+                value={todayMetrics?.stress ? `${todayMetrics.stress}` : "--"}
                 label="Stress Level"
                 data-testid="today-stress"
               />
