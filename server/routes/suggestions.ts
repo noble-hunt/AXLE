@@ -4,6 +4,9 @@ import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
 import { computeSuggestion } from "../logic/suggestions";
 import { generateWorkout } from "../workoutGenerator";
 import { insertWorkout } from "../dal/workouts";
+import { db } from "../db";
+import { suggestedWorkouts, workouts, prs, healthReports } from "@shared/schema";
+import { eq, desc, and } from "drizzle-orm";
 
 /**
  * Register suggestion-related API routes
@@ -24,28 +27,24 @@ export function registerSuggestionRoutes(app: Express) {
       
       console.log(`🎯 Getting daily suggestion for user: ${userId}`);
 
-      // Import supabaseAdmin dynamically
-      const { supabaseAdmin } = await import("../lib/supabaseAdmin");
-      
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       
-      // Check if we already have a suggestion for today
-      const { data: existingSuggestion, error: fetchError } = await supabaseAdmin
-        .from('suggested_workouts')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('date', today)
-        .maybeSingle();
+      // Check if we already have a suggestion for today using Drizzle
+      const existingSuggestion = await db
+        .select()
+        .from(suggestedWorkouts)
+        .where(and(
+          eq(suggestedWorkouts.userId, userId),
+          eq(suggestedWorkouts.date, today)
+        ))
+        .limit(1);
         
-      if (fetchError) {
-        console.error("Error fetching existing suggestion:", fetchError);
-        return res.status(500).json({ message: "Failed to fetch suggestion" });
-      }
+      const suggestion = existingSuggestion[0] || null;
 
-      if (existingSuggestion) {
+      if (suggestion) {
         console.log(`✅ Returning existing suggestion for ${today}`);
         return res.json({
-          ...existingSuggestion,
+          ...suggestion,
           isExisting: true
         });
       }
@@ -55,28 +54,27 @@ export function registerSuggestionRoutes(app: Express) {
       
       const suggestionResult = await computeSuggestion(userId, new Date());
       
-      // Store the suggestion in the database
-      const { data: insertedSuggestion, error: insertError } = await supabaseAdmin
-        .from('suggested_workouts')
-        .insert({
-          user_id: userId,
+      // Store the suggestion in the database using Drizzle
+      const insertedSuggestion = await db
+        .insert(suggestedWorkouts)
+        .values({
+          userId: userId,
           date: today,
           request: suggestionResult.request,
           rationale: suggestionResult.rationale,
-          workout_id: null // Will be set when user generates the actual workout
+          workoutId: null // Will be set when user generates the actual workout
         })
-        .select()
-        .single();
+        .returning();
         
-      if (insertError) {
-        console.error("Error inserting suggestion:", insertError);
+      if (!insertedSuggestion[0]) {
+        console.error("Error inserting suggestion");
         return res.status(500).json({ message: "Failed to save suggestion" });
       }
 
-      console.log(`✅ Generated and stored new suggestion with ID: ${insertedSuggestion.id}`);
+      console.log(`✅ Generated and stored new suggestion with ID: ${insertedSuggestion[0].id}`);
       
       res.json({
-        ...insertedSuggestion,
+        ...insertedSuggestion[0],
         isExisting: false
       });
 
@@ -120,9 +118,6 @@ export function registerSuggestionRoutes(app: Express) {
       
       console.log(`🎯 Generating workout from suggestion for user: ${userId}, regenerate: ${regenerate}`);
 
-      // Import supabaseAdmin dynamically
-      const { supabaseAdmin } = await import("../lib/supabaseAdmin");
-      
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       
       let suggestion;
@@ -132,53 +127,70 @@ export function registerSuggestionRoutes(app: Express) {
         console.log(`🔄 Regenerating suggestion for ${today}`);
         const suggestionResult = await computeSuggestion(userId, new Date());
         
-        // Update existing suggestion or create new one
-        const { data: updatedSuggestion, error: upsertError } = await supabaseAdmin
-          .from('suggested_workouts')
-          .upsert({
-            user_id: userId,
-            date: today,
-            request: suggestionResult.request,
-            rationale: suggestionResult.rationale,
-            workout_id: null
-          }, {
-            onConflict: 'user_id,date'
-          })
+        // Check if suggestion exists, then update or insert using Drizzle
+        const existingSuggestion = await db
           .select()
-          .single();
+          .from(suggestedWorkouts)
+          .where(and(
+            eq(suggestedWorkouts.userId, userId),
+            eq(suggestedWorkouts.date, today)
+          ))
+          .limit(1);
           
-        if (upsertError) {
-          console.error("Error updating suggestion:", upsertError);
-          return res.status(500).json({ message: "Failed to regenerate suggestion" });
+        if (existingSuggestion[0]) {
+          // Update existing suggestion
+          const updated = await db
+            .update(suggestedWorkouts)
+            .set({
+              request: suggestionResult.request,
+              rationale: suggestionResult.rationale,
+              workoutId: null
+            })
+            .where(and(
+              eq(suggestedWorkouts.userId, userId),
+              eq(suggestedWorkouts.date, today)
+            ))
+            .returning();
+            
+          suggestion = updated[0];
+        } else {
+          // Insert new suggestion
+          const inserted = await db
+            .insert(suggestedWorkouts)
+            .values({
+              userId: userId,
+              date: today,
+              request: suggestionResult.request,
+              rationale: suggestionResult.rationale,
+              workoutId: null
+            })
+            .returning();
+            
+          suggestion = inserted[0];
         }
-        
-        suggestion = updatedSuggestion;
       } else {
-        // Get existing suggestion
-        const { data: existingSuggestion, error: fetchError } = await supabaseAdmin
-          .from('suggested_workouts')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('date', today)
-          .maybeSingle();
+        // Get existing suggestion using Drizzle
+        const existingSuggestion = await db
+          .select()
+          .from(suggestedWorkouts)
+          .where(and(
+            eq(suggestedWorkouts.userId, userId),
+            eq(suggestedWorkouts.date, today)
+          ))
+          .limit(1);
           
-        if (fetchError) {
-          console.error("Error fetching suggestion:", fetchError);
-          return res.status(500).json({ message: "Failed to fetch suggestion" });
-        }
-        
-        if (!existingSuggestion) {
+        if (!existingSuggestion[0]) {
           return res.status(404).json({ message: "No suggestion found for today. Call /api/suggestions/today first." });
         }
         
-        suggestion = existingSuggestion;
+        suggestion = existingSuggestion[0];
       }
 
-      // Fetch context data for the workout generator
-      const [workoutsResult, prsResult, healthResult] = await Promise.all([
-        supabaseAdmin.from('workouts').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(14),
-        supabaseAdmin.from('prs').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(5),
-        supabaseAdmin.from('health_reports').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(1)
+      // Fetch context data for the workout generator using Drizzle
+      const [recentWorkouts, recentPRs, latestHealth] = await Promise.all([
+        db.select().from(workouts).where(eq(workouts.userId, userId)).orderBy(desc(workouts.createdAt)).limit(14),
+        db.select().from(prs).where(eq(prs.userId, userId)).orderBy(desc(prs.date)).limit(5),
+        db.select().from(healthReports).where(eq(healthReports.userId, userId)).orderBy(desc(healthReports.date)).limit(1)
       ]);
 
       // Build enhanced request for the workout generator  
@@ -186,25 +198,25 @@ export function registerSuggestionRoutes(app: Express) {
         category: suggestion.request.category,
         duration: suggestion.request.duration,
         intensity: suggestion.request.intensity,
-        recentPRs: prsResult.data?.map((pr: any) => ({
+        recentPRs: recentPRs.map((pr: any) => ({
           exercise: `${pr.movement} (${pr.category})`,
-          weight: pr.weight_kg ? parseFloat(pr.weight_kg.toString()) * 2.20462 : undefined, // Convert kg to lbs
-          reps: pr.rep_max,
+          weight: pr.weightKg ? parseFloat(pr.weightKg.toString()) * 2.20462 : undefined, // Convert kg to lbs
+          reps: pr.repMax,
           date: pr.date,
           unit: 'lbs'
-        })) || [],
-        lastWorkouts: workoutsResult.data?.slice(0, 3).map((w: any) => ({
+        })),
+        lastWorkouts: recentWorkouts.slice(0, 3).map((w: any) => ({
           name: w.title,
           category: w.request?.category || suggestion.request.category,
           duration: w.request?.duration || suggestion.request.duration,
           intensity: w.request?.intensity || suggestion.request.intensity,
-          date: w.created_at,
+          date: w.createdAt,
           exercises: [] // Could extract from sets if needed
-        })) || [],
-        todaysReport: healthResult.data?.[0]?.metrics ? {
-          energy: (healthResult.data[0].metrics as any)?.recovery?.score ? Math.round((healthResult.data[0].metrics as any).recovery.score / 10) : 7,
-          stress: (healthResult.data[0].metrics as any)?.stress || 5,
-          sleep: (healthResult.data[0].metrics as any)?.sleepScore ? Math.round((healthResult.data[0].metrics as any).sleepScore / 10) : 7,
+        })),
+        todaysReport: latestHealth[0]?.metrics ? {
+          energy: (latestHealth[0].metrics as any)?.recovery?.score ? Math.round((latestHealth[0].metrics as any).recovery.score / 10) : 7,
+          stress: (latestHealth[0].metrics as any)?.stress || 5,
+          sleep: (latestHealth[0].metrics as any)?.sleepScore ? Math.round((latestHealth[0].metrics as any).sleepScore / 10) : 7,
           soreness: 4 // Would come from user input or wearables
         } : undefined
       };
@@ -235,13 +247,13 @@ export function registerSuggestionRoutes(app: Express) {
 
       const dbWorkout = await insertWorkout(workoutData);
 
-      // Update the suggestion to link to the generated workout
-      const { error: updateError } = await supabaseAdmin
-        .from('suggested_workouts')
-        .update({ workout_id: dbWorkout.id })
-        .eq('id', suggestion.id);
-        
-      if (updateError) {
+      // Update the suggestion to link to the generated workout using Drizzle
+      try {
+        await db
+          .update(suggestedWorkouts)
+          .set({ workoutId: dbWorkout.id })
+          .where(eq(suggestedWorkouts.id, suggestion.id));
+      } catch (updateError) {
         console.error("Error linking workout to suggestion:", updateError);
         // Don't fail the request, just log the error
       }
@@ -252,7 +264,7 @@ export function registerSuggestionRoutes(app: Express) {
       res.json({
         suggestion: {
           ...suggestion,
-          workout_id: dbWorkout.id
+          workoutId: dbWorkout.id
         },
         workout: {
           ...generatedWorkout,
