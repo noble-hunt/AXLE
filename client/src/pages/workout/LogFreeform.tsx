@@ -34,6 +34,7 @@ interface VoiceRecognition {
   onend: () => void;
   continuous: boolean;
   interimResults: boolean;
+  lang: string;
 }
 
 declare global {
@@ -82,7 +83,7 @@ export default function LogFreeform() {
   const isVoiceSupported = typeof window !== 'undefined' && 
     ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
-  // Initialize voice recognition
+  // Initialize voice recognition with better error handling
   const initVoiceRecognition = () => {
     if (!isVoiceSupported) return null
     
@@ -91,6 +92,7 @@ export default function LogFreeform() {
     
     recognition.continuous = true
     recognition.interimResults = true
+    recognition.lang = 'en-US'
     
     recognition.onresult = (event) => {
       let finalTranscript = ""
@@ -110,7 +112,28 @@ export default function LogFreeform() {
     recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error)
       setIsRecording(false)
-      setError('Voice recognition failed. Please try again.')
+      
+      // Handle different error types with specific messages
+      switch (event.error) {
+        case 'network':
+          setError('Network error. Check your internet connection and try again.')
+          break
+        case 'not-allowed':
+        case 'permission-denied':
+          setError('Microphone access denied. Please allow microphone permissions and try again.')
+          break
+        case 'no-speech':
+          setError('No speech detected. Please speak clearly and try again.')
+          break
+        case 'audio-capture':
+          setError('Microphone not found. Please check your microphone and try again.')
+          break
+        case 'service-not-allowed':
+          setError('Speech service not available. Please use manual text entry.')
+          break
+        default:
+          setError('Voice recognition failed. Please try again or use manual text entry.')
+      }
     }
     
     recognition.onend = () => {
@@ -120,24 +143,67 @@ export default function LogFreeform() {
     return recognition
   }
 
-  const toggleRecording = () => {
-    if (!isVoiceSupported) return
+  // Check microphone permissions
+  const checkMicrophonePermission = async () => {
+    try {
+      if ('permissions' in navigator) {
+        const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+        return permission.state === 'granted'
+      }
+      return true // Assume granted if permissions API not available
+    } catch (err) {
+      console.warn('Could not check microphone permission:', err)
+      return true // Assume granted if check fails
+    }
+  }
+
+  const toggleRecording = async () => {
+    if (!isVoiceSupported) {
+      setError('Voice recognition is not supported in this browser. Please use manual text entry.')
+      return
+    }
     
     if (isRecording) {
       recognitionRef.current?.stop()
       setIsRecording(false)
-    } else {
-      if (!recognitionRef.current) {
-        recognitionRef.current = initVoiceRecognition()
-      }
+      return
+    }
+
+    // Check microphone permission first
+    const hasPermission = await checkMicrophonePermission()
+    if (!hasPermission) {
+      setError('Microphone access is required. Please allow microphone permissions and try again.')
+      return
+    }
+    
+    // Clear any previous errors
+    setError(null)
+    
+    // Reinitialize recognition for each use to avoid stale state
+    recognitionRef.current = initVoiceRecognition()
+    
+    if (!recognitionRef.current) {
+      setError('Failed to initialize voice recognition. Please use manual text entry.')
+      return
+    }
+    
+    try {
+      recognitionRef.current.start()
+      setIsRecording(true)
+    } catch (err) {
+      console.error('Failed to start recording:', err)
+      setIsRecording(false)
       
-      try {
-        recognitionRef.current?.start()
-        setIsRecording(true)
-        setError(null)
-      } catch (err) {
-        console.error('Failed to start recording:', err)
-        setError('Failed to start voice recording')
+      if (err instanceof Error) {
+        if (err.name === 'InvalidStateError') {
+          setError('Voice recognition is already running. Please wait and try again.')
+        } else if (err.name === 'NotAllowedError') {
+          setError('Microphone access denied. Please allow microphone permissions and try again.')
+        } else {
+          setError('Failed to start voice recording. Please try again or use manual text entry.')
+        }
+      } else {
+        setError('Failed to start voice recording. Please try again or use manual text entry.')
       }
     }
   }
