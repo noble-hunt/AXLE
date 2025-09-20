@@ -32,6 +32,9 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useGroupRealtime } from "@/hooks/useGroupRealtime";
 import { formatDistanceToNow } from "date-fns";
 
+// Emoji picker emojis
+const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
+
 interface Group {
   id: string;
   name: string;
@@ -50,6 +53,21 @@ interface Post {
   authorId: string;
   authorName: string;
   authorAvatar?: string;
+}
+
+interface Reaction {
+  emoji: string;
+  count: number;
+  users: {
+    id: string;
+    name: string;
+    avatar?: string;
+  }[];
+  userReacted: boolean;
+}
+
+interface PostReactions {
+  [postId: string]: Reaction[];
 }
 
 interface Workout {
@@ -104,6 +122,11 @@ export default function GroupFeedPage() {
   const [showGroupSelect, setShowGroupSelect] = useState(false);
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  
+  // Reactions state
+  const [postReactions, setPostReactions] = useState<PostReactions>({});
+  const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
+  const [emojiPickerPosition, setEmojiPickerPosition] = useState({ x: 0, y: 0 });
 
   const groupId = params?.id;
   const parentRef = useRef<HTMLDivElement>(null);
@@ -129,12 +152,18 @@ export default function GroupFeedPage() {
     // onNewReaction callback  
     (reaction) => {
       console.log('New reaction received:', reaction);
-      // Handle reaction updates here
+      // Refresh reactions for the post
+      if (reaction.postId) {
+        loadReactionsForPost(reaction.postId);
+      }
     },
     // onReactionRemoved callback
     (reaction) => {
       console.log('Reaction removed:', reaction);
-      // Handle reaction removal here
+      // Refresh reactions for the post
+      if (reaction.postId) {
+        loadReactionsForPost(reaction.postId);
+      }
     }
   );
 
@@ -144,6 +173,17 @@ export default function GroupFeedPage() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [posts.length, autoScroll]);
+
+  // Load reactions for all posts when posts change
+  useEffect(() => {
+    if (posts.length > 0 && groupId) {
+      posts.forEach(post => {
+        if (!postReactions[post.id]) {
+          loadReactionsForPost(post.id);
+        }
+      });
+    }
+  }, [posts, groupId]);
 
   // Virtual list for ascending order (newest at bottom)
   const virtualizer = useVirtualizer({
@@ -355,6 +395,105 @@ export default function GroupFeedPage() {
     }
   };
 
+  // Load reactions for a specific post
+  const loadReactionsForPost = async (postId: string) => {
+    if (!groupId) return;
+    
+    try {
+      const response = await authFetch(`/api/groups/${groupId}/reactions?post_id=${postId}`);
+      if (response.ok) {
+        const reactions = await response.json();
+        setPostReactions(prev => ({
+          ...prev,
+          [postId]: reactions
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load reactions:", error);
+    }
+  };
+
+  // Toggle reaction with optimistic UI
+  const toggleReaction = async (postId: string, emoji: string) => {
+    if (!groupId) return;
+
+    // Optimistic update
+    const currentReactions = postReactions[postId] || [];
+    const existingReaction = currentReactions.find(r => r.emoji === emoji);
+    
+    let optimisticReactions: Reaction[];
+    if (existingReaction?.userReacted) {
+      // Remove reaction
+      optimisticReactions = currentReactions.map(r => 
+        r.emoji === emoji 
+          ? { ...r, count: r.count - 1, userReacted: false, users: r.users.filter(u => u.id !== 'current-user') }
+          : r
+      ).filter(r => r.count > 0);
+    } else {
+      // Add reaction
+      if (existingReaction) {
+        optimisticReactions = currentReactions.map(r => 
+          r.emoji === emoji 
+            ? { ...r, count: r.count + 1, userReacted: true, users: [...r.users, { id: 'current-user', name: 'You' }] }
+            : r
+        );
+      } else {
+        optimisticReactions = [...currentReactions, { 
+          emoji, 
+          count: 1, 
+          userReacted: true, 
+          users: [{ id: 'current-user', name: 'You' }] 
+        }];
+      }
+    }
+
+    setPostReactions(prev => ({
+      ...prev,
+      [postId]: optimisticReactions
+    }));
+
+    try {
+      const response = await authFetch("/api/reactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupId,
+          postId,
+          emoji,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle reaction");
+      }
+
+      // Refresh reactions to get accurate data
+      loadReactionsForPost(postId);
+    } catch (error) {
+      console.error("Failed to toggle reaction:", error);
+      // Rollback optimistic update
+      loadReactionsForPost(postId);
+      
+      toast({
+        title: "Failed to react",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle long-press or right-click
+  const handlePostInteraction = (e: React.MouseEvent | React.TouchEvent, postId: string) => {
+    e.preventDefault();
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    setEmojiPickerPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 60
+    });
+    setShowEmojiPicker(postId);
+  };
+
   const loadRecentWorkouts = async () => {
     setLoadingWorkouts(true);
     try {
@@ -393,6 +532,7 @@ export default function GroupFeedPage() {
 
   const renderPost = (post: Post) => {
     const timeAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
+    const reactions = postReactions[post.id] || [];
     
     return (
       <div key={post.id} className="flex gap-3 mb-4">
@@ -410,13 +550,44 @@ export default function GroupFeedPage() {
           </div>
           
           {post.kind === "text" && (
-            <div className="bg-muted rounded-lg px-3 py-2 max-w-md">
+            <div 
+              className="bg-muted rounded-lg px-3 py-2 max-w-md cursor-pointer"
+              onContextMenu={(e) => handlePostInteraction(e, post.id)}
+              onTouchStart={(e) => {
+                // Long-press detection
+                const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
+                e.currentTarget.dataset.pressTimer = timeout.toString();
+              }}
+              onTouchEnd={(e) => {
+                const timer = e.currentTarget.dataset.pressTimer;
+                if (timer) {
+                  clearTimeout(parseInt(timer));
+                  delete e.currentTarget.dataset.pressTimer;
+                }
+              }}
+              data-testid={`post-${post.id}`}
+            >
               <p className="text-sm">{post.content.message}</p>
             </div>
           )}
           
           {post.kind === "workout" && (
-            <Card className="p-3 max-w-md">
+            <Card 
+              className="p-3 max-w-md cursor-pointer"
+              onContextMenu={(e) => handlePostInteraction(e, post.id)}
+              onTouchStart={(e) => {
+                const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
+                e.currentTarget.dataset.pressTimer = timeout.toString();
+              }}
+              onTouchEnd={(e) => {
+                const timer = e.currentTarget.dataset.pressTimer;
+                if (timer) {
+                  clearTimeout(parseInt(timer));
+                  delete e.currentTarget.dataset.pressTimer;
+                }
+              }}
+              data-testid={`post-${post.id}`}
+            >
               <div className="flex items-center gap-2 mb-2">
                 <Dumbbell className="w-4 h-4 text-primary" />
                 <span className="font-medium text-sm">{post.content.name}</span>
@@ -432,7 +603,22 @@ export default function GroupFeedPage() {
           )}
           
           {post.kind === "pr" && (
-            <div className="bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-full px-3 py-1 max-w-fit">
+            <div 
+              className="bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-full px-3 py-1 max-w-fit cursor-pointer"
+              onContextMenu={(e) => handlePostInteraction(e, post.id)}
+              onTouchStart={(e) => {
+                const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
+                e.currentTarget.dataset.pressTimer = timeout.toString();
+              }}
+              onTouchEnd={(e) => {
+                const timer = e.currentTarget.dataset.pressTimer;
+                if (timer) {
+                  clearTimeout(parseInt(timer));
+                  delete e.currentTarget.dataset.pressTimer;
+                }
+              }}
+              data-testid={`post-${post.id}`}
+            >
               <div className="flex items-center gap-1 text-sm">
                 <Trophy className="w-4 h-4 text-yellow-600" />
                 <span className="font-medium">New PR:</span>
@@ -443,7 +629,22 @@ export default function GroupFeedPage() {
           )}
           
           {post.kind === "event" && (
-            <Card className="p-3 max-w-md">
+            <Card 
+              className="p-3 max-w-md cursor-pointer"
+              onContextMenu={(e) => handlePostInteraction(e, post.id)}
+              onTouchStart={(e) => {
+                const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
+                e.currentTarget.dataset.pressTimer = timeout.toString();
+              }}
+              onTouchEnd={(e) => {
+                const timer = e.currentTarget.dataset.pressTimer;
+                if (timer) {
+                  clearTimeout(parseInt(timer));
+                  delete e.currentTarget.dataset.pressTimer;
+                }
+              }}
+              data-testid={`post-${post.id}`}
+            >
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-4 h-4 text-primary" />
                 <span className="font-medium text-sm">{post.content.title}</span>
@@ -460,6 +661,25 @@ export default function GroupFeedPage() {
                 </Button>
               </div>
             </Card>
+          )}
+          
+          {/* Reactions */}
+          {reactions.length > 0 && (
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {reactions.map((reaction) => (
+                <Button
+                  key={reaction.emoji}
+                  size="sm"
+                  variant={reaction.userReacted ? "default" : "outline"}
+                  className="text-xs h-7 px-2 rounded-full"
+                  onClick={() => toggleReaction(post.id, reaction.emoji)}
+                  data-testid={`reaction-${reaction.emoji}-${post.id}`}
+                >
+                  <span className="mr-1">{reaction.emoji}</span>
+                  <span>{reaction.count}</span>
+                </Button>
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -639,6 +859,47 @@ export default function GroupFeedPage() {
           </div>
         )}
       </div>
+
+      {/* Emoji Picker */}
+      {showEmojiPicker && (
+        <>
+          {/* Overlay to close emoji picker */}
+          <div 
+            className="fixed inset-0 z-40"
+            onClick={() => setShowEmojiPicker(null)}
+            onTouchEnd={() => setShowEmojiPicker(null)}
+          />
+          
+          {/* Emoji picker bar */}
+          <div
+            className="fixed z-50 bg-background border rounded-full shadow-lg px-3 py-2 flex gap-2"
+            style={{
+              left: `${emojiPickerPosition.x}px`,
+              top: `${emojiPickerPosition.y}px`,
+              transform: 'translateX(-50%)'
+            }}
+            data-testid="emoji-picker"
+          >
+            {REACTION_EMOJIS.map((emoji) => (
+              <Button
+                key={emoji}
+                size="sm"
+                variant="ghost"
+                className="text-lg p-1 h-auto w-auto hover:bg-muted rounded-full"
+                onClick={() => {
+                  if (showEmojiPicker) {
+                    toggleReaction(showEmojiPicker, emoji);
+                  }
+                  setShowEmojiPicker(null);
+                }}
+                data-testid={`emoji-${emoji}`}
+              >
+                {emoji}
+              </Button>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Composer */}
       <div className="flex-shrink-0 p-4 border-t bg-background">
