@@ -128,13 +128,13 @@ export default function Workout() {
             </div>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {recentCompletedWorkouts.map((workout) => {
               const CategoryIcon = getCategoryIcon(workout.category)
               const workoutDate = workout.date instanceof Date ? workout.date : new Date(workout.date)
               
               return (
-                <Link key={workout.id} href={`/workout/${workout.id}`}>
+                <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
                   <SwiftCard className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex-1 space-y-3">

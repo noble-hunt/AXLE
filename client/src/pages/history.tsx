@@ -207,18 +207,22 @@ export default function History() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-body font-medium text-foreground">Status</label>
-          <SegmentedControl
-            value={completionFilter}
-            onValueChange={setCompletionFilter}
-            data-testid="completion-filter"
-          >
+          <div className="flex items-center justify-between">
+            <label className="text-body font-medium text-foreground">Status</label>
+          </div>
+          <div className="flex justify-end">
+            <SegmentedControl
+              value={completionFilter}
+              onValueChange={setCompletionFilter}
+              data-testid="completion-filter"
+            >
             {completionOptions.map((option) => (
               <Segment key={option.value} value={option.value}>
                 {option.label}
               </Segment>
             ))}
-          </SegmentedControl>
+            </SegmentedControl>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -262,13 +266,13 @@ export default function History() {
       {/* Workout List */}
       <div className="space-y-6 pt-1">
         {Object.entries(groupedWorkouts).map(([dateKey, dateGroup]) => (
-          <div key={dateKey} className="space-y-4">
-            <h2 className="text-subheading font-semibold text-foreground">{dateGroup.label}</h2>
+          <div key={dateKey} className="space-y-5">
+            <h2 className="text-subheading font-semibold text-foreground mb-3">{dateGroup.label}</h2>
             
             {dateGroup.workouts.map((workout) => {
               const CategoryIcon = getCategoryIcon(workout.category)
               return (
-                <Link key={workout.id} href={`/workout/${workout.id}`}>
+                <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
                   <Card className="p-5 active:scale-98 transition-transform" data-testid={`history-workout-${workout.id}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex-1 space-y-3">
