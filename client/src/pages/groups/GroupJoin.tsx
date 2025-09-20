@@ -355,23 +355,42 @@ export default function GroupJoin() {
               </p>
             </div>
             
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setLocation("/groups")}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleJoinGroup}
-                disabled={joining}
-                className="flex-1"
-                data-testid="join-group-button"
-              >
-                {joining ? "Joining..." : (isInviteCodeRoute ? "Accept Invitation" : "Join Group")}
-              </Button>
-            </div>
+            {/* Only allow joining private groups via invite code route */}
+            {!group.isPublic && !isInviteCodeRoute ? (
+              <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <h3 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
+                  Invite Required
+                </h3>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-4">
+                  This is a private group. You need a valid invitation link to join.
+                </p>
+                <Button 
+                  variant="outline"
+                  onClick={() => setLocation("/groups")}
+                  className="flex-1"
+                >
+                  Back to Groups
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setLocation("/groups")}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleJoinGroup}
+                  disabled={joining}
+                  className="flex-1"
+                  data-testid="join-group-button"
+                >
+                  {joining ? "Joining..." : (isInviteCodeRoute ? "Accept Invitation" : "Join Group")}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Card>
