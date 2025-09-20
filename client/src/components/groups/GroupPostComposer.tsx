@@ -65,8 +65,16 @@ export function GroupPostComposer({ groupId, className, onPostCreated }: GroupPo
       tonight.setDate(tonight.getDate() + 1);
     }
     
+    // Format for datetime-local input (YYYY-MM-DDTHH:mm) in local time
+    const year = tonight.getFullYear();
+    const month = String(tonight.getMonth() + 1).padStart(2, '0');
+    const day = String(tonight.getDate()).padStart(2, '0');
+    const hours = String(tonight.getHours()).padStart(2, '0');
+    const minutes = String(tonight.getMinutes()).padStart(2, '0');
+    const localDateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+    
     setEventTitle("Working out tonight?");
-    setEventStartAt(tonight.toISOString().slice(0, 16)); // Format for datetime-local input
+    setEventStartAt(localDateTimeString);
     setEventDurationMin(60);
     setEventLocation("");
     setMessage("");

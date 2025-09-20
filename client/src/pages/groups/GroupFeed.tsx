@@ -32,6 +32,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useGroupRealtime } from "@/hooks/useGroupRealtime";
 import { useAppStore } from "@/store/useAppStore";
 import { formatDistanceToNow } from "date-fns";
+import { EventRsvpButtons } from "@/components/groups/EventRsvpButtons";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -651,17 +652,24 @@ export default function GroupFeedPage() {
                 <Calendar className="w-4 h-4 text-primary" />
                 <span className="font-medium text-sm">{post.content.title}</span>
               </div>
-              <p className="text-xs text-muted-foreground mb-3">{post.content.description}</p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="default" className="text-xs h-7">
-                  <Check className="w-3 h-3 mr-1" />
-                  I'm in
-                </Button>
-                <Button size="sm" variant="outline" className="text-xs h-7">
-                  <Bell className="w-3 h-3 mr-1" />
-                  Remind me
-                </Button>
+              
+              {/* Event Details */}
+              <div className="text-xs text-muted-foreground mb-3 space-y-1">
+                <div>
+                  📅 {new Date(post.content.start_at).toLocaleString()}
+                </div>
+                <div>
+                  ⏰ {post.content.duration_min} minutes
+                </div>
+                {post.content.location && (
+                  <div>
+                    📍 {post.content.location}
+                  </div>
+                )}
               </div>
+
+              {/* RSVP Buttons */}
+              <EventRsvpButtons postId={post.id} groupId={groupId!} />
             </Card>
           )}
           
