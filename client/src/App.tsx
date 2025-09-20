@@ -32,6 +32,7 @@ import Groups from "@/pages/groups";
 import NewGroup from "@/pages/groups/NewGroup";
 import GroupInvite from "@/pages/groups/GroupInvite";
 import GroupJoin from "@/pages/groups/GroupJoin";
+import GroupFeedPage from "@/pages/groups/GroupFeed";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Callback from "@/pages/auth/Callback";
@@ -99,6 +100,11 @@ function OverlayWrapper() {
         <Route path="/groups/new" component={() => (
           <ProtectedRoute>
             <NewGroup />
+          </ProtectedRoute>
+        )} />
+        <Route path="/groups/:id" component={() => (
+          <ProtectedRoute>
+            <GroupFeedPage />
           </ProtectedRoute>
         )} />
         <Route path="/groups/:id/invite" component={() => (

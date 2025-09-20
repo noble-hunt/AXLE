@@ -69,7 +69,7 @@ export default function Groups() {
   };
 
   const handleSelectGroup = (groupId: string) => {
-    setLocation(`/groups/${groupId}/invite`);
+    setLocation(`/groups/${groupId}`);
   };
 
   const getInitials = (name: string) => {
