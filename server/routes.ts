@@ -18,6 +18,7 @@ import { listWearables } from "./dal/wearables";
 import { registerSuggestionRoutes } from "./routes/suggestions";
 import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron";
 import { registerWorkoutFreeformRoutes } from "./routes/workout-freeform";
+import { registerWhisperRoutes } from "./routes/whisper-transcription";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register suggestion routes
@@ -25,6 +26,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register workout freeform routes
   registerWorkoutFreeformRoutes(app);
+  
+  // Register whisper transcription routes
+  registerWhisperRoutes(app);
   
   // Authenticated data fetching routes
   app.get("/api/user/data", requireAuth, async (req, res) => {

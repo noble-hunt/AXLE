@@ -80,6 +80,11 @@ export default function LogFreeform() {
   const [error, setError] = useState<string | null>(null)
   const [showDiagnostics, setShowDiagnostics] = useState(false)
   const [diagnostics, setDiagnostics] = useState<any>(null)
+  const [isServerRecording, setIsServerRecording] = useState(false)
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
   
   // Voice recognition
   const recognitionRef = useRef<VoiceRecognition | null>(null)
@@ -157,6 +162,84 @@ export default function LogFreeform() {
     setDiagnostics(diag)
     console.log('🔍 Voice Diagnostics:', diag)
     return diag
+  }
+
+  // Server-side audio recording using MediaRecorder + Whisper
+  const startServerRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      
+      audioChunksRef.current = []
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      })
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+      
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        setAudioBlob(blob)
+        
+        // Stop all tracks to free up microphone
+        stream.getTracks().forEach(track => track.stop())
+      }
+      
+      mediaRecorderRef.current = mediaRecorder
+      mediaRecorder.start()
+      setIsServerRecording(true)
+      setError(null)
+      
+    } catch (err: any) {
+      console.error('Server recording failed:', err)
+      if (err.name === 'NotAllowedError') {
+        setError('Microphone access denied. Please allow microphone permissions.')
+      } else {
+        setError('Failed to start audio recording. Please try manual text entry.')
+      }
+    }
+  }
+
+  const stopServerRecording = () => {
+    if (mediaRecorderRef.current && isServerRecording) {
+      mediaRecorderRef.current.stop()
+      setIsServerRecording(false)
+    }
+  }
+
+  const transcribeAudio = async () => {
+    if (!audioBlob) return
+    
+    setIsTranscribing(true)
+    setError(null)
+    
+    try {
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'recording.webm')
+      
+      const response = await authFetch('/api/stt/whisper', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Transcription failed')
+      }
+      
+      const data = await response.json()
+      setText(prevText => prevText + (prevText ? ' ' : '') + data.transcript)
+      setAudioBlob(null) // Clear the audio blob after successful transcription
+      
+    } catch (err: any) {
+      console.error('Transcription failed:', err)
+      setError(`Transcription failed: ${err.message}`)
+    } finally {
+      setIsTranscribing(false)
+    }
   }
 
   // Initialize voice recognition with better error handling
@@ -321,22 +404,38 @@ export default function LogFreeform() {
     setIsParsing(true)
     setError(null)
     
+    console.log('🚀 Starting workout parse for text:', text.trim().substring(0, 100) + '...')
+    
     try {
+      console.log('📡 Making request to /api/workouts/parse-freeform')
       const response = await authFetch('/api/workouts/parse-freeform', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: text.trim() })
       })
       
+      console.log('📡 Response received:', response.status, response.statusText)
+      
       if (!response.ok) {
-        throw new Error(`Parse failed: ${response.statusText}`)
+        const errorText = await response.text()
+        console.error('❌ API Error Response:', errorText)
+        throw new Error(`Parse failed: ${response.statusText} - ${errorText}`)
       }
       
       const data = await response.json()
+      console.log('✅ Parse successful:', data)
       setParsed(data.parsed)
     } catch (err) {
-      console.error('Parse error:', err)
-      setError('Failed to parse workout. Please try manual entry.')
+      console.error('❌ Parse error:', err)
+      if (err instanceof Error) {
+        if (err.message.includes('Failed to fetch')) {
+          setError('Connection failed. Please check your internet connection and try again.')
+        } else {
+          setError(`Parse failed: ${err.message}`)
+        }
+      } else {
+        setError('Failed to parse workout. Please try manual entry.')
+      }
       setShowManualForm(true)
     } finally {
       setIsParsing(false)
@@ -460,24 +559,48 @@ export default function LogFreeform() {
           </div>
         </div>
         
-        <div className="flex gap-2">
-          {/* Voice Recording Button */}
-          {isVoiceSupported && (
+        <div className="flex gap-2 flex-wrap">
+          {/* Voice Recording Button (Web Speech API) */}
+          {isVoiceSupported && typeof window !== 'undefined' && window.isSecureContext && window.top === window && (
             <Button
               variant={isRecording ? "destructive" : "secondary"}
               onClick={toggleRecording}
-              disabled={isParsing}
+              disabled={isParsing || isServerRecording || isTranscribing}
               data-testid="voice-button"
             >
               {isRecording ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
-              {isRecording ? 'Stop Recording' : 'Start Recording'}
+              {isRecording ? 'Stop Recording' : 'Voice Dictation'}
+            </Button>
+          )}
+
+          {/* Server Recording Button (Whisper Fallback) */}
+          <Button
+            variant={isServerRecording ? "destructive" : "secondary"}
+            onClick={isServerRecording ? stopServerRecording : startServerRecording}
+            disabled={isParsing || isRecording || isTranscribing}
+            data-testid="server-voice-button"
+          >
+            {isServerRecording ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
+            {isServerRecording ? 'Stop Recording' : 'Record Audio'}
+          </Button>
+
+          {/* Transcribe Button */}
+          {audioBlob && (
+            <Button
+              variant="primary"
+              onClick={transcribeAudio}
+              disabled={isTranscribing || isParsing || isRecording || isServerRecording}
+              data-testid="transcribe-button"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {isTranscribing ? 'Transcribing...' : 'Transcribe Audio'}
             </Button>
           )}
           
           {/* Parse Button */}
           <Button
             onClick={parseWorkout}
-            disabled={!text.trim() || isParsing}
+            disabled={!text.trim() || isParsing || isRecording || isServerRecording || isTranscribing}
             data-testid="parse-button"
           >
             <Send className="w-4 h-4 mr-2" />
@@ -560,6 +683,32 @@ export default function LogFreeform() {
               </Button>
             )}
           </div>
+        </Card>
+      )}
+
+      {/* Audio Recording Status */}
+      {audioBlob && (
+        <Card className="p-4 bg-secondary/20 border-secondary">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Mic className="w-4 h-4 text-secondary-foreground" />
+              <p className="text-sm font-medium text-secondary-foreground">Audio recorded successfully</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setAudioBlob(null)}
+                data-testid="clear-audio"
+              >
+                <X className="w-3 h-3" />
+                Clear
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Click "Transcribe Audio" to convert your recording to text, or record again to replace.
+          </p>
         </Card>
       )}
 
