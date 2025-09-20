@@ -5,6 +5,7 @@ import { db } from '../db';
 import { wearableConnections, wearableTokens, healthReports } from '../../shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { seal, open } from '../lib/crypto';
+import { storeEncryptedTokens, getDecryptedTokens, deleteTokens } from '../dal/tokens';
 import { MockHealthProvider } from '../providers/health/mock';
 import { FitbitHealthProvider } from '../providers/health/fitbit';
 import { OuraHealthProvider } from '../providers/health/oura';
@@ -73,7 +74,11 @@ router.post('/connect/:provider/start', requireAuth, async (req, res) => {
     }
 
     if (provider.id === 'Mock') {
-      // For Mock provider, immediately mark as connected
+      // For Mock provider, store encrypted tokens and mark as connected
+      if (provider.authCallback) {
+        await provider.authCallback({}, userId);
+      }
+      
       // Check if connection already exists
       const existingConnection = await db
         .select()
@@ -150,6 +155,20 @@ router.get('/connect/:provider/callback', requireAuth, async (req, res) => {
 
     // Handle OAuth callback for real providers
     await provider.authCallback(req.query as Record<string, string>, userId);
+    
+    // Mark provider as connected after successful callback
+    await db
+      .update(wearableConnections)
+      .set({
+        connected: true,
+        status: 'connected',
+        lastSync: new Date(),
+        error: null,
+      })
+      .where(and(
+        eq(wearableConnections.userId, userId),
+        eq(wearableConnections.provider, provider.id)
+      ));
     
     res.json({ success: true });
   } catch (error) {

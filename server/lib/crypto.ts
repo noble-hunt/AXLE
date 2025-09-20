@@ -1,6 +1,21 @@
 import crypto from "crypto";
 
-const KEY = Buffer.from(process.env.ENCRYPTION_KEY || "", "utf8");
+// Validate encryption key at startup
+let ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
+  console.warn("⚠️  ENCRYPTION_KEY should be at least 32 characters for secure AES-256-GCM encryption");
+  console.warn("⚠️  Current length:", ENCRYPTION_KEY?.length || 0);
+  
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error("ENCRYPTION_KEY must be at least 32 characters long for secure AES-256-GCM encryption");
+  } else {
+    // Use a default development key
+    ENCRYPTION_KEY = "axle_fitness_tracker_encryption_key_32_chars_long";
+    console.warn("⚠️  Using default development encryption key");
+  }
+}
+
+const KEY = Buffer.from(ENCRYPTION_KEY, "utf8");
 
 export function seal(plain: string): string {
   const iv = crypto.randomBytes(12);

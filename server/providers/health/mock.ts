@@ -1,10 +1,21 @@
 import { HealthProvider, HealthSnapshot } from './types';
+import { storeEncryptedTokens } from '../../dal/tokens';
 
 export class MockHealthProvider implements HealthProvider {
   id = "Mock" as const;
 
   hasConfig(): boolean {
     return true; // Mock always works
+  }
+
+  async authCallback(params: Record<string, string>, userId: string): Promise<void> {
+    // For Mock provider, we simulate storing a fake token
+    await storeEncryptedTokens(userId, this.id, {
+      accessToken: `mock_access_token_${Date.now()}`,
+      refreshToken: `mock_refresh_token_${Date.now()}`,
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+      scope: 'read_health_data',
+    });
   }
 
   async fetchLatest(userId: string): Promise<HealthSnapshot> {
