@@ -692,8 +692,7 @@ export const useAppStore = create<AppState>()(
             user_id: userId,
             username: finalUsername,
             first_name: firstName,
-            last_name: lastName,
-            email
+            last_name: lastName
           };
           
           // Upsert profile in database
@@ -711,7 +710,7 @@ export const useAppStore = create<AppState>()(
           // Update local store
           set({ 
             profile: {
-              userId: data.user_id,
+              user_id: data.user_id,
               username: data.username,
               firstName: data.first_name,
               lastName: data.last_name,
