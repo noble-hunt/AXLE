@@ -127,29 +127,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.patch("/api/profiles", requireAuth, async (req, res) => {
-    console.log("🔥 PATCH /api/profiles called with:", req.body);
     try {
       const authReq = req as AuthenticatedRequest;
       const validatedData = updateProfileSchema.parse(req.body);
-      console.log("🔥 Validated data:", validatedData);
       
       // Import the profiles update function
       const { updateProfile } = await import("./dal/profiles");
       
       // Update profile with validated data
       const updatedProfile = await updateProfile(authReq.user.id, validatedData);
-      console.log("🔥 Updated profile result:", updatedProfile);
       
       if (!updatedProfile) {
-        console.log("🔥 No updated profile returned");
         return res.status(404).json({ message: "Profile not found" });
       }
       
-      const response = { message: "Profile updated successfully", profile: updatedProfile };
-      console.log("🔥 Sending response:", response);
-      res.json(response);
+      res.json({ message: "Profile updated successfully", profile: updatedProfile });
     } catch (error) {
-      console.error("🔥 PATCH /api/profiles error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid input", errors: error.errors });
       }
