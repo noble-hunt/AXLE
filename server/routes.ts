@@ -19,6 +19,7 @@ import { registerSuggestionRoutes } from "./routes/suggestions";
 import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron";
 import { registerWorkoutFreeformRoutes } from "./routes/workout-freeform";
 import { registerWhisperRoutes } from "./routes/whisper-transcription";
+import { registerGroupRoutes } from "./routes/groups";
 import healthRoutes from "./routes/health";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -33,6 +34,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register health provider routes
   app.use("/api", healthRoutes);
+  
+  // Register group routes
+  registerGroupRoutes(app);
   
   // Authenticated data fetching routes
   app.get("/api/user/data", requireAuth, async (req, res) => {

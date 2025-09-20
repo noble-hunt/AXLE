@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, integer, timestamp, jsonb, boolean, numeric, smallint, date, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, uuid, integer, timestamp, jsonb, boolean, numeric, smallint, date, uniqueIndex, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -42,6 +42,92 @@ export const prs = pgTable("prs", {
 export const achievements = pgTable("achievements", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  progress: numeric("progress").notNull().default(sql`0`),
+  unlocked: boolean("unlocked").notNull().default(false),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// GROUPS & SOCIAL FEATURES
+
+// Post kinds enum
+export const postKindEnum = pgEnum("post_kind", ["text", "workout", "pr", "event"]);
+
+// GROUPS
+export const groups = pgTable("groups", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  photoUrl: text("photo_url"),
+  isPublic: boolean("is_public").notNull().default(false),
+  ownerId: uuid("owner_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// GROUP MEMBERS
+export const groupMembers = pgTable("group_members", {
+  groupId: uuid("group_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  role: text("role").notNull().default("member"), // owner|admin|member
+  joinedAt: timestamp("joined_at").defaultNow(),
+}, (table) => ({
+  pk: { primaryKey: [table.groupId, table.userId] }
+}));
+
+// POSTS
+export const posts = pgTable("posts", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(),
+  kind: postKindEnum("kind").notNull(),
+  content: jsonb("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// GROUP POSTS (cross-posting map)
+export const groupPosts = pgTable("group_posts", {
+  groupId: uuid("group_id").notNull(),
+  postId: uuid("post_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  pk: { primaryKey: [table.groupId, table.postId] }
+}));
+
+// GROUP REACTIONS
+export const groupReactions = pgTable("group_reactions", {
+  groupId: uuid("group_id").notNull(),
+  postId: uuid("post_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  emoji: text("emoji").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  pk: { primaryKey: [table.groupId, table.postId, table.userId, table.emoji] }
+}));
+
+// GROUP INVITES
+export const groupInvites = pgTable("group_invites", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: uuid("group_id").notNull(),
+  code: text("code").notNull().unique(),
+  invitedEmail: text("invited_email"),
+  createdBy: uuid("created_by").notNull(),
+  expiresAt: timestamp("expires_at").notNull().default(sql`(now() + interval '14 days')`),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// REFERRALS
+export const referrals = pgTable("referrals", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  referrerUserId: uuid("referrer_user_id").notNull(),
+  referredUserId: uuid("referred_user_id"),
+  groupId: uuid("group_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// GROUP ACHIEVEMENTS
+export const groupAchievements = pgTable("group_achievements", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: uuid("group_id").notNull(),
   name: text("name").notNull(),
   description: text("description").notNull(),
   progress: numeric("progress").notNull().default(sql`0`),
@@ -232,6 +318,56 @@ export type SuggestedWorkoutData = {
   rationale: SuggestionRationale;
   workoutId?: string | null;
 };
+
+// INSERT SCHEMAS & TYPES FOR GROUPS
+
+export const insertGroupSchema = createInsertSchema(groups).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertGroupMemberSchema = createInsertSchema(groupMembers).omit({
+  joinedAt: true,
+});
+export const insertPostSchema = createInsertSchema(posts).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertGroupPostSchema = createInsertSchema(groupPosts).omit({
+  createdAt: true,
+});
+export const insertGroupReactionSchema = createInsertSchema(groupReactions).omit({
+  createdAt: true,
+});
+export const insertGroupInviteSchema = createInsertSchema(groupInvites).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertReferralSchema = createInsertSchema(referrals).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertGroupAchievementSchema = createInsertSchema(groupAchievements).omit({
+  id: true,
+  updatedAt: true,
+});
+
+// TYPES FOR GROUPS
+export type Group = typeof groups.$inferSelect;
+export type InsertGroup = z.infer<typeof insertGroupSchema>;
+export type GroupMember = typeof groupMembers.$inferSelect;
+export type InsertGroupMember = z.infer<typeof insertGroupMemberSchema>;
+export type Post = typeof posts.$inferSelect;
+export type InsertPost = z.infer<typeof insertPostSchema>;
+export type GroupPost = typeof groupPosts.$inferSelect;
+export type InsertGroupPost = z.infer<typeof insertGroupPostSchema>;
+export type GroupReaction = typeof groupReactions.$inferSelect;
+export type InsertGroupReaction = z.infer<typeof insertGroupReactionSchema>;
+export type GroupInvite = typeof groupInvites.$inferSelect;
+export type InsertGroupInvite = z.infer<typeof insertGroupInviteSchema>;
+export type Referral = typeof referrals.$inferSelect;
+export type InsertReferral = z.infer<typeof insertReferralSchema>;
+export type GroupAchievement = typeof groupAchievements.$inferSelect;
+export type InsertGroupAchievement = z.infer<typeof insertGroupAchievementSchema>;
 
 // Legacy aliases for backward compatibility
 export const users = profiles; // Alias for compatibility
