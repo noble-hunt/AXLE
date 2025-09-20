@@ -36,7 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useGroupRealtime } from "@/hooks/useGroupRealtime";
 import { useAppStore } from "@/store/useAppStore";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, isValid } from "date-fns";
 import { EventRsvpButtons } from "@/components/groups/EventRsvpButtons";
 import { EventReminderBanner } from "@/components/groups/EventReminderBanner";
 import { FeedNudgeCard } from "@/components/groups/FeedNudgeCard";
@@ -48,6 +48,19 @@ import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
+
+// Safe date formatting helper
+const formatWorkoutDate = (createdAt: string | Date | null | undefined): string => {
+  if (!createdAt) return 'Recently';
+  
+  try {
+    const date = new Date(createdAt);
+    if (!isValid(date)) return 'Recently';
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch {
+    return 'Recently';
+  }
+};
 
 interface Group {
   id: string;
@@ -1634,7 +1647,7 @@ export default function GroupFeedPage() {
                     <span className="font-medium text-sm">{workout.name}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {workout.category} • {workout.duration}min • {formatDistanceToNow(new Date(workout.createdAt), { addSuffix: true })}
+                    {workout.category} • {workout.duration}min • {formatWorkoutDate(workout.createdAt)}
                   </div>
                 </Card>
               ))}

@@ -37,6 +37,7 @@ import GroupFeedPage from "@/pages/groups/GroupFeed";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Callback from "@/pages/auth/Callback";
+import ResetPassword from "@/pages/auth/ResetPassword";
 
 function OverlayWrapper() {
   const search = useSearch();
@@ -65,6 +66,7 @@ function OverlayWrapper() {
         <Route path="/auth/login" component={Login} />
         <Route path="/auth/register" component={Register} />
         <Route path="/auth/callback" component={Callback} />
+        <Route path="/auth/reset-password" component={ResetPassword} />
         
         {/* Home route - accessible to all */}
         <Route path="/" component={Home} />

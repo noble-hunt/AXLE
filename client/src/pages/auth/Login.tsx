@@ -17,6 +17,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
   const { toast } = useToast();
 
   const handleEmailPasswordLogin = async (e: React.FormEvent) => {
@@ -130,6 +131,43 @@ export default function Login() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address to reset your password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsForgotPasswordLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Password reset sent!",
+        description: "Check your email for instructions to reset your password.",
+      });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      toast({
+        title: "Reset failed",
+        description: error instanceof Error ? error.message : "Failed to send password reset email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsForgotPasswordLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm space-y-6">
@@ -173,7 +211,19 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="p-0 h-auto text-xs text-muted-foreground hover:text-primary"
+                    onClick={handleForgotPassword}
+                    disabled={isForgotPasswordLoading}
+                    data-testid="button-forgot-password"
+                  >
+                    {isForgotPasswordLoading ? "Sending..." : "Forgot password?"}
+                  </Button>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
