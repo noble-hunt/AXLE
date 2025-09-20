@@ -82,7 +82,7 @@ export default function Connect() {
   }
 
   const getConnectionForProvider = (providerId: string) => {
-    return connections.find((conn: any) => conn.provider === providerId)
+    return (connections || []).find((conn: any) => conn.provider === providerId)
   }
 
   const getStatusInfo = (connection: any) => {
@@ -159,8 +159,8 @@ export default function Connect() {
     }
   }
   
-  const connectedCount = connections.filter((conn: any) => conn.connected).length
-  const availableCount = providers.length
+  const connectedCount = (connections || []).filter((conn: any) => conn.connected).length
+  const availableCount = (providers || []).length
 
   if (loadingProviders || loadingConnections) {
     return (
@@ -194,7 +194,7 @@ export default function Connect() {
       </div>
 
       {/* Dev Mode Toggle (only show if Mock provider exists) */}
-      {providers.some((p: any) => p.id === 'Mock') && (
+      {(providers || []).some((p: any) => p.id === 'Mock') && (
         <Card className="p-4 card-shadow border border-border">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -258,7 +258,7 @@ export default function Connect() {
       <div className="space-y-4">
         <SectionTitle title="Health Providers" />
         
-        {providers.map((provider: any) => {
+        {(providers || []).map((provider: any) => {
           const providerInfo = getProviderInfo(provider.id)
           const connection = getConnectionForProvider(provider.id)
           const statusInfo = getStatusInfo(connection)
@@ -362,7 +362,7 @@ export default function Connect() {
           )
         })}
         
-        {providers.length === 0 && (
+        {(providers || []).length === 0 && (
           <Card className="p-8 text-center" data-testid="no-providers">
             <Wifi className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">No Providers Available</h3>

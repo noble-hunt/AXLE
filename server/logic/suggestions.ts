@@ -144,15 +144,23 @@ function complementCategory(lastCat: Category | undefined, weeklyCounts: Record<
 }
 
 /**
- * Computes fatigue score based on health metrics
+ * Computes fatigue score based on health metrics using specified formula:
+ * fatigue = clamp01(
+ *   base(0.5)
+ *   + (sleepScore<60 ? +0.15 : sleepScore>=85 ? -0.10 : +0.05)
+ *   + (restingHR>baseline+1σ ? +0.15 : 0)
+ *   + (hrv<baseline-1σ ? +0.25 : 0)
+ *   + (stress>=7 ? +0.20 : stress>=4 ? +0.10 : -0.05)
+ * )
  */
-function computeFatigue(health: HealthReport | null, last14Workouts: Workout[]): number {
+function computeFatigue(health: HealthReport | null, last14Workouts: Workout[], rulesApplied: string[]): number {
   let fatigue = 0.5; // Start at 0.5
 
   if (health?.metrics && typeof health.metrics === 'object') {
     const metrics = health.metrics as any;
 
-    // Compute 14d baselines for HRV and resting HR from historical data
+    // Compute 14d baselines for HRV and resting HR from historical health reports
+    // Note: For now using workout feedback data as baseline, could be enhanced to use historical health reports
     const hrvValues = last14Workouts.map(w => {
       if (w.feedback && typeof w.feedback === 'object' && 'hrv' in w.feedback) {
         return w.feedback.hrv as number;
@@ -167,43 +175,51 @@ function computeFatigue(health: HealthReport | null, last14Workouts: Workout[]):
       return null;
     }).filter(Boolean) as number[];
 
-    // HRV check
-    if (metrics.hrv && hrvValues.length > 2) {
-      const meanHRV = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
-      const stdHRV = Math.sqrt(hrvValues.reduce((sum, val) => sum + Math.pow(val - meanHRV, 2), 0) / hrvValues.length);
-      if (metrics.hrv < meanHRV - stdHRV) {
-        fatigue += 0.25;
+    // Sleep score check - exact formula from spec
+    if (typeof metrics.sleepScore === 'number') {
+      if (metrics.sleepScore < 60) {
+        fatigue += 0.15;
+        rulesApplied.push(`Poor sleep (${metrics.sleepScore}%) → increase fatigue by 0.15`);
+      } else if (metrics.sleepScore >= 85) {
+        fatigue -= 0.10;
+        rulesApplied.push(`Excellent sleep (${metrics.sleepScore}%) → reduce fatigue by 0.10`);
+      } else {
+        fatigue += 0.05;
+        rulesApplied.push(`Moderate sleep (${metrics.sleepScore}%) → slight fatigue increase`);
       }
     }
 
-    // Resting HR check
+    // Resting HR check - baseline + 1σ
     if (metrics.restingHR && restingHRValues.length > 2) {
       const meanHR = restingHRValues.reduce((a, b) => a + b, 0) / restingHRValues.length;
       const stdHR = Math.sqrt(restingHRValues.reduce((sum, val) => sum + Math.pow(val - meanHR, 2), 0) / restingHRValues.length);
       if (metrics.restingHR > meanHR + stdHR) {
         fatigue += 0.15;
+        rulesApplied.push(`Elevated resting HR (${metrics.restingHR} vs baseline ${Math.round(meanHR)}) → increase fatigue`);
       }
     }
 
-    // Sleep score check
-    if (typeof metrics.sleepScore === 'number') {
-      if (metrics.sleepScore < 60) {
-        fatigue += 0.15;
-      } else if (metrics.sleepScore >= 60 && metrics.sleepScore <= 74) {
-        fatigue += 0.05;
-      } else if (metrics.sleepScore >= 85) {
-        fatigue -= 0.10;
+    // HRV check - baseline - 1σ  
+    if (metrics.hrv && hrvValues.length > 2) {
+      const meanHRV = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
+      const stdHRV = Math.sqrt(hrvValues.reduce((sum, val) => sum + Math.pow(val - meanHRV, 2), 0) / hrvValues.length);
+      if (metrics.hrv < meanHRV - stdHRV) {
+        fatigue += 0.25;
+        rulesApplied.push(`Low HRV vs baseline → cap intensity at 5`);
       }
     }
 
-    // Stress check
+    // Stress check - exact formula from spec
     if (typeof metrics.stress === 'number') {
       if (metrics.stress >= 7) {
         fatigue += 0.20;
-      } else if (metrics.stress >= 4 && metrics.stress <= 6) {
+        rulesApplied.push(`High stress (${metrics.stress}/10) → reduce intensity`);
+      } else if (metrics.stress >= 4) {
         fatigue += 0.10;
-      } else if (metrics.stress <= 3) {
+        rulesApplied.push(`Moderate stress (${metrics.stress}/10) → slight intensity reduction`);
+      } else {
         fatigue -= 0.05;
+        rulesApplied.push(`Low stress (${metrics.stress}/10) → allow higher intensity`);
       }
     }
   }
@@ -273,7 +289,6 @@ export async function computeSuggestion(userId: string, today = new Date()) {
   // Compute helper values
   const weeklyCounts = computeCategoryCounts(last7);
   const monthlyCounts = computeCategoryCounts(last28);
-  const fatigue = computeFatigue(latestHealth, last14);
   
   // Use the most recent workout overall, not just from yesterday
   const lastWorkout = last28[0] || null;
@@ -281,6 +296,9 @@ export async function computeSuggestion(userId: string, today = new Date()) {
   
   // Build rationale
   const rulesApplied: string[] = [];
+  
+  // Compute fatigue with rules tracking
+  const fatigue = computeFatigue(latestHealth, last14, rulesApplied);
   
   // Determine category
   let category: Category;
@@ -303,12 +321,22 @@ export async function computeSuggestion(userId: string, today = new Date()) {
   const medianDuration = computeMedianDuration(last14);
   let duration = medianDuration;
   
+  // Apply fatigue-based duration adjustments
   if (fatigue >= 0.7) {
     duration = Math.max(15, duration * 0.75);
-    rulesApplied.push(`High fatigue detected (${fatigue.toFixed(2)}), reducing duration by 25%`);
+    rulesApplied.push(`High fatigue (${fatigue.toFixed(2)}) → shorten duration 25%`);
   } else if (fatigue <= 0.3) {
     duration = Math.min(60, duration * 1.2);
-    rulesApplied.push(`Low fatigue detected (${fatigue.toFixed(2)}), increasing duration by 20%`);
+    rulesApplied.push(`Low fatigue (${fatigue.toFixed(2)}) → extend duration 20%`);
+  }
+  
+  // Additional sleep-based duration adjustment
+  if (latestHealth?.metrics && typeof latestHealth.metrics === 'object') {
+    const metrics = latestHealth.metrics as any;
+    if (typeof metrics.sleepScore === 'number' && metrics.sleepScore < 60) {
+      duration = Math.max(15, duration * 0.75);
+      rulesApplied.push(`Poor sleep (${metrics.sleepScore}) → shorten duration 25%`);
+    }
   }
   
   duration = Math.round(duration);
@@ -339,16 +367,7 @@ export async function computeSuggestion(userId: string, today = new Date()) {
     intensity = newIntensity;
   }
   
-  // Add health-specific rules (effects are already captured through fatigue scoring)
-  if (latestHealth?.metrics && typeof latestHealth.metrics === 'object') {
-    const metrics = latestHealth.metrics as any;
-    if (metrics.stress >= 7) {
-      rulesApplied.push(`High stress detected (${metrics.stress}/10), incorporated into fatigue calculation`);
-    }
-    if (metrics.sleepScore < 60) {
-      rulesApplied.push(`Poor sleep quality (${metrics.sleepScore}%), incorporated into fatigue calculation`);
-    }
-  }
+  // Health metrics have already been incorporated into fatigue calculation and rules
   
   // Build rationale object
   const rationale: SuggestionRationale = {

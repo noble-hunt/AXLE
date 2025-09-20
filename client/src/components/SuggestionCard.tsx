@@ -11,7 +11,11 @@ import {
   RotateCcw, 
   Info,
   TrendingUp,
-  Activity
+  Activity,
+  Heart,
+  Brain,
+  Moon,
+  Gauge
 } from "lucide-react"
 
 // Intensity badge variants
@@ -149,6 +153,37 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
     }
   }
 
+  // Helper function to extract health-related rules from rationale
+  const getHealthInfluences = (): { rule: string; icon: JSX.Element }[] => {
+    if (!suggestion?.rationale || typeof suggestion.rationale !== 'object') return [];
+    
+    const rationale = suggestion.rationale as any;
+    if (!rationale.rulesApplied || !Array.isArray(rationale.rulesApplied)) return [];
+    
+    const healthRules = rationale.rulesApplied.filter((rule: string) => 
+      rule.toLowerCase().includes('sleep') ||
+      rule.toLowerCase().includes('stress') || 
+      rule.toLowerCase().includes('hrv') ||
+      rule.toLowerCase().includes('resting hr') ||
+      rule.toLowerCase().includes('fatigue')
+    );
+
+    return healthRules.map((rule: string) => {
+      let icon = <Gauge className="w-4 h-4" />;
+      if (rule.toLowerCase().includes('sleep')) {
+        icon = <Moon className="w-4 h-4" />;
+      } else if (rule.toLowerCase().includes('stress')) {
+        icon = <Brain className="w-4 h-4" />;
+      } else if (rule.toLowerCase().includes('hrv') || rule.toLowerCase().includes('resting hr')) {
+        icon = <Heart className="w-4 h-4" />;
+      }
+      
+      return { rule, icon };
+    });
+  };
+
+  const healthInfluences = getHealthInfluences();
+
   return (
     <>
       <Card className={className} data-testid="suggestion-card">
@@ -163,17 +198,18 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
               <div className="flex flex-wrap gap-2 justify-center">
                 <Chip size="sm" variant="default" data-testid="chip-category">
                   {(() => {
-                    const category = suggestion.request.category || 'Strength';
-                    return category.charAt(0).toUpperCase() + category.slice(1);
+                    const request = suggestion.request as any;
+                    const category = request.category || 'Strength';
+                    return String(category.charAt(0).toUpperCase() + category.slice(1));
                   })()}
                 </Chip>
-                <Chip size="sm" variant={getIntensityVariant(suggestion.request.intensity || 5)} data-testid="chip-intensity">
+                <Chip size="sm" variant={getIntensityVariant((suggestion.request as any).intensity || 5)} data-testid="chip-intensity">
                   <Zap className="w-3 h-3 mr-1" />
-                  {suggestion.request.intensity || 5}/10
+                  {String((suggestion.request as any).intensity || 5)}/10
                 </Chip>
                 <Chip size="sm" variant="default" data-testid="chip-duration">
                   <Clock className="w-3 h-3 mr-1" />
-                  {suggestion.request.duration || 30}min
+                  {String((suggestion.request as any).duration || 30)}min
                 </Chip>
               </div>
             )}
@@ -182,7 +218,7 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
             {suggestion?.rationale && (
               <div className="bg-muted/50 rounded-lg p-3 text-center">
                 <p className="text-sm text-muted-foreground line-clamp-2">
-                  {suggestion.rationale.rulesApplied?.[0] || "Personalized workout based on your fitness profile"}
+                  {((suggestion.rationale as any).rulesApplied?.[0]) || "Personalized workout based on your fitness profile"}
                 </p>
               </div>
             )}
@@ -245,23 +281,42 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
             <p className="text-body text-muted-foreground">Why we chose this workout for you</p>
           </div>
 
+          {/* Health Influence Section */}
+          {healthInfluences.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-body font-semibold text-foreground">Health Influence</h3>
+              <div className="space-y-2">
+                {healthInfluences.map(({ rule, icon }, index: number) => (
+                  <div key={index} className="bg-muted/50 rounded-lg p-3 flex items-start gap-3">
+                    <div className="text-accent mt-0.5">{icon}</div>
+                    <p className="text-sm text-foreground flex-1">{rule}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Applied Rules */}
           <div className="space-y-3">
             <h3 className="text-body font-semibold text-foreground">Applied Logic</h3>
             <div className="space-y-2">
-              {suggestion?.rationale?.rulesApplied && suggestion.rationale.rulesApplied.length > 0 ? (
-                suggestion.rationale.rulesApplied.map((rule: string, index: number) => (
-                  <div key={index} className="bg-muted/50 rounded-lg p-3">
-                    <p className="text-sm text-foreground">{rule}</p>
+              {(() => {
+                const rationale = suggestion?.rationale as any;
+                const rulesApplied = rationale?.rulesApplied;
+                return rulesApplied && Array.isArray(rulesApplied) && rulesApplied.length > 0 ? (
+                  rulesApplied.map((rule: string, index: number) => (
+                    <div key={index} className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-sm text-foreground">{rule}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-sm text-foreground">
+                      This workout was selected based on your fitness profile, recent activity, and recovery status.
+                    </p>
                   </div>
-                ))
-              ) : (
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-sm text-foreground">
-                    This workout was selected based on your fitness profile, recent activity, and recovery status.
-                  </p>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
 

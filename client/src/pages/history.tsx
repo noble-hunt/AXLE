@@ -58,38 +58,42 @@ export default function History() {
 
   // Helper function to determine if a workout is suggested
   const isSuggestedWorkout = (workout: any) => {
-    // Check if workout has a suggestion-related source or metadata
+    // Check if workout has explicit suggestion markers
     if (workout.source === 'suggested' || workout.source === 'ai' || workout.suggested === true) {
       return true
     }
     
-    // Check if the workout was generated from suggestions API (has specific request structure)
-    if (workout.request && workout.request.regenerate !== undefined) {
-      return true
+    // Check if the workout was generated from suggestions API
+    // Workouts from suggestions typically have specific metadata or naming patterns
+    if (workout.request && typeof workout.request === 'object') {
+      // If request contains suggestion-specific fields
+      if (workout.request.fromSuggestion === true || workout.request.suggested === true) {
+        return true
+      }
     }
     
-    // Check for suggestion-related keywords in name or notes
-    const suggestionKeywords = ['suggested', 'daily', 'recommended', 'ai-generated', 'personalized', 'generated']
+    // Check for suggestion-related keywords in name, title or notes
+    const suggestionKeywords = ['suggested', 'daily suggestion', 'recommended', 'ai-generated', 'personalized', 'daily workout']
     const hasSuggestionKeywords = suggestionKeywords.some(keyword => 
       workout.name?.toLowerCase().includes(keyword) || 
       workout.notes?.toLowerCase().includes(keyword) ||
       workout.title?.toLowerCase().includes(keyword)
     )
     
-    // Check if it's a recent workout (last 7 days) that matches typical AI-generated names
+    // Check for typical AI-generated workout names from our system
+    const aiGeneratedPatterns = [
+      'flow', 'blast', 'circuit', 'crusher', 'fury', 'storm', 'thunder', 'power', 
+      'endurance session', 'strength builder', 'cardio burn', 'hiit session'
+    ]
+    const hasAiPattern = aiGeneratedPatterns.some(pattern => 
+      workout.name?.toLowerCase().includes(pattern) || workout.title?.toLowerCase().includes(pattern)
+    )
+    
+    // If workout was created recently (last 30 days) and has AI patterns, likely suggested
     const workoutDate = workout.date instanceof Date ? workout.date : new Date(workout.date)
-    const weekAgo = new Date()
-    weekAgo.setDate(weekAgo.getDate() - 7)
-    const isRecent = workoutDate >= weekAgo
-    
-    const aiPatterns = ['flow', 'blast', 'circuit', 'session', 'power', 'endurance', 'strength', 'burn', 'crusher', 'fury', 'storm', 'thunder']
-    const hasAiPattern = aiPatterns.some(pattern => workout.name?.toLowerCase().includes(pattern))
-    
-    // For development/testing: temporarily mark all workouts as suggested to test the filter
-    // Remove this line in production
-    if (workout.name?.toLowerCase().includes('hiit') || workout.name?.toLowerCase().includes('cardio')) {
-      return true
-    }
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const isRecent = workoutDate >= thirtyDaysAgo
     
     return hasSuggestionKeywords || (isRecent && hasAiPattern)
   }

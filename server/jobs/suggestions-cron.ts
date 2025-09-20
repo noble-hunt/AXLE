@@ -1,13 +1,124 @@
 import * as cron from "node-cron";
 import { db } from "../db";
-import { workouts, suggestedWorkouts } from "@shared/schema";
+import { workouts, suggestedWorkouts, wearableConnections, healthReports } from "@shared/schema";
 import { sql, eq, and, gte } from "drizzle-orm";
 import { computeSuggestion } from "../logic/suggestions";
+import { MockHealthProvider } from "../providers/health/mock";
+import { FitbitHealthProvider } from "../providers/health/fitbit";
+import { OuraHealthProvider } from "../providers/health/oura";
+import { WhoopHealthProvider } from "../providers/health/whoop";
+import { GarminHealthProvider } from "../providers/health/garmin";
+import { HealthProvider } from "../providers/health/types";
 
 /**
  * Last run timestamp for health reporting
  */
 let lastRunAt: Date | null = null;
+
+// Initialize providers
+const providers: Record<string, HealthProvider> = {
+  Mock: new MockHealthProvider(),
+  Fitbit: new FitbitHealthProvider(),
+  Oura: new OuraHealthProvider(),
+  Whoop: new WhoopHealthProvider(),
+  Garmin: new GarminHealthProvider(),
+};
+
+/**
+ * Sync health data for a user if they have connected devices and no report for today
+ */
+async function syncHealthDataIfNeeded(userId: string, today: string): Promise<void> {
+  // Check if user has connected health devices
+  const connectedDevices = await db
+    .select()
+    .from(wearableConnections)
+    .where(and(
+      eq(wearableConnections.userId, userId),
+      eq(wearableConnections.connected, true)
+    ));
+
+  if (connectedDevices.length === 0) {
+    return; // No connected devices, skip health sync
+  }
+
+  // Check if health report exists for today
+  const existingReport = await db
+    .select()
+    .from(healthReports)
+    .where(and(
+      eq(healthReports.userId, userId),
+      eq(healthReports.date, today)
+    ))
+    .limit(1);
+
+  if (existingReport.length > 0) {
+    return; // Already has health report for today
+  }
+
+  console.log(`🔄 [CRON] Syncing health data for user ${userId} before computing suggestion`);
+
+  // Try to fetch health data from connected providers
+  for (const device of connectedDevices) {
+    const provider = providers[device.provider];
+    if (!provider || !provider.fetchLatest) {
+      continue;
+    }
+
+    try {
+      console.log(`📊 [CRON] Fetching health data from ${device.provider} for user ${userId}`);
+      const healthSnapshot = await provider.fetchLatest(userId);
+      
+      // Create health report
+      await db
+        .insert(healthReports)
+        .values({
+          userId: userId,
+          date: today,
+          summary: `Auto-synced from ${device.provider}`,
+          metrics: {
+            hrv: healthSnapshot.hrv,
+            restingHR: healthSnapshot.restingHR,
+            sleepScore: healthSnapshot.sleepScore,
+            stress: healthSnapshot.stress,
+            steps: healthSnapshot.steps,
+            calories: healthSnapshot.calories,
+          },
+          suggestions: [],
+        });
+
+      console.log(`✅ [CRON] Created health report from ${device.provider} for user ${userId}`);
+      
+      // Update connection last sync time
+      await db
+        .update(wearableConnections)
+        .set({ 
+          lastSync: new Date(),
+          status: 'connected'
+        })
+        .where(and(
+          eq(wearableConnections.userId, userId),
+          eq(wearableConnections.provider, device.provider)
+        ));
+      
+      break; // Successfully synced from one provider, that's enough
+      
+    } catch (error) {
+      console.error(`❌ [CRON] Failed to sync health data from ${device.provider} for user ${userId}:`, error);
+      
+      // Update connection with error status
+      await db
+        .update(wearableConnections)
+        .set({ 
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        })
+        .where(and(
+          eq(wearableConnections.userId, userId),
+          eq(wearableConnections.provider, device.provider)
+        ));
+    }
+  }
+}
 
 /**
  * Generate daily suggestions for active users
@@ -52,6 +163,9 @@ export async function generateDailySuggestions(): Promise<{ processed: number; c
           continue;
         }
         
+        // Sync health data if needed before computing suggestion
+        await syncHealthDataIfNeeded(userId, today);
+
         // Generate new suggestion
         console.log(`🧠 [CRON] Generating suggestion for user ${userId}`);
         const suggestionResult = await computeSuggestion(userId, new Date());
