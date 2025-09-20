@@ -127,9 +127,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
             (async () => {
               try {
                 // Upsert profile first (create if doesn't exist)
-                const firstName = session.user.user_metadata?.first_name;
-                const lastName = session.user.user_metadata?.last_name;
-                await get().upsertProfile(session.user.id, session.user.email || '', undefined, firstName, lastName);
+                await get().upsertProfile(session.user.id, session.user.email || '');
                 
                 // Then hydrate all data
                 await hydrateFromDb(session.user.id);
@@ -167,9 +165,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
             (async () => {
               try {
                 // Upsert profile first (create if doesn't exist)
-                const firstName = session.user.user_metadata?.first_name;
-                const lastName = session.user.user_metadata?.last_name;
-                await get().upsertProfile(session.user.id, session.user.email || '', undefined, firstName, lastName);
+                await get().upsertProfile(session.user.id, session.user.email || '');
                 
                 // Then hydrate all data
                 await hydrateFromDb(session.user.id);
