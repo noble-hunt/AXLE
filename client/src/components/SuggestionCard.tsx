@@ -275,9 +275,6 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
         <div className="flex flex-col h-full">
           <div className="flex-shrink-0 p-6 pb-4">
             <div className="text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto">
-                <TrendingUp className="w-6 h-6 text-accent" />
-              </div>
               <h2 className="text-subheading font-bold text-foreground">Workout Rationale</h2>
               <p className="text-body text-muted-foreground">Why we chose this workout for you</p>
             </div>
