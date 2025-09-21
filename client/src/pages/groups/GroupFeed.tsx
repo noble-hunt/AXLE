@@ -886,7 +886,7 @@ export default function GroupFeedPage() {
     const reactions = postReactions[post.id] || [];
     
     return (
-      <div key={post.id} className="flex gap-3 mb-4">
+      <div key={post.id} className="flex gap-3 mb-6">
         <Avatar className="w-8 h-8 flex-shrink-0">
           <AvatarImage src={post.authorAvatar} alt={post.authorName} />
           <AvatarFallback className="text-xs">
@@ -1380,7 +1380,7 @@ export default function GroupFeedPage() {
       {/* Feed */}
       <div 
         ref={parentRef}
-        className="flex-1 overflow-auto p-4"
+        className="flex-1 overflow-auto p-6"
         onScroll={(e) => {
           const target = e.target as HTMLElement;
           
