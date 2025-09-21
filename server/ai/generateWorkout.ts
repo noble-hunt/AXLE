@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { WorkoutSchema, buildUserContextString, intensityGuidelines } from '../../client/src/ai/schemas';
 import { parseAndValidate } from '../../client/src/ai/json';
 import type { WorkoutRequest } from '@shared/schema';
+import { critiqueAndRepair } from './critic';
 
 // Initialize OpenAI client
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
@@ -51,6 +52,10 @@ export interface WorkoutGenerationResult {
   timecaps?: string[];
   equipment_list: string[];
   hazards: string[];
+  // Critic telemetry fields
+  critic_score?: number;
+  critic_issues?: string[];
+  was_patched?: boolean;
 }
 
 // Create comprehensive system prompt
@@ -485,10 +490,20 @@ export async function generateWorkout(request: WorkoutGenerationRequest): Promis
       // Extract explainable fields
       const explainableFields = extractExplainableFields(workout);
       
+      // Run critic QA pass on the generated workout
+      const criticResult = await critiqueAndRepair(workout, {
+        request,
+        originalWorkout: workout
+      });
+      
       return {
-        workout,
+        workout: criticResult.workout,
         rationale: workout.coaching_notes || `Generated ${workout.category} workout at ${workout.intensity_1_to_10}/10 intensity`,
-        ...explainableFields
+        ...explainableFields,
+        // Add telemetry fields for analytics
+        critic_score: criticResult.score,
+        critic_issues: criticResult.issues,
+        was_patched: criticResult.wasPatched
       };
       
     } catch (error: any) {
@@ -517,10 +532,20 @@ export async function generateWorkout(request: WorkoutGenerationRequest): Promis
           const workout = parseAndValidate(WorkoutSchema, repairedResponse);
           const explainableFields = extractExplainableFields(workout);
           
+          // Run critic QA pass on the generated workout
+          const criticResult = await critiqueAndRepair(workout, {
+            request,
+            originalWorkout: workout
+          });
+          
           return {
-            workout,
+            workout: criticResult.workout,
             rationale: workout.coaching_notes || `Generated ${workout.category} workout at ${workout.intensity_1_to_10}/10 intensity`,
-            ...explainableFields
+            ...explainableFields,
+            // Add telemetry fields for analytics
+            critic_score: criticResult.score,
+            critic_issues: criticResult.issues,
+            was_patched: criticResult.wasPatched
           };
           
         } catch (repairError) {

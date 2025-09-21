@@ -1,0 +1,66 @@
+Foundation + Validator + Renderer (STOP after Acceptance)
+
+Goal
+Be able to represent and render workouts exactly like your examples. Create (or upgrade) the schema, validators, and a renderer that outputs your brand’s format (running clock, AMRAP blocks with rests, ladders like 27-21-15-9, %1RM progressions/complexes, RX pairs like 95/65#, 20/14#, 24/20in).
+
+Tasks
+
+If present, upgrade src/ai/schemas.ts; otherwise create it.
+
+Types & Zod for:
+
+Workout { title, category, duration_min, intensity_1_to_10, rationale, blocks: WorkoutBlock[], cool_down?: WarmDown[] }
+
+WorkoutBlock union:
+
+cf_amrap { kind:'cf_amrap', minutes:number, items: MovementSpec[], note?:string }
+
+cf_for_time { kind:'cf_for_time', reps_scheme:string, items: MovementSpec[], time_cap_min:number }
+
+cf_interval { kind:'cf_interval', rounds:number, work_min:number, rest_sec:number, items:MovementSpec[] }
+
+strength { kind:'strength', movement:string, sets:number, reps?:number, complex?:ComplexSpec, percent_1rm?:number, load?:LoadSpec, rest_sec?:number, note?:string }
+
+accessory { kind:'accessory', items:MovementSpec[] }
+
+MovementSpec { name, reps?, reps_scheme?, load?, height_in?, notes? }
+
+ComplexSpec { parts: { name, reps }[] } → renders 3x1+2
+
+LoadSpec { unit:'lb'|'kg'|'bw'|'%1RM', value:number, ref_1rm_of?:string }
+
+WarmDown { name, reps?, seconds? }
+
+Rules:
+
+CF blocks require minutes or time_cap_min appropriately
+
+%1RM requires ref_1rm_of
+
+Duration of blocks ∈ duration_min ±10%
+
+Create src/ai/render.ts with:
+
+renderCrossFit(w) → formats:
+
+“on a 15:00 running clock…” for interval stacks
+
+AMRAPs with *Rest :60 lines
+
+For-Time ladders: 27 - 21 - 15 - 9 + second movement line + “17:00 time cap!”
+
+RX pairs: 95/65#, wall ball 20/14#, box 24/20in
+
+renderOly(w) → A/B/C/D/E sections, %1RM lines, complexes (3x1+2 @ 65% of 1RM Snatch), accessories
+
+render(w) dispatcher by category
+
+Add 1 CF + 1 Oly fixtures in src/ai/__fixtures__ and a tiny test script.
+
+Acceptance (then STOP)
+
+Types compile, Zod validates fixtures.
+
+render(fixtures.cf) looks like your “Hardy Bacardi Party / Slap Happy Samurai” style; render(fixtures.oly) matches the Oly examples.
+
+Test script passes.
