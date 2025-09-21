@@ -4,12 +4,12 @@
  * Creates 8 JSON workout samples across categories and writes to attached_assets/
  */
 
-import { generateCrossFitWorkout } from '../server/ai/generators/crossfit.js';
-import { generateOlympicWorkout } from '../server/ai/generators/olympic.js';
-import { critiqueAndRepair } from '../server/ai/critic.js';
-import { generateWorkoutTitle } from '../server/ai/title.js';
-import { render } from '../src/ai/render.js';
-import type { WorkoutGenerationRequest } from '../server/ai/generateWorkout.js';
+import { generateCrossFitWorkout } from '../server/ai/generators/crossfit';
+import { generateOlympicWorkout } from '../server/ai/generators/olympic';
+import { critiqueAndRepair } from '../server/ai/critic';
+import { generateWorkoutTitle } from '../server/ai/title';
+import { render } from '../src/ai/render';
+import type { WorkoutGenerationRequest } from '../server/ai/generateWorkout';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 

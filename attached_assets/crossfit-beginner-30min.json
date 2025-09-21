@@ -1,0 +1,121 @@
+{
+  "metadata": {
+    "name": "crossfit-beginner-30min",
+    "category": "CrossFit/HIIT",
+    "duration": 30,
+    "intensity": 4,
+    "generated_at": "2025-09-21T02:14:09.188Z",
+    "generator_version": "1.0.0"
+  },
+  "request": {
+    "category": "CrossFit/HIIT",
+    "duration": 30,
+    "intensity": 4,
+    "context": {
+      "equipment": [
+        "barbell",
+        "kettlebell",
+        "pull_up_bar",
+        "box",
+        "floor"
+      ],
+      "constraints": [
+        "beginner_friendly"
+      ],
+      "goals": [
+        "general_fitness",
+        "strength_building"
+      ]
+    }
+  },
+  "workout": {
+    "name": "Mellow Meltdown",
+    "category": "CrossFit/HIIT",
+    "format": "amrap",
+    "duration_min": 30,
+    "intensity_1_to_10": 4,
+    "description": "Beginner-friendly AMRAP focusing on fundamental movements with moderate intensity. Scaling options available for all fitness levels.",
+    "blocks": [
+      {
+        "name": "Warm-up",
+        "type": "warmup",
+        "estimated_duration_min": 5,
+        "warmup_steps": [
+          {
+            "movement": "jumping_jacks",
+            "duration_seconds": 120,
+            "intensity_percent": 50
+          },
+          {
+            "movement": "dynamic_stretches",
+            "duration_seconds": 180,
+            "intensity_percent": 40
+          }
+        ]
+      },
+      {
+        "name": "Main AMRAP",
+        "type": "main",
+        "estimated_duration_min": 20,
+        "format": "amrap",
+        "sets": [
+          {
+            "rounds": 5,
+            "movements": [
+              {
+                "name": "kettlebell_swing",
+                "category": "CrossFit/HIIT",
+                "reps": 10,
+                "weight_kg": 16,
+                "notes": "Scale to 8kg if needed"
+              },
+              {
+                "name": "air_squat",
+                "category": "CrossFit/HIIT",
+                "reps": 15,
+                "notes": "Maintain proper form"
+              },
+              {
+                "name": "push_up",
+                "category": "CrossFit/HIIT",
+                "reps": 10,
+                "notes": "Knee push-ups as a scale"
+              }
+            ],
+            "time_cap_seconds": 1200
+          }
+        ]
+      },
+      {
+        "name": "Cool Down",
+        "type": "cooldown",
+        "estimated_duration_min": 5,
+        "cooldown_steps": [
+          {
+            "movement": "walking",
+            "duration_seconds": 180
+          },
+          {
+            "movement": "static_stretching",
+            "duration_seconds": 120
+          }
+        ]
+      }
+    ],
+    "equipment_needed": [
+      "kettlebell",
+      "box"
+    ],
+    "coaching_notes": "Encourage proper form and controlled breathing. Use lighter weights for beginners and scale movement to ensure comfort and safety."
+  },
+  "critique": {
+    "score": 78,
+    "issues": [
+      "Equipment mismatch: 'box' is listed but not used in the workout.",
+      "Recovery fit: Intensity may not be suitable if yesterday's session was also high intensity.",
+      "Time & intensity precision: Total duration is exactly 30 minutes, but the main AMRAP block's time cap is too long for a beginner-friendly session."
+    ],
+    "was_patched": false
+  },
+  "rendered": "**MELLOW MELTDOWN**\nIntensity: 4/10 | Duration: 30 min\n\n\n*Rest 2:00*\n\n\n*Rest 2:00*\n"
+}

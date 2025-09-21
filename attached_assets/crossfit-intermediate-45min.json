@@ -1,0 +1,31 @@
+{
+  "metadata": {
+    "name": "crossfit-intermediate-45min",
+    "category": "CrossFit/HIIT",
+    "duration": 45,
+    "intensity": 6,
+    "generated_at": "2025-09-21T02:14:17.273Z",
+    "generator_version": "1.0.0"
+  },
+  "request": {
+    "category": "CrossFit/HIIT",
+    "duration": 45,
+    "intensity": 6,
+    "context": {
+      "equipment": [
+        "barbell",
+        "kettlebell",
+        "pull_up_bar",
+        "box",
+        "dumbbell",
+        "wall_ball"
+      ],
+      "constraints": [],
+      "goals": [
+        "conditioning",
+        "strength_building"
+      ]
+    }
+  },
+  "error": "Validation failed after repair: Schema validation failed: Invalid enum value. Expected 'warmup' | 'main' | 'accessory' | 'cooldown', received 'cf_interval' at blocks.1.type; Invalid enum value. Expected 'CrossFit/HIIT' | 'Powerlifting' | 'Olympic' | 'Bodybuilding_Upper' | 'Bodybuilding_Lower' | 'Bodybuilding_Full' | 'Gymnastics' | 'Aerobic', received 'CrossFit' at blocks.1.sets.0.movements.0.category; Invalid enum value. Expected 'CrossFit/HIIT' | 'Powerlifting' | 'Olympic' | 'Bodybuilding_Upper' | 'Bodybuilding_Lower' | 'Bodybuilding_Full' | 'Gymnastics' | 'Aerobic', received 'CrossFit' at blocks.1.sets.0.movements.1.category; Invalid enum value. Expected 'CrossFit/HIIT' | 'Powerlifting' | 'Olympic' | 'Bodybuilding_Upper' | 'Bodybuilding_Lower' | 'Bodybuilding_Full' | 'Gymnastics' | 'Aerobic', received 'CrossFit' at blocks.1.sets.0.movements.2.category; Invalid enum value. Expected 'CrossFit/HIIT' | 'Powerlifting' | 'Olympic' | 'Bodybuilding_Upper' | 'Bodybuilding_Lower' | 'Bodybuilding_Full' | 'Gymnastics' | 'Aerobic', received 'CrossFit' at blocks.1.sets.0.movements.3.category"
+}

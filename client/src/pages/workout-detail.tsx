@@ -91,7 +91,7 @@ export default function WorkoutDetail() {
 
       toast({
         title: "Workout Completed! 🎉",
-        description: `Great job finishing "${workout?.name}"!`,
+        description: `Great job finishing "${workout?.title || workout?.name}"!`,
       })
 
     } catch (error) {
@@ -152,7 +152,7 @@ export default function WorkoutDetail() {
         
         <div className="text-center space-y-2">
           <h1 className="text-heading font-bold text-foreground">Workout Complete!</h1>
-          <p className="text-body text-muted-foreground">Amazing work on "{workout.name}"</p>
+          <p className="text-body text-muted-foreground">Amazing work on "{workout.title || workout.name}"</p>
         </div>
 
         <Card className="p-6 w-full max-w-sm">
@@ -191,7 +191,7 @@ export default function WorkoutDetail() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <h1 className="text-heading font-bold text-foreground">{workout.name}</h1>
+            <h1 className="text-heading font-bold text-foreground">{workout.title || workout.name}</h1>
             <div className="flex items-center gap-2 mt-1">
               <Calendar className="w-4 h-4 text-muted-foreground" />
               <span className="text-body text-muted-foreground">

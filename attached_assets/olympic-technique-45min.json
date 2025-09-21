@@ -1,0 +1,31 @@
+{
+  "metadata": {
+    "name": "olympic-technique-45min",
+    "category": "Olympic",
+    "duration": 45,
+    "intensity": 5,
+    "generated_at": "2025-09-21T02:14:50.265Z",
+    "generator_version": "1.0.0"
+  },
+  "request": {
+    "category": "Olympic",
+    "duration": 45,
+    "intensity": 5,
+    "context": {
+      "equipment": [
+        "barbell",
+        "platform",
+        "squat_rack",
+        "competition_plates"
+      ],
+      "constraints": [
+        "technique_focus"
+      ],
+      "goals": [
+        "skill_development",
+        "movement_quality"
+      ]
+    }
+  },
+  "error": "Cannot read properties of undefined (reading 'toUpperCase')"
+}
