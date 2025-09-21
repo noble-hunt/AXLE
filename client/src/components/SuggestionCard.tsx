@@ -272,68 +272,76 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
         onOpenChange={setShowRationale}
         data-testid="rationale-sheet"
       >
-        <div className="p-6 space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto">
-              <TrendingUp className="w-6 h-6 text-accent" />
+        <div className="flex flex-col h-full">
+          <div className="flex-shrink-0 p-6 pb-4">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto">
+                <TrendingUp className="w-6 h-6 text-accent" />
+              </div>
+              <h2 className="text-subheading font-bold text-foreground">Workout Rationale</h2>
+              <p className="text-body text-muted-foreground">Why we chose this workout for you</p>
             </div>
-            <h2 className="text-subheading font-bold text-foreground">Workout Rationale</h2>
-            <p className="text-body text-muted-foreground">Why we chose this workout for you</p>
           </div>
-
-          {/* Health Influence Section */}
-          {healthInfluences.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-body font-semibold text-foreground">Health Influence</h3>
-              <div className="space-y-2">
-                {healthInfluences.map(({ rule, icon }, index: number) => (
-                  <div key={index} className="bg-muted/50 rounded-lg p-3 flex items-start gap-3">
-                    <div className="text-accent mt-0.5">{icon}</div>
-                    <p className="text-sm text-foreground flex-1">{rule}</p>
+          
+          <div className="flex-1 overflow-y-auto px-6 pb-2">
+            <div className="space-y-6">
+              {/* Health Influence Section */}
+              {healthInfluences.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-body font-semibold text-foreground">Health Influence</h3>
+                  <div className="space-y-2">
+                    {healthInfluences.map(({ rule, icon }, index: number) => (
+                      <div key={index} className="bg-muted/50 rounded-lg p-3 flex items-start gap-3">
+                        <div className="text-accent mt-0.5">{icon}</div>
+                        <p className="text-sm text-foreground flex-1">{rule}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* Applied Rules */}
+              <div className="space-y-3">
+                <h3 className="text-body font-semibold text-foreground">Applied Logic</h3>
+                <div className="space-y-2">
+                  {(() => {
+                    const rationale = suggestion?.rationale as any;
+                    const rulesApplied = rationale?.rulesApplied;
+                    return rulesApplied && Array.isArray(rulesApplied) && rulesApplied.length > 0 ? (
+                      rulesApplied.map((rule: string, index: number) => (
+                        <div key={index} className="bg-muted/50 rounded-lg p-3">
+                          <p className="text-sm text-foreground">{rule}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-sm text-foreground">
+                          This workout was selected based on your fitness profile, recent activity, and recovery status.
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* 7-Day Category Mix Chart */}
+              <div className="space-y-3">
+                <h3 className="text-body font-semibold text-foreground">Recent Training Balance</h3>
+                <CategoryMixChart categories={mockCategoryData} />
               </div>
             </div>
-          )}
-
-          {/* Applied Rules */}
-          <div className="space-y-3">
-            <h3 className="text-body font-semibold text-foreground">Applied Logic</h3>
-            <div className="space-y-2">
-              {(() => {
-                const rationale = suggestion?.rationale as any;
-                const rulesApplied = rationale?.rulesApplied;
-                return rulesApplied && Array.isArray(rulesApplied) && rulesApplied.length > 0 ? (
-                  rulesApplied.map((rule: string, index: number) => (
-                    <div key={index} className="bg-muted/50 rounded-lg p-3">
-                      <p className="text-sm text-foreground">{rule}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="bg-muted/50 rounded-lg p-3">
-                    <p className="text-sm text-foreground">
-                      This workout was selected based on your fitness profile, recent activity, and recovery status.
-                    </p>
-                  </div>
-                );
-              })()}
-            </div>
           </div>
-
-          {/* 7-Day Category Mix Chart */}
-          <div className="space-y-3">
-            <h3 className="text-body font-semibold text-foreground">Recent Training Balance</h3>
-            <CategoryMixChart categories={mockCategoryData} />
+          
+          <div className="flex-shrink-0 p-6 pt-4">
+            <Button 
+              variant="secondary"
+              className="w-full"
+              onClick={() => setShowRationale(false)}
+              data-testid="button-close-rationale"
+            >
+              Close
+            </Button>
           </div>
-
-          <Button 
-            variant="secondary"
-            className="w-full"
-            onClick={() => setShowRationale(false)}
-            data-testid="button-close-rationale"
-          >
-            Close
-          </Button>
         </div>
       </Sheet>
     </>

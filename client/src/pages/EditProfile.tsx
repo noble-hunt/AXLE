@@ -48,7 +48,7 @@ export default function EditProfile() {
       const responseData = await result.json()
 
       if (responseData.profile) {
-        // Update local store with response data
+        // Update local store with response data, preserving existing avatarUrl
         setProfile((prev: any) => prev ? {
           ...prev,
           firstName: responseData.profile.first_name,
@@ -60,7 +60,7 @@ export default function EditProfile() {
           lastName: responseData.profile.last_name,
           dateOfBirth: responseData.profile.date_of_birth,
           username: responseData.profile.username,
-          avatarUrl: responseData.profile.avatar_url,
+          avatarUrl: responseData.profile.avatar_url || profile?.avatarUrl, // Preserve existing avatar
           providers: responseData.profile.providers || ['email'],
           createdAt: new Date(responseData.profile.created_at)
         })
