@@ -26,6 +26,11 @@ export const workouts = pgTable("workouts", {
   sets: jsonb("sets").notNull(),
   completed: boolean("completed").default(false),
   feedback: jsonb("feedback"),
+  // AI-generated workout fields
+  rationale: text("rationale"), // AI rationale for the workout design
+  criticScore: integer("critic_score"), // 0-100 critic score
+  criticIssues: text("critic_issues").array(), // Array of identified issues
+  rawWorkoutJson: jsonb("raw_workout_json"), // Full AI-generated workout JSON for debugging
 });
 
 // PRS (Personal Records)

@@ -20,6 +20,7 @@ import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from
 import { registerWorkoutFreeformRoutes } from "./routes/workout-freeform";
 import { registerWhisperRoutes } from "./routes/whisper-transcription";
 import { registerGroupRoutes } from "./routes/groups";
+import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
 import healthRoutes from "./routes/health";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -37,6 +38,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register group routes
   registerGroupRoutes(app);
+  
+  // Register workout generation routes
+  registerWorkoutGenerationRoutes(app);
   
   // Authenticated data fetching routes
   app.get("/api/user/data", requireAuth, async (req, res) => {
