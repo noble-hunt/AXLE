@@ -39,8 +39,8 @@ export default function EditProfile() {
         dateOfBirth: dateOfBirth || null
       }
 
-      // Update via API  
-      const result = await apiRequest('PATCH', '/api/profiles', updateData)
+      // Update via API using the working upsert endpoint
+      const result = await apiRequest('POST', '/api/profiles/upsert', updateData)
       const responseData = await result.json()
 
       if (responseData.profile) {
