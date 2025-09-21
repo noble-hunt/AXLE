@@ -268,9 +268,9 @@ export default function History() {
       </div>
 
       {/* Workout List */}
-      <div className="space-y-6 pt-1">
+      <div className="space-y-8 pt-1">
         {Object.entries(groupedWorkouts).map(([dateKey, dateGroup]) => (
-          <div key={dateKey} className="space-y-5">
+          <div key={dateKey} className="space-y-6">
             <h2 className="text-subheading font-semibold text-foreground mb-3">{dateGroup.label}</h2>
             
             {dateGroup.workouts.map((workout) => {
@@ -292,21 +292,9 @@ export default function History() {
                         </div>
                         
                         {/* Chips Row */}
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-4 flex-wrap">
                           <Chip variant="default" size="sm">
                             {workout.category}
-                          </Chip>
-                          <Chip 
-                            variant={getIntensityVariant(workout.intensity)} 
-                            size="sm"
-                            data-testid={`intensity-${workout.intensity}`}
-                          >
-                            <Zap className="w-3 h-3 mr-1" />
-                            {workout.intensity}/10
-                          </Chip>
-                          <Chip variant="default" size="sm">
-                            <Clock className="w-3 h-3 mr-1" />
-                            {workout.duration}m
                           </Chip>
                           {isSuggestedWorkout(workout) && (
                             <Chip variant="accent" size="sm" data-testid="suggested-badge">

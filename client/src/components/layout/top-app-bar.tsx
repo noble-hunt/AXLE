@@ -105,7 +105,7 @@ export function TopAppBar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3">
+    <header className="sticky top-0 z-50 bg-white/10 dark:bg-black/10 backdrop-blur-lg border-b border-border/50 px-4 py-3">
       <div className="flex items-center justify-between max-w-sm mx-auto">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-2xl bg-primary flex items-center justify-center">
