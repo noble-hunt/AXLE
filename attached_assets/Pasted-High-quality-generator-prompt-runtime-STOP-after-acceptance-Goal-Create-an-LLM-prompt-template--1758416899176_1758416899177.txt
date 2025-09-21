@@ -1,0 +1,59 @@
+High-quality generator prompt + runtime (STOP after acceptance)
+
+Goal
+Create an LLM prompt template that consistently produces excellent, varied, recoverability-aware workouts, in strict JSON, using the schema from Prompt 1.
+
+Tasks
+
+Create server/ai/generateWorkout.ts:
+
+generateWorkout(req: WorkoutRequest & Context):
+
+Compose a system prompt:
+
+You are AXLE, a certified coach. Create a single safe, effective workout tailored to the user.
+Objectives: quality programming, progressive overload, movement balance, variation, and recovery awareness.
+Safety: avoid contraindicated movements, match equipment, obey injuries/constraints.
+Recovery logic:
+  • If health status is "caution" (e.g., low HRV/high stress/poor sleep), automatically reduce intensity by 1–2 and bias toward aerobic Z2 / mobility.
+  • If yesterday had heavy legs or high eccentric volume, avoid heavy leg strength today; choose skill, upper, aerobic, or mobility.
+  • If the last 7 days overweight one category (e.g., strength), diversify today (gymnastics/aerobic/skill).
+Programming logic:
+  • Map intensity_1_to_10 to category-specific effort (Powerlifting %1RM, Aerobic zones, CrossFit RPE & timecaps).
+  • Include warmup, main blocks, and cooldown. Prefer quality over quantity.
+  • Stay within duration_min ±10%.
+  • For CrossFit/HIIT, use clear time-caps; for running/row/bike, set precise paces or zones; for PL/OLY include rest intervals.
+Output:
+  • Valid JSON only (no explanation), matching the provided JSON Schema.
+  • Include a brief "rationale" explaining why this fits the user’s history & health snapshot.
+
+
+User prompt template (string builder):
+
+Insert: category, target duration, target intensity, equipment, constraints, goals, buildUserContextString(), intensityGuidelines().
+
+Include JSON Schema (inline, compact) as an “answer must conform to this schema” section.
+
+Add: Respond with ONLY JSON. Do not include markdown fences.
+
+Call your model (same one you use today). Use low-to-mid temperature (0.4–0.7) + a stable seed when provided for reproducibility.
+
+Parse via ensureValid(WorkoutSchema, response). If validation fails, repair:
+
+Send a second prompt: "You produced invalid JSON. Here is the error: <zod_error>. Return a corrected JSON that fixes ONLY the invalid fields."
+
+Add category-specific few-shot snippets inside the prompt (short!):
+
+CrossFit: sample AMRAP/For time with timecap, movement balance.
+
+Powerlifting: example top set + backoffs + accessory.
+
+Aerobic: example intervals with paces/zones.
+
+Export explainable fields:
+
+rationale, estimated_rpe, timecaps, equipment_list, hazards.
+
+Acceptance
+
+Calling generateWorkout() with 6–8 seeds (across categories, with/without “caution” health) returns valid JSON each time, durations within ±10%, intensity mapping respected, rationale present.
