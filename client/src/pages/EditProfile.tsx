@@ -39,8 +39,12 @@ export default function EditProfile() {
         dateOfBirth: dateOfBirth || null
       }
 
-      // Update via API using the working upsert endpoint
-      const result = await apiRequest('POST', '/api/profiles/upsert', updateData)
+      // Update via new PUT endpoint that bypasses schema cache issues
+      const result = await apiRequest('PUT', '/api/profiles', {
+        first_name: updateData.firstName,
+        last_name: updateData.lastName, 
+        date_of_birth: updateData.dateOfBirth
+      })
       const responseData = await result.json()
 
       if (responseData.profile) {

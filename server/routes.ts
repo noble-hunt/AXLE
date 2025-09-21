@@ -188,6 +188,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PUT /api/profiles - Stable endpoint that bypasses Supabase schema cache
+  const putProfileSchema = z.object({
+    first_name: z.string().trim().max(80).optional().nullable(),
+    last_name: z.string().trim().max(80).optional().nullable(), 
+    date_of_birth: z.string().trim().optional().nullable() // 'YYYY-MM-DD' format
+  }).strict();
+
+  function toDateOrNull(s?: string | null) {
+    if (!s) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m) return null;
+    return s; // Postgres accepts YYYY-MM-DD format
+  }
+
+  app.put("/api/profiles", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const body = putProfileSchema.parse(req.body ?? {});
+
+      // Use direct SQL to bypass Supabase schema cache issues
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      
+      const updateData = {
+        user_id: authReq.user.id,
+        first_name: body.first_name ?? null,
+        last_name: body.last_name ?? null,
+        date_of_birth: toDateOrNull(body.date_of_birth)
+      };
+
+      // Upsert using raw SQL to avoid cache issues
+      const result = await db.execute(sql`
+        INSERT INTO profiles (user_id, first_name, last_name, date_of_birth)
+        VALUES (${updateData.user_id}, ${updateData.first_name}, ${updateData.last_name}, ${updateData.date_of_birth})
+        ON CONFLICT (user_id) 
+        DO UPDATE SET 
+          first_name = EXCLUDED.first_name,
+          last_name = EXCLUDED.last_name, 
+          date_of_birth = EXCLUDED.date_of_birth
+        RETURNING user_id, first_name, last_name, date_of_birth
+      `);
+
+      if (!result || !result.rows || result.rows.length === 0) {
+        console.error('[profile/upsert] No result returned from SQL');
+        return res.status(500).json({ message: 'Failed to upsert profile', detail: 'No result returned' });
+      }
+
+      return res.status(200).json({ profile: result.rows[0] });
+    } catch (error: any) {
+      // Log full error details
+      console.error('[profile/upsert] error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid input', issues: error.issues });
+      }
+      return res.status(500).json({ 
+        message: 'Failed to upsert profile', 
+        detail: error.message ?? error 
+      });
+    }
+  });
+
   // Workout routes
   app.get("/api/workouts", requireAuth, async (req, res) => {
     try {
