@@ -1072,11 +1072,11 @@ export default function GroupFeedPage() {
                   className="text-xs h-7 px-2 rounded-full"
                   onClick={() => toggleReaction(post.id, emoji)}
                   data-testid={`reaction-${emoji}-${post.id}`}
-                  title={reaction ? reaction.users.slice(0, 3).map(u => u.name).join(', ') : ''}
+                  title={reaction && reaction.users ? reaction.users.slice(0, 3).map(u => u.name).join(', ') : ''}
                 >
                   <span className="mr-1">{emoji}</span>
                   <span>{count}</span>
-                  {reaction && reaction.users.length > 0 && (
+                  {reaction && reaction.users && reaction.users.length > 0 && (
                     <div className="ml-1 flex -space-x-1">
                       {reaction.users.slice(0, 3).map((user, idx) => (
                         <Avatar key={user.id} className="w-4 h-4 border border-background">
