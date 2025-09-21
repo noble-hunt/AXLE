@@ -14,7 +14,7 @@ import { Sheet } from "@/components/swift/sheet"
 import { Field } from "@/components/swift/field"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
-import { Calendar, Clock, Dumbbell, Target, CheckCircle2, Activity, Star, Award, Sparkles, Trophy, PartyPopper } from "lucide-react"
+import { Calendar, Clock, Dumbbell, Target, CheckCircle2, Activity, Star, Award, Sparkles, Trophy, PartyPopper, Brain, AlertTriangle, ThumbsUp } from "lucide-react"
 import { format } from "date-fns"
 import confetti from "canvas-confetti"
 
@@ -238,6 +238,83 @@ export default function WorkoutDetail() {
           </Card>
         )}
       </div>
+
+      {/* AI Insights Section */}
+      {(workout.rendered || workout.rationale || workout.criticScore || workout.criticIssues) && (
+        <div className="space-y-4">
+          <h2 className="text-subheading font-semibold text-foreground flex items-center gap-2">
+            <Brain className="w-5 h-5" />
+            AI Insights
+          </h2>
+          
+          {/* Critic Score */}
+          {workout.criticScore && (
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-body font-medium text-foreground">Quality Score</span>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    workout.criticScore >= 80 ? 'bg-green-500' : 
+                    workout.criticScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`} />
+                  <span className="text-subheading font-bold text-foreground">{workout.criticScore}/100</span>
+                </div>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    workout.criticScore >= 80 ? 'bg-green-500' : 
+                    workout.criticScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${workout.criticScore}%` }}
+                />
+              </div>
+            </Card>
+          )}
+
+          {/* Rationale */}
+          {workout.rationale && (
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <ThumbsUp className="w-4 h-4 text-muted-foreground" />
+                <span className="text-body font-medium text-foreground">AI Rationale</span>
+              </div>
+              <p className="text-body text-muted-foreground">{workout.rationale}</p>
+            </Card>
+          )}
+
+          {/* Critic Issues */}
+          {workout.criticIssues && workout.criticIssues.length > 0 && (
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                <span className="text-body font-medium text-foreground">Areas for Improvement</span>
+              </div>
+              <ul className="space-y-1">
+                {workout.criticIssues.map((issue, index) => (
+                  <li key={index} className="text-body text-muted-foreground flex items-start gap-2">
+                    <span className="text-yellow-600 mt-1">•</span>
+                    {issue}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          {/* Rendered Workout */}
+          {workout.rendered && (
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Dumbbell className="w-4 h-4 text-muted-foreground" />
+                <span className="text-body font-medium text-foreground">Professional Format</span>
+              </div>
+              <pre className="text-caption font-mono text-muted-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-lg overflow-x-auto">
+                {workout.rendered}
+              </pre>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Workout Sets as Cards */}
       <div className="space-y-4">
