@@ -161,6 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     lastName: z.string().optional(),
     username: z.string().optional(),
     dateOfBirth: z.string().optional().nullable(),
+    avatarUrl: z.string().optional(),
   });
 
   app.post("/api/profiles/upsert", requireAuth, async (req, res) => {

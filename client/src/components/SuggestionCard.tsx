@@ -283,7 +283,7 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto px-6 pb-2">
+          <div className="flex-1 overflow-y-auto px-6 pb-2 max-h-[70vh]">
             <div className="space-y-6">
               {/* Health Influence Section */}
               {healthInfluences.length > 0 && (

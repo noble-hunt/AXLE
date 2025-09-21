@@ -39,30 +39,26 @@ export default function EditProfile() {
         dateOfBirth: dateOfBirth || null
       }
 
-      // Update via new PUT endpoint that bypasses schema cache issues
-      const result = await apiRequest('PUT', '/api/profiles', {
-        first_name: updateData.firstName,
-        last_name: updateData.lastName, 
-        date_of_birth: updateData.dateOfBirth
+      // Update via PATCH endpoint that supports all profile fields including avatarUrl
+      const result = await apiRequest('PATCH', '/api/profiles', {
+        firstName: updateData.firstName,
+        lastName: updateData.lastName, 
+        dateOfBirth: updateData.dateOfBirth
       })
       const responseData = await result.json()
 
       if (responseData.profile) {
-        // Update local store with response data, preserving existing avatarUrl
-        setProfile((prev: any) => prev ? {
-          ...prev,
-          firstName: responseData.profile.first_name,
-          lastName: responseData.profile.last_name,
-          dateOfBirth: responseData.profile.date_of_birth,
-        } : {
+        // Update local store with response data - PATCH endpoint returns camelCase
+        setProfile({
+          ...profile,
           userId: user.id,
-          firstName: responseData.profile.first_name,
-          lastName: responseData.profile.last_name,
-          dateOfBirth: responseData.profile.date_of_birth,
-          username: responseData.profile.username,
-          avatarUrl: responseData.profile.avatar_url || profile?.avatarUrl, // Preserve existing avatar
-          providers: responseData.profile.providers || ['email'],
-          createdAt: new Date(responseData.profile.created_at)
+          firstName: responseData.profile.firstName || responseData.profile.first_name,
+          lastName: responseData.profile.lastName || responseData.profile.last_name,
+          dateOfBirth: responseData.profile.dateOfBirth || responseData.profile.date_of_birth,
+          username: responseData.profile.username || profile?.username,
+          avatarUrl: responseData.profile.avatarUrl || responseData.profile.avatar_url || profile?.avatarUrl,
+          providers: responseData.profile.providers || profile?.providers || ['email'],
+          createdAt: responseData.profile.createdAt || responseData.profile.created_at || profile?.createdAt || new Date()
         })
 
         toast({
