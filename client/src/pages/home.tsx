@@ -51,7 +51,7 @@ function QuickStats() {
       <Card className="p-4 text-center">
         <Flame className="w-6 h-6 text-warning mx-auto mb-2" />
         <p className="text-heading font-bold text-foreground">{currentStreak}</p>
-        <p className="text-caption text-muted-foreground">Day Streak</p>
+        <p className="text-caption text-muted-foreground">Day<br />Streak</p>
       </Card>
     </div>
   )
