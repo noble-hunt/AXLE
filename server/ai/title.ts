@@ -54,7 +54,7 @@ const MOVEMENT_PREFIXES: Record<string, string[]> = {
   'squat': ['SQUAT', 'GOBLET', 'FRONT'],
   'deadlift': ['DEADLIFT', 'DEAD', 'LIFT'],
   'press': ['PRESS', 'PUSH', 'OVERHEAD'],
-  'row': ['ROW', 'BENT'],
+  'row': ['ROW', 'BENT', 'ERGO', 'C2'],
   'clean': ['CLEAN', 'POWER'],
   'snatch': ['SNATCH', 'POWER'],
   'jerk': ['JERK', 'PUSH'],
@@ -64,8 +64,7 @@ const MOVEMENT_PREFIXES: Record<string, string[]> = {
   'wall': ['WALL', 'SLAM'],
   'rope': ['ROPE', 'CLIMB', 'BATTLE'],
   'bike': ['BIKE', 'CYCLE', 'ASSAULT'],
-  'ski': ['SKI', 'ERGO'],
-  'row': ['ROW', 'ERGO', 'C2']
+  'ski': ['SKI', 'ERGO']
 };
 
 /**
