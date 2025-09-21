@@ -22,7 +22,7 @@ export function renderCrossFit(workout: Workout): string {
   const lines: string[] = [];
   
   // Title and metadata
-  lines.push(`**${workout.title.toUpperCase()}**`);
+  lines.push(`**${(workout.title || workout.name).toUpperCase()}**`);
   lines.push(`Intensity: ${workout.intensity_1_to_10}/10 | Duration: ${workout.duration_min} min`);
   
   if (workout.rationale) {
@@ -227,7 +227,7 @@ export function renderOly(workout: Workout): string {
   const lines: string[] = [];
   
   // Title and metadata
-  lines.push(`**${workout.title.toUpperCase()}**`);
+  lines.push(`**${(workout.title || workout.name).toUpperCase()}**`);
   lines.push(`Intensity: ${workout.intensity_1_to_10}/10 | Duration: ${workout.duration_min} min`);
   
   if (workout.rationale) {

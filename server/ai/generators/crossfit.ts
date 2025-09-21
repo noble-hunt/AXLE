@@ -9,7 +9,7 @@
 
 import OpenAI from 'openai';
 import { WorkoutSchema, type Workout } from '../../../client/src/ai/schemas';
-import { parseAndValidate } from '../../../client/src/ai/json';
+import { extractAndValidate } from '../../../client/src/ai/json';
 import type { WorkoutGenerationRequest } from '../generateWorkout';
 
 // Initialize OpenAI client
@@ -29,18 +29,17 @@ CROSSFIT PRINCIPLES:
 - Movement patterns: mono-structural, gymnastics, weightlifting
 
 WORKOUT FORMATS (choose ONE):
-1. FOR TIME ladder with time cap: "21-15-9", "27-21-15-9", etc.
-2. Multi-AMRAP with rest: Multiple AMRAPs with equal work/rest
-3. EMOM or intervals with specific work periods
+1. FOR TIME ladder: use "for_time" format with decreasing rep schemes
+2. AMRAP: use "amrap" format with fixed time domain
+3. EMOM/Intervals: use "intervals" format with work/rest
 
-RX WEIGHT STANDARDS (use these exactly):
-- Thruster: 95/65#
-- Wall Ball: 20/14# to 10/9"  
-- Kettlebell Swing: 53/35#
-- Deadlift: 225/155# (light), 315/205# (heavy)
-- Box Jump: 24/20"
-- Pull-ups: BW or weighted
-- Dumbbell: 50/35#, 35/25#
+RX WEIGHT STANDARDS (use kg):
+- Thruster: 43kg/29kg (95#/65#)
+- Wall Ball: 9kg/6kg (20#/14#) 
+- Kettlebell Swing: 24kg/16kg (53#/35#)
+- Deadlift: 102kg/70kg (225#/155#) light, 143kg/93kg (315#/205#) heavy
+- Box Jump: 61cm/51cm (24"/20")
+- Pull-ups: bodyweight or weighted
 
 MOVEMENT BALANCE:
 - Include 2-3 movements per workout
@@ -49,7 +48,7 @@ MOVEMENT BALANCE:
 - Consider grip fatigue and breathing patterns
 
 RECOVERY LOGIC:
-- If health shows "caution" (low HRV, stress, poor sleep): reduce intensity 1-2 points, choose lighter movements
+- If health shows "caution": reduce intensity 1-2 points, choose lighter movements
 - If yesterday was heavy legs: avoid heavy squats/deadlifts today
 - If last week >60% one category: diversify with different stimulus
 
@@ -60,42 +59,40 @@ TITLE GENERATION:
 
 OUTPUT JSON SCHEMA (strict adherence):
 {
-  "title": "string (catchy CrossFit name)",
-  "category": "CrossFit",
+  "name": "string (catchy CrossFit name)",
+  "category": "CrossFit/HIIT",
+  "format": "amrap|for_time|intervals",
   "duration_min": "number (requested duration)",
-  "intensity_1_to_10": "number (requested intensity)",
-  "rationale": "string (brief programming rationale)",
+  "intensity_1_to_10": "number (requested intensity)", 
+  "description": "string (programming rationale)",
   "blocks": [
     {
-      "kind": "cf_for_time|cf_amrap|cf_interval",
-      "movements": [
+      "name": "string (block name like 'Warm-up', 'Main WOD', 'Cool Down')",
+      "type": "warmup|main|accessory|cooldown",
+      "estimated_duration_min": "number (duration for this block)",
+      "format": "amrap|for_time|intervals (optional, for main blocks)",
+      "sets": [
         {
-          "name": "string (exact movement name)",
-          "reps": "number",
-          "weight_lbs": "number (use RX standards)",
-          "weight_male_lbs": "number",
-          "weight_female_lbs": "number",
-          "height_male_in": "number (for box jumps)",
-          "height_female_in": "number"
+          "rounds": "number",
+          "movements": [
+            {
+              "name": "string (exact movement name from whitelist)",
+              "category": "CrossFit/HIIT",
+              "reps": "number (optional)",
+              "weight_kg": "number (optional)",
+              "duration_seconds": "number (optional)",
+              "rest_seconds": "number (optional)",
+              "notes": "string (optional)"
+            }
+          ],
+          "rest_between_rounds_seconds": "number (optional)",
+          "time_cap_seconds": "number (optional)"
         }
-      ],
-      // For cf_for_time:
-      "ladder": [21, 15, 9],
-      "time_cap_min": "number",
-      // For cf_amrap:
-      "minutes": "number",
-      // For cf_interval:
-      "rounds": "number",
-      "work_min": "number",
-      "rest_sec": "number"
+      ]
     }
   ],
-  "cool_down": [
-    {
-      "name": "string (movement)",
-      "duration_sec": "number"
-    }
-  ]
+  "equipment_needed": ["array of strings"],
+  "coaching_notes": "string (optional)"
 }`;
 }
 
@@ -105,94 +102,215 @@ FEW-SHOT EXAMPLES:
 
 Example 1 - For Time Ladder:
 {
-  "title": "Thunder Road",
-  "category": "CrossFit", 
+  "name": "Thunder Road",
+  "category": "CrossFit/HIIT",
+  "format": "for_time", 
   "duration_min": 20,
   "intensity_1_to_10": 9,
-  "rationale": "High-intensity combination work with classic CrossFit movements. Scale loads and reps as needed.",
+  "description": "High-intensity combination work with classic CrossFit movements. Scale loads and reps as needed.",
   "blocks": [
     {
-      "kind": "cf_for_time",
-      "movements": [
+      "name": "Warm-up",
+      "type": "warmup",
+      "estimated_duration_min": 3,
+      "warmup_steps": [
         {
-          "name": "thruster",
-          "reps": "per round",
-          "weight_lbs": 95,
-          "weight_male_lbs": 95,
-          "weight_female_lbs": 65
+          "movement": "light_jog",
+          "duration_seconds": 120,
+          "intensity_percent": 50
         },
         {
-          "name": "pull_up",
-          "reps": "per round"
+          "movement": "air_squat",
+          "duration_seconds": 60,
+          "intensity_percent": 40
         }
-      ],
-      "ladder": [27, 21, 15, 9],
-      "time_cap_min": 17
+      ]
+    },
+    {
+      "name": "Main WOD",
+      "type": "main",
+      "estimated_duration_min": 15,
+      "format": "for_time",
+      "sets": [
+        {
+          "rounds": 4,
+          "movements": [
+            {
+              "name": "thruster",
+              "category": "CrossFit/HIIT",
+              "reps": 21,
+              "weight_kg": 43,
+              "notes": "Reduce reps: 21-15-9-6"
+            },
+            {
+              "name": "pull_up",
+              "category": "CrossFit/HIIT", 
+              "reps": 21,
+              "notes": "Reduce reps: 21-15-9-6"
+            }
+          ],
+          "time_cap_seconds": 1020
+        }
+      ]
+    },
+    {
+      "name": "Cool Down",
+      "type": "cooldown",
+      "estimated_duration_min": 2,
+      "cooldown_steps": [
+        {
+          "movement": "walking",
+          "duration_seconds": 120
+        }
+      ]
     }
   ],
-  "cool_down": [
-    {
-      "name": "walking",
-      "duration_sec": 180
-    },
-    {
-      "name": "couch stretch",
-      "duration_sec": 60
-    },
-    {
-      "name": "shoulder stretch", 
-      "duration_sec": 60
-    }
-  ]
+  "equipment_needed": ["barbell", "pull_up_bar"],
+  "coaching_notes": "Scale thruster weight as needed. Band-assisted pull-ups for beginners."
 }
 
-Example 2 - Multi-AMRAP:
+Example 2 - AMRAP:
 {
-  "title": "Electric Avenue",
-  "category": "CrossFit",
-  "duration_min": 25,
+  "name": "Electric Avenue", 
+  "category": "CrossFit/HIIT",
+  "format": "amrap",
+  "duration_min": 20,
   "intensity_1_to_10": 8,
-  "rationale": "Mixed modal workout combining strength, cardio, and gymnastics elements.",
+  "description": "Mixed modal workout combining strength, cardio, and gymnastics elements.",
   "blocks": [
     {
-      "kind": "cf_interval",
-      "movements": [
+      "name": "Warm-up",
+      "type": "warmup", 
+      "estimated_duration_min": 3,
+      "warmup_steps": [
         {
-          "name": "wall_ball",
-          "reps": 15,
-          "weight_lbs": 20,
-          "weight_male_lbs": 20,
-          "weight_female_lbs": 14,
-          "height_male_in": 10,
-          "height_female_in": 9
-        },
-        {
-          "name": "box_jump",
-          "reps": 12,
-          "height_male_in": 24,
-          "height_female_in": 20
-        },
-        {
-          "name": "burpee",
-          "reps": 9
+          "movement": "rowing",
+          "duration_seconds": 180,
+          "intensity_percent": 60
         }
-      ],
-      "rounds": 5,
-      "work_min": 3,
-      "rest_sec": 60
-    }
-  ],
-  "cool_down": [
-    {
-      "name": "easy bike",
-      "duration_sec": 300
+      ]
     },
     {
-      "name": "hip flexor stretch",
-      "duration_sec": 90
+      "name": "Main AMRAP",
+      "type": "main",
+      "estimated_duration_min": 15,
+      "format": "amrap",
+      "sets": [
+        {
+          "rounds": 999,
+          "movements": [
+            {
+              "name": "wall_ball",
+              "category": "CrossFit/HIIT",
+              "reps": 15,
+              "weight_kg": 9
+            },
+            {
+              "name": "box_jump",
+              "category": "CrossFit/HIIT",
+              "reps": 12
+            },
+            {
+              "name": "burpee",
+              "category": "CrossFit/HIIT",
+              "reps": 9
+            }
+          ],
+          "time_cap_seconds": 900
+        }
+      ]
+    },
+    {
+      "name": "Cool Down",
+      "type": "cooldown",
+      "estimated_duration_min": 2,
+      "cooldown_steps": [
+        {
+          "movement": "stretching",
+          "duration_seconds": 120
+        }
+      ]
     }
-  ]
+  ],
+  "equipment_needed": ["wall_ball", "box", "floor"],
+  "coaching_notes": "Count total rounds completed in 15 minutes."
 }`;
+}
+
+// Helper function to normalize and repair common validation issues
+function normalizeWorkout(workout: any): any {
+  const normalized = { ...workout };
+  
+  // Fix category if needed
+  if (normalized.category === "CrossFit") {
+    normalized.category = "CrossFit/HIIT";
+  }
+  
+  // Ensure all required top-level fields exist
+  if (!normalized.name) normalized.name = "CrossFit Workout";
+  if (!normalized.description) normalized.description = "High-intensity functional fitness workout";
+  if (!normalized.equipment_needed) normalized.equipment_needed = ["barbell", "pull_up_bar"];
+  
+  // Fix block types and movement categories
+  if (normalized.blocks) {
+    normalized.blocks = normalized.blocks.map((block: any) => {
+      const fixedBlock = { ...block };
+      
+      // Fix block type enum values more comprehensively
+      const validTypes = ["warmup", "main", "accessory", "cooldown"];
+      if (!validTypes.includes(fixedBlock.type)) {
+        // Map common CrossFit types to valid enum values
+        if (fixedBlock.type?.includes("amrap") || fixedBlock.type?.includes("cf_amrap")) {
+          fixedBlock.type = "main";
+        } else if (fixedBlock.type?.includes("for_time") || fixedBlock.type?.includes("cf_for_time")) {
+          fixedBlock.type = "main";
+        } else if (fixedBlock.type?.includes("interval") || fixedBlock.type?.includes("cf_interval")) {
+          fixedBlock.type = "main";
+        } else if (fixedBlock.type?.includes("strength") || fixedBlock.type?.includes("metcon")) {
+          fixedBlock.type = "main";
+        } else {
+          // Default fallback
+          fixedBlock.type = "main";
+        }
+      }
+      
+      // Ensure valid block types
+      if (!["warmup", "main", "accessory", "cooldown"].includes(fixedBlock.type)) {
+        if (fixedBlock.name?.toLowerCase().includes("warm")) {
+          fixedBlock.type = "warmup";
+        } else if (fixedBlock.name?.toLowerCase().includes("cool")) {
+          fixedBlock.type = "cooldown";
+        } else {
+          fixedBlock.type = "main";
+        }
+      }
+      
+      // Fix movement categories in sets
+      if (fixedBlock.sets) {
+        fixedBlock.sets = fixedBlock.sets.map((set: any) => {
+          const fixedSet = { ...set };
+          if (fixedSet.movements) {
+            fixedSet.movements = fixedSet.movements.map((movement: any) => {
+              const fixedMovement = { ...movement };
+              // Fix various category format issues
+              if (!fixedMovement.category || 
+                  fixedMovement.category !== "CrossFit/HIIT" ||
+                  fixedMovement.category === "CrossFit" ||
+                  fixedMovement.category === "HIIT") {
+                fixedMovement.category = "CrossFit/HIIT";
+              }
+              return fixedMovement;
+            });
+          }
+          return fixedSet;
+        });
+      }
+      
+      return fixedBlock;
+    });
+  }
+  
+  return normalized;
 }
 
 export async function generateCrossFitWorkout(request: WorkoutGenerationRequest): Promise<Workout> {
@@ -200,7 +318,7 @@ export async function generateCrossFitWorkout(request: WorkoutGenerationRequest)
     // Build user prompt
     const userPrompt = `
 GENERATE CROSSFIT WORKOUT:
-Category: CrossFit
+Category: CrossFit/HIIT
 Duration: ${request.duration} minutes  
 Intensity: ${request.intensity}/10
 ${request.context?.yesterday ? `Yesterday: ${request.context.yesterday.category} - ${request.context.yesterday.intensity}/10 intensity` : ''}
@@ -227,12 +345,18 @@ Return ONLY valid JSON matching the schema. No explanations.`;
       throw new Error('No content generated');
     }
 
-    // Parse and validate
-    const { data: workout, error } = parseAndValidate(content, WorkoutSchema);
-    
-    if (error) {
+    // Parse, normalize, and validate
+    try {
+      let workout = extractAndValidate(WorkoutSchema, content);
+      workout = normalizeWorkout(workout);
+      
+      // Re-validate after normalization
+      const finalWorkout = WorkoutSchema.parse(workout);
+      return finalWorkout;
+    } catch (validationError) {
       // Attempt repair
-      const repairPrompt = `The generated CrossFit workout had validation errors: ${error}
+      const errorMessage = validationError instanceof Error ? validationError.message : String(validationError);
+      const repairPrompt = `The generated CrossFit workout had validation errors: ${errorMessage}
 
 Original JSON:
 ${content}
@@ -260,16 +384,14 @@ Return ONLY the corrected JSON:`;
         throw new Error('Failed to repair workout');
       }
 
-      const { data: repairedWorkout, error: repairError } = parseAndValidate(repairedContent, WorkoutSchema);
-      
-      if (repairError) {
-        throw new Error(`Validation failed after repair: ${repairError}`);
+      try {
+        const repairedWorkout = extractAndValidate(WorkoutSchema, repairedContent);
+        return repairedWorkout;
+      } catch (repairError) {
+        const repairErrorMessage = repairError instanceof Error ? repairError.message : String(repairError);
+        throw new Error(`Validation failed after repair: ${repairErrorMessage}`);
       }
-
-      return repairedWorkout;
     }
-
-    return workout;
     
   } catch (error) {
     console.error('CrossFit generation failed:', error);
