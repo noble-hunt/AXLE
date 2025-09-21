@@ -871,7 +871,8 @@ export default function GroupFeedPage() {
     }
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string | undefined | null) => {
+    if (!name || typeof name !== 'string') return '?';
     return name
       .split(' ')
       .map(word => word[0])

@@ -789,25 +789,66 @@ export default function LogFreeform() {
           <div className="space-y-2">
             <h5 className="font-medium text-foreground">Movements</h5>
             {parsed.sets.map((set, index) => (
-              <div key={set.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
-                <span className="text-sm text-foreground">
-                  {set.repScheme ? `${set.repScheme} ` : ''}
-                  {set.exercise}
-                  {set.weight ? ` @ ${set.weight} kg` : ''}
-                  {set.notes ? ` (${set.notes})` : ''}
-                </span>
-                
-                {isEditing && (
-                  <div className="flex gap-1 ml-auto">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeSet(index)}
-                      data-testid={`remove-set-${index}`}
-                    >
-                      <Minus className="w-3 h-3" />
-                    </Button>
+              <div key={set.id} className="p-3 bg-muted/50 rounded-lg space-y-2">
+                {isEditing ? (
+                  // Editing Mode - Show Input Fields
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={set.exercise || ''}
+                        onChange={(e) => updateSet(index, { exercise: e.target.value })}
+                        placeholder="Exercise name"
+                        className="flex-1 px-2 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        data-testid={`input-exercise-${index}`}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeSet(index)}
+                        data-testid={`remove-set-${index}`}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={set.repScheme || ''}
+                        onChange={(e) => updateSet(index, { repScheme: e.target.value })}
+                        placeholder="Rep scheme (e.g., 5x5, 3 rounds)"
+                        className="flex-1 px-2 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        data-testid={`input-rep-scheme-${index}`}
+                      />
+                      <input
+                        type="number"
+                        value={set.weight || ''}
+                        onChange={(e) => updateSet(index, { weight: e.target.value ? parseFloat(e.target.value) : undefined })}
+                        placeholder="Weight (kg)"
+                        className="w-24 px-2 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        step="0.5"
+                        data-testid={`input-weight-${index}`}
+                      />
+                    </div>
+                    
+                    <input
+                      type="text"
+                      value={set.notes || ''}
+                      onChange={(e) => updateSet(index, { notes: e.target.value })}
+                      placeholder="Notes (optional)"
+                      className="w-full px-2 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      data-testid={`input-notes-${index}`}
+                    />
                   </div>
+                ) : (
+                  // View Mode - Show Read-Only Text
+                  <span className="text-sm text-foreground">
+                    {set.repScheme ? `${set.repScheme} ` : ''}
+                    {set.exercise}
+                    {set.weight ? ` @ ${set.weight} kg` : ''}
+                    {set.notes ? ` (${set.notes})` : ''}
+                  </span>
                 )}
               </div>
             ))}
