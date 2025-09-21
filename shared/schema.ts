@@ -270,7 +270,8 @@ export enum Category {
   STRENGTH = "Strength", 
   HIIT = "HIIT",
   CARDIO = "Cardio",
-  POWERLIFTING = "Powerlifting"
+  POWERLIFTING = "Powerlifting",
+  OLYMPIC_LIFTING = "Olympic Lifting"
 }
 
 export const workoutRequestSchema = z.object({
