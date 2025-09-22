@@ -1,0 +1,289 @@
+Make “Groups” work on Vercel by removing /api dependency, using Supabase client + RLS
+
+Context:
+
+Production is a static SPA on Vercel; no Express server is running.
+
+Groups page shows “Failed to load groups” in prod. In dev it hits /api/....
+
+We want Groups to read/write directly to Supabase with RLS, so it works the same in dev & prod.
+
+Tasks:
+
+Audit current Groups data calls
+
+Search the client for any use of fetch('/api/groups' or similar (e.g., /api/group-members, /api/group-posts).
+
+List those locations and replace them with direct supabase-js calls (see step 4).
+
+Ensure minimal schema exists (idempotent)
+
+Create a SQL migration (or run in Supabase SQL editor) that creates tables if not exists, sets FKs, timestamps, and enables RLS. Use this exact script (safe to re-run):
+
+-- GROUPS
+create table if not exists public.groups (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  photo_url text,
+  is_public boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- MEMBERS
+create table if not exists public.group_members (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references public.groups(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null default 'member', -- 'owner' | 'admin' | 'member'
+  joined_at timestamptz not null default now(),
+  unique (group_id, user_id)
+);
+
+-- POSTS (workout/pr/message payloads can live in jsonb)
+create table if not exists public.group_posts (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references public.groups(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  kind text not null default 'message', -- 'message' | 'workout' | 'pr'
+  content jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+-- REACTIONS
+create table if not exists public.group_reactions (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.group_posts(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz not null default now(),
+  unique (post_id, user_id, emoji)
+);
+
+-- Helpful indexes
+create index if not exists idx_group_members_user on public.group_members (user_id);
+create index if not exists idx_group_members_group on public.group_members (group_id);
+create index if not exists idx_group_posts_group on public.group_posts (group_id, created_at desc);
+
+-- Enable RLS
+alter table public.groups enable row level security;
+alter table public.group_members enable row level security;
+alter table public.group_posts enable row level security;
+alter table public.group_reactions enable row level security;
+
+-- RLS Policies (safe to create if not exists)
+
+-- Groups are visible if public OR you're a member
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename='groups' and policyname='groups_select_visible') then
+    create policy "groups_select_visible" on public.groups
+    for select using (
+      is_public
+      or exists (select 1 from public.group_members m where m.group_id = id and m.user_id = auth.uid())
+    );
+  end if;
+end $$;
+
+-- Only owner can update/delete group
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename='groups' and policyname='groups_owner_update') then
+    create policy "groups_owner_update" on public.groups
+    for update using (owner_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where tablename='groups' and policyname='groups_owner_delete') then
+    create policy "groups_owner_delete" on public.groups
+    for delete using (owner_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where tablename='groups' and policyname='groups_owner_insert') then
+    create policy "groups_owner_insert" on public.groups
+    for insert with check (owner_id = auth.uid());
+  end if;
+end $$;
+
+-- You can see your memberships and others within groups you are in
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename='group_members' and policyname='members_select_visible') then
+    create policy "members_select_visible" on public.group_members
+    for select using (
+      user_id = auth.uid()
+      or exists (select 1 from public.group_members m2 where m2.group_id = group_id and m2.user_id = auth.uid())
+    );
+  end if;
+  if not exists (select 1 from pg_policies where tablename='group_members' and policyname='members_self_join_or_owner') then
+    create policy "members_self_join_or_owner" on public.group_members
+    for insert with check (
+      user_id = auth.uid()
+      and exists (select 1 from public.groups g where g.id = group_id and (g.is_public or g.owner_id = auth.uid()))
+    );
+  end if;
+  if not exists (select 1 from pg_policies where tablename='group_members' and policyname='members_self_leave') then
+    create policy "members_self_leave" on public.group_members
+    for delete using (user_id = auth.uid());
+  end if;
+end $$;
+
+-- Posts: readable by group members; writable by members; only author can edit/delete
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename='group_posts' and policyname='posts_select_visible') then
+    create policy "posts_select_visible" on public.group_posts
+    for select using (
+      exists (select 1 from public.group_members m where m.group_id = group_id and m.user_id = auth.uid())
+    );
+  end if;
+  if not exists (select 1 from pg_policies where tablename='group_posts' and policyname='posts_member_insert') then
+    create policy "posts_member_insert" on public.group_posts
+    for insert with check (
+      user_id = auth.uid() and
+      exists (select 1 from public.group_members m where m.group_id = group_id and m.user_id = auth.uid())
+    );
+  end if;
+  if not exists (select 1 from pg_policies where tablename='group_posts' and policyname='posts_author_update') then
+    create policy "posts_author_update" on public.group_posts
+    for update using (user_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where tablename='group_posts' and policyname='posts_author_delete') then
+    create policy "posts_author_delete" on public.group_posts
+    for delete using (user_id = auth.uid());
+  end if;
+end $$;
+
+-- Reactions: readable by members; only the reactor can write/delete their reaction
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename='group_reactions' and policyname='reactions_select_visible') then
+    create policy "reactions_select_visible" on public.group_reactions
+    for select using (
+      exists (
+        select 1 from public.group_members m
+        join public.group_posts p on p.group_id = m.group_id
+        where p.id = post_id and m.user_id = auth.uid()
+      )
+    );
+  end if;
+  if not exists (select 1 from pg_policies where tablename='group_reactions' and policyname='reactions_author_write') then
+    create policy "reactions_author_write" on public.group_reactions
+    for insert with check (user_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where tablename='group_reactions' and policyname='reactions_author_delete') then
+    create policy "reactions_author_delete" on public.group_reactions
+    for delete using (user_id = auth.uid());
+  end if;
+end $$;
+
+
+Client: add a typed Groups hook and swap the page to use it
+
+Create client/src/features/groups/api.ts:
+
+import { supabase } from "@/lib/supabase";
+
+export type Group = {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  is_public: boolean;
+  owner_id: string;
+  created_at: string;
+};
+
+// Return groups the current user belongs to
+export async function getMyGroups() {
+  const { data: userRes } = await supabase.auth.getUser();
+  const user = userRes?.user;
+  if (!user) return { data: [] as Group[], error: null };
+
+  const { data, error } = await supabase
+    .from("group_members")
+    .select("group:groups(id,name,photo_url,is_public,owner_id,created_at)")
+    .eq("user_id", user.id);
+
+  if (error) return { data: [] as Group[], error };
+  // data is an array of { group: Group }
+  return { data: (data ?? []).map((r: any) => r.group as Group), error: null };
+}
+
+export async function createGroup(input: {
+  name: string;
+  is_public?: boolean;
+  photo_url?: string | null;
+}) {
+  const { data: userRes } = await supabase.auth.getUser();
+  const user = userRes?.user!;
+  const { data: inserted, error } = await supabase
+    .from("groups")
+    .insert({ name: input.name, is_public: !!input.is_public, photo_url: input.photo_url ?? null, owner_id: user.id })
+    .select()
+    .single();
+  if (error) throw error;
+
+  // add creator as owner member
+  const { error: mErr } = await supabase
+    .from("group_members")
+    .insert({ group_id: inserted.id, user_id: user.id, role: "owner" });
+  if (mErr) throw mErr;
+
+  return inserted as Group;
+}
+
+
+In the Groups page component (client/src/pages/groups/index.tsx or current file), replace the /api fetch with:
+
+import { useEffect, useState } from "react";
+import { getMyGroups, createGroup, type Group } from "@/features/groups/api";
+import { toast } from "sonner"; // or your toaster
+
+export default function GroupsPage() {
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await getMyGroups();
+      if (error) {
+        console.error(error);
+        toast.error("Failed to load groups", { description: error.message });
+      } else {
+        setGroups(data);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  // wire “Create Group” button:
+  async function onCreate(name: string) {
+    try {
+      const g = await createGroup({ name });
+      setGroups((prev) => [g, ...prev]);
+      toast.success("Group created");
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Could not create group", { description: e.message });
+    }
+  }
+
+  // ...render list or empty state...
+}
+
+
+Remove or feature-flag the old API calls
+
+Delete or ignore any VITE_API_BASE_URL fallback. Ensure the Groups page never calls /api/... in production.
+
+QA checklist
+
+In Vercel preview build:
+
+Page loads your groups without calling /api (verify in Network tab).
+
+Creating a group inserts a row in groups and adds you to group_members.
+
+RLS: sign in as a different user → you only see your groups (or public groups later if you add that UI).
+
+Report back
+
+Paste the list of replaced /api/... call sites.
+
+Confirm all RLS policies exist and no policy errors occur in Supabase logs.
+
+Share the Vercel preview link for verification.
+
+Acceptance: The Groups page works in production (Vercel) without an Express server; creating and listing groups functions via Supabase; errors surfaced with clear messages.
