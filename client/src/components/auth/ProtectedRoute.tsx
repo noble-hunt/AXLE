@@ -1,52 +1,31 @@
-import { useEffect } from "react";
-import { useLocation } from "wouter";
-import { useAppStore } from "@/store/useAppStore";
-import { Loader2 } from "lucide-react";
+import { ReactNode, useEffect, useState } from 'react';
+import { useLocation } from 'wouter';
+import { supabase } from '@/lib/supabase';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
-
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
-  const { user, session, authInitialized } = useAppStore();
+  const [loading, setLoading] = useState(true);
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    // Only redirect if auth is initialized and no user/session
-    if (authInitialized && (!user || !session)) {
-      setLocation("/auth/login");
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setAuthed(!!session);
+      setLoading(false);
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setAuthed(!!session);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Handle redirect in useEffect to avoid side effects during render
+  useEffect(() => {
+    if (!loading && !authed) {
+      setLocation('/auth/login');
     }
-  }, [user, session, authInitialized, setLocation]);
+  }, [loading, authed, setLocation]);
 
-  // Show loading while auth is initializing
-  if (!authInitialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-          <div>
-            <h2 className="text-lg font-semibold">Loading...</h2>
-            <p className="text-muted-foreground text-sm">Checking authentication</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If not authenticated, show loading while redirect happens via useEffect
-  if (!user || !session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-          <div>
-            <h2 className="text-lg font-semibold">Redirecting...</h2>
-            <p className="text-muted-foreground text-sm">Taking you to login</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
+  if (loading) return null; // or a spinner
+  return authed ? <>{children}</> : null;
 }

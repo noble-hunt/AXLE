@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Mail, Lock, User, Loader2, ArrowLeft } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { supabase } from "@/lib/supabase";
+import { getSiteUrl } from "@/lib/siteUrl";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Register() {
@@ -70,6 +71,7 @@ export default function Register() {
         email,
         password,
         options: {
+          emailRedirectTo: `${getSiteUrl()}/auth/callback`,
           data: {
             first_name: firstName,
             last_name: lastName,
@@ -122,14 +124,15 @@ export default function Register() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.origin + "/auth/callback",
+          emailRedirectTo: `${getSiteUrl()}/auth/callback`,
         },
       });
 
       if (error) {
+        console.error('Magic link error:', error);
         toast({
           title: "Magic link failed",
-          description: error.message,
+          description: error.message ?? 'Failed to send email. If this is production, verify SMTP in Supabase → Auth → Email.',
           variant: "destructive",
         });
       } else {
@@ -156,7 +159,7 @@ export default function Register() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${getSiteUrl()}/auth/callback`,
         },
       });
 
@@ -194,7 +197,7 @@ export default function Register() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email,
-        options: { emailRedirectTo: window.location.origin + "/auth/callback" }
+        options: { emailRedirectTo: `${getSiteUrl()}/auth/callback` }
       });
 
       if (error) {
