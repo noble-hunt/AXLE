@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft, Camera, Globe, Lock, Upload } from "lucide-react";
-import { createGroup } from "@/features/groups/api";
+import { authFetch } from "@/lib/authFetch";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ export default function NewGroup() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    is_public: false,
+    isPublic: false,
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -76,23 +76,39 @@ export default function NewGroup() {
     try {
       // For now, we'll create the group without photo upload
       // In a real app, you'd upload the photo first and get a URL
-      const newGroup = await createGroup({
-        name: formData.name.trim(),
-        description: formData.description.trim() || undefined,
-        is_public: formData.is_public,
-        // photo_url: would be set after upload
+      const response = await authFetch("/api/groups", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          description: formData.description.trim() || undefined,
+          isPublic: formData.isPublic,
+          // photoUrl: would be set after upload
+        }),
       });
 
-      toast({
-        title: "Group created",
-        description: `Successfully created ${newGroup.name}`,
-      });
-      setLocation("/groups");
-    } catch (error: any) {
+      if (response.ok) {
+        const newGroup = await response.json();
+        toast({
+          title: "Group created",
+          description: `Successfully created ${newGroup.name}`,
+        });
+        setLocation("/groups");
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast({
+          title: "Failed to create group",
+          description: errorData.message || "An error occurred while creating the group",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       console.error("Failed to create group:", error);
       toast({
         title: "Failed to create group",
-        description: error.message || "An error occurred while creating the group",
+        description: "Network error. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -202,17 +218,17 @@ export default function NewGroup() {
             <Label>Privacy</Label>
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center gap-3">
-                {formData.is_public ? (
+                {formData.isPublic ? (
                   <Globe className="w-5 h-5 text-primary" />
                 ) : (
                   <Lock className="w-5 h-5 text-muted-foreground" />
                 )}
                 <div>
                   <p className="font-medium">
-                    {formData.is_public ? "Public Group" : "Private Group"}
+                    {formData.isPublic ? "Public Group" : "Private Group"}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {formData.is_public 
+                    {formData.isPublic 
                       ? "Anyone can discover and join this group"
                       : "Only invited members can join"
                     }
@@ -220,8 +236,8 @@ export default function NewGroup() {
                 </div>
               </div>
               <Switch
-                checked={formData.is_public}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_public: checked }))}
+                checked={formData.isPublic}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isPublic: checked }))}
                 data-testid="privacy-toggle"
               />
             </div>
@@ -264,7 +280,7 @@ export default function NewGroup() {
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="font-semibold text-base truncate">{formData.name}</h3>
                 <div className="flex items-center gap-1">
-                  {formData.is_public ? (
+                  {formData.isPublic ? (
                     <Globe className="w-4 h-4 text-muted-foreground" />
                   ) : (
                     <Lock className="w-4 h-4 text-muted-foreground" />
