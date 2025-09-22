@@ -1,0 +1,165 @@
+I’m still seeing EADDRINUSE 0.0.0.0:5000 in dev. Please implement a durable fix that:
+
+Frees port 5000 before starting
+
+Kills any prior dev server processes (by PID and by pattern)
+
+Writes a PID file on start and removes it on exit
+
+Falls back to system tools (ss, fuser, pkill) if available
+
+Keeps production behavior unchanged
+
+A) Add a robust pre-start script
+
+Add dev deps:
+
+npm i -D kill-port
+
+
+Create scripts/ensure-port-free.mjs with this exact content:
+
+// scripts/ensure-port-free.mjs
+import { execSync, spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import kill from 'kill-port';
+
+const port = parseInt(process.env.PORT || '5000', 10);
+const pidFile = path.resolve(process.cwd(), '.dev-server.pid');
+
+const tryExec = (cmd) => {
+  try { return execSync(cmd, { stdio: 'pipe' }).toString(); }
+  catch { return ''; }
+};
+
+const tryKillPid = (pid, signal='SIGTERM') => {
+  if (!pid) return;
+  try { process.kill(Number(pid), signal); } catch {}
+};
+
+(async () => {
+  // 0) Kill a prior PID we recorded (if still alive)
+  try {
+    if (fs.existsSync(pidFile)) {
+      const oldPid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+      if (oldPid && oldPid !== process.pid) {
+        tryKillPid(oldPid, 'SIGTERM');
+        // small wait then SIGKILL if needed
+        await new Promise(r => setTimeout(r, 200));
+        tryKillPid(oldPid, 'SIGKILL');
+      }
+      fs.rmSync(pidFile, { force: true });
+    }
+  } catch {}
+
+  // 1) kill-port (generic)
+  try { await kill(port, 'tcp'); } catch {}
+
+  // 2) fuser fallback (Linux)
+  tryExec(`fuser -k ${port}/tcp`);
+
+  // 3) ss parse & kill fallback
+  const ssOut = tryExec(`ss -lptn 'sport = :${port}'`);
+  const pids = [...ssOut.matchAll(/pid=(\d+)/g)].map(m => Number(m[1]));
+  for (const pid of pids) {
+    tryKillPid(pid, 'SIGTERM');
+    await new Promise(r => setTimeout(r, 200));
+    tryKillPid(pid, 'SIGKILL');
+  }
+
+  // 4) Pattern kill of our dev server if any remains
+  tryExec(`pkill -f "tsx server/index.ts"`);
+  tryExec(`pkill -f "node.*server/index.ts"`);
+
+  // 5) Final double-check with kill-port
+  try { await kill(port, 'tcp'); } catch {}
+
+  // Now spawn the dev runner so this script acts like "npm run dev"
+  const child = spawn('npm', ['run', 'dev:run'], { stdio: 'inherit', shell: true, env: process.env });
+  child.on('exit', code => process.exit(code ?? 0));
+})();
+
+
+Update package.json scripts (add/replace these keys):
+
+{
+  "scripts": {
+    "dev": "node scripts/ensure-port-free.mjs",
+    "dev:run": "NODE_ENV=development tsx server/index.ts",
+    "kill": "kill-port 5000 || true"
+  }
+}
+
+B) Add PID write & cleanup + clearer error handling in server
+
+In server/index.ts, before Express setup (top of file, after imports), add a PID guard:
+
+import fs from 'node:fs';
+import path from 'node:path';
+
+const pidFile = path.resolve(process.cwd(), '.dev-server.pid');
+try {
+  // if a stale PID exists, try to terminate it
+  if (fs.existsSync(pidFile)) {
+    const oldPid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+    if (oldPid && oldPid !== process.pid) {
+      try { process.kill(oldPid, 'SIGTERM'); } catch {}
+      setTimeout(() => { try { process.kill(oldPid, 'SIGKILL'); } catch {} }, 200);
+    }
+    fs.rmSync(pidFile, { force: true });
+  }
+  fs.writeFileSync(pidFile, String(process.pid));
+  const cleanup = () => { try { fs.rmSync(pidFile, { force: true }); } catch {} };
+  process.on('exit', cleanup);
+  process.on('SIGINT', () => { cleanup(); process.exit(0); });
+  process.on('SIGTERM', () => { cleanup(); process.exit(0); });
+} catch {}
+
+
+Then, replace the current listen block with:
+
+const port = parseInt(process.env.PORT || '5000', 10);
+
+const httpServer = server.listen(
+  { port, host: '0.0.0.0' }, // no reusePort in dev
+  () => { log(`serving on port ${port}`); }
+);
+
+httpServer.on('error', (err: any) => {
+  if (err?.code === 'EADDRINUSE') {
+    log(`❌ Port ${port} is already in use. Run "npm run kill" then "npm run dev".`);
+    process.exit(1);
+  }
+  throw err;
+});
+
+
+(Keep your CRON enable/disable logic as-is.)
+
+C) Verify
+
+Stop any running process.
+
+Run:
+
+npm run dev
+
+
+It should:
+
+Free port 5000 (via several strategies)
+
+Start the app
+
+Write .dev-server.pid
+
+Stop and start multiple times; there should be no EADDRINUSE.
+
+Acceptance
+
+npm run dev succeeds even after repeated quick restarts.
+
+No EADDRINUSE unless some foreign process binds 5000; in that case, npm run kill && npm run dev works.
+
+Production build/deploy untouched.

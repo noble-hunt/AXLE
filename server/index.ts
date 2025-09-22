@@ -3,6 +3,67 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startSuggestionsCron } from "./jobs/suggestions-cron";
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Use deterministic path that doesn't depend on cwd
+const pidFile = path.resolve(import.meta.dirname, '../.dev-server.pid');
+
+const waitForPidExit = (pid: number, maxWait: number = 2000) => {
+  return new Promise<void>((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      try {
+        process.kill(pid, 0); // Check if process exists
+        if (Date.now() - start < maxWait) {
+          setTimeout(check, 50);
+        } else {
+          resolve(); // Timeout, proceed anyway
+        }
+      } catch {
+        resolve(); // Process doesn't exist
+      }
+    };
+    check();
+  });
+};
+
+(async () => {
+  try {
+    console.log(`[PID] Using PID file: ${pidFile}`);
+    
+    // if a stale PID exists, try to terminate it and wait
+    if (fs.existsSync(pidFile)) {
+      const oldPid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+      if (oldPid && oldPid !== process.pid) {
+        console.log(`[PID] Terminating stale process ${oldPid}`);
+        try { 
+          process.kill(oldPid, 'SIGTERM'); 
+          await waitForPidExit(oldPid, 1000);
+          try { process.kill(oldPid, 'SIGKILL'); } catch {}
+          await waitForPidExit(oldPid, 500);
+        } catch {}
+      }
+      fs.rmSync(pidFile, { force: true });
+    }
+    
+    fs.writeFileSync(pidFile, String(process.pid));
+    console.log(`[PID] Written PID ${process.pid} to ${pidFile}`);
+    
+    const cleanup = () => { 
+      try { 
+        fs.rmSync(pidFile, { force: true }); 
+        console.log(`[PID] Cleaned up PID file`);
+      } catch {} 
+    };
+    
+    process.on('exit', cleanup);
+    process.on('SIGINT', () => { cleanup(); process.exit(0); });
+    process.on('SIGTERM', () => { cleanup(); process.exit(0); });
+  } catch (error) {
+    console.warn(`[PID] Failed to manage PID file:`, error);
+  }
+})();
 
 // Server startup guard - ensure required environment variables are present
 ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].forEach((k) => {
@@ -88,7 +149,7 @@ app.use((req, res, next) => {
   // Helpful diagnostics for "address already in use"
   httpServer.on('error', (err: any) => {
     if (err?.code === 'EADDRINUSE') {
-      log(`❌ Port ${port} is already in use. I'll try freeing it next time. You can also run "npm run kill" then "npm run dev".`);
+      log(`❌ Port ${port} is already in use. Run "npx kill-port 5000" then try again.`);
       process.exit(1);
     }
     throw err;
