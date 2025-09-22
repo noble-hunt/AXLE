@@ -1,36 +1,64 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { admin, bearer } from '../_supabase'
-
-// Import database connection and groups logic
-import { neon } from '@neondatabase/serverless'
-import { drizzle } from 'drizzle-orm/neon-http'
-import { groups, groupMembers } from '../../shared/schema'
-import { eq, and, sql } from 'drizzle-orm'
-
-// Import groups DAL functions
-import { createGroup, getUserGroups } from '../../server/dal/groups'
+import { admin, userClient, bearer, validateEnvForUser } from '../_supabase'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store')
   
   try {
-    const supa = admin()
+    // Validate environment variables
+    validateEnvForUser()
+    
+    const adminClient = admin()
     const token = bearer(req)
-    const { data: userData, error: authErr } = await supa.auth.getUser(token)
+    const { data: userData, error: authErr } = await adminClient.auth.getUser(token)
     if (authErr || !userData?.user) return res.status(401).json({ message: 'Unauthorized' })
     const userId = userData.user.id
 
-    // Set up database connection for serverless
-    const sql_conn = neon(process.env.DATABASE_URL!)
-    const db = drizzle(sql_conn)
+    // Use user client for RLS
+    const supa = userClient(token)
 
     if (req.method === 'GET') {
       console.log(`🔍 Fetching groups for user: ${userId}`)
       
       try {
-        // Use the existing DAL function
-        const userGroups = await getUserGroups(userId)
-        return res.status(200).json(userGroups || [])
+        // Fetch user groups using Supabase with RLS
+        const { data: userGroups, error: groupsError } = await supa
+          .from('groups')
+          .select(`
+            id,
+            name,
+            description,
+            photo_url,
+            is_public,
+            owner_id,
+            created_at,
+            group_members!inner (
+              role,
+              joined_at
+            )
+          `)
+          .eq('group_members.user_id', userId)
+          .order('created_at', { ascending: false })
+        
+        if (groupsError) {
+          console.error('Failed to fetch user groups:', groupsError)
+          return res.status(500).json({ message: 'Unable to fetch your groups' })
+        }
+
+        // Transform to match expected response format
+        const transformedGroups = userGroups?.map(group => ({
+          id: group.id,
+          name: group.name,
+          description: group.description,
+          photoUrl: group.photo_url,
+          isPublic: group.is_public,
+          ownerId: group.owner_id,
+          createdAt: group.created_at,
+          role: group.group_members?.[0]?.role || 'member',
+          joinedAt: group.group_members?.[0]?.joined_at || group.created_at
+        })) || []
+
+        return res.status(200).json(transformedGroups)
       } catch (error) {
         console.error('Failed to fetch user groups:', error)
         return res.status(500).json({ message: 'Unable to fetch your groups' })
@@ -50,16 +78,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!name) return res.status(400).json({ message: 'name is required' })
       
       try {
-        // Use the existing DAL function
-        const newGroup = await createGroup(userId, {
-          name,
-          description,
-          isPublic: isPublic ?? false,
-          photoUrl
-        })
+        // Create group using Supabase
+        const { data: newGroup, error: createError } = await supa
+          .from('groups')
+          .insert({
+            name,
+            description,
+            is_public: isPublic ?? false,
+            photo_url: photoUrl,
+            owner_id: userId
+          })
+          .select()
+          .single()
+          
+        if (createError || !newGroup) {
+          console.error('Failed to create group:', createError)
+          return res.status(500).json({ message: 'Failed to create group' })
+        }
+
+        // Add creator as owner member
+        const { error: memberError } = await supa
+          .from('group_members')
+          .insert({
+            group_id: newGroup.id,
+            user_id: userId,
+            role: 'owner'
+          })
+
+        if (memberError) {
+          console.error('Failed to add group owner:', memberError)
+          // Clean up group if member creation fails
+          await supa.from('groups').delete().eq('id', newGroup.id)
+          return res.status(500).json({ message: 'Failed to create group membership' })
+        }
+        
+        // Transform response to match expected format
+        const transformedGroup = {
+          id: newGroup.id,
+          name: newGroup.name,
+          description: newGroup.description,
+          photoUrl: newGroup.photo_url,
+          isPublic: newGroup.is_public,
+          ownerId: newGroup.owner_id,
+          createdAt: newGroup.created_at,
+          role: 'owner',
+          joinedAt: newGroup.created_at
+        }
         
         console.log(`✅ Created group: ${newGroup.id}`)
-        return res.status(201).json(newGroup)
+        return res.status(201).json(transformedGroup)
       } catch (error) {
         console.error('Failed to create group:', error)
         return res.status(500).json({ message: 'Failed to create group' })
@@ -70,6 +137,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
   } catch (error) {
     console.error('Error in /api/groups:', error)
+    
+    // Handle environment validation errors
+    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
+      return res.status(500).json({ message: 'Server configuration error' })
+    }
+    
     return res.status(500).json({ 
       message: 'Internal server error',
       error: 'An unexpected error occurred.'
