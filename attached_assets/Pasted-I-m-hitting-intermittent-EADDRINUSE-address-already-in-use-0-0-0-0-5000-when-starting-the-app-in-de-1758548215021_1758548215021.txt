@@ -1,0 +1,121 @@
+I’m hitting intermittent EADDRINUSE: address already in use 0.0.0.0:5000 when starting the app in dev on Replit. Please implement the following durable fixes so npm run dev always starts cleanly and the server shuts down gracefully.
+
+1) Add the port-kill prelaunch runner
+
+Add dev dependency:
+
+npm i -D kill-port
+
+
+Create scripts/dev-start.mjs with this exact content:
+
+// scripts/dev-start.mjs
+import kill from 'kill-port';
+import { spawn } from 'node:child_process';
+
+const port = parseInt(process.env.PORT || '5000', 10);
+
+(async () => {
+  try {
+    await kill(port, 'tcp');   // free the port if something is already bound
+  } catch {
+    // nothing was listening; ignore
+  }
+
+  const child = spawn('npm', ['run', 'dev:run'], {
+    stdio: 'inherit',
+    shell: true,
+    env: process.env
+  });
+
+  child.on('exit', code => process.exit(code ?? 0));
+})();
+
+
+Update package.json scripts (add or replace these keys):
+
+{
+  "scripts": {
+    "dev": "node scripts/dev-start.mjs",
+    "dev:run": "NODE_ENV=development tsx server/index.ts",
+    "kill": "kill-port 5000"
+  }
+}
+
+2) Add graceful shutdown + clear port-in-use message
+
+In server/index.ts, after we call server.listen(...), capture the returned server, remove reusePort (or set it to false), add an error handler for EADDRINUSE, and trap SIGINT/SIGTERM so the process closes the port cleanly.
+
+Find the current listen block and replace it with this:
+
+// ALWAYS serve the app on the port specified in the environment variable PORT
+const port = parseInt(process.env.PORT || '5000', 10);
+
+const httpServer = server.listen(
+  {
+    port,
+    host: '0.0.0.0'
+    // reusePort intentionally omitted to avoid conflicts in dev
+  },
+  () => {
+    log(`serving on port ${port}`);
+  }
+);
+
+// Helpful diagnostics for “address already in use”
+httpServer.on('error', (err: any) => {
+  if (err?.code === 'EADDRINUSE') {
+    log(`❌ Port ${port} is already in use. I'll try freeing it next time. You can also run "npm run kill" then "npm run dev".`);
+    process.exit(1);
+  }
+  throw err;
+});
+
+// Graceful shutdown so port is freed on stop/restart
+const shutdown = (signal: string) => () => {
+  log(`Received ${signal}, closing server...`);
+  httpServer.close(() => {
+    log('Server closed. Bye!');
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', shutdown('SIGINT'));
+process.on('SIGTERM', shutdown('SIGTERM'));
+
+3) Housekeeping (optional but nice)
+
+If you see a Browserslist warning, run once:
+
+npx update-browserslist-db@latest --yes
+
+4) Verify
+
+Run:
+
+npm run dev
+
+
+Expected:
+
+If something was holding 5000, it gets freed automatically and the server starts.
+
+Console logs show:
+
+CRON scheduling
+
+serving on port 5000
+
+Press Stop / restart npm run dev several times; no EADDRINUSE.
+
+Run npm run kill manually and confirm it exits cleanly, then npm run dev works immediately.
+
+Acceptance criteria
+
+npm run dev starts reliably without EADDRINUSE even after repeated restarts.
+
+Stopping the process frees the port (no zombie listener).
+
+If a conflict somehow happens, a friendly message is printed and the process exits instead of crashing.
+
+No changes to production behavior.
