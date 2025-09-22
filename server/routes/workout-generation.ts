@@ -11,7 +11,7 @@ import { generateCrossFitWorkout } from "../ai/generators/crossfit";
 import { generateOlympicWorkout } from "../ai/generators/olympic";
 import { critiqueAndRepair } from "../ai/critic";
 import { generateWorkoutTitle } from "../ai/title";
-import { render } from "../../src/ai/render";
+import { render } from "../../client/src/ai/render";
 import type { WorkoutGenerationRequest } from "../ai/generateWorkout";
 
 // Request schema for workout generation
