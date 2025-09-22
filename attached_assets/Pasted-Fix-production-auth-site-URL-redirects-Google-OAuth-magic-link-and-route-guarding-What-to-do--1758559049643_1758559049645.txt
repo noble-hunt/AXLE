@@ -1,0 +1,142 @@
+Fix production auth: site URL, redirects, Google OAuth, magic link, and route guarding
+
+What to do (step by step):
+
+Create a small config helper at client/src/lib/siteUrl.ts:
+
+// client/src/lib/siteUrl.ts
+export function getSiteUrl() {
+  // Vercel prod/staging can supply this; else fall back to browser origin
+  const env = import.meta.env.VITE_SITE_URL?.trim();
+  if (env) return env.replace(/\/+$/, '');
+  if (typeof window !== 'undefined') return window.location.origin;
+  return 'http://localhost:5000';
+}
+
+
+Use it in auth flows. Update client/src/lib/supabase.ts and any auth actions so that:
+
+signInWithOtp({ email, options: { emailRedirectTo: \${getSiteUrl()}/auth/callback` } })`
+
+signInWithOAuth({ provider: 'google', options: { redirectTo: \${getSiteUrl()}/auth/callback` } })`
+
+Keep supabase client creation as is, but ensure it reads VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY.
+
+Add the callback page (if missing) at client/src/pages/auth/Callback.tsx:
+
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { getSiteUrl } from '@/lib/siteUrl';
+import { Loader2 } from 'lucide-react';
+
+export default function Callback() {
+  const nav = useNavigate();
+  useEffect(() => {
+    // PKCE/code-exchange if needed; supabase-js will handle current URL
+    (async () => {
+      // This ensures hash/query tokens are consumed and session is set
+      await supabase.auth.getSession(); 
+      nav('/', { replace: true });
+    })();
+  }, [nav]);
+  return (
+    <div className="h-screen grid place-items-center text-muted-foreground">
+      <div className="flex items-center gap-2">
+        <Loader2 className="animate-spin" />
+        <span>Signing you in…</span>
+      </div>
+    </div>
+  );
+}
+
+
+Route guarding:
+
+Create/verify client/src/components/auth/ProtectedRoute.tsx:
+
+import { ReactNode, useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+
+export default function ProtectedRoute({ children }: { children: ReactNode }) {
+  const [loading, setLoading] = useState(true);
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setAuthed(!!session);
+      setLoading(false);
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setAuthed(!!session);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  if (loading) return null; // or a spinner
+  return authed ? <>{children}</> : <Navigate to="/auth/login" replace />;
+}
+
+
+In your router (client/src/App.tsx or routes file), wrap private pages with ProtectedRoute and change the default route to go to /auth/login when not authenticated. Example:
+
+<Routes>
+  {/* auth */}
+  <Route path="/auth/login" element={<Login />} />
+  <Route path="/auth/register" element={<Register />} />
+  <Route path="/auth/callback" element={<Callback />} />
+
+  {/* private */}
+  <Route
+    path="/"
+    element={
+      <ProtectedRoute>
+        <Home />
+      </ProtectedRoute>
+    }
+  />
+  <Route
+    path="/workout"
+    element={
+      <ProtectedRoute>
+        <Workout />
+      </ProtectedRoute>
+    }
+  />
+  {/* …repeat for other private routes… */}
+
+  {/* catch-all */}
+  <Route path="*" element={<Navigate to="/auth/login" replace />} />
+</Routes>
+
+
+Fix Magic Link error surface
+
+Wherever you call signInWithOtp, show the exact error text and link to retry. Add:
+
+const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${getSiteUrl()}/auth/callback` } });
+if (error) {
+  console.error('Magic link error:', error);
+  toast.error(error.message ?? 'Failed to send email. If this is production, verify SMTP in Supabase → Auth → Email.');
+} else {
+  toast('Check your email for the sign-in link.');
+}
+
+
+Env & build safety
+
+Fail fast if envs are missing in the client: at app boot, log a warning if VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is falsy.
+
+In server code, never use ANON_KEY; only SERVICE_ROLE_KEY.
+
+Test plan (agent should execute)
+
+In dev: try magic link and Google. Confirm redirect goes to /auth/callback and then to /.
+
+In prod (Vercel Preview): do the same. If magic link fails, output the exact Supabase error to console.
+
+Confirm first-load for a signed-out user lands on /auth/login (no more placeholder Home).
+
+Do not change DB schema. Only touch client auth flows, router, and small utils.
