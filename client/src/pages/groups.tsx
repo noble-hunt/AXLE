@@ -5,30 +5,21 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Users, Lock, Globe, MessageSquare, Share, Clock } from "lucide-react";
-import { authFetch } from "@/lib/authFetch";
+import { getMyGroups, createGroup, type Group } from "@/features/groups/api";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
-interface Group {
-  id: string;
-  name: string;
-  description?: string;
-  photoUrl?: string;
-  isPublic: boolean;
-  ownerId: string;
-  createdAt: string;
-  role: string;
-  joinedAt: string;
-  memberCount?: number;
+// Using Group type from API, extending with UI-specific properties
+type GroupWithUI = Group & {
   postCount?: number;
   lastActivity?: string;
   unreadCount?: number;
-}
+};
 
 export default function Groups() {
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<GroupWithUI[]>([]);
   const [loading, setLoading] = useState(true);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -38,9 +29,16 @@ export default function Groups() {
     async function loadGroups() {
       try {
         setLoading(true);
-        const response = await authFetch("/api/groups/mine");
-        if (response.ok) {
-          const groupsData = await response.json();
+        const { data: groupsData, error } = await getMyGroups();
+        
+        if (error) {
+          console.error("Failed to load groups:", error);
+          toast({
+            title: "Failed to load groups",
+            description: error.message || "Unable to fetch your groups",
+            variant: "destructive",
+          });
+        } else {
           // Add mock last activity and unread counts for demo
           const groupsWithActivity = groupsData.map((group: Group) => ({
             ...group,
@@ -53,7 +51,7 @@ export default function Groups() {
         console.error("Failed to load groups:", error);
         toast({
           title: "Failed to load groups",
-          description: "Unable to fetch your groups",
+          description: "An unexpected error occurred. Please try again.",
           variant: "destructive",
         });
       } finally {
@@ -64,8 +62,27 @@ export default function Groups() {
     loadGroups();
   }, [toast]);
 
+  // Create group handler for quick creation
   const handleCreateGroup = () => {
     setLocation("/groups/new");
+  };
+
+  const onCreate = async (name: string) => {
+    try {
+      const newGroup = await createGroup({ name });
+      setGroups((prev) => [{ ...newGroup, unreadCount: 0 }, ...prev]);
+      toast({
+        title: "Group created",
+        description: `${name} has been created successfully.`,
+      });
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        title: "Could not create group",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSelectGroup = (groupId: string) => {
@@ -132,7 +149,7 @@ export default function Groups() {
               <div className="flex items-center gap-4">
                 {/* Group Avatar */}
                 <Avatar className="w-12 h-12">
-                  <AvatarImage src={group.photoUrl} alt={group.name} />
+                  <AvatarImage src={group.photo_url || undefined} alt={group.name} />
                   <AvatarFallback className="bg-primary/10 text-primary font-medium">
                     {getInitials(group.name)}
                   </AvatarFallback>
@@ -143,13 +160,13 @@ export default function Groups() {
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-semibold text-base truncate">{group.name}</h3>
                     <div className="flex items-center gap-1">
-                      {group.isPublic ? (
+                      {group.is_public ? (
                         <Globe className="w-4 h-4 text-muted-foreground" />
                       ) : (
                         <Lock className="w-4 h-4 text-muted-foreground" />
                       )}
                       <Badge variant="outline" className="text-xs">
-                        {group.role}
+                        {group.userRole || 'member'}
                       </Badge>
                     </div>
                   </div>
