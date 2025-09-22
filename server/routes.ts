@@ -282,22 +282,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const authReq = req as AuthenticatedRequest;
       
-      // Validate request body
-      const workoutData = insertWorkoutSchema.parse({
-        name: req.body.title || req.body.name,
-        date: req.body.date ? new Date(req.body.date) : new Date(),
-        duration: req.body.duration,
-        exercises: req.body.sets || req.body.exercises || [],
-        notes: req.body.notes
+      // Validate request body with local schema that maps client inputs
+      const bodySchema = z.object({
+        title: z.string().min(1).optional(),
+        name: z.string().min(1).optional(),
+        notes: z.string().optional(),
+        sets: z.array(z.any()).optional(),
+        exercises: z.array(z.any()).optional()
       });
+      
+      const body = bodySchema.parse(req.body);
+      const title = body.title ?? body.name ?? "Untitled";
+      const sets = body.sets ?? body.exercises ?? [];
       
       const workout = await insertWorkout({
         userId: authReq.user.id,
         workout: {
-          title: workoutData.name,
+          title,
           request: req.body,
-          sets: req.body.sets || [],
-          notes: workoutData.notes,
+          sets,
+          notes: body.notes,
           completed: false
         }
       });
@@ -330,15 +334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/workouts/:id", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
-      // deleteWorkout not implemented yet
-      // const { deleteWorkout } = await import("./dal/workouts");
       res.status(501).json({ message: "Delete workout not implemented" });
-      return;
-      const success = await deleteWorkout(authReq.user.id, req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Workout not found" });
-      }
-      res.json({ message: "Workout deleted successfully" });
     } catch (error) {
       console.error("Failed to delete workout:", error);
       res.status(500).json({ message: "Failed to delete workout" });
@@ -362,12 +358,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const authReq = req as AuthenticatedRequest;
       
-      // Validate request body with Zod schema
+      // Validate request body with Zod schema using camelCase fields
       const validatedData = insertPRSchema.parse({
         movement: req.body.exercise || req.body.movement,
         category: req.body.category || req.body.movementCategory,
-        weight_kg: req.body.unit === 'LBS' ? req.body.weight / 2.20462 : req.body.weight,
-        rep_max: req.body.reps || req.body.repMax,
+        weightKg: req.body.unit === 'LBS' ? req.body.weight / 2.20462 : req.body.weight,
+        repMax: req.body.reps || req.body.repMax,
         date: req.body.date
       });
       
@@ -375,8 +371,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pr = await insertPR({
         userId: authReq.user.id,
         exercise: validatedData.movement,
-        weight: validatedData.weight_kg,
-        reps: validatedData.rep_max,
+        weight: validatedData.weightKg,
+        reps: validatedData.repMax,
         date: new Date(validatedData.date)
       });
       
@@ -495,7 +491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: authReq.user.id,
         provider: existingWearable.provider,
         connected: connected !== undefined ? connected : existingWearable.connected,
-        lastSync: lastSync ? new Date(lastSync).toISOString() : existingWearable.last_sync
+        lastSync: lastSync ? new Date(lastSync).toISOString() : existingWearable.lastSync
       });
       
       if (!wearable) {
@@ -1034,6 +1030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authReq = req as AuthenticatedRequest;
       
       // Get count and last 5 workout IDs
+      const { supabaseAdmin } = await import("./lib/supabaseAdmin");
       const { data: workouts, error: workoutsError } = await supabaseAdmin
         .from('workouts')
         .select('id, created_at')
@@ -1046,7 +1043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         count: workouts?.length || 0,
-        last5Ids: workouts?.slice(0, 5).map(w => w.id) || []
+        last5Ids: workouts?.slice(0, 5).map((w: { id: string }) => w.id) || []
       });
     } catch (error) {
       console.error("Debug workouts error:", error);
