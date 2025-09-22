@@ -133,7 +133,10 @@ app.use((req, res, next) => {
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  const port = parseInt(process.env.PORT || '5000', 10);
+  const detectedPort = process.env.PORT && /^\d+$/.test(process.env.PORT) ? Number(process.env.PORT) : (process.env.REPL_ID ? 8000 : 5000);
+  const port = detectedPort;
+  
+  log(`[PORT] Using env PORT=${process.env.PORT ?? '∅'} → listening on ${port}`);
 
   const httpServer = server.listen(
     {
@@ -149,7 +152,7 @@ app.use((req, res, next) => {
   // Helpful diagnostics for "address already in use"
   httpServer.on('error', (err: any) => {
     if (err?.code === 'EADDRINUSE') {
-      log(`❌ Port ${port} is already in use. Run "npx kill-port 5000" then try again.`);
+      log(`❌ Port ${port} is already in use. Run "npx kill-port ${port}" then try again.`);
       process.exit(1);
     }
     throw err;

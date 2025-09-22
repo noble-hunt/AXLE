@@ -52,6 +52,10 @@ DATABASE_URL=postgresql://user:password@localhost:5432/axle
 3. **Open your browser:**
    Navigate to `http://localhost:5000`
 
+### Running on Replit
+
+Set `PORT=8000` in Secrets. Run `npm run dev`. Preview opens on that port.
+
 ## 📱 Application Routes
 
 | Route | Description | Features |

@@ -12,7 +12,7 @@ try {
   console.log('kill-port not available, using system tools fallbacks');
 }
 
-const port = parseInt(process.env.PORT || '5000', 10);
+const port = Number(process.env.PORT || 8000);
 const pidFile = path.resolve(process.cwd(), '.dev-server.pid');
 
 const tryExec = (cmd) => {

@@ -754,6 +754,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Basic health check endpoint
+  app.get("/__health", (req, res) => {
+    res.json({ 
+      ok: true, 
+      envPort: process.env.PORT ?? null 
+    });
+  });
+
   // Health check for Supabase environment and connectivity
   app.get("/api/health/supabase", async (req, res) => {
     try {
