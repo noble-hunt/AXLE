@@ -367,7 +367,7 @@ export default function PRs() {
                       <Field
                         label="Or enter custom movement"
                         value={customMovement}
-                        onChange={setCustomMovement}
+                        onChange={(e) => setCustomMovement(e.target.value)}
                         placeholder="Enter movement name"
                         data-testid="custom-movement-input"
                       />
@@ -381,7 +381,7 @@ export default function PRs() {
             <Field
               label="Value"
               value={value}
-              onChange={setValue}
+              onChange={(e) => setValue(e.target.value)}
               placeholder="Enter weight or time"
               type="number"
               data-testid="pr-value-input"

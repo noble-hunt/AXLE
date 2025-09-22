@@ -50,23 +50,23 @@ export default function Reports() {
     
     if (latestReport) {
       // Sleep suggestions
-      if (latestReport.sleepScore < 70) {
+      if (latestReport.metrics.sleep.quality < 70) {
         suggestions.push({
           type: 'sleep',
           icon: Moon,
           title: 'Improve Sleep Quality',
-          message: `Your sleep score is ${latestReport.sleepScore}/100. Try going to bed 30min earlier.`,
+          message: `Your sleep score is ${latestReport.metrics.sleep.quality}/100. Try going to bed 30min earlier.`,
           priority: 'high'
         })
       }
       
       // HRV suggestions  
-      if (latestReport.hrv < 40) {
+      if (latestReport.metrics.recovery.hrv < 40) {
         suggestions.push({
           type: 'recovery',
           icon: Heart,
           title: 'Focus on Recovery',
-          message: `Your HRV is ${latestReport.hrv}ms. Consider lighter workouts today.`,
+          message: `Your HRV is ${latestReport.metrics.recovery.hrv}ms. Consider lighter workouts today.`,
           priority: 'medium'
         })
       }
@@ -135,19 +135,19 @@ export default function Reports() {
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center" data-testid="resting-hr-metric">
               <Heart className="w-6 h-6 text-chart-1 mx-auto mb-2" />
-              <p className="text-lg font-bold text-foreground">{latestReport.restingHeartRate}</p>
+              <p className="text-lg font-bold text-foreground">{latestReport.metrics.heartRate.resting}</p>
               <p className="text-xs text-muted-foreground">Resting HR</p>
             </div>
             
             <div className="text-center" data-testid="hrv-metric">
               <Activity className="w-6 h-6 text-chart-2 mx-auto mb-2" />
-              <p className="text-lg font-bold text-foreground">{latestReport.hrv}</p>
+              <p className="text-lg font-bold text-foreground">{latestReport.metrics.recovery.hrv}</p>
               <p className="text-xs text-muted-foreground">HRV (ms)</p>
             </div>
             
             <div className="text-center" data-testid="sleep-score-metric">
               <Moon className="w-6 h-6 text-chart-3 mx-auto mb-2" />
-              <p className="text-lg font-bold text-foreground">{latestReport.sleepScore}</p>
+              <p className="text-lg font-bold text-foreground">{latestReport.metrics.sleep.quality}</p>
               <p className="text-xs text-muted-foreground">Sleep Score</p>
             </div>
           </div>
