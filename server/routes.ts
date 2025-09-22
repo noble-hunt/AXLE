@@ -373,7 +373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         exercise: validatedData.movement,
         weight: validatedData.weightKg,
         reps: validatedData.repMax,
-        date: new Date(validatedData.date)
+        date: validatedData.date ? new Date(validatedData.date) : new Date()
       });
       
       res.json(pr);
@@ -732,8 +732,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prs = await storage.getPersonalRecords(userId);
       
       const totalWorkouts = workouts.length;
-      const totalTime = workouts.reduce((sum, w) => sum + w.duration, 0);
-      const avgWorkoutTime = totalWorkouts > 0 ? Math.round(totalTime / totalWorkouts) : 0;
+      const totalTime = 0; // Duration not available in workout schema
+      const avgWorkoutTime = 0;
       const currentStreak = 12; // Mock streak calculation
       const weeklyWorkouts = 4; // Mock weekly count
 
