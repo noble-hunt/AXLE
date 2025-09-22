@@ -21,7 +21,7 @@ export default defineConfig(async ({ mode }) => {
     base: "/", // correct asset URLs on Vercel
     publicDir: path.resolve(import.meta.dirname, "public"), // repo-root /public
     build: {
-      outDir: path.resolve(import.meta.dirname, "dist"), // <-- dist/index.html (NOT dist/public)
+      outDir: path.resolve(import.meta.dirname, "dist"), // dist/index.html (SPA)
       emptyOutDir: true,
     },
     // ---------------------------------------
@@ -35,6 +35,10 @@ export default defineConfig(async ({ mode }) => {
       },
     },
     server: {
+      /** Allow Replit’s random preview hostnames */
+      allowedHosts: true,
+      /** Bind on all interfaces; helps HMR behind proxies */
+      host: true,
       fs: {
         strict: true,
         deny: ["**/.*"],
