@@ -47,6 +47,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
 import { fetchGroupPosts } from "@/features/groups/api";
 import { useGroupPostsLive } from "@/features/groups/hooks/useGroupPostsLive";
+import { supabase } from "@/lib/supabase";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -660,23 +661,21 @@ export default function GroupFeedPage() {
       return;
     }
 
-    // For single group messaging, use optimistic UI with new messaging system
+    // Fast message send with optimistic updates
     await composerRateLimit.execute(async () => {
-      const messageId = crypto.randomUUID(); // Generate proper UUID for optimistic message
-      const optimisticMessage = {
-        id: messageId,
-        body: message.trim(),
-        authorId: user.id,
-        authorName: user.name || user.email || 'You',
-        authorAvatar: user.avatar,
-        createdAt: new Date().toISOString(),
-        groupId: groupId,
-        kind: 'message' as const,
-        optimistic: true
-      };
+      if (!message.trim()) return;
 
-      // Add optimistic message immediately
-      setPosts(prev => [...prev, optimisticMessage as any]);
+      const userId = (await supabase.auth.getUser()).data.user?.id!;
+      const temp = { 
+        id: `temp-${crypto.randomUUID()}`, 
+        group_id: groupId, 
+        author_id: userId, 
+        body: message.trim(), 
+        created_at: new Date().toISOString(), 
+        _status: 'sending' as const 
+      };
+      
+      setPosts(p => [temp as any, ...p]);
       const originalMessage = message.trim();
       setMessage("");
       setPosting(true);
@@ -686,52 +685,29 @@ export default function GroupFeedPage() {
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       }
 
-      try {
-        const response = await authFetch(`/api/groups/${groupId}/messages`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: messageId, // Pass client-generated ID for optimistic UI reconciliation
-            body: originalMessage
-          }),
-        });
+      const { data, error } = await supabase
+        .from('group_posts')
+        .insert({ group_id: groupId, body: originalMessage, meta: null })
+        .select('*')
+        .single();
 
-        if (response.ok) {
-          const serverMessage = await response.json();
-          
-          // Replace optimistic message with server response
-          // Since we sent the client ID, the server should return the same ID
-          setPosts(prev => prev.map(p => 
-            p.id === messageId 
-              ? { 
-                  ...serverMessage, 
-                  kind: 'message', 
-                  authorName: user.name || user.email || 'You', 
-                  authorAvatar: user.avatar,
-                  optimistic: false // Mark as no longer optimistic
-                }
-              : p
-          ));
-        } else {
-          throw new Error("Failed to send message");
-        }
-      } catch (error) {
-        console.error("Failed to send message:", error);
-        
-        // Remove optimistic message on error
-        setPosts(prev => prev.filter(p => p.id !== optimisticMessage.id));
-        
-        // Restore message text for retry
-        setMessage(originalMessage);
-        
+      if (error) {
+        setPosts(p => p.map(x => x.id === temp.id ? { ...x, _status: 'failed' } : x));
         toast({
           title: "Failed to send message",
           description: "Please try again",
           variant: "destructive",
         });
-      } finally {
+        setMessage(originalMessage); // Restore message for retry
         setPosting(false);
+        return;
       }
+      
+      setPosts(p => {
+        const withoutTemp = p.filter(x => x.id !== temp.id && x.id !== data.id);
+        return [data as any, ...withoutTemp];
+      });
+      setPosting(false);
     });
   };
 
