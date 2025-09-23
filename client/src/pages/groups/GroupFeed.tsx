@@ -49,6 +49,58 @@ import { fetchGroupPosts, sendPost, type GroupPost } from "@/features/groups/api
 import { useGroupPostsRealtime } from "@/features/groups/hooks/useGroupPostsRealtime";
 import { supabase } from "@/lib/supabase";
 
+// Signed upload helper function
+async function getSignedUpload(groupId: string, filename: string) {
+  const res = await fetch('/api/storage/group-photos/signed-upload', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ groupId, filename }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return (await res.json()) as { path: string; token: string; signedUrl?: string };
+}
+
+// PhotoPicker component
+function PhotoPicker({ groupId, value, onChange }: { groupId: string; value?: string; onChange: (url: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setBusy(true);
+    try {
+      const { path, token, signedUrl } = await getSignedUpload(groupId, file.name);
+      const storage: any = supabase.storage.from('group-photos');
+      if (typeof storage.uploadToSignedUrl === 'function') {
+        const { error } = await storage.uploadToSignedUrl(path, token, file);
+        if (error) throw error;
+      } else {
+        await fetch(signedUrl!, { method: 'PUT', body: file, headers: { 'x-upsert': 'true' } });
+      }
+      const { data } = supabase.storage.from('group-photos').getPublicUrl(path);
+      onChange(data.publicUrl);
+    } catch (err: any) { 
+      alert(err.message || 'Upload failed'); 
+    }
+    finally { 
+      setBusy(false); 
+      e.target.value = ''; 
+    }
+  };
+  return (
+    <div className="flex items-center gap-4">
+      <img 
+        src={value || ''} 
+        className="h-16 w-16 rounded-xl object-cover bg-muted" 
+        alt="" 
+        onError={(ev) => ((ev.target as HTMLImageElement).src = '')} 
+      />
+      <label className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 cursor-pointer">
+        {busy ? 'Uploading…' : 'Choose Photo'}
+        <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+      </label>
+    </div>
+  );
+}
+
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
 
@@ -464,7 +516,7 @@ export default function GroupFeedPage() {
         body: JSON.stringify({
           name: editingGroupName,
           description: editingGroupDescription,
-          photoUrl: editingGroupPhoto || null
+          photo_url: editingGroupPhoto || null
         })
       });
 
@@ -1456,8 +1508,9 @@ export default function GroupFeedPage() {
 
       {/* Group Edit Interface - Only for owners when editing */}
       {isEditingGroup && group.userRole === 'owner' && (
-        <div className="flex-shrink-0 p-4 border-b bg-muted/50">
-          <Card className="p-4">
+        <div className="h-[100dvh] overflow-y-auto">
+          <div className="mx-auto max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+96px)]">
+            <Card className="p-4">
             <div className="space-y-4">
               {/* Group Details Section */}
               <div>
@@ -1485,13 +1538,11 @@ export default function GroupFeedPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="group-photo">Photo URL</Label>
-                    <Input
-                      id="group-photo"
-                      value={editingGroupPhoto}
-                      onChange={(e) => setEditingGroupPhoto(e.target.value)}
-                      placeholder="https://example.com/photo.jpg"
-                      data-testid="edit-group-photo"
+                    <Label htmlFor="group-photo">Group Photo</Label>
+                    <PhotoPicker 
+                      groupId={group.id} 
+                      value={editingGroupPhoto} 
+                      onChange={setEditingGroupPhoto} 
                     />
                   </div>
                   <div className="flex gap-2">
@@ -1619,6 +1670,7 @@ export default function GroupFeedPage() {
               )}
             </div>
           </Card>
+          </div>
         </div>
       )}
 
