@@ -1,4 +1,4 @@
-// server/lib/supabaseFromReq.ts
+// server/lib/supabaseFromReq.ts  (Express dev, caller's JWT)
 import { createClient } from '@supabase/supabase-js';
 import type { Request } from 'express';
 export const supabaseFromReq = (req: Request) =>

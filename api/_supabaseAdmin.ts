@@ -1,4 +1,4 @@
-// server/lib/supabaseAdmin.ts  (Express dev, service-role)
+// api/_supabaseAdmin.ts  (Vercel serverless service-role)
 import { createClient } from '@supabase/supabase-js';
 export const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,

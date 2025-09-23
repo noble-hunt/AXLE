@@ -1,0 +1,132 @@
+API routes (Groups feed + Signed Upload)
+
+Create
+
+api/groups/[id]/posts.ts (GET + POST)
+
+api/storage/group-photos/signed-upload.ts
+
+server/routes/groups.ts
+
+server/routes/storage.ts and mount them
+
+// api/groups/[id]/posts.ts
+import { supabaseFromReq } from '../../_supabase';
+export const config = { runtime: 'nodejs18.x' };
+const isUuid = (v:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+
+export default async function handler(req: Request, ctx: { params: { id: string } }) {
+  const groupId = ctx.params.id;
+  if (!isUuid(groupId)) return json({ error: 'Invalid group id' }, 400);
+  const supabase = supabaseFromReq(req);
+
+  if (req.method === 'GET') {
+    const since = new URL(req.url).searchParams.get('since');
+    let q = supabase.from('group_posts')
+      .select('id, group_id, author_id, body, meta, created_at')
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (since) q = q.gte('created_at', since);
+    const { data, error } = await q;
+    if (error) return json({ error: error.message }, 400);
+    return json({ posts: data ?? [] });
+  }
+
+  if (req.method === 'POST') {
+    const { body, meta } = await req.json().catch(()=>({}));
+    if (!body || !String(body).trim()) return json({ error: 'Body required' }, 400);
+    const { data, error } = await supabase
+      .from('group_posts')
+      .insert({ group_id: groupId, body: String(body).trim(), meta: meta ?? null })
+      .select('*').single();
+    if (error) return json({ error: error.message }, 400);
+    return json(data, 201);
+  }
+
+  return new Response('Method Not Allowed',{status:405});
+  function json(x:any, status=200){ return new Response(JSON.stringify(x),{status,headers:{'content-type':'application/json','cache-control':'no-store'}}); }
+}
+
+// api/storage/group-photos/signed-upload.ts
+import { supabaseAdmin } from '../../_supabaseAdmin';
+export const config = { runtime: 'nodejs18.x' };
+export default async function handler(req: Request) {
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+  const { groupId, filename } = await req.json().catch(()=>({}));
+  if (!groupId) return json({ error: 'groupId required' }, 400);
+  const ext = (String(filename||'jpg').split('.').pop()||'jpg').toLowerCase();
+  const path = `${groupId}/${crypto.randomUUID()}.${ext}`;
+  const { data, error } = await supabaseAdmin.storage.from('group-photos').createSignedUploadUrl(path);
+  if (error) return json({ error: error.message }, 400);
+  // include signedUrl for SDK fallback
+  return json({ path, token: data.token, signedUrl: (data as any).signedUrl });
+  function json(x:any,status=200){return new Response(JSON.stringify(x),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});}
+}
+
+// server/routes/groups.ts (Express dev)
+import { Router } from 'express';
+import { supabaseFromReq } from '../lib/supabaseFromReq';
+const router = Router();
+
+router.get('/:id/posts', async (req, res) => {
+  const supabase = supabaseFromReq(req);
+  const groupId = req.params.id;
+  const since = req.query.since as string | undefined;
+  let q = supabase.from('group_posts')
+    .select('id, group_id, author_id, body, meta, created_at')
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (since) q = q.gte('created_at', since);
+  const { data, error } = await q;
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ posts: data ?? [] });
+});
+
+router.post('/:id/posts', async (req, res) => {
+  const supabase = supabaseFromReq(req);
+  const groupId = req.params.id;
+  const { body, meta } = req.body ?? {};
+  if (!body || !String(body).trim()) return res.status(400).json({ error: 'Body required' });
+  const { data, error } = await supabase
+    .from('group_posts')
+    .insert({ group_id: groupId, body: String(body).trim(), meta: meta ?? null })
+    .select('*').single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+export default router;
+
+// server/routes/storage.ts (Express dev)
+import { Router } from 'express';
+import { supabaseAdmin } from '../lib/supabaseAdmin';
+const router = Router();
+
+router.post('/group-photos/signed-upload', async (req, res) => {
+  const { groupId, filename } = req.body ?? {};
+  if (!groupId) return res.status(400).json({ error: 'groupId required' });
+  const ext = String(filename||'jpg').split('.').pop()?.toLowerCase() || 'jpg';
+  const path = `${groupId}/${crypto.randomUUID()}.${ext}`;
+  const { data, error } = await supabaseAdmin.storage.from('group-photos').createSignedUploadUrl(path);
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ path, token: data.token, signedUrl: (data as any).signedUrl });
+});
+
+export default router;
+
+// server/index.ts (mount routers once)
+import groupsRouter from './routes/groups';
+import storageRouter from './routes/storage';
+app.use('/api/groups', groupsRouter);
+app.use('/api/storage', storageRouter);
+
+
+Acceptance
+
+Dev & prod: GET /api/groups/<uuid>/posts → 200 {posts:[]}
+
+POST /api/groups/<uuid>/posts → 201 (row)
+
+POST /api/storage/group-photos/signed-upload → 200 { path, token, signedUrl }
