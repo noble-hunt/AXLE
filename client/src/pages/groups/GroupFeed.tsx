@@ -599,34 +599,79 @@ export default function GroupFeedPage() {
   const handleSendMessage = async () => {
     if (!message.trim() || posting || !groupId || !user) return;
 
-    // For cross-posting, use the old posts system
+    // For cross-posting, use direct Supabase with optimistic UI
     if (crossPost && selectedGroups.length > 0) {
       const targetGroups = selectedGroups;
       
       await composerRateLimit.execute(async () => {
         setPosting(true);
         try {
-          const response = await authFetch("/api/posts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              kind: "text",
-              content: { message: message.trim() },
-              groupIds: targetGroups,
-            }),
+          const userId = (await supabase.auth.getUser()).data.user?.id!;
+          const body = message.trim();
+
+          // Create optimistic posts for each target group
+          const tempPosts: any[] = [];
+          for (const targetGroupId of targetGroups) {
+            const temp = {
+              id: `-${Math.floor(Math.random() * 1e9)}`,
+              group_id: targetGroupId,
+              author_id: userId,
+              body,
+              meta: null,
+              created_at: new Date().toISOString(),
+              _status: 'sending' as const,
+            };
+            tempPosts.push(temp);
+            
+            // Only add to current group's posts if it's the current group
+            if (targetGroupId === groupId) {
+              setPosts(p => [temp, ...p]);
+            }
+          }
+
+          // Insert to all target groups
+          const insertPromises = targetGroups.map(targetGroupId => 
+            supabase
+              .from('group_posts')
+              .insert({ group_id: targetGroupId, body, meta: null })
+              .select('*')
+              .single()
+          );
+
+          const results = await Promise.allSettled(insertPromises);
+          
+          let successCount = 0;
+          results.forEach((result, index) => {
+            const targetGroupId = targetGroups[index];
+            const tempPost = tempPosts[index];
+            
+            if (result.status === 'fulfilled' && result.value.data) {
+              successCount++;
+              
+              // Update current group's posts if successful
+              if (targetGroupId === groupId) {
+                setPosts(p => {
+                  const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== result.value.data.id);
+                  return [result.value.data as any, ...withoutTemp];
+                });
+              }
+            } else if (targetGroupId === groupId) {
+              // Mark as failed for current group
+              setPosts(p => p.map(x => x.id === tempPost.id ? { ...x, _status: 'failed' } : x));
+            }
           });
 
-          if (response.ok) {
-            setMessage("");
-            setCrossPost(false);
-            setSelectedGroups([]);
-            
+          setMessage("");
+          setCrossPost(false);
+          setSelectedGroups([]);
+          
+          if (successCount > 0) {
             toast({
               title: "Message sent!",
-              description: `Posted to ${targetGroups.length} groups`,
+              description: `Posted to ${successCount}/${targetGroups.length} groups`,
             });
           } else {
-            throw new Error("Failed to send message");
+            throw new Error("Failed to send to any groups");
           }
         } catch (error) {
           console.error("Failed to send message:", error);
@@ -696,32 +741,80 @@ export default function GroupFeedPage() {
     const targetGroups = crossPost && selectedGroups.length > 0 ? selectedGroups : [groupId!];
     
     try {
-      const response = await authFetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "workout",
-          content: {
-            workoutId: workout.id,
-            name: workout.name,
-            category: workout.category,
-            duration: workout.duration,
-            intensity: workout.intensity,
-          },
-          groupIds: targetGroups,
-        }),
+      const userId = (await supabase.auth.getUser()).data.user?.id!;
+      const body = `Shared a workout: ${workout.name}`;
+      const meta = {
+        kind: "workout",
+        workoutId: workout.id,
+        name: workout.name,
+        category: workout.category,
+        duration: workout.duration,
+        intensity: workout.intensity,
+      };
+
+      // Create optimistic posts for each target group
+      const tempPosts: any[] = [];
+      for (const targetGroupId of targetGroups) {
+        const temp = {
+          id: `-${Math.floor(Math.random() * 1e9)}`,
+          group_id: targetGroupId,
+          author_id: userId,
+          body,
+          meta,
+          created_at: new Date().toISOString(),
+          _status: 'sending' as const,
+        };
+        tempPosts.push(temp);
+        
+        // Only add to current group's posts if it's the current group
+        if (targetGroupId === groupId) {
+          setPosts(p => [temp, ...p]);
+        }
+      }
+
+      // Insert to all target groups
+      const insertPromises = targetGroups.map(targetGroupId => 
+        supabase
+          .from('group_posts')
+          .insert({ group_id: targetGroupId, body, meta })
+          .select('*')
+          .single()
+      );
+
+      const results = await Promise.allSettled(insertPromises);
+      
+      let successCount = 0;
+      results.forEach((result, index) => {
+        const targetGroupId = targetGroups[index];
+        const tempPost = tempPosts[index];
+        
+        if (result.status === 'fulfilled' && result.value.data) {
+          successCount++;
+          
+          // Update current group's posts if successful
+          if (targetGroupId === groupId) {
+            setPosts(p => {
+              const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== result.value.data.id);
+              return [result.value.data as any, ...withoutTemp];
+            });
+          }
+        } else if (targetGroupId === groupId) {
+          // Mark as failed for current group
+          setPosts(p => p.map(x => x.id === tempPost.id ? { ...x, _status: 'failed' } : x));
+        }
       });
 
-      if (response.ok) {
-        // Don't add locally - let real-time handle it to avoid duplication
-        setShowWorkoutModal(false);
-        setCrossPost(false);
-        setSelectedGroups([]);
-        
+      setShowWorkoutModal(false);
+      setCrossPost(false);
+      setSelectedGroups([]);
+      
+      if (successCount > 0) {
         toast({
           title: "Workout shared!",
-          description: crossPost ? `Shared to ${targetGroups.length} groups` : "Shared to group",
+          description: crossPost ? `Shared to ${successCount}/${targetGroups.length} groups` : "Shared to group",
         });
+      } else {
+        throw new Error("Failed to share to any groups");
       }
     } catch (error) {
       console.error("Failed to share workout:", error);
@@ -739,32 +832,80 @@ export default function GroupFeedPage() {
     const targetGroups = crossPost && selectedGroups.length > 0 ? selectedGroups : [groupId!];
     
     try {
-      const response = await authFetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "pr",
-          content: {
-            movement: prForm.movement,
-            reps: prForm.reps,
-            weight: prForm.weight,
-            unit: prForm.unit,
-          },
-          groupIds: targetGroups,
-        }),
+      const userId = (await supabase.auth.getUser()).data.user?.id!;
+      const body = `New PR: ${prForm.movement} - ${prForm.weight}${prForm.unit} x ${prForm.reps}`;
+      const meta = {
+        kind: "pr",
+        movement: prForm.movement,
+        reps: prForm.reps,
+        weight: prForm.weight,
+        unit: prForm.unit,
+      };
+
+      // Create optimistic posts for each target group
+      const tempPosts: any[] = [];
+      for (const targetGroupId of targetGroups) {
+        const temp = {
+          id: `-${Math.floor(Math.random() * 1e9)}`,
+          group_id: targetGroupId,
+          author_id: userId,
+          body,
+          meta,
+          created_at: new Date().toISOString(),
+          _status: 'sending' as const,
+        };
+        tempPosts.push(temp);
+        
+        // Only add to current group's posts if it's the current group
+        if (targetGroupId === groupId) {
+          setPosts(p => [temp, ...p]);
+        }
+      }
+
+      // Insert to all target groups
+      const insertPromises = targetGroups.map(targetGroupId => 
+        supabase
+          .from('group_posts')
+          .insert({ group_id: targetGroupId, body, meta })
+          .select('*')
+          .single()
+      );
+
+      const results = await Promise.allSettled(insertPromises);
+      
+      let successCount = 0;
+      results.forEach((result, index) => {
+        const targetGroupId = targetGroups[index];
+        const tempPost = tempPosts[index];
+        
+        if (result.status === 'fulfilled' && result.value.data) {
+          successCount++;
+          
+          // Update current group's posts if successful
+          if (targetGroupId === groupId) {
+            setPosts(p => {
+              const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== result.value.data.id);
+              return [result.value.data as any, ...withoutTemp];
+            });
+          }
+        } else if (targetGroupId === groupId) {
+          // Mark as failed for current group
+          setPosts(p => p.map(x => x.id === tempPost.id ? { ...x, _status: 'failed' } : x));
+        }
       });
 
-      if (response.ok) {
-        // Don't add locally - let real-time handle it to avoid duplication
-        setShowPRModal(false);
-        setPRForm({ movement: "", reps: 1, weight: 0, unit: "kg" });
-        setCrossPost(false);
-        setSelectedGroups([]);
-        
+      setShowPRModal(false);
+      setPRForm({ movement: "", reps: 1, weight: 0, unit: "kg" });
+      setCrossPost(false);
+      setSelectedGroups([]);
+      
+      if (successCount > 0) {
         toast({
           title: "PR shared!",
-          description: crossPost ? `Shared to ${targetGroups.length} groups` : "Shared to group",
+          description: crossPost ? `Shared to ${successCount}/${targetGroups.length} groups` : "Shared to group",
         });
+      } else {
+        throw new Error("Failed to share to any groups");
       }
     } catch (error) {
       console.error("Failed to share PR:", error);
