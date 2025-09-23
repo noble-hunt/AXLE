@@ -886,98 +886,96 @@ export default function GroupFeedPage() {
     const reactions = postReactions[post.id] || [];
     
     return (
-      <div key={post.id} className="flex gap-3 mb-6">
-        <Avatar className="w-8 h-8 flex-shrink-0">
-          <AvatarImage src={post.authorAvatar} alt={post.authorName} />
-          <AvatarFallback className="text-xs">
-            {getInitials(post.authorName)}
-          </AvatarFallback>
-        </Avatar>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-sm">{post.authorName}</span>
-            <span className="text-xs text-muted-foreground">{timeAgo}</span>
-          </div>
+      <Card key={post.id} className="rounded-2xl bg-zinc-900/70 border border-white/10 p-4 md:p-5 space-y-3" data-testid={`post-${post.id}`}>
+        <div className="flex gap-3">
+          <Avatar className="w-10 h-10 flex-shrink-0">
+            <AvatarImage src={post.authorAvatar} alt={post.authorName} />
+            <AvatarFallback className="text-sm">
+              {getInitials(post.authorName)}
+            </AvatarFallback>
+          </Avatar>
           
-          {post.kind === "text" && (
-            <div 
-              className="bg-muted rounded-lg px-3 py-2 max-w-md cursor-pointer"
-              onContextMenu={(e) => handlePostInteraction(e, post.id)}
-              onTouchStart={(e) => {
-                // Long-press detection
-                const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
-                e.currentTarget.dataset.pressTimer = timeout.toString();
-              }}
-              onTouchEnd={(e) => {
-                const timer = e.currentTarget.dataset.pressTimer;
-                if (timer) {
-                  clearTimeout(parseInt(timer));
-                  delete e.currentTarget.dataset.pressTimer;
-                }
-              }}
-              data-testid={`post-${post.id}`}
-            >
-              <p className="text-sm">{post.content.message}</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg md:text-xl font-semibold text-white/90">{post.authorName}</span>
+              <span className="text-sm text-white/70">{timeAgo}</span>
             </div>
-          )}
           
-          {post.kind === "workout" && (
-            <Card 
-              className="p-3 max-w-md cursor-pointer"
-              onContextMenu={(e) => handlePostInteraction(e, post.id)}
-              onTouchStart={(e) => {
-                const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
-                e.currentTarget.dataset.pressTimer = timeout.toString();
-              }}
-              onTouchEnd={(e) => {
-                const timer = e.currentTarget.dataset.pressTimer;
-                if (timer) {
-                  clearTimeout(parseInt(timer));
-                  delete e.currentTarget.dataset.pressTimer;
-                }
-              }}
-              data-testid={`post-${post.id}`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Dumbbell className="w-4 h-4 text-primary" />
-                <span className="font-medium text-sm">{post.content.name}</span>
+            {post.kind === "text" && (
+              <div 
+                className="bg-white/5 rounded-xl px-4 py-3 cursor-pointer break-words"
+                onContextMenu={(e) => handlePostInteraction(e, post.id)}
+                onTouchStart={(e) => {
+                  // Long-press detection
+                  const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
+                  e.currentTarget.dataset.pressTimer = timeout.toString();
+                }}
+                onTouchEnd={(e) => {
+                  const timer = e.currentTarget.dataset.pressTimer;
+                  if (timer) {
+                    clearTimeout(parseInt(timer));
+                    delete e.currentTarget.dataset.pressTimer;
+                  }
+                }}
+              >
+                <p className="text-white/90 leading-relaxed">{post.content.message}</p>
               </div>
-              <div className="text-xs text-muted-foreground mb-2">
-                {post.content.category} • {post.content.duration}min • Intensity {post.content.intensity}/10
-              </div>
-              <Button size="sm" variant="outline" className="text-xs h-7">
-                <ExternalLink className="w-3 h-3 mr-1" />
-                View workout
-              </Button>
-            </Card>
-          )}
+            )}
           
-          {post.kind === "pr" && (
-            <div 
-              className="bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-full px-3 py-1 max-w-fit cursor-pointer"
-              onContextMenu={(e) => handlePostInteraction(e, post.id)}
-              onTouchStart={(e) => {
-                const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
-                e.currentTarget.dataset.pressTimer = timeout.toString();
-              }}
-              onTouchEnd={(e) => {
-                const timer = e.currentTarget.dataset.pressTimer;
-                if (timer) {
-                  clearTimeout(parseInt(timer));
-                  delete e.currentTarget.dataset.pressTimer;
-                }
-              }}
-              data-testid={`post-${post.id}`}
-            >
-              <div className="flex items-center gap-1 text-sm">
-                <Trophy className="w-4 h-4 text-yellow-600" />
-                <span className="font-medium">New PR:</span>
-                <span>{post.content.reps}RM {post.content.movement} {post.content.weight}{post.content.unit}</span>
-                <span>🎉</span>
+            {post.kind === "workout" && (
+              <div 
+                className="bg-white/5 rounded-xl p-4 cursor-pointer break-words"
+                onContextMenu={(e) => handlePostInteraction(e, post.id)}
+                onTouchStart={(e) => {
+                  const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
+                  e.currentTarget.dataset.pressTimer = timeout.toString();
+                }}
+                onTouchEnd={(e) => {
+                  const timer = e.currentTarget.dataset.pressTimer;
+                  if (timer) {
+                    clearTimeout(parseInt(timer));
+                    delete e.currentTarget.dataset.pressTimer;
+                  }
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Dumbbell className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-white/90">{post.content.name}</span>
+                </div>
+                <div className="text-sm text-white/70 mb-3">
+                  {post.content.category} • {post.content.duration}min • Intensity {post.content.intensity}/10
+                </div>
+                <Button size="sm" variant="outline" className="h-8 gap-2 leading-none" aria-label="View workout details">
+                  <ExternalLink className="w-4 h-4" />
+                  View workout
+                </Button>
               </div>
-            </div>
-          )}
+            )}
+          
+            {post.kind === "pr" && (
+              <div 
+                className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl px-4 py-3 cursor-pointer break-words"
+                onContextMenu={(e) => handlePostInteraction(e, post.id)}
+                onTouchStart={(e) => {
+                  const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
+                  e.currentTarget.dataset.pressTimer = timeout.toString();
+                }}
+                onTouchEnd={(e) => {
+                  const timer = e.currentTarget.dataset.pressTimer;
+                  if (timer) {
+                    clearTimeout(parseInt(timer));
+                    delete e.currentTarget.dataset.pressTimer;
+                  }
+                }}
+              >
+                <div className="flex items-center gap-2 text-white/90">
+                  <Trophy className="w-5 h-5 text-yellow-400" />
+                  <span className="font-semibold">New PR:</span>
+                  <span>{post.content.reps}RM {post.content.movement} {post.content.weight}{post.content.unit}</span>
+                  <span>🎉</span>
+                </div>
+              </div>
+            )}
           
           {post.kind === "event" && (
             // Use enhanced component for group workout events, standard component for regular events
@@ -999,8 +997,8 @@ export default function GroupFeedPage() {
                 }}
               />
             ) : (
-              <Card 
-                className="p-3 max-w-md cursor-pointer"
+              <div 
+                className="bg-white/5 rounded-xl p-4 cursor-pointer break-words"
                 onContextMenu={(e) => handlePostInteraction(e, post.id)}
                 onTouchStart={(e) => {
                   const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
@@ -1013,15 +1011,14 @@ export default function GroupFeedPage() {
                     delete e.currentTarget.dataset.pressTimer;
                   }
                 }}
-                data-testid={`post-${post.id}`}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  <span className="font-medium text-sm">{post.content.title}</span>
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-white/90">{post.content.title}</span>
                 </div>
                 
                 {/* Event Details */}
-                <div className="text-xs text-muted-foreground mb-3 space-y-1">
+                <div className="text-sm text-white/70 mb-4 space-y-1">
                   <div>
                     📅 {new Date(post.content.start_at).toLocaleString()}
                   </div>
@@ -1037,66 +1034,55 @@ export default function GroupFeedPage() {
 
                 {/* RSVP Buttons */}
                 <EventRsvpButtons postId={post.id} groupId={groupId!} />
-              </Card>
+              </div>
             )
           )}
           
-          {/* Reactions */}
-          <div className="flex gap-2 mt-2 flex-wrap">
-            {REACTION_EMOJIS.map((emoji) => {
-              const reaction = reactions.find(r => r.emoji === emoji);
-              const count = reaction?.count || 0;
-              const userReacted = reaction?.userReacted || false;
-              
-              // Only show if there are reactions or user hasn't reacted yet
-              if (count === 0 && !userReacted) {
-                return (
-                  <Button
-                    key={emoji}
-                    size="sm"
-                    variant="ghost"
-                    className="text-xs h-7 px-2 rounded-full opacity-60 hover:opacity-100"
-                    onClick={() => toggleReaction(post.id, emoji)}
-                    data-testid={`reaction-${emoji}-${post.id}`}
-                  >
-                    <span>{emoji}</span>
-                  </Button>
-                );
-              }
-              
-              return (
-                <Button
-                  key={emoji}
-                  size="sm"
-                  variant={userReacted ? "default" : "outline"}
-                  className="text-xs h-7 px-2 rounded-full"
-                  onClick={() => toggleReaction(post.id, emoji)}
-                  data-testid={`reaction-${emoji}-${post.id}`}
-                  title={reaction && reaction.users ? reaction.users.slice(0, 3).map(u => u.name).join(', ') : ''}
-                >
-                  <span className="mr-1">{emoji}</span>
-                  <span>{count}</span>
-                  {reaction && reaction.users && reaction.users.length > 0 && (
-                    <div className="ml-1 flex -space-x-1">
-                      {reaction.users.slice(0, 3).map((user, idx) => (
-                        <Avatar key={user.id} className="w-4 h-4 border border-background">
-                          {user.avatar ? (
-                            <AvatarImage src={user.avatar} alt={user.name} />
-                          ) : (
-                            <AvatarFallback className="text-xs">
-                              {user.name.substring(0, 1).toUpperCase()}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                      ))}
-                    </div>
-                  )}
-                </Button>
-              );
-            })}
           </div>
         </div>
-      </div>
+        
+        {/* Reactions */}
+        <div className="flex flex-wrap items-center gap-2">
+          {REACTION_EMOJIS.map((emoji) => {
+            const reaction = reactions.find(r => r.emoji === emoji);
+            const count = reaction?.count || 0;
+            const userReacted = reaction?.userReacted || false;
+            
+            // Only show if there are reactions or user hasn't reacted yet
+            if (count === 0 && !userReacted) {
+              return (
+                <button
+                  key={emoji}
+                  className="px-2 h-8 rounded-full bg-white/10 hover:bg-white/15 text-white/60 hover:text-white/90 text-sm transition-colors min-h-[36px]"
+                  onClick={() => toggleReaction(post.id, emoji)}
+                  data-testid={`reaction-${emoji}-${post.id}`}
+                  aria-label={`React with ${emoji}`}
+                >
+                  <span>{emoji}</span>
+                </button>
+              );
+            }
+            
+            return (
+              <button
+                key={emoji}
+                className={`px-2 h-8 rounded-full text-sm transition-colors min-h-[36px] ${
+                  userReacted 
+                    ? 'bg-primary/20 text-white/90 border border-primary/30' 
+                    : 'bg-white/10 hover:bg-white/15 text-white/90 border border-white/10'
+                }`}
+                onClick={() => toggleReaction(post.id, emoji)}
+                data-testid={`reaction-${emoji}-${post.id}`}
+                title={reaction && reaction.users ? reaction.users.slice(0, 3).map(u => u.name).join(', ') : ''}
+                aria-label={`${userReacted ? 'Remove' : 'Add'} ${emoji} reaction (${count})`}
+              >
+                <span className="mr-1">{emoji}</span>
+                <span>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
     );
   };
 
@@ -1127,9 +1113,9 @@ export default function GroupFeedPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col min-h-[100dvh] max-h-[100dvh]">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b bg-background">
+      <div className="flex-shrink-0 p-4 border-b bg-background/95 backdrop-blur-sm">
         {/* First line: Back button, Avatar, Group name and info */}
         <div className="flex items-center gap-3 mb-3">
           <BackButton fallbackPath="/groups" />
@@ -1380,7 +1366,7 @@ export default function GroupFeedPage() {
       {/* Feed */}
       <div 
         ref={parentRef}
-        className="flex-1 overflow-auto p-6"
+        className="flex-1 overflow-y-auto px-4 pb-[128px] md:pb-6"
         onScroll={(e) => {
           const target = e.target as HTMLElement;
           
@@ -1403,7 +1389,7 @@ export default function GroupFeedPage() {
         {/* Event reminder banner */}
         {groupId && <EventReminderBanner groupId={groupId} />}
         
-        <div
+        <div className="space-y-3"
           style={{
             height: `${virtualizer.getTotalSize()}px`,
             width: '100%',
@@ -1518,7 +1504,7 @@ export default function GroupFeedPage() {
       )}
 
       {/* Composer */}
-      <div className="flex-shrink-0 p-4 border-t bg-background">
+      <div className="sticky bottom-0 flex-shrink-0 p-4 border-t bg-background/95 backdrop-blur-sm" style={{ paddingBottom: `calc(1rem + env(safe-area-inset-bottom))` }}>
         {/* Cross-post selector */}
         {crossPost && (
           <div className="mb-3">
@@ -1561,7 +1547,7 @@ export default function GroupFeedPage() {
                 }
               }}
               onBlur={() => setTyping(false)}
-              className="min-h-[40px] max-h-24 resize-none"
+              className="min-h-[44px] max-h-24 resize-none leading-none"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   handleSendMessage();
@@ -1569,6 +1555,7 @@ export default function GroupFeedPage() {
                 }
               }}
               data-testid="message-input"
+              aria-label="Type a message to the group"
             />
           </div>
           
@@ -1580,7 +1567,9 @@ export default function GroupFeedPage() {
                 setShowWorkoutModal(true);
                 loadRecentWorkouts();
               }}
+              className="h-11 px-3 leading-none"
               data-testid="share-workout-button"
+              aria-label="Share a workout"
             >
               <Dumbbell className="w-4 h-4" />
             </Button>
@@ -1589,7 +1578,9 @@ export default function GroupFeedPage() {
               variant="outline"
               size="sm"
               onClick={() => setShowPRModal(true)}
+              className="h-11 px-3 leading-none"
               data-testid="share-pr-button"
+              aria-label="Share a personal record"
             >
               <Trophy className="w-4 h-4" />
             </Button>
@@ -1597,7 +1588,9 @@ export default function GroupFeedPage() {
             <Button
               onClick={handleSendMessage}
               disabled={!message.trim() || posting}
+              className="h-11 px-3 leading-none"
               data-testid="send-button"
+              aria-label="Send message"
             >
               <Send className="w-4 h-4" />
             </Button>
