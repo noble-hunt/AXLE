@@ -383,7 +383,7 @@ export default function GroupFeedPage() {
       const validPosts = newPosts
         .filter(p => typeof p?.created_at === 'string' && typeof p?.body === 'string')
         .map(post => dbRowToPost(post, { 
-          full_name: post.author_name || 'User'
+          full_name: 'User'
         }));
       
       if (since) {

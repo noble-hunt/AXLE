@@ -100,9 +100,7 @@ export function useGroupRealtime(
         },
         (payload: RealtimePayload) => {
           console.log('🆕 [Realtime] New group post:', payload.new);
-          if (onNewPost) {
-            onNewPost(payload.new);
-          }
+          onNewPost?.(payload.new);
         }
       )
       .on(
@@ -115,9 +113,7 @@ export function useGroupRealtime(
         },
         (payload: RealtimePayload) => {
           console.log('👍 [Realtime] New reaction:', payload.new);
-          if (onNewReaction) {
-            onNewReaction(payload.new);
-          }
+          onNewReaction?.(payload.new);
         }
       )
       .on(
@@ -130,9 +126,7 @@ export function useGroupRealtime(
         },
         (payload: RealtimePayload) => {
           console.log('👎 [Realtime] Reaction removed:', payload.old);
-          if (onReactionRemoved) {
-            onReactionRemoved(payload.old);
-          }
+          onReactionRemoved?.(payload.old);
         }
       )
       .on(
@@ -145,9 +139,7 @@ export function useGroupRealtime(
         },
         (payload: RealtimePayload) => {
           console.log('📅 [Realtime] New RSVP:', payload.new);
-          if (onRsvpChanged) {
-            onRsvpChanged(payload.new);
-          }
+          onRsvpChanged?.(payload.new);
         }
       )
       .on(
@@ -160,9 +152,7 @@ export function useGroupRealtime(
         },
         (payload: RealtimePayload) => {
           console.log('📅 [Realtime] RSVP updated:', payload.new);
-          if (onRsvpChanged) {
-            onRsvpChanged(payload.new);
-          }
+          onRsvpChanged?.(payload.new);
         }
       )
       .on(
@@ -175,9 +165,7 @@ export function useGroupRealtime(
         },
         (payload: RealtimePayload) => {
           console.log('📅 [Realtime] RSVP removed:', payload.old);
-          if (onRsvpRemoved) {
-            onRsvpRemoved(payload.old);
-          }
+          onRsvpRemoved?.(payload.old);
         }
       )
       .on(
@@ -190,9 +178,7 @@ export function useGroupRealtime(
         },
         (payload: RealtimePayload) => {
           console.log('💬 [Realtime] New group message:', payload.new);
-          if (onNewMessage) {
-            onNewMessage(payload.new);
-          }
+          onNewMessage?.(payload.new);
         }
       )
       .on('presence', { event: 'sync' }, () => {
@@ -258,7 +244,7 @@ export function useGroupRealtime(
       setTypingMembers([]);
       setIsTypingState(false);
     };
-  }, [groupId, user, displayName, onNewPost, onNewReaction, onReactionRemoved, onRsvpChanged, onRsvpRemoved, onNewMessage]);
+  }, [groupId, user?.id, displayName]);
 
   return {
     onlineMembers,
