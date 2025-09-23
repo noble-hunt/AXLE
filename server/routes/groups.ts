@@ -635,21 +635,18 @@ export function registerGroupRoutes(app: Express) {
   });
 
   // GET /api/groups/:id/posts → get group posts (using supabaseFromReq for token-aware access)
-  app.get("/api/groups/:id/posts", requireAuth, async (req, res) => {
+  app.get("/api/groups/:id/posts", async (req, res) => {
+    const groupId = req.params.id;
     const supabase = supabaseFromReq(req);
-    const gid = req.params.id;
-    const { since } = req.query;
+    const since = req.query.since as string | undefined;
 
     let q = supabase
       .from('group_posts')
       .select('id, group_id, author_id, body, meta, created_at')
-      .eq('group_id', gid)
+      .eq('group_id', groupId)
       .order('created_at', { ascending: false })
       .limit(50);
-      
-    if (since) {
-      q = q.gt('created_at', String(since));
-    }
+    if (since) q = q.gte('created_at', since);
 
     const { data, error } = await q;
     if (error) return res.status(400).json({ error: error.message });
