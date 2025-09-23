@@ -370,10 +370,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { insertPR } = await import("./dal/prs");
       const pr = await insertPR({
         userId: authReq.user.id,
-        exercise: validatedData.movement,
-        weight: validatedData.weightKg,
-        reps: validatedData.repMax,
-        date: validatedData.date ? new Date(validatedData.date) : new Date()
+        category: validatedData.category,
+        movement: validatedData.movement,
+        repMax: validatedData.repMax as 1 | 3 | 5 | 10,
+        weightKg: Number(validatedData.weightKg),
+        date: validatedData.date ? new Date(validatedData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
       });
       
       res.json(pr);
