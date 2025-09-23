@@ -384,7 +384,7 @@ export default function GroupFeedPage() {
       const validPosts = newPosts
         .filter(p => typeof p?.created_at === 'string' && typeof p?.body === 'string')
         .map(post => ({
-          id: String(post.id),
+          id: post.id, // ID is already a string UUID
           kind: 'message' as const,
           content: { body: post.body, message: post.body },
           createdAt: post.created_at,

@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabase';
 
 export type GroupPost = {
-  id: number;
+  id: string;             // uuid as string
   group_id: string;       // uuid
   author_id: string;      // uuid
   body: string;

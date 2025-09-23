@@ -23,7 +23,6 @@ import {
   getGroupMembers,
   addMemberToGroup
 } from "../dal/groups";
-import { sendGroupMessage, getGroupMessages } from "../dal/groupMessages";
 import { supabaseFromReq } from '../lib/supabaseFromReq';
 import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements";
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
@@ -574,65 +573,6 @@ export function registerGroupRoutes(app: Express) {
     }
   });
 
-  // POST /api/groups/:id/messages → send message to group
-  app.post("/api/groups/:id/messages", requireAuth, async (req, res) => {
-    try {
-      const authReq = req as AuthenticatedRequest;
-      const userId = authReq.user.id;
-      const { id: groupId } = req.params;
-      const { body, meta, id } = req.body;
-
-      // Validate input
-      const messageSchema = z.object({
-        body: z.string().min(1).max(2000),
-        meta: z.record(z.any()).optional(),
-        id: z.string().uuid().optional() // Optional client-provided UUID
-      });
-
-      const validatedData = messageSchema.parse({ body, meta, id });
-
-      const message = await sendGroupMessage(userId, groupId, validatedData.body, validatedData.id, validatedData.meta);
-      
-      res.status(201).json(message);
-    } catch (error) {
-      console.error("Error sending group message:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid input", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ 
-        message: "Failed to send message",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  // GET /api/groups/:id/messages → get group messages with keyset pagination
-  app.get("/api/groups/:id/messages", requireAuth, async (req, res) => {
-    try {
-      const authReq = req as AuthenticatedRequest;
-      const userId = authReq.user.id;
-      const { id: groupId } = req.params;
-      const { before, limit } = req.query;
-
-      const options = {
-        before: before ? String(before) : undefined,
-        limit: limit ? parseInt(String(limit), 10) : 50,
-      };
-
-      const messages = await getGroupMessages(userId, groupId, options);
-      
-      res.json(messages);
-    } catch (error) {
-      console.error("Error fetching group messages:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch messages",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
 
   // GET /api/groups/:id/posts → get group posts (using supabaseFromReq for token-aware access)
   app.get("/api/groups/:id/posts", async (req, res) => {
