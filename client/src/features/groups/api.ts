@@ -2,12 +2,12 @@
 import { supabase } from '@/lib/supabase';
 
 export type GroupPost = {
-  id: string;             // uuid as string
-  group_id: string;       // uuid
-  author_id: string;      // uuid
+  id: number;
+  group_id: string;
+  author_id: string;
   body: string;
   meta: any | null;
-  created_at: string;     // ISO
+  created_at: string;
 };
 
 export async function fetchGroupPosts(groupId: string, since?: string): Promise<GroupPost[]> {
@@ -22,4 +22,15 @@ export async function fetchGroupPosts(groupId: string, since?: string): Promise<
   }
   const { posts } = await res.json();
   return posts as GroupPost[];
+}
+
+export async function sendPost(groupId: string, text: string) {
+  const body = text.trim();
+  if (!body) return null;
+  const { data, error } = await supabase
+    .from('group_posts')
+    .insert({ group_id: groupId, body, meta: null })
+    .select('*').single();
+  if (error) throw error;
+  return data as GroupPost;
 }

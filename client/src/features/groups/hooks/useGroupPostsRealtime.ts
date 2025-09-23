@@ -2,13 +2,11 @@
 import { useEffect, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-
 type OnInsert = (row: any) => void;
 
 export function useGroupPostsRealtime(groupId: string | undefined, onInsert: OnInsert) {
   const onInsertRef = useRef(onInsert);
   onInsertRef.current = onInsert;
-
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -17,17 +15,15 @@ export function useGroupPostsRealtime(groupId: string | undefined, onInsert: OnI
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
-
-    const channel = supabase
+    const ch = supabase
       .channel(`grp:${groupId}`)
       .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'group_posts', filter: `group_id=eq.${groupId}` },
-          (payload) => onInsertRef.current(payload.new))
+        { event: 'INSERT', schema: 'public', table: 'group_posts', filter: `group_id=eq.${groupId}` },
+        (payload) => onInsertRef.current(payload.new))
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') console.debug('[Realtime] subscribed', groupId);
       });
-
-    channelRef.current = channel;
+    channelRef.current = ch;
 
     return () => {
       if (channelRef.current) {

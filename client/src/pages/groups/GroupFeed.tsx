@@ -45,8 +45,8 @@ import { BackButton } from "@/components/ui/back-button";
 import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
 import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
-import { fetchGroupPosts, type GroupPost } from "@/features/groups/api";
-import { useGroupPostsLive } from "@/features/groups/hooks/useGroupPostsLive";
+import { fetchGroupPosts, sendPost, type GroupPost } from "@/features/groups/api";
+import { useGroupPostsRealtime } from "@/features/groups/hooks/useGroupPostsRealtime";
 import { supabase } from "@/lib/supabase";
 import { parseISO } from "date-fns";
 
@@ -308,7 +308,7 @@ export default function GroupFeedPage() {
       return newPosts;
     });
   }, [autoScroll]);
-  useGroupPostsLive(groupId, addOrUpdate);
+  useGroupPostsRealtime(groupId, addOrUpdate);
 
   // Fetch group achievements and check for new unlocks
   useEffect(() => {
@@ -628,11 +628,7 @@ export default function GroupFeedPage() {
 
           // Insert to all target groups
           const insertPromises = targetGroups.map(targetGroupId => 
-            supabase
-              .from('group_posts')
-              .insert({ group_id: targetGroupId, body, meta: null })
-              .select('*')
-              .single()
+            sendPost(targetGroupId, body)
           );
 
           const results = await Promise.allSettled(insertPromises);
@@ -642,14 +638,14 @@ export default function GroupFeedPage() {
             const targetGroupId = targetGroups[index];
             const tempPost = tempPosts[index];
             
-            if (result.status === 'fulfilled' && result.value.data) {
+            if (result.status === 'fulfilled' && result.value) {
               successCount++;
               
               // Update current group's posts if successful
-              if (targetGroupId === groupId) {
+              if (targetGroupId === groupId && result.value) {
                 setPosts(p => {
-                  const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== result.value.data.id);
-                  const confirmedPost = dbRowToPost(result.value.data, user?.user_metadata);
+                  const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== String(result.value.id));
+                  const confirmedPost = dbRowToPost(result.value, user?.user_metadata);
                   return [confirmedPost, ...withoutTemp];
                 });
               }
@@ -713,13 +709,19 @@ export default function GroupFeedPage() {
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       }
 
-      const { data, error } = await supabase
-        .from('group_posts')
-        .insert({ group_id: groupId, body: originalMessage, meta: null })
-        .select('*')
-        .single();
-
-      if (error) {
+      try {
+        const data = await sendPost(groupId!, originalMessage);
+        
+        if (!data) {
+          throw new Error("Failed to send post");
+        }
+        
+        setPosts(p => {
+          const withoutTemp = p.filter(x => x.id !== temp.id && x.id !== String(data.id));
+          const confirmedPost = dbRowToPost(data, user?.user_metadata);
+          return [confirmedPost, ...withoutTemp];
+        });
+      } catch (error) {
         setPosts(p => p.map(x => x.id === temp.id ? { ...x, _status: 'failed' } : x));
         toast({
           title: "Failed to send message",
@@ -730,12 +732,6 @@ export default function GroupFeedPage() {
         setPosting(false);
         return;
       }
-      
-      setPosts(p => {
-        const withoutTemp = p.filter(x => x.id !== temp.id && x.id !== data.id);
-        const confirmedPost = dbRowToPost(data, user?.user_metadata);
-        return [confirmedPost, ...withoutTemp];
-      });
       setPosting(false);
     });
   };
