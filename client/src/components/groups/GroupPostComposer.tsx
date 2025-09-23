@@ -6,17 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Send, Loader2, Calendar, Clock } from "lucide-react";
 import { useGroupRealtime } from "@/hooks/useGroupRealtime";
-import { authFetch } from "@/lib/authFetch";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { supabase } from '@/lib/supabase';
+import type { GroupPost } from '@/features/groups/api';
 
 interface GroupPostComposerProps {
   groupId: string;
   className?: string;
   onPostCreated?: () => void;
+  setPosts: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
-export function GroupPostComposer({ groupId, className, onPostCreated }: GroupPostComposerProps) {
+export function GroupPostComposer({ groupId, className, onPostCreated, setPosts }: GroupPostComposerProps) {
   const [message, setMessage] = useState("");
   const [posting, setPosting] = useState(false);
   const [postKind, setPostKind] = useState<"text" | "event">("text");
@@ -80,6 +82,44 @@ export function GroupPostComposer({ groupId, className, onPostCreated }: GroupPo
     setMessage("");
   };
 
+  const sendPost = async (text: string, meta: any = null) => {
+    const body = text.trim();
+    if (!body) return;
+
+    const userId = (await supabase.auth.getUser()).data.user?.id!;
+    const temp: GroupPost & { _status?: 'sending'|'failed' } = {
+      id: `-${Math.floor(Math.random() * 1e9)}`,
+      group_id: groupId,
+      author_id: userId,
+      body,
+      meta,
+      created_at: new Date().toISOString(),
+      _status: 'sending',
+    };
+    setPosts(p => [temp, ...p]);
+
+    // direct supabase (recommended)
+    const { data, error } = await supabase
+      .from('group_posts')
+      .insert({ group_id: groupId, body, meta })
+      .select('*').single();
+
+    if (error || !data) {
+      setPosts(p => p.map(x => x.id === temp.id ? { ...x, _status: 'failed' } : x));
+      toast({
+        title: "Failed to send message",
+        description: error?.message || "Please try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPosts(p => {
+      const withoutTemp = p.filter(x => x.id !== temp.id && x.id !== data.id);
+      return [data as GroupPost, ...withoutTemp];
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -91,34 +131,17 @@ export function GroupPostComposer({ groupId, className, onPostCreated }: GroupPo
       setPosting(true);
       setTyping(false); // Stop typing indicator
       
-      let content: any;
-      
       if (postKind === "event") {
-        content = {
+        const eventMeta = {
+          kind: "event",
           title: eventTitle.trim(),
           start_at: new Date(eventStartAt).toISOString(),
           duration_min: eventDurationMin,
           ...(eventLocation.trim() ? { location: eventLocation.trim() } : {}),
         };
+        await sendPost(eventTitle.trim(), eventMeta);
       } else {
-        content = { message: message.trim() };
-      }
-      
-      const response = await authFetch("/api/posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          kind: postKind,
-          content,
-          groupIds: [groupId],
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create post");
+        await sendPost(message.trim());
       }
 
       // Clear the form
@@ -131,14 +154,6 @@ export function GroupPostComposer({ groupId, className, onPostCreated }: GroupPo
       
       // Call callback
       onPostCreated?.();
-      
-      // Success toast
-      toast({
-        title: postKind === "event" ? "Event created" : "Post created",
-        description: postKind === "event" 
-          ? "Your event has been posted to the group." 
-          : "Your message has been posted to the group.",
-      });
       
     } catch (error) {
       console.error("Failed to create post:", error);
