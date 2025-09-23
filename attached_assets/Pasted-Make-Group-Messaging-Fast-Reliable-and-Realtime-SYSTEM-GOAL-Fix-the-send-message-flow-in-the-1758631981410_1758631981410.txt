@@ -1,0 +1,104 @@
+Make Group Messaging Fast, Reliable, and Realtime
+
+SYSTEM / GOAL
+
+Fix the “send message” flow in the Group screen. Currently it reports success but nothing appears, and it’s slow. Implement:
+
+Correct insert with the right group_id + RLS-safe user context.
+
+Optimistic UI (message appears instantly).
+
+Supabase Realtime subscription so other members see messages immediately.
+
+Indexing + limited queries to keep it snappy.
+
+Works in dev and prod (Vercel), no localhost URLs.
+
+BACKEND CONTRACT
+
+Use existing endpoint POST /api/groups/:id/posts or call Supabase directly from client (with user JWT). Response must return the inserted row with server timestamps.
+
+TASKS
+
+Verify DB & RLS
+
+Table: group_posts(id, group_id, author_id, body, meta, created_at).
+
+Ensure policies allow: insert if member, select if member.
+
+Add/verify indexes:
+
+create index if not exists idx_group_posts_gid_created
+  on group_posts (group_id, created_at desc);
+
+
+Fix the insert
+
+On send, build:
+
+const { data, error } = await supabase
+  .from('group_posts')
+  .insert({ group_id, body, meta: null })
+  .select('*')
+  .single();
+
+
+If using an API route, forward Authorization: Bearer <access_token> from the client so RLS applies; do not use the service role for user-scoped writes.
+
+Optimistic UI
+
+Immediately push a temp message into local state with a client_id and status: 'sending'.
+
+Replace it with the server row when the insert returns; on error, mark as failed and show a retry action.
+
+Supabase Realtime
+
+Enable Realtime on group_posts in Supabase.
+
+Subscribe in the Group screen:
+
+const channel = supabase.channel(`grp:${groupId}`)
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_posts', filter: `group_id=eq.${groupId}` },
+    payload => addOrUpdatePost(payload.new))
+  .subscribe();
+
+
+Clean up on unmount.
+
+Query strategy
+
+Initial load: select('*').eq('group_id', groupId).order('created_at', { ascending: false }).limit(50)
+
+Pagination with lt(created_at, cursor) if needed.
+
+Avoid N+1: denormalize author display fields or fetch profiles with a single in query.
+
+Performance
+
+Measure client latency from click to optimistic render (<10ms) and to confirmed render (<300ms on warm).
+
+Keep payloads lean; only send body and group_id.
+
+Ensure fetches hit relative URLs (/api/...) in prod; no localhost.
+
+Edge Cases
+
+If “Post to multiple groups” is toggled, send one insert per selected group and reflect all in UI.
+
+Block empty/whitespace messages.
+
+Handle offline: queue and retry when connection restores.
+
+ACCEPTANCE CRITERIA
+
+Pressing Enter sends and the message appears instantly (optimistic).
+
+A confirmed server echo replaces the optimistic row within ~300–700ms p95.
+
+Messages persist on refresh and appear for other members via Realtime without manual refresh.
+
+In prod (Vercel), sending works with the same speed and no 401/403.
+
+No duplicate posts when both optimistic and realtime fire (idempotent merge by id).
+
+DONE = commit: feat(groups): fast optimistic messaging + Supabase Realtime; fix insert + indexes

@@ -1,0 +1,160 @@
+Fix prod Daily Suggested Workout by stabilizing /api/suggestions/today and unifying the client fetch
+
+Do exactly this:
+
+Create a tiny API healthcheck so we can see serverless is alive on Vercel.
+
+File: api/health.ts
+
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+export default async function handler(_req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 'no-store')
+  return res.status(200).json({ ok: true, ts: Date.now() })
+}
+
+
+Implement /api/suggestions/today as a minimal, known-good endpoint first.
+(We’ll swap to real logic after we see the front end render in prod.)
+
+File: api/suggestions/today.ts
+
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { createClient } from '@supabase/supabase-js'
+
+function admin() {
+  const url = process.env.SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  return createClient(url, key, { auth: { persistSession: false } })
+}
+function bearer(req: VercelRequest) {
+  const raw = (req.headers['authorization'] || req.headers['Authorization'] || '') as string
+  return raw.replace(/^Bearer\s+/i, '')
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ message: 'Method Not Allowed' })
+  res.setHeader('Cache-Control', 'no-store')
+
+  const supa = admin()
+  const token = bearer(req)
+
+  // Auth: require a valid Supabase user
+  const { data: gotUser, error: authErr } = await supa.auth.getUser(token)
+  if (authErr || !gotUser?.user) {
+    console.error('[suggestions/today] 401 getUser error:', authErr)
+    return res.status(401).json({ message: 'Unauthorized' })
+  }
+
+  // TEMPORARY stable payload to prove wiring & UI:
+  const demo = {
+    category: 'Cardio',
+    intensity: 5,
+    duration_min: 30,
+    rationale: 'Demo payload from serverless function',
+    // Include any fields your card expects so the UI renders normally
+  }
+
+  console.log('[suggestions/today] OK demo for user', gotUser.user.id)
+  return res.status(200).json(demo)
+}
+
+
+Unify the front-end to always call same-origin /api/... and always send the Supabase token.
+Create a tiny fetch helper and update the suggestion fetcher to use it.
+
+File: client/src/lib/api.ts (new)
+
+import { supabase } from '@/lib/supabase'
+
+export async function authFetch<T=any>(path: string, init: RequestInit = {}): Promise<T> {
+  // Always call same-origin /api/... (works in dev + prod)
+  const url = path.startsWith('/api/') ? path : `/api/${path.replace(/^\/+/, '')}`
+
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token
+  const headers = new Headers(init.headers || {})
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  headers.set('Content-Type', 'application/json')
+
+  const resp = await fetch(url, { ...init, headers, credentials: 'include' })
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}))
+    const msg = body?.message || `HTTP ${resp.status}`
+    throw new Error(`[authFetch] ${url}: ${msg}`)
+  }
+  return resp.json() as Promise<T>
+}
+
+
+Find the client code that fetches the daily suggestion (search for suggestions/today, Daily Suggested Workout, or the query hook for it) and replace the fetch with:
+
+import { authFetch } from '@/lib/api'
+
+// ...
+const data = await authFetch('/api/suggestions/today')
+// use `data` to populate the card, identical to before
+
+
+Do NOT change layout or styles. Only change the fetch call and how the result is read.
+
+Gentle, non-destructive UI state:
+
+If the call throws (401 or 5xx), do not blank the card. Show a small “Sign in to see today’s suggestion” or a neutral empty state. Keep the rest of the page intact.
+
+Keep the existing skeleton/shimmer while loading.
+
+Verify locally (dev) still works:
+
+In dev, npm run dev → the app should hit /api/health and /api/suggestions/today on the same origin.
+
+Check the browser Network tab (ensure the Authorization header is sent).
+
+No CORS should be present or added.
+
+Deploy and test on Vercel:
+
+Push the changes so Vercel redeploys.
+
+Open https://<your-domain>/api/health → should return {ok:true}.
+
+Sign in, open Workouts → the Daily Suggested card should now render the demo payload.
+
+Switch the endpoint to real logic once we see the card in prod:
+
+In api/suggestions/today.ts, after the getUser call, replace the demo block with:
+
+Fetch user’s last 30 days of workouts and latest health_reports.
+
+Call your existing suggestion builder (if present) from your shared code. If you don’t have a single function yet, lift the logic you used on the Express route into a shared module under shared/suggestions/engine.ts and import it here.
+
+Return the exact response the UI expects.
+
+Keep console.log for success and console.error on failures so we can see Vercel logs.
+
+Hardening:
+
+Ensure these env vars are set in Vercel → Project → Settings → Environment Variables (Production):
+
+SUPABASE_URL
+
+SUPABASE_SERVICE_ROLE_KEY
+
+VITE_SUPABASE_URL
+
+VITE_SUPABASE_ANON_KEY
+
+VITE_SITE_URL (e.g., https://axle-ebon.vercel.app)
+
+Do not rely on VITE_API_URL. We’re intentionally always using same-origin /api.
+
+Add helpful logs in both the serverless function and the client (dev only) if a request fails.
+
+Deliverables:
+
+api/health.ts, api/suggestions/today.ts, client/src/lib/api.ts added.
+
+The “Daily Suggested Workout” card renders in prod with the demo payload.
+
+After confirming the wire-up, the endpoint returns real suggestion data using your DB.
+
+No layout regressions to the page; only loading/empty/error states flow is adjusted.
