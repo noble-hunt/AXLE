@@ -6,12 +6,21 @@ export default async function handler(req: Request, ctx: { params: { id: string 
   const supabase = supabaseFromReq(req);
   const { id: gid } = ctx.params;
 
-  const { data, error } = await supabase
+  const url = new URL(req.url);
+  const since = url.searchParams.get('since');
+
+  let q = supabase
     .from('group_posts')
     .select('id, group_id, author_id, body, meta, created_at')
     .eq('group_id', gid)
     .order('created_at', { ascending: false })
     .limit(50);
+  
+  if (since) {
+    q = q.gte('created_at', since);
+  }
+
+  const { data, error } = await q;
 
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { 'content-type':'application/json' }});
   return new Response(JSON.stringify({ posts: data ?? [] }), { status: 200, headers: { 'content-type':'application/json', 'cache-control':'no-store' }});

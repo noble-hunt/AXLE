@@ -638,12 +638,20 @@ export function registerGroupRoutes(app: Express) {
   app.get("/api/groups/:id/posts", requireAuth, async (req, res) => {
     const supabase = supabaseFromReq(req);
     const gid = req.params.id;
-    const { data, error } = await supabase
+    const { since } = req.query;
+
+    let q = supabase
       .from('group_posts')
       .select('id, group_id, author_id, body, meta, created_at')
       .eq('group_id', gid)
       .order('created_at', { ascending: false })
       .limit(50);
+      
+    if (since) {
+      q = q.gte('created_at', String(since));
+    }
+
+    const { data, error } = await q;
     if (error) return res.status(400).json({ error: error.message });
     res.json({ posts: data ?? [] });
   });
