@@ -22,6 +22,7 @@ import { registerWhisperRoutes } from "./routes/whisper-transcription";
 import { registerGroupRoutes } from "./routes/groups";
 import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
 import healthRoutes from "./routes/health";
+import storageRouter from "./routes/storage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register suggestion routes
@@ -41,6 +42,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register workout generation routes
   registerWorkoutGenerationRoutes(app);
+  
+  // Register storage routes
+  app.use("/api/storage", storageRouter);
   
   // Authenticated data fetching routes
   app.get("/api/user/data", requireAuth, async (req, res) => {
