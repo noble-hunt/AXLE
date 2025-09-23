@@ -266,12 +266,12 @@ export default function GroupFeedPage() {
   // Real-time updates
   const { onlineMembers, isTyping, setTyping, typingMembers } = useGroupRealtime(
     groupId || null, 
-    undefined, // onNewPost - handled by useGroupPostsLive
+    undefined, // onNewPost - handled by useGroupPostsRealtime
     onNewReaction,
     onReactionRemoved,
     onRsvpChanged,
     onRsvpRemoved,
-    undefined // onNewMessage - handled by useGroupPostsLive
+    undefined // onNewMessage - handled by useGroupPostsRealtime
   );
 
   // Auto-scroll to bottom when new posts are added
