@@ -33,6 +33,8 @@ import Groups from "@/pages/groups";
 import NewGroup from "@/pages/groups/NewGroup";
 import GroupInvite from "@/pages/groups/GroupInvite";
 import GroupJoin from "@/pages/groups/GroupJoin";
+import InviteToGroup from "@/pages/groups/InviteToGroup";
+import JoinGroupPage from "@/pages/groups/JoinGroupPage";
 import GroupFeedPage from "@/pages/groups/GroupFeed";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
@@ -117,7 +119,7 @@ function OverlayWrapper() {
         )} />
         <Route path="/groups/:id/invite" component={() => (
           <ProtectedRoute>
-            <GroupInvite />
+            <InviteToGroup />
           </ProtectedRoute>
         )} />
         <Route path="/groups/join/:id" component={() => (
@@ -130,6 +132,7 @@ function OverlayWrapper() {
             <GroupJoin />
           </ProtectedRoute>
         )} />
+        <Route path="/g/:id" component={JoinGroupPage} />
         <Route path="/dev/env" component={DevEnv} />
         <Route path="/dev/debug" component={Debug} />
         <Route path="/dev/tokens" component={Tokens} />
