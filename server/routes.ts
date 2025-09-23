@@ -17,8 +17,8 @@ import { listReports } from "./dal/reports";
 import { listWearables } from "./dal/wearables";
 import { registerSuggestionRoutes } from "./routes/suggestions";
 import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron";
-import { registerWorkoutFreeformRoutes } from "./routes/workout-freeform";
-import { registerWhisperRoutes } from "./routes/whisper-transcription";
+import workoutFreeformRouter from "./routes/workout-freeform";
+import whisperRouter from "./routes/whisper-transcription";
 import { registerGroupRoutes } from "./routes/groups";
 import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
 import healthRoutes from "./routes/health";
@@ -61,10 +61,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerSuggestionRoutes(app);
   
   // Register workout freeform routes
-  registerWorkoutFreeformRoutes(app);
+  app.use("/api/workouts", workoutFreeformRouter);
   
-  // Register whisper transcription routes
-  registerWhisperRoutes(app);
+  // Register whisper transcription routes  
+  app.use("/api/stt", whisperRouter);
   
   // Register health provider routes
   app.use("/api", healthRoutes);
