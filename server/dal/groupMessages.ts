@@ -4,6 +4,7 @@ export interface SendGroupMessageParams {
   userId: string;
   groupId: string;
   body: string;
+  id?: string; // Optional client-provided ID for optimistic UI
   meta?: Record<string, any>;
 }
 
@@ -16,8 +17,18 @@ export async function sendGroupMessage(
   userId: string, 
   groupId: string, 
   body: string, 
+  id?: string,
   meta?: Record<string, any>
 ) {
+  // Validate message body
+  const trimmedBody = body.trim();
+  if (!trimmedBody || trimmedBody.length === 0) {
+    throw new Error('Message body cannot be empty');
+  }
+  if (trimmedBody.length > 2000) {
+    throw new Error('Message body cannot exceed 2000 characters');
+  }
+
   // First verify the user is a member of the group
   const { data: membership } = await supabaseAdmin
     .from('group_members')
@@ -31,21 +42,34 @@ export async function sendGroupMessage(
   }
 
   // Insert the message
+  const insertData: any = {
+    group_id: groupId,
+    author_id: userId,
+    body: trimmedBody,
+    meta: meta || null
+  };
+
+  // Include client-provided ID if present
+  if (id) {
+    insertData.id = id;
+  }
+
   const { data, error } = await supabaseAdmin
     .from('group_messages')
-    .insert({
-      group_id: groupId,
-      author_id: userId,
-      body: body.trim(),
-      meta: meta || null
-    })
+    .insert(insertData)
     .select(`
       id,
       group_id,
       author_id,
       body,
       meta,
-      created_at
+      created_at,
+      profiles:author_id (
+        username,
+        first_name,
+        last_name,
+        avatar_url
+      )
     `)
     .single();
 
@@ -73,7 +97,7 @@ export async function getGroupMessages(
     throw new Error('User is not a member of this group');
   }
 
-  // Build query for messages with pagination
+  // Build query for messages with pagination, joining with profiles for author info
   let query = supabaseAdmin
     .from('group_messages')
     .select(`
@@ -82,7 +106,13 @@ export async function getGroupMessages(
       author_id,
       body,
       meta,
-      created_at
+      created_at,
+      profiles:author_id (
+        username,
+        first_name,
+        last_name,
+        avatar_url
+      )
     `)
     .eq('group_id', groupId)
     .order('created_at', { ascending: false });

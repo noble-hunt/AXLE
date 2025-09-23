@@ -579,17 +579,18 @@ export function registerGroupRoutes(app: Express) {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
       const { id: groupId } = req.params;
-      const { body, meta } = req.body;
+      const { body, meta, id } = req.body;
 
       // Validate input
       const messageSchema = z.object({
         body: z.string().min(1).max(2000),
-        meta: z.record(z.any()).optional()
+        meta: z.record(z.any()).optional(),
+        id: z.string().uuid().optional() // Optional client-provided UUID
       });
 
-      const validatedData = messageSchema.parse({ body, meta });
+      const validatedData = messageSchema.parse({ body, meta, id });
 
-      const message = await sendGroupMessage(userId, groupId, validatedData.body, validatedData.meta);
+      const message = await sendGroupMessage(userId, groupId, validatedData.body, validatedData.id, validatedData.meta);
       
       res.status(201).json(message);
     } catch (error) {

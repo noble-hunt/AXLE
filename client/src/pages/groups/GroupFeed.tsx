@@ -45,6 +45,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
 import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
+import { nanoid } from "nanoid";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -243,6 +244,14 @@ export default function GroupFeedPage() {
     (newMessage) => {
       console.log('💬 New message received via real-time:', newMessage);
       
+      // Extract author info from profiles join
+      const profile = newMessage.profiles;
+      const authorName = profile 
+        ? (profile.first_name && profile.last_name 
+            ? `${profile.first_name} ${profile.last_name}` 
+            : profile.username || 'Anonymous')
+        : 'Unknown';
+      
       // Transform message to match Post interface format
       const transformedMessage = {
         id: newMessage.id,
@@ -250,8 +259,8 @@ export default function GroupFeedPage() {
         content: { body: newMessage.body, message: newMessage.body },
         createdAt: newMessage.created_at,
         authorId: newMessage.author_id,
-        authorName: 'Unknown', // Will be resolved by UI
-        authorAvatar: undefined
+        authorName: authorName,
+        authorAvatar: profile?.avatar_url
       };
       
       // De-duplicate by ID and add to posts
@@ -377,15 +386,25 @@ export default function GroupFeedPage() {
         ]);
         
         // Transform messages to match Post interface
-        const transformedMessages = newMessages.map((msg: any) => ({
-          id: msg.id,
-          kind: 'message' as const,
-          content: { body: msg.body, message: msg.body },
-          createdAt: msg.created_at,
-          authorId: msg.author_id,
-          authorName: 'Unknown', // Will be resolved by user lookup
-          authorAvatar: undefined
-        }));
+        const transformedMessages = newMessages.map((msg: any) => {
+          // Extract author info from profiles join
+          const profile = msg.profiles;
+          const authorName = profile 
+            ? (profile.first_name && profile.last_name 
+                ? `${profile.first_name} ${profile.last_name}` 
+                : profile.username || 'Anonymous')
+            : 'Unknown';
+          
+          return {
+            id: msg.id,
+            kind: 'message' as const,
+            content: { body: msg.body, message: msg.body },
+            createdAt: msg.created_at,
+            authorId: msg.author_id,
+            authorName: authorName,
+            authorAvatar: profile?.avatar_url
+          };
+        });
         
         // Merge and sort by creation time (oldest first, newest last)
         const combined = [...newPosts, ...transformedMessages].sort((a, b) => 
@@ -645,8 +664,9 @@ export default function GroupFeedPage() {
 
     // For single group messaging, use optimistic UI with new messaging system
     await composerRateLimit.execute(async () => {
+      const messageId = nanoid(); // Generate proper UUID for optimistic message
       const optimisticMessage = {
-        id: `temp-${Date.now()}-${Math.random()}`,
+        id: messageId,
         body: message.trim(),
         authorId: user.id,
         authorName: user.name || user.email || 'You',
@@ -673,6 +693,7 @@ export default function GroupFeedPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            id: messageId, // Pass client-generated ID for optimistic UI reconciliation
             body: originalMessage
           }),
         });
@@ -681,9 +702,16 @@ export default function GroupFeedPage() {
           const serverMessage = await response.json();
           
           // Replace optimistic message with server response
+          // Since we sent the client ID, the server should return the same ID
           setPosts(prev => prev.map(p => 
-            p.id === optimisticMessage.id 
-              ? { ...serverMessage, kind: 'message', authorName: user.name || user.email || 'You', authorAvatar: user.avatar }
+            p.id === messageId 
+              ? { 
+                  ...serverMessage, 
+                  kind: 'message', 
+                  authorName: user.name || user.email || 'You', 
+                  authorAvatar: user.avatar,
+                  optimistic: false // Mark as no longer optimistic
+                }
               : p
           ));
         } else {
