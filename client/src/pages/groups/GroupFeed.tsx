@@ -45,7 +45,6 @@ import { BackButton } from "@/components/ui/back-button";
 import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
 import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
-import { nanoid } from "nanoid";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -664,7 +663,7 @@ export default function GroupFeedPage() {
 
     // For single group messaging, use optimistic UI with new messaging system
     await composerRateLimit.execute(async () => {
-      const messageId = nanoid(); // Generate proper UUID for optimistic message
+      const messageId = crypto.randomUUID(); // Generate proper UUID for optimistic message
       const optimisticMessage = {
         id: messageId,
         body: message.trim(),
