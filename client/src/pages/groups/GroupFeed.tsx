@@ -45,9 +45,10 @@ import { BackButton } from "@/components/ui/back-button";
 import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
 import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
-import { fetchGroupPosts } from "@/features/groups/api";
+import { fetchGroupPosts, type GroupPost } from "@/features/groups/api";
 import { useGroupPostsLive } from "@/features/groups/hooks/useGroupPostsLive";
 import { supabase } from "@/lib/supabase";
+import { parseISO } from "date-fns";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -65,6 +66,13 @@ const formatWorkoutDate = (createdAt: string | Date | null | undefined): string 
   }
 };
 
+// Safe time ago helper for posts
+function safeTimeAgo(iso?: string) {
+  if (!iso) return '';
+  try { return formatDistanceToNow(parseISO(iso), { addSuffix: true }); }
+  catch { return ''; }
+}
+
 interface Group {
   id: string;
   name: string;
@@ -77,7 +85,7 @@ interface Group {
 
 interface Post {
   id: string;
-  kind: "text" | "workout" | "pr" | "event";
+  kind: "text" | "workout" | "pr" | "event" | "message";
   content: Record<string, any>;
   createdAt: string;
   authorId: string;
@@ -361,67 +369,40 @@ export default function GroupFeedPage() {
     }
   };
 
-  const loadPosts = async (before?: string) => {
+  const loadPosts = async (since?: string) => {
     try {
-      if (!before) {
+      if (!since) {
         setLoading(true);
       } else {
         setLoadingMore(true);
       }
 
-      // Load both posts and messages in parallel
-      const messagesUrl = new URL(`/api/groups/${groupId}/messages`, window.location.origin);
-      if (before) messagesUrl.searchParams.set('before', before);
-      messagesUrl.searchParams.set('limit', Math.floor(POSTS_PER_PAGE / 2).toString());
-
-      const [newPosts, messagesResponse] = await Promise.all([
-        // Load posts (events, workouts, PRs) using new JWT-authenticated API
-        groupId ? fetchGroupPosts(groupId) : Promise.resolve([]),
-        // Load messages (direct messages)
-        authFetch(messagesUrl.toString())
-      ]);
-
-      if (messagesResponse.ok) {
-        const newMessages = await messagesResponse.json();
-        
-        // Transform messages to match Post interface
-        const transformedMessages = newMessages.map((msg: any) => {
-          // Extract author info from profiles join
-          const profile = msg.profiles;
-          const authorName = profile 
-            ? (profile.first_name && profile.last_name 
-                ? `${profile.first_name} ${profile.last_name}` 
-                : profile.username || 'Anonymous')
-            : 'Unknown';
-          
-          return {
-            id: msg.id,
-            kind: 'message' as const,
-            content: { body: msg.body, message: msg.body },
-            createdAt: msg.created_at,
-            authorId: msg.author_id,
-            authorName: authorName,
-            authorAvatar: profile?.avatar_url
-          };
-        });
-        
-        // Merge and sort by creation time (oldest first, newest last)
-        const combined = [...newPosts, ...transformedMessages].sort((a, b) => 
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-        
-        if (before) {
-          // Prepend older posts (for infinite up scroll)
-          setPosts(prev => [...combined, ...prev]);
-        } else {
-          // Initial load
-          setPosts(combined);
-        }
-        
-        setHasMore(combined.length === POSTS_PER_PAGE);
+      // Load posts using the new posts API only
+      const newPosts = groupId ? await fetchGroupPosts(groupId, since) : [];
+      
+      // Filter for valid posts and transform to expected interface
+      const validPosts = newPosts
+        .filter(p => typeof p?.created_at === 'string' && typeof p?.body === 'string')
+        .map(post => ({
+          id: String(post.id),
+          kind: 'message' as const,
+          content: { body: post.body, message: post.body },
+          createdAt: post.created_at,
+          authorId: post.author_id,
+          authorName: 'User', // Will be populated by live data or profiles
+          authorAvatar: undefined
+        }));
+      
+      if (since) {
+        // Append newer posts (for polling updates)
+        setPosts(prev => [...prev, ...validPosts]);
       } else {
-        throw new Error("Failed to load feed data");
+        // Initial load
+        setPosts(validPosts);
       }
+      
+      setHasMore(validPosts.length === 50); // API returns max 50 posts
+      
     } catch (error) {
       console.error("Failed to load posts:", error);
       toast({
@@ -438,8 +419,8 @@ export default function GroupFeedPage() {
   const loadMorePosts = () => {
     if (loadingMore || !hasMore || posts.length === 0) return;
     
-    const oldestPost = posts[0]; // First post is oldest in ascending order
-    loadPosts(oldestPost.createdAt);
+    const newestPost = posts[posts.length - 1]; // Get newest post for since parameter
+    loadPosts(newestPost.createdAt);
   };
 
   // Determine if nudge should be shown
