@@ -25,6 +25,38 @@ import healthRoutes from "./routes/health";
 import storageRouter from "./routes/storage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Workout generation route (no auth required, handle 405 explicitly) - must be first to avoid conflicts
+  app.all("/api/workouts/generate", async (req, res) => {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+    
+    const { category, durationMin, intensity, equipment, goal } = req.body ?? {};
+    if (!category || !durationMin || !intensity) {
+      return res.status(400).json({ error: 'Missing fields' });
+    }
+    
+    try {
+      const { openai } = await import('./lib/openai');
+      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}`;
+      const user = `Category: ${category}\nDuration: ${durationMin}\nIntensity: ${intensity}\nEquipment: ${equipment?.join(',') || 'bodyweight'}\nGoal: ${goal || 'general fitness'}`;
+      
+      const r = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.4,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }]
+      });
+      
+      const raw = r.choices?.[0]?.message?.content ?? '{}';
+      const workout = JSON.parse(raw);
+      res.json({ workout });
+    } catch (e: any) {
+      console.error('[dev/generate] err', e);
+      res.status(500).json({ error: e?.message || 'generation failed' });
+    }
+  });
+
   // Register suggestion routes
   registerSuggestionRoutes(app);
   
