@@ -45,6 +45,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
 import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
+import { fetchGroupPosts } from "@/features/groups/api";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -265,7 +266,7 @@ export default function GroupFeedPage() {
       // De-duplicate by ID and add to posts
       setPosts(prev => {
         if (prev.some(p => p.id === transformedMessage.id)) return prev;
-        return [...prev, transformedMessage];
+        return [...prev, transformedMessage as any];
       });
       
       // Auto-scroll to bottom for new messages
@@ -363,26 +364,19 @@ export default function GroupFeedPage() {
       }
 
       // Load both posts and messages in parallel
-      const postsUrl = new URL(`/api/groups/${groupId}/feed`, window.location.origin);
-      if (before) postsUrl.searchParams.set('before', before);
-      postsUrl.searchParams.set('limit', Math.floor(POSTS_PER_PAGE / 2).toString());
-
       const messagesUrl = new URL(`/api/groups/${groupId}/messages`, window.location.origin);
       if (before) messagesUrl.searchParams.set('before', before);
       messagesUrl.searchParams.set('limit', Math.floor(POSTS_PER_PAGE / 2).toString());
 
-      const [postsResponse, messagesResponse] = await Promise.all([
-        // Load posts (events, workouts, PRs)
-        authFetch(postsUrl.toString()),
+      const [newPosts, messagesResponse] = await Promise.all([
+        // Load posts (events, workouts, PRs) using new JWT-authenticated API
+        groupId ? fetchGroupPosts(groupId) : Promise.resolve([]),
         // Load messages (direct messages)
         authFetch(messagesUrl.toString())
       ]);
 
-      if (postsResponse.ok && messagesResponse.ok) {
-        const [newPosts, newMessages] = await Promise.all([
-          postsResponse.json(),
-          messagesResponse.json()
-        ]);
+      if (messagesResponse.ok) {
+        const newMessages = await messagesResponse.json();
         
         // Transform messages to match Post interface
         const transformedMessages = newMessages.map((msg: any) => {
