@@ -724,14 +724,18 @@ export default function GroupFeedPage() {
       const userId = (await supabase.auth.getUser()).data.user?.id!;
       const temp = { 
         id: `temp-${crypto.randomUUID()}`, 
-        group_id: groupId, 
-        author_id: userId, 
-        body: message.trim(), 
-        created_at: new Date().toISOString(), 
+        kind: 'message' as const,
+        content: { 
+          message: message.trim(),
+          body: message.trim()
+        },
+        createdAt: new Date().toISOString(),
+        authorId: userId,
+        authorName: user?.user_metadata?.full_name || user?.email || 'You',
         _status: 'sending' as const 
       };
       
-      setPosts(p => [temp as any, ...p]);
+      setPosts(p => [temp, ...p]);
       const originalMessage = message.trim();
       setMessage("");
       setPosting(true);
