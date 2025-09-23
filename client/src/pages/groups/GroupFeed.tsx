@@ -991,7 +991,7 @@ export default function GroupFeedPage() {
   };
 
   const renderPost = (post: Post) => {
-    const timeAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
+    const timeAgo = safeTimeAgo(post.createdAt);
     const reactions = postReactions[post.id] || [];
     
     return (
