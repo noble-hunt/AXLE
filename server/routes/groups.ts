@@ -24,6 +24,7 @@ import {
   addMemberToGroup
 } from "../dal/groups";
 import { sendGroupMessage, getGroupMessages } from "../dal/groupMessages";
+import { supabaseFromReq } from '../lib/supabaseFromReq';
 import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements";
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
 import { z } from "zod";
@@ -631,5 +632,19 @@ export function registerGroupRoutes(app: Express) {
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
+  });
+
+  // GET /api/groups/:id/posts → get group posts (using supabaseFromReq for token-aware access)
+  app.get("/api/groups/:id/posts", requireAuth, async (req, res) => {
+    const supabase = supabaseFromReq(req);
+    const gid = req.params.id;
+    const { data, error } = await supabase
+      .from('group_posts')
+      .select('id, group_id, author_id, body, meta, created_at')
+      .eq('group_id', gid)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ posts: data ?? [] });
   });
 }
