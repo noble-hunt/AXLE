@@ -73,6 +73,34 @@ function safeTimeAgo(iso?: string) {
   catch { return ''; }
 }
 
+// Transform database row to Post object
+function dbRowToPost(row: any, userProfile?: any): Post {
+  const kind = row.meta?.kind || 'message';
+  let content = {};
+  
+  if (kind === 'message' || kind === 'text') {
+    content = { 
+      message: row.body,
+      body: row.body
+    };
+  } else {
+    content = {
+      ...row.meta,
+      body: row.body
+    };
+  }
+  
+  return {
+    id: row.id,
+    kind: kind as Post['kind'],
+    content,
+    createdAt: row.created_at,
+    authorId: row.author_id,
+    authorName: userProfile?.full_name || userProfile?.name || 'User',
+    authorAvatar: userProfile?.avatar_url,
+  };
+}
+
 interface Group {
   id: string;
   name: string;
@@ -308,7 +336,10 @@ export default function GroupFeedPage() {
   const { achievements, checkForNewUnlocks } = useGroupAchievements();
 
   // Live updates hook with Realtime and polling fallback
-  const addOrUpdate = (row: any) => setPosts(cur => cur.some(p => p.id === row.id) ? cur : [...cur, row]);
+  const addOrUpdate = (row: any) => {
+    const transformedPost = dbRowToPost(row);
+    setPosts(cur => cur.some(p => p.id === row.id) ? cur : [...cur, transformedPost]);
+  };
   useGroupPostsLive(groupId, addOrUpdate);
 
   // Fetch group achievements and check for new unlocks
@@ -383,14 +414,8 @@ export default function GroupFeedPage() {
       // Filter for valid posts and transform to expected interface
       const validPosts = newPosts
         .filter(p => typeof p?.created_at === 'string' && typeof p?.body === 'string')
-        .map(post => ({
-          id: post.id, // ID is already a string UUID
-          kind: 'message' as const,
-          content: { body: post.body, message: post.body },
-          createdAt: post.created_at,
-          authorId: post.author_id,
-          authorName: 'User', // Will be populated by live data or profiles
-          authorAvatar: undefined
+        .map(post => dbRowToPost(post, { 
+          full_name: post.author_name || 'User'
         }));
       
       if (since) {
@@ -615,7 +640,10 @@ export default function GroupFeedPage() {
             const temp = {
               id: `-${Math.floor(Math.random() * 1e9)}`,
               kind: "message" as const,
-              content: { message: body },
+              content: { 
+                message: body,
+                body: body
+              },
               createdAt: new Date().toISOString(),
               authorId: userId,
               authorName: user?.user_metadata?.full_name || user?.email || 'You',
@@ -653,7 +681,8 @@ export default function GroupFeedPage() {
               if (targetGroupId === groupId) {
                 setPosts(p => {
                   const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== result.value.data.id);
-                  return [result.value.data as any, ...withoutTemp];
+                  const confirmedPost = dbRowToPost(result.value.data, user?.user_metadata);
+                  return [confirmedPost, ...withoutTemp];
                 });
               }
             } else if (targetGroupId === groupId) {
@@ -732,7 +761,8 @@ export default function GroupFeedPage() {
       
       setPosts(p => {
         const withoutTemp = p.filter(x => x.id !== temp.id && x.id !== data.id);
-        return [data as any, ...withoutTemp];
+        const confirmedPost = dbRowToPost(data, user?.user_metadata);
+        return [confirmedPost, ...withoutTemp];
       });
       setPosting(false);
     });
@@ -758,8 +788,11 @@ export default function GroupFeedPage() {
       for (const targetGroupId of targetGroups) {
         const temp = {
           id: `-${Math.floor(Math.random() * 1e9)}`,
-          kind: meta.kind as any,
-          content: meta,
+          kind: meta.kind as Post['kind'],
+          content: {
+            ...meta,
+            body: body
+          },
           createdAt: new Date().toISOString(),
           authorId: userId,
           authorName: user?.user_metadata?.full_name || user?.email || 'You',
@@ -797,7 +830,8 @@ export default function GroupFeedPage() {
           if (targetGroupId === groupId) {
             setPosts(p => {
               const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== result.value.data.id);
-              return [result.value.data as any, ...withoutTemp];
+              const confirmedPost = dbRowToPost(result.value.data, user?.user_metadata);
+              return [confirmedPost, ...withoutTemp];
             });
           }
         } else if (targetGroupId === groupId) {
@@ -849,8 +883,11 @@ export default function GroupFeedPage() {
       for (const targetGroupId of targetGroups) {
         const temp = {
           id: `-${Math.floor(Math.random() * 1e9)}`,
-          kind: meta.kind as any,
-          content: meta,
+          kind: meta.kind as Post['kind'],
+          content: {
+            ...meta,
+            body: body
+          },
           createdAt: new Date().toISOString(),
           authorId: userId,
           authorName: user?.user_metadata?.full_name || user?.email || 'You',
@@ -888,7 +925,8 @@ export default function GroupFeedPage() {
           if (targetGroupId === groupId) {
             setPosts(p => {
               const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== result.value.data.id);
-              return [result.value.data as any, ...withoutTemp];
+              const confirmedPost = dbRowToPost(result.value.data, user?.user_metadata);
+              return [confirmedPost, ...withoutTemp];
             });
           }
         } else if (targetGroupId === groupId) {
