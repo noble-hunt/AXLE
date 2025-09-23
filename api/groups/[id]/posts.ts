@@ -17,7 +17,7 @@ export default async function handler(req: Request, ctx: { params: { id: string 
     .limit(50);
   
   if (since) {
-    q = q.gte('created_at', since);
+    q = q.gt('created_at', since);
   }
 
   const { data, error } = await q;

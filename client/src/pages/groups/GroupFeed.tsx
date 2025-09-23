@@ -46,6 +46,7 @@ import { useGroupAchievements } from "@/hooks/useGroupAchievements";
 import { queryClient } from "@/lib/queryClient";
 import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit";
 import { fetchGroupPosts } from "@/features/groups/api";
+import { useGroupPostsLive } from "@/features/groups/hooks/useGroupPostsLive";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -296,6 +297,10 @@ export default function GroupFeedPage() {
 
   // Group achievements hook for confetti celebrations
   const { achievements, checkForNewUnlocks } = useGroupAchievements();
+
+  // Live updates hook with Realtime and polling fallback
+  const addOrUpdate = (row: any) => setPosts(cur => cur.some(p => p.id === row.id) ? cur : [...cur, row]);
+  useGroupPostsLive(groupId, addOrUpdate);
 
   // Fetch group achievements and check for new unlocks
   useEffect(() => {

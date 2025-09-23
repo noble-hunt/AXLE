@@ -648,7 +648,7 @@ export function registerGroupRoutes(app: Express) {
       .limit(50);
       
     if (since) {
-      q = q.gte('created_at', String(since));
+      q = q.gt('created_at', String(since));
     }
 
     const { data, error } = await q;

@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { authFetch } from '@/lib/authFetch';
 
 type OnInsert = (row: any) => void;
 
@@ -23,7 +24,19 @@ export function useGroupPostsLive(groupId: string | undefined, onInsert: OnInser
           subscribed = true;
           const row = payload.new as any;
           lastSeenRef.current = row.created_at;
-          onInsert(row);
+          
+          // Transform raw DB row to normalized Post format
+          const normalizedRow = {
+            id: row.id,
+            kind: row.meta?.kind || 'text',
+            content: row.meta?.content || { body: row.body },
+            createdAt: row.created_at, // Convert to camelCase
+            authorId: row.author_id,
+            authorName: row.meta?.authorName || 'Unknown',
+            authorAvatar: row.meta?.authorAvatar || null
+          };
+          
+          onInsert(normalizedRow);
         })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') subscribed = true;
@@ -41,12 +54,28 @@ export function useGroupPostsLive(groupId: string | undefined, onInsert: OnInser
       const tick = async () => {
         try {
           const params = lastSeenRef.current ? `?since=${encodeURIComponent(lastSeenRef.current)}` : '';
-          const res = await fetch(`/api/groups/${groupId}/posts${params}`);
-          if (!res.ok) return;
+          const res = await authFetch(`/api/groups/${groupId}/posts${params}`);
+          if (!res.ok) {
+            console.error('Polling failed:', res.status, await res.text());
+            return;
+          }
           const { posts } = await res.json();
           if (Array.isArray(posts) && posts.length) {
-            posts.slice().reverse().forEach((p: any) => onInsert(p));
-            lastSeenRef.current = posts[0].created_at ?? lastSeenRef.current;
+            // Transform raw DB rows to normalized Post format and process in chronological order (oldest first)
+            const normalizedPosts = posts.map((p: any) => ({
+              id: p.id,
+              kind: p.meta?.kind || 'text',
+              content: p.meta?.content || { body: p.body },
+              createdAt: p.created_at, // Convert to camelCase
+              authorId: p.author_id,
+              authorName: p.meta?.authorName || 'Unknown',
+              authorAvatar: p.meta?.authorAvatar || null
+            })).reverse(); // Reverse to get oldest first
+            
+            normalizedPosts.forEach((p: any) => onInsert(p));
+            // Update cursor to the most recent timestamp to avoid duplicates
+            const maxCreatedAt = Math.max(...posts.map(p => new Date(p.created_at).getTime()));
+            lastSeenRef.current = new Date(maxCreatedAt).toISOString();
           }
         } catch {}
       };
