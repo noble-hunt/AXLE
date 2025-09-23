@@ -99,6 +99,16 @@ export const groupPosts = pgTable("group_posts", {
   pk: { primaryKey: [table.groupId, table.postId] }
 }));
 
+// GROUP MESSAGES (direct messaging for fast realtime chat)
+export const groupMessages = pgTable("group_messages", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: uuid("group_id").notNull(),
+  authorId: uuid("author_id").notNull(),
+  body: text("body").notNull(),
+  meta: jsonb("meta"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // GROUP REACTIONS
 export const groupReactions = pgTable("group_reactions", {
   groupId: uuid("group_id").notNull(),
