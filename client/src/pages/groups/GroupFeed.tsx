@@ -36,7 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useGroupRealtime } from "@/hooks/useGroupRealtime";
 import { useAppStore } from "@/store/useAppStore";
-import { formatDistanceToNow, isValid } from "date-fns";
+import { formatDistanceToNow, isValid, parseISO } from "date-fns";
 import { EventRsvpButtons } from "@/components/groups/EventRsvpButtons";
 import { EventReminderBanner } from "@/components/groups/EventReminderBanner";
 import { FeedNudgeCard } from "@/components/groups/FeedNudgeCard";
@@ -48,7 +48,6 @@ import { useReactionRateLimit, useComposerRateLimit } from "@/hooks/useRateLimit
 import { fetchGroupPosts, sendPost, type GroupPost } from "@/features/groups/api";
 import { useGroupPostsRealtime } from "@/features/groups/hooks/useGroupPostsRealtime";
 import { supabase } from "@/lib/supabase";
-import { parseISO } from "date-fns";
 
 // Emoji picker emojis
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '🙌'];
@@ -69,8 +68,7 @@ const formatWorkoutDate = (createdAt: string | Date | null | undefined): string 
 // Safe time ago helper for posts
 function safeTimeAgo(iso?: string) {
   if (!iso) return '';
-  try { return formatDistanceToNow(parseISO(iso), { addSuffix: true }); }
-  catch { return ''; }
+  try { return formatDistanceToNow(parseISO(iso), { addSuffix: true }); } catch { return ''; }
 }
 
 // Transform database row to Post object
@@ -380,11 +378,11 @@ export default function GroupFeedPage() {
       const newPosts = groupId ? await fetchGroupPosts(groupId, since) : [];
       
       // Filter for valid posts and transform to expected interface
-      const validPosts = newPosts
-        .filter(p => typeof p?.created_at === 'string' && typeof p?.body === 'string')
-        .map(post => dbRowToPost(post, { 
-          full_name: 'User'
-        }));
+      const validPosts = newPosts.filter(
+        (p: any) => typeof p?.body === 'string' && typeof p?.created_at === 'string'
+      ).map(post => dbRowToPost(post, { 
+        full_name: 'User'
+      }));
       
       if (since) {
         // Append newer posts (for polling updates)
@@ -642,10 +640,10 @@ export default function GroupFeedPage() {
               successCount++;
               
               // Update current group's posts if successful
-              if (targetGroupId === groupId && result.value) {
+              if (targetGroupId === groupId) {
                 setPosts(p => {
-                  const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== String(result.value.id));
-                  const confirmedPost = dbRowToPost(result.value, user?.user_metadata);
+                  const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== String(result.value!.id));
+                  const confirmedPost = dbRowToPost(result.value!, user?.user_metadata);
                   return [confirmedPost, ...withoutTemp];
                 });
               }
@@ -1657,7 +1655,12 @@ export default function GroupFeedPage() {
             position: 'relative',
           }}
         >
-          {virtualizer.getVirtualItems().map((virtualItem) => (
+          {virtualizer.getVirtualItems()
+            .filter((virtualItem) => {
+              const post = posts[virtualItem.index];
+              return post && typeof post?.createdAt === 'string' && typeof post?.authorName === 'string';
+            })
+            .map((virtualItem) => (
             <div
               key={virtualItem.key}
               style={{
