@@ -614,11 +614,12 @@ export default function GroupFeedPage() {
           for (const targetGroupId of targetGroups) {
             const temp = {
               id: `-${Math.floor(Math.random() * 1e9)}`,
-              group_id: targetGroupId,
-              author_id: userId,
-              body,
-              meta: null,
-              created_at: new Date().toISOString(),
+              kind: "message" as const,
+              content: { message: body },
+              createdAt: new Date().toISOString(),
+              authorId: userId,
+              authorName: user?.user_metadata?.full_name || user?.email || 'You',
+              groupId: targetGroupId,
               _status: 'sending' as const,
             };
             tempPosts.push(temp);
@@ -757,11 +758,12 @@ export default function GroupFeedPage() {
       for (const targetGroupId of targetGroups) {
         const temp = {
           id: `-${Math.floor(Math.random() * 1e9)}`,
-          group_id: targetGroupId,
-          author_id: userId,
-          body,
-          meta,
-          created_at: new Date().toISOString(),
+          kind: meta.kind as any,
+          content: meta,
+          createdAt: new Date().toISOString(),
+          authorId: userId,
+          authorName: user?.user_metadata?.full_name || user?.email || 'You',
+          groupId: targetGroupId,
           _status: 'sending' as const,
         };
         tempPosts.push(temp);
@@ -847,11 +849,12 @@ export default function GroupFeedPage() {
       for (const targetGroupId of targetGroups) {
         const temp = {
           id: `-${Math.floor(Math.random() * 1e9)}`,
-          group_id: targetGroupId,
-          author_id: userId,
-          body,
-          meta,
-          created_at: new Date().toISOString(),
+          kind: meta.kind as any,
+          content: meta,
+          createdAt: new Date().toISOString(),
+          authorId: userId,
+          authorName: user?.user_metadata?.full_name || user?.email || 'You',
+          groupId: targetGroupId,
           _status: 'sending' as const,
         };
         tempPosts.push(temp);
