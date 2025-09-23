@@ -981,18 +981,20 @@ export default function GroupFeedPage() {
             // Use enhanced component for group workout events, standard component for regular events
             post.content.workoutData ? (
               <GroupWorkoutEventCard
-                post={post}
+                post={post as any}
                 groupId={groupId!}
                 onContextMenu={handlePostInteraction}
                 onTouchStart={(e) => {
+                  const target = e.currentTarget as HTMLElement;
                   const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
-                  e.currentTarget.dataset.pressTimer = timeout.toString();
+                  target.dataset.pressTimer = timeout.toString();
                 }}
                 onTouchEnd={(e) => {
-                  const timer = e.currentTarget.dataset.pressTimer;
+                  const target = e.currentTarget as HTMLElement;
+                  const timer = target.dataset.pressTimer;
                   if (timer) {
                     clearTimeout(parseInt(timer));
-                    delete e.currentTarget.dataset.pressTimer;
+                    delete target.dataset.pressTimer;
                   }
                 }}
               />

@@ -65,21 +65,21 @@ export function GroupWorkoutEventCard({
   
   return (
     <Card 
-      className="p-4 max-w-lg cursor-pointer bg-gradient-to-br from-primary/5 via-background to-secondary/5 border border-primary/20"
+      className="rounded-2xl bg-zinc-900/70 border border-white/10 p-4 md:p-5 space-y-4 cursor-pointer break-words"
       onContextMenu={onContextMenu ? (e) => onContextMenu(e, post.id) : undefined}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       data-testid={`group-workout-post-${post.id}`}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-          <Dumbbell className="w-5 h-5 text-primary" />
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+          <Dumbbell className="w-6 h-6 text-primary" />
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-base text-foreground">{post.content.title}</h3>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Avatar className="w-4 h-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg md:text-xl font-semibold text-white/90">{post.content.title}</h3>
+          <div className="flex items-center gap-2 text-sm text-white/70">
+            <Avatar className="w-5 h-5">
               {post.authorAvatar ? (
                 <AvatarImage src={post.authorAvatar} alt={post.authorName} />
               ) : (
@@ -94,27 +94,27 @@ export function GroupWorkoutEventCard({
           </div>
         </div>
         {isUpcoming && (
-          <div className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded text-xs font-medium">
+          <div className="bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-sm font-medium">
             Upcoming
           </div>
         )}
       </div>
 
       {/* Event Details */}
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center gap-2 text-sm">
-          <Calendar className="w-4 h-4 text-primary" />
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-white/90">
+          <Calendar className="w-5 h-5 text-primary" />
           <span className="font-medium">{eventDate.toLocaleDateString()}</span>
-          <Clock className="w-4 h-4 text-muted-foreground ml-2" />
+          <Clock className="w-5 h-5 text-white/70 ml-3" />
           <span>{eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
         
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Target className="w-4 h-4" />
+        <div className="flex items-center gap-2 text-white/70">
+          <Target className="w-5 h-5" />
           <span>{durationMin || 60} minutes</span>
           {post.content.location && (
             <>
-              <MapPin className="w-4 h-4 ml-2" />
+              <MapPin className="w-5 h-5 ml-3" />
               <span>{post.content.location}</span>
             </>
           )}

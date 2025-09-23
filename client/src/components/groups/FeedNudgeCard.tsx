@@ -48,12 +48,12 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
   };
 
   return (
-    <Card className={`p-6 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20 ${className}`}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Dumbbell className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-lg">Go move! 🔥</h3>
-          <Badge variant="secondary" className="text-xs">
+    <Card className={`rounded-2xl bg-zinc-900/70 border border-white/10 p-6 space-y-4 ${className}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Dumbbell className="w-6 h-6 text-primary" />
+          <h3 className="text-xl font-semibold text-white/90">Go move! 🔥</h3>
+          <Badge variant="secondary" className="bg-white/15 text-white/80 text-xs">
             Nudge
           </Badge>
         </div>
@@ -62,13 +62,14 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
           size="sm"
           onClick={() => setDismissed(true)}
           data-testid="button-dismiss-nudge"
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 text-white/60 hover:text-white/90 hover:bg-white/10"
+          aria-label="Dismiss nudge"
         >
           <X className="w-4 h-4" />
         </Button>
       </div>
       
-      <p className="text-muted-foreground mb-4 text-sm">
+      <p className="text-white/70 text-sm leading-relaxed">
         It's been quiet here lately. Time to get the group moving! 💪
       </p>
       
@@ -76,8 +77,9 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
         <Button
           onClick={handleGenerateWorkout}
           size="sm"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 h-9 leading-none"
           data-testid="button-generate-workout"
+          aria-label="Generate group workout"
         >
           <Dumbbell className="w-4 h-4" />
           Generate group workout
@@ -87,8 +89,9 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
           onClick={handleSyncTonight}
           variant="outline" 
           size="sm"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 h-9 leading-none border-white/20 text-white/90 hover:bg-white/10"
           data-testid="button-sync-tonight"
+          aria-label="Sync tonight"
         >
           <Calendar className="w-4 h-4" />
           Sync tonight
@@ -98,8 +101,9 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
           onClick={handleSharePlan}
           variant="outline"
           size="sm" 
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 h-9 leading-none border-white/20 text-white/90 hover:bg-white/10"
           data-testid="button-share-plan"
+          aria-label="Share a plan"
         >
           <Share className="w-4 h-4" />
           Share a plan
