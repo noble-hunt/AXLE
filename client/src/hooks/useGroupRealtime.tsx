@@ -31,7 +31,8 @@ export function useGroupRealtime(
   onNewReaction?: (reaction: any) => void,
   onReactionRemoved?: (reaction: any) => void,
   onRsvpChanged?: (rsvp: any) => void,
-  onRsvpRemoved?: (rsvp: any) => void
+  onRsvpRemoved?: (rsvp: any) => void,
+  onNewMessage?: (message: any) => void
 ): GroupRealtimeData {
   const { user } = useAppStore();
   const [onlineMembers, setOnlineMembers] = useState<GroupPresence[]>([]);
@@ -179,6 +180,21 @@ export function useGroupRealtime(
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'group_messages',
+          filter: `group_id=eq.${groupId}`,
+        },
+        (payload: RealtimePayload) => {
+          console.log('💬 [Realtime] New group message:', payload.new);
+          if (onNewMessage) {
+            onNewMessage(payload.new);
+          }
+        }
+      )
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState() as RealtimePresenceState<GroupPresence>;
         const members: GroupPresence[] = [];
@@ -242,7 +258,7 @@ export function useGroupRealtime(
       setTypingMembers([]);
       setIsTypingState(false);
     };
-  }, [groupId, user, displayName, onNewPost, onNewReaction, onReactionRemoved, onRsvpChanged, onRsvpRemoved]);
+  }, [groupId, user, displayName, onNewPost, onNewReaction, onReactionRemoved, onRsvpChanged, onRsvpRemoved, onNewMessage]);
 
   return {
     onlineMembers,

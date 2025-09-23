@@ -238,6 +238,32 @@ export default function GroupFeedPage() {
           queryKey: ['/api/groups', groupId, 'posts', postId, 'rsvps'] 
         });
       }
+    },
+    // onNewMessage callback
+    (newMessage) => {
+      console.log('💬 New message received via real-time:', newMessage);
+      
+      // Transform message to match Post interface format
+      const transformedMessage = {
+        id: newMessage.id,
+        kind: 'message' as const,
+        content: { body: newMessage.body, message: newMessage.body },
+        createdAt: newMessage.created_at,
+        authorId: newMessage.author_id,
+        authorName: 'Unknown', // Will be resolved by UI
+        authorAvatar: undefined
+      };
+      
+      // De-duplicate by ID and add to posts
+      setPosts(prev => {
+        if (prev.some(p => p.id === transformedMessage.id)) return prev;
+        return [...prev, transformedMessage];
+      });
+      
+      // Auto-scroll to bottom for new messages
+      if (autoScroll) {
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
     }
   );
 
@@ -328,23 +354,55 @@ export default function GroupFeedPage() {
         setLoadingMore(true);
       }
 
-      const url = new URL(`/api/groups/${groupId}/feed`, window.location.origin);
-      if (before) url.searchParams.set('before', before);
-      url.searchParams.set('limit', POSTS_PER_PAGE.toString());
+      // Load both posts and messages in parallel
+      const postsUrl = new URL(`/api/groups/${groupId}/feed`, window.location.origin);
+      if (before) postsUrl.searchParams.set('before', before);
+      postsUrl.searchParams.set('limit', Math.floor(POSTS_PER_PAGE / 2).toString());
 
-      const response = await authFetch(url.toString());
-      if (response.ok) {
-        const newPosts = await response.json();
+      const messagesUrl = new URL(`/api/groups/${groupId}/messages`, window.location.origin);
+      if (before) messagesUrl.searchParams.set('before', before);
+      messagesUrl.searchParams.set('limit', Math.floor(POSTS_PER_PAGE / 2).toString());
+
+      const [postsResponse, messagesResponse] = await Promise.all([
+        // Load posts (events, workouts, PRs)
+        authFetch(postsUrl.toString()),
+        // Load messages (direct messages)
+        authFetch(messagesUrl.toString())
+      ]);
+
+      if (postsResponse.ok && messagesResponse.ok) {
+        const [newPosts, newMessages] = await Promise.all([
+          postsResponse.json(),
+          messagesResponse.json()
+        ]);
+        
+        // Transform messages to match Post interface
+        const transformedMessages = newMessages.map((msg: any) => ({
+          id: msg.id,
+          kind: 'message' as const,
+          content: { body: msg.body, message: msg.body },
+          createdAt: msg.created_at,
+          authorId: msg.author_id,
+          authorName: 'Unknown', // Will be resolved by user lookup
+          authorAvatar: undefined
+        }));
+        
+        // Merge and sort by creation time (oldest first, newest last)
+        const combined = [...newPosts, ...transformedMessages].sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
         
         if (before) {
           // Prepend older posts (for infinite up scroll)
-          setPosts(prev => [...newPosts, ...prev]);
+          setPosts(prev => [...combined, ...prev]);
         } else {
           // Initial load
-          setPosts(newPosts);
+          setPosts(combined);
         }
         
-        setHasMore(newPosts.length === POSTS_PER_PAGE);
+        setHasMore(combined.length === POSTS_PER_PAGE);
+      } else {
+        throw new Error("Failed to load feed data");
       }
     } catch (error) {
       console.error("Failed to load posts:", error);
@@ -540,38 +598,106 @@ export default function GroupFeedPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!message.trim() || posting) return;
+    if (!message.trim() || posting || !groupId || !user) return;
 
-    const targetGroups = crossPost && selectedGroups.length > 0 ? selectedGroups : [groupId!];
-    
+    // For cross-posting, use the old posts system
+    if (crossPost && selectedGroups.length > 0) {
+      const targetGroups = selectedGroups;
+      
+      await composerRateLimit.execute(async () => {
+        setPosting(true);
+        try {
+          const response = await authFetch("/api/posts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              kind: "text",
+              content: { message: message.trim() },
+              groupIds: targetGroups,
+            }),
+          });
+
+          if (response.ok) {
+            setMessage("");
+            setCrossPost(false);
+            setSelectedGroups([]);
+            
+            toast({
+              title: "Message sent!",
+              description: `Posted to ${targetGroups.length} groups`,
+            });
+          } else {
+            throw new Error("Failed to send message");
+          }
+        } catch (error) {
+          console.error("Failed to send message:", error);
+          toast({
+            title: "Failed to send message",
+            description: "Please try again",
+            variant: "destructive",
+          });
+        } finally {
+          setPosting(false);
+        }
+      });
+      return;
+    }
+
+    // For single group messaging, use optimistic UI with new messaging system
     await composerRateLimit.execute(async () => {
+      const optimisticMessage = {
+        id: `temp-${Date.now()}-${Math.random()}`,
+        body: message.trim(),
+        authorId: user.id,
+        authorName: user.name || user.email || 'You',
+        authorAvatar: user.avatar,
+        createdAt: new Date().toISOString(),
+        groupId: groupId,
+        kind: 'message' as const,
+        optimistic: true
+      };
+
+      // Add optimistic message immediately
+      setPosts(prev => [...prev, optimisticMessage as any]);
+      const originalMessage = message.trim();
+      setMessage("");
       setPosting(true);
+
+      // Auto-scroll to bottom for new messages
+      if (autoScroll) {
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
+
       try {
-        const response = await authFetch("/api/posts", {
+        const response = await authFetch(`/api/groups/${groupId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            kind: "text",
-            content: { message: message.trim() },
-            groupIds: targetGroups,
+            body: originalMessage
           }),
         });
 
         if (response.ok) {
-          // Don't add locally - let real-time handle it to avoid duplication
-          setMessage("");
-          setCrossPost(false);
-          setSelectedGroups([]);
+          const serverMessage = await response.json();
           
-          toast({
-            title: "Message sent!",
-            description: crossPost ? `Posted to ${targetGroups.length} groups` : "Posted to group",
-          });
+          // Replace optimistic message with server response
+          setPosts(prev => prev.map(p => 
+            p.id === optimisticMessage.id 
+              ? { ...serverMessage, kind: 'message', authorName: user.name || user.email || 'You', authorAvatar: user.avatar }
+              : p
+          ));
         } else {
           throw new Error("Failed to send message");
         }
       } catch (error) {
         console.error("Failed to send message:", error);
+        
+        // Remove optimistic message on error
+        setPosts(prev => prev.filter(p => p.id !== optimisticMessage.id));
+        
+        // Restore message text for retry
+        setMessage(originalMessage);
+        
         toast({
           title: "Failed to send message",
           description: "Please try again",
