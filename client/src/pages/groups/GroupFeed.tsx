@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLocation, useRoute } from "wouter";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Button } from "@/components/ui/button";
@@ -224,94 +224,54 @@ export default function GroupFeedPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
 
+  // Stable callbacks for real-time updates
+  const onNewReaction = useCallback((reaction: any) => {
+    console.log('New reaction received:', reaction);
+    // Refresh reactions for the post
+    if (reaction.postId) {
+      loadReactionsForPost(reaction.postId);
+    }
+  }, []);
+
+  const onReactionRemoved = useCallback((reaction: any) => {
+    console.log('Reaction removed:', reaction);
+    // Refresh reactions for the post
+    if (reaction.postId) {
+      loadReactionsForPost(reaction.postId);
+    }
+  }, []);
+
+  const onRsvpChanged = useCallback((rsvp: any) => {
+    console.log('RSVP changed:', rsvp);
+    // Invalidate RSVP queries for the specific post (use snake_case from DB)
+    const postId = rsvp.postId ?? rsvp.post_id;
+    if (postId) {
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/groups', groupId, 'posts', postId, 'rsvps'] 
+      });
+    }
+  }, [groupId]);
+
+  const onRsvpRemoved = useCallback((rsvp: any) => {
+    console.log('RSVP removed:', rsvp);
+    // Invalidate RSVP queries for the specific post (use snake_case from DB)
+    const postId = rsvp.postId ?? rsvp.post_id;
+    if (postId) {
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/groups', groupId, 'posts', postId, 'rsvps'] 
+      });
+    }
+  }, [groupId]);
+
   // Real-time updates
   const { onlineMembers, isTyping, setTyping, typingMembers } = useGroupRealtime(
     groupId || null, 
-    // onNewPost callback
-    (newPost) => {
-      console.log('New post received via real-time:', newPost);
-      // De-duplicate by ID
-      setPosts(prev => {
-        if (prev.some(p => p.id === newPost.id)) return prev;
-        return [...prev, newPost];
-      });
-      // Auto-scroll to bottom for new messages
-      if (autoScroll) {
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-      }
-    },
-    // onNewReaction callback  
-    (reaction) => {
-      console.log('New reaction received:', reaction);
-      // Refresh reactions for the post
-      if (reaction.postId) {
-        loadReactionsForPost(reaction.postId);
-      }
-    },
-    // onReactionRemoved callback
-    (reaction) => {
-      console.log('Reaction removed:', reaction);
-      // Refresh reactions for the post
-      if (reaction.postId) {
-        loadReactionsForPost(reaction.postId);
-      }
-    },
-    // onRsvpChanged callback
-    (rsvp) => {
-      console.log('RSVP changed:', rsvp);
-      // Invalidate RSVP queries for the specific post (use snake_case from DB)
-      const postId = rsvp.postId ?? rsvp.post_id;
-      if (postId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['/api/groups', groupId, 'posts', postId, 'rsvps'] 
-        });
-      }
-    },
-    // onRsvpRemoved callback
-    (rsvp) => {
-      console.log('RSVP removed:', rsvp);
-      // Invalidate RSVP queries for the specific post (use snake_case from DB)
-      const postId = rsvp.postId ?? rsvp.post_id;
-      if (postId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['/api/groups', groupId, 'posts', postId, 'rsvps'] 
-        });
-      }
-    },
-    // onNewMessage callback
-    (newMessage) => {
-      console.log('💬 New message received via real-time:', newMessage);
-      
-      // Extract author info from profiles join
-      const profile = newMessage.profiles;
-      const authorName = profile 
-        ? (profile.first_name && profile.last_name 
-            ? `${profile.first_name} ${profile.last_name}` 
-            : profile.username || 'Anonymous')
-        : 'Unknown';
-      
-      // Transform message to match Post interface format
-      const transformedMessage = {
-        id: newMessage.id,
-        kind: 'message' as const,
-        content: { body: newMessage.body, message: newMessage.body },
-        createdAt: newMessage.created_at,
-        authorId: newMessage.author_id,
-        authorName: authorName,
-        authorAvatar: profile?.avatar_url
-      };
-      
-      // De-duplicate by ID and add to posts
-      setPosts(prev => {
-        if (prev.some(p => p.id === transformedMessage.id)) return prev;
-        return [...prev, transformedMessage as any];
-      });
-      
-      // Auto-scroll to bottom for new messages
-      if (autoScroll) {
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-      }
-    }
+    undefined, // onNewPost - handled by useGroupPostsLive
+    onNewReaction,
+    onReactionRemoved,
+    onRsvpChanged,
+    onRsvpRemoved,
+    undefined // onNewMessage - handled by useGroupPostsLive
   );
 
   // Auto-scroll to bottom when new posts are added
@@ -336,10 +296,18 @@ export default function GroupFeedPage() {
   const { achievements, checkForNewUnlocks } = useGroupAchievements();
 
   // Live updates hook with Realtime and polling fallback
-  const addOrUpdate = (row: any) => {
+  const addOrUpdate = useCallback((row: any) => {
     const transformedPost = dbRowToPost(row);
-    setPosts(cur => cur.some(p => p.id === row.id) ? cur : [...cur, transformedPost]);
-  };
+    setPosts(cur => {
+      if (cur.some(p => p.id === row.id)) return cur;
+      const newPosts = [...cur, transformedPost];
+      // Auto-scroll to bottom for new messages
+      if (autoScroll) {
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
+      return newPosts;
+    });
+  }, [autoScroll]);
   useGroupPostsLive(groupId, addOrUpdate);
 
   // Fetch group achievements and check for new unlocks
