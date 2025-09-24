@@ -119,6 +119,7 @@ export class WhoopHealthProvider implements HealthProvider {
   }
 
   async authStart(userId: string) {
+    console.log(`[WHOOP] authStart: Initiating OAuth for user ${userId}`);
     if (!hasConfigEnv()) throw new Error("WHOOP not configured");
     const scope =
       "read:profile read:body_measurement read:recovery read:cycles read:sleep read:workout";
@@ -130,13 +131,16 @@ export class WhoopHealthProvider implements HealthProvider {
     // Use signed state to protect CSRF
     const state = signState({ userId, t: Date.now() });
     url.searchParams.set("state", state);
+    console.log(`[WHOOP] authStart: Generated redirect URL for user ${userId}`);
     return { redirectUrl: url.toString() };
   }
 
   async authCallback(params: Record<string, string>) {
+    console.log(`[WHOOP] callback: Processing OAuth callback with params`, { code: !!params.code, state: !!params.state });
     const { code, state } = params;
     if (!code || !state) throw new Error('Missing code/state');
     const { userId } = verifyState(state);
+    console.log(`[WHOOP] callback: Verified state for user ${userId}`);
     const exchanged = await tokenExchange(code);
     const expiresAt = exchanged.expires_in ? Date.now() + exchanged.expires_in * 1000 : undefined;
     
@@ -152,9 +156,11 @@ export class WhoopHealthProvider implements HealthProvider {
       connected: true, 
       lastSync: new Date().toISOString()
     });
+    console.log(`[WHOOP] callback: Successfully connected user ${userId}`);
   }
 
   async fetchLatest(userId: string) {
+    console.log(`[WHOOP] fetchLatest: Starting data fetch for user ${userId}`);
     const now = new Date();
     
     // Rate limiting: check if last sync was less than 10 minutes ago
@@ -289,10 +295,11 @@ export class WhoopHealthProvider implements HealthProvider {
         status: "connected"
       });
 
+      console.log(`[WHOOP] fetchLatest: Successfully fetched data for user ${userId}`, { hasData });
       return snapshot;
       
     } catch (error) {
-      console.error('WHOOP fetchLatest error:', error);
+      console.error(`[WHOOP] fetchLatest: Error for user ${userId}:`, error);
       
       // For 401 errors that couldn't be refreshed, the error is already handled in authedFetch
       if ((error as Error).message?.includes('Session expired')) {
@@ -310,6 +317,7 @@ export class WhoopHealthProvider implements HealthProvider {
       });
       
       // Return null snapshot even on errors to ensure sync completes
+      console.log(`[WHOOP] fetchLatest: Returning null snapshot due to error for user ${userId}`);
       return createNullSnapshot(end);
     }
   }

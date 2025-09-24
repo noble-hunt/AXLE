@@ -111,7 +111,9 @@ router.post('/connect/:provider/start', requireAuth, async (req, res) => {
         return res.status(500).json({ message: 'Provider does not support authentication' });
       }
 
+      console.log(`[WHOOP] authStart: Starting auth for provider ${providerName}, user ${userId}`);
       const { redirectUrl } = await provider.authStart(userId);
+      console.log(`[WHOOP] authStart: Generated redirect URL for ${providerName}`);
       return res.json({ redirectUrl });
     }
   } catch (error) {
@@ -143,7 +145,9 @@ router.get('/connect/:provider/callback', requireAuth, async (req, res) => {
     }
 
     // Handle OAuth callback for real providers
+    console.log(`[WHOOP] callback: Processing callback for provider ${providerName}, user ${userId}`);
     await provider.authCallback(req.query as Record<string, string>, userId);
+    console.log(`[WHOOP] callback: Successfully processed callback for ${providerName}`);
     
     // Mark provider as connected after successful callback
     await db
@@ -244,7 +248,9 @@ router.post('/health/sync', requireAuth, async (req, res) => {
     }
 
     // Fetch latest data from provider
+    console.log(`[WHOOP] fetchLatest: Syncing data for provider ${providerName}, user ${userId}`);
     const healthSnapshot = await provider.fetchLatest(userId);
+    console.log(`[WHOOP] fetchLatest: Completed sync for ${providerName}`, { snapshot: !!healthSnapshot });
     
     // Upsert health report for today
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
