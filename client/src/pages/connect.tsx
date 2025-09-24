@@ -4,7 +4,8 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, CheckCircle, AlertCircle, Clock } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, CheckCircle, AlertCircle, Clock, Bug } from "lucide-react"
 import { supabase } from '@/lib/supabase'
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
@@ -38,8 +39,14 @@ export default function Connect() {
   const [devMode, setDevMode] = useState(false)
   const [mockStress, setMockStress] = useState(5)
   const [mockSleep, setMockSleep] = useState(75)
+  const [debugData, setDebugData] = useState<any>(null)
+  const [debugDialogOpen, setDebugDialogOpen] = useState(false)
   const { toast } = useToast()
   const { fetchReports, syncProviderNow } = useAppStore()
+  
+  // Check if debug mode is enabled via URL parameter (dev builds only)
+  const isDebugMode = new URLSearchParams(window.location.search).get('debug') === '1'
+  const showDebug = import.meta.env.DEV && isDebugMode
   
   // Load providers and connections on mount
   useEffect(() => {
@@ -502,6 +509,57 @@ export default function Connect() {
           </div>
         </div>
       </Card>
+      
+      {/* Debug WHOOP Button (visible when ?debug=1 in dev builds) */}
+      {showDebug && (
+        <Card className="p-4 card-shadow border border-border mt-4">
+          <div className="flex items-center gap-3 mb-4">
+            <Bug className="w-5 h-5 text-orange-500" />
+            <h3 className="text-lg font-semibold text-foreground">Debug Tools</h3>
+          </div>
+          
+          <Dialog open={debugDialogOpen} onOpenChange={setDebugDialogOpen}>
+            <DialogTrigger asChild>
+              <button 
+                className="btn bg-orange-500 hover:bg-orange-600 text-white"
+                onClick={async () => {
+                  try {
+                    const token = (await supabase.auth.getSession()).data.session?.access_token
+                    const r = await fetch('/api/connect/providers', {
+                      headers: { Authorization: `Bearer ${token ?? ''}` }
+                    })
+                    const data = await r.json()
+                    setDebugData(data)
+                    setDebugDialogOpen(true)
+                  } catch (error) {
+                    toast({
+                      title: "Debug Failed",
+                      description: "Unable to fetch provider data",
+                      variant: "destructive",
+                    })
+                  }
+                }}
+                data-testid="button-debug-whoop"
+              >
+                Debug WHOOP
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Provider Debug Data</DialogTitle>
+              </DialogHeader>
+              <div className="max-h-96 overflow-auto">
+                <div className="text-xs text-muted-foreground mb-2">
+                  ⚠️ Debug data is per-user and authenticated
+                </div>
+                <pre className="text-xs bg-muted p-4 rounded font-mono whitespace-pre-wrap">
+                  {debugData ? JSON.stringify(debugData, null, 2) : 'Loading...'}
+                </pre>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </Card>
+      )}
     </div>
   )
 }
