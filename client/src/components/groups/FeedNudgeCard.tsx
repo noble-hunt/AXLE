@@ -18,7 +18,7 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
 
   const handleGenerateWorkout = () => {
     // Navigate to group workout generation with group context
-    setLocation(`/generate-workout?groupId=${groupId}&mode=group`);
+    setLocation(`/workout/generate?groupId=${groupId}&mode=group`);
   };
 
   const handleSyncTonight = () => {

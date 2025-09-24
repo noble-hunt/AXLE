@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Switch, Route, useSearch } from "wouter";
+import { Switch, Route, useSearch, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -101,7 +101,18 @@ function OverlayWrapper() {
             <Reports />
           </ProtectedRoute>
         )} />
-        <Route path="/generate-workout" component={WorkoutGenerate} />
+        {/* Canonical generator path */}
+        <Route path="/workout/generate" component={WorkoutGenerate} />
+        
+        {/* Legacy aliases → redirect to canonical path with query params preserved */}
+        <Route path="/generate-workout" component={() => {
+          const search = useSearch();
+          return <Redirect to={`/workout/generate${search ? `?${search}` : ''}`} />;
+        }} />
+        <Route path="/workout-generate" component={() => {
+          const search = useSearch();
+          return <Redirect to={`/workout/generate${search ? `?${search}` : ''}`} />;
+        }} />
         <Route path="/groups" component={() => (
           <ProtectedRoute>
             <Groups />

@@ -20,7 +20,7 @@ const ROUTES = [
   { value: "/prs", label: "Personal Records" },
   { value: "/achievements", label: "Achievements" },
   { value: "/reports", label: "Reports" },
-  { value: "/generate-workout", label: "Generate Workout" },
+  { value: "/workout/generate", label: "Generate Workout" },
   { value: "/dev/components", label: "Components Demo" },
   { value: "/dev/tokens", label: "Design Tokens" },
 ];

@@ -18,11 +18,12 @@ export function BottomNavigation() {
       <div className="max-w-sm mx-auto px-4 py-2">
         <div className="flex justify-around items-center">
           {navItems.map(({ icon: Icon, label, path }) => {
-            // Support nested routes for groups and profile
+            // Support nested routes for groups, profile, and workout
             // PRs route (/prs) should highlight the More tab since PRs is accessed via More
             const isActive = location === path || 
               (path === "/groups" && location.startsWith("/groups/")) ||
-              (path === "/profile" && (location.startsWith("/profile/") || location === "/prs"))
+              (path === "/profile" && (location.startsWith("/profile/") || location === "/prs")) ||
+              (path === "/workout" && location.startsWith("/workout/"))
             return (
               <Link key={path} href={path}>
                 <div

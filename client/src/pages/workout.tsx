@@ -40,7 +40,7 @@ export default function Workout() {
   const { addWorkout, workouts } = useAppStore()
 
   const handleCreateWorkout = () => {
-    setLocation('/generate-workout')
+    setLocation('/workout/generate')
   }
 
   const handleLogWorkout = () => {
