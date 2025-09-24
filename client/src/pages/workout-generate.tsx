@@ -227,19 +227,56 @@ export default function WorkoutGenerate() {
     },
   })
 
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!generatedWorkout) throw new Error("No workout to save");
+      
+      const { createWorkout } = await import('@/lib/workoutAPI');
+      
+      // Create workout using robust API
+      const workoutData = {
+        title: generatedWorkout.name,
+        notes: 'AI Generated Workout',
+        sets: generatedWorkout.sets || {},
+        completed: false,
+        request: {
+          category: generatedWorkout.category,
+          duration: generatedWorkout.duration,
+          intensity: generatedWorkout.intensity
+        },
+        feedback: {
+          source: 'ai_generation',
+          generated_at: new Date().toISOString()
+        }
+      };
+      
+      // Use robust authentication and UUID validation
+      const workoutId = await createWorkout(workoutData);
+      
+      // Also add to local store for immediate UI updates
+      addWorkout({
+        name: generatedWorkout.name,
+        category: generatedWorkout.category,
+        description: generatedWorkout.description,
+        duration: generatedWorkout.duration,
+        intensity: generatedWorkout.intensity,
+        sets: generatedWorkout.sets,
+        date: new Date(),
+        completed: false,
+        notes: 'AI Generated Workout',
+      });
+      
+      return { workoutId, workout: generatedWorkout };
+    },
     onSuccess: (result) => {
-      const { isAuthenticated } = useAppStore.getState()
       if (result) {
         toast({
           title: "Workout Saved!",
-          description: isAuthenticated && result.dbSynced
-            ? "Your workout has been saved and synced to your account."
-            : isAuthenticated && !result.dbSynced
-            ? "Workout saved locally. Cloud sync failed - you can retry from History."
-            : "Your generated workout has been added to your workout history.",
-        })
+          description: "Your workout has been saved successfully!",
+        });
+        // Navigate to the created workout
+        setLocation(`/workout/${result.workoutId}`);
       }
-      setLocation('/history')
     },
     onError: (error: any) => {
       console.error('Save workout error:', error)

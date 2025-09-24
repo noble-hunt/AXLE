@@ -7,6 +7,32 @@ import { useQuery } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
 import type { WorkoutFeedback } from "../types"
+import type { Workout } from "@shared/schema"
+
+// Union type for workouts from local store vs API
+type WorkoutUnion = Workout | {
+  id?: string;
+  name?: string;
+  title?: string;
+  category?: string;
+  description?: string;
+  duration?: number;
+  intensity?: number;
+  sets?: any[];
+  date?: Date | string;
+  createdAt?: Date | string;
+  completed?: boolean;
+  notes?: string;
+  feedback?: any;
+  rendered?: string;
+  rationale?: string;
+  criticScore?: number;
+  criticIssues?: string[];
+  request?: any;
+};
+
+// UUID v4 validation regex
+const UUIDv4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
@@ -32,17 +58,28 @@ export default function WorkoutDetail() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   
+  // Validate UUID and redirect if invalid
+  const isValidUuid = id ? UUIDv4.test(id) : false
+  
+  useEffect(() => {
+    if (!id || !isValidUuid) {
+      console.log('Invalid or missing workout ID, redirecting to generator')
+      setLocation('/workout/generate', { replace: true })
+      return
+    }
+  }, [id, isValidUuid, setLocation])
+  
   // First try local store, then API if not found
   const localWorkout = getWorkout(id as string)
   
-  // Fetch from API if not in local store (for suggestions)
+  // Fetch from API if not in local store (only if UUID is valid)
   const { data: apiWorkout, isLoading, error } = useQuery({
     queryKey: ['/api/workouts', id],
-    enabled: !localWorkout && !!id, // Only fetch if not in local store and ID exists
+    enabled: !localWorkout && !!id && isValidUuid, // Only fetch if not in local store, ID exists, and is valid UUID
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
   
-  const workout = localWorkout || apiWorkout
+  const workout = localWorkout || apiWorkout as WorkoutUnion | undefined
 
   const form = useForm<z.infer<typeof feedbackSchema>>({
     resolver: zodResolver(feedbackSchema),
@@ -91,7 +128,7 @@ export default function WorkoutDetail() {
 
       toast({
         title: "Workout Completed! 🎉",
-        description: `Great job finishing "${workout?.title || workout?.name}"!`,
+        description: `Great job finishing "${(workout as any)?.title || (workout as any)?.name}"!`,
       })
 
     } catch (error) {
@@ -120,17 +157,34 @@ export default function WorkoutDetail() {
   }
 
   // Show not found only after loading is complete and no workout found
-  if (!workout) {
+  // This only shows if UUID is valid but workout doesn't exist
+  if (!workout && isValidUuid) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
           <Dumbbell className="w-8 h-8 text-muted-foreground" />
         </div>
         <h2 className="text-heading font-bold text-foreground">Workout Not Found</h2>
-        <p className="text-body text-muted-foreground text-center">The workout you're looking for doesn't exist.</p>
-        <Button onClick={() => setLocation('/history')}>
-          View All Workouts
-        </Button>
+        <p className="text-body text-muted-foreground text-center">
+          This workout doesn't exist. Let's create a new one instead!
+        </p>
+        <div className="space-y-3 w-full max-w-xs">
+          <Button 
+            onClick={() => setLocation('/workout/generate')} 
+            className="w-full"
+            data-testid="button-generate-workout"
+          >
+            Generate New Workout
+          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={() => setLocation('/history')} 
+            className="w-full"
+            data-testid="button-view-history"
+          >
+            View Workout History
+          </Button>
+        </div>
       </div>
     )
   }
@@ -191,12 +245,12 @@ export default function WorkoutDetail() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <h1 className="text-heading font-bold text-foreground">{workout.title || workout.name}</h1>
+            <h1 className="text-heading font-bold text-foreground">{(workout as any)?.title || (workout as any)?.name}</h1>
             <div className="flex items-center gap-2 mt-1">
               <Calendar className="w-4 h-4 text-muted-foreground" />
               <span className="text-body text-muted-foreground">
                 {(() => {
-                  const dateValue = workout.createdAt ?? workout.date;
+                  const dateValue = (workout as any)?.createdAt ?? (workout as any)?.date;
                   if (!dateValue) return 'No date';
                   
                   const date = new Date(dateValue);
@@ -207,7 +261,7 @@ export default function WorkoutDetail() {
               </span>
             </div>
           </div>
-          {workout.completed && (
+          {(workout as any)?.completed && (
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-primary" />
               <span className="text-body font-medium text-primary">Completed</span>
@@ -219,28 +273,28 @@ export default function WorkoutDetail() {
         <div className="flex flex-wrap gap-2" data-testid="request-chips">
           <Chip variant="secondary">
             <Activity className="w-3 h-3 mr-1" />
-            {workout.category}
+{(workout as any)?.category}
           </Chip>
           <Chip variant="secondary">
             <Clock className="w-3 h-3 mr-1" />
-            {workout.duration} min
+{(workout as any)?.duration} min
           </Chip>
           <Chip variant="secondary">
             <Target className="w-3 h-3 mr-1" />
-            Intensity {workout.intensity}/10
+Intensity {(workout as any)?.intensity}/10
           </Chip>
         </div>
 
         {/* Description */}
-        {workout.description && (
+        {(workout as any)?.description && (
           <Card className="p-4">
-            <p className="text-body text-muted-foreground">{workout.description}</p>
+            <p className="text-body text-muted-foreground">{(workout as any)?.description}</p>
           </Card>
         )}
       </div>
 
       {/* AI Insights Section */}
-      {(workout.rendered || workout.rationale || workout.criticScore || workout.criticIssues) && (
+      {((workout as any)?.rendered || (workout as any)?.rationale || (workout as any)?.criticScore || (workout as any)?.criticIssues) && (
         <div className="space-y-4">
           <h2 className="text-subheading font-semibold text-foreground flex items-center gap-2">
             <Brain className="w-5 h-5" />
@@ -248,50 +302,50 @@ export default function WorkoutDetail() {
           </h2>
           
           {/* Critic Score */}
-          {workout.criticScore && (
+          {(workout as any)?.criticScore && (
             <Card className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-body font-medium text-foreground">Quality Score</span>
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${
-                    workout.criticScore >= 80 ? 'bg-green-500' : 
-                    workout.criticScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                    (workout as any)?.criticScore >= 80 ? 'bg-green-500' : 
+                    (workout as any)?.criticScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
                   }`} />
-                  <span className="text-subheading font-bold text-foreground">{workout.criticScore}/100</span>
+                  <span className="text-subheading font-bold text-foreground">{(workout as any)?.criticScore}/100</span>
                 </div>
               </div>
               <div className="w-full bg-muted rounded-full h-2">
                 <div 
                   className={`h-2 rounded-full transition-all duration-300 ${
-                    workout.criticScore >= 80 ? 'bg-green-500' : 
-                    workout.criticScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                    (workout as any)?.criticScore >= 80 ? 'bg-green-500' : 
+                    (workout as any)?.criticScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
                   }`}
-                  style={{ width: `${workout.criticScore}%` }}
+                  style={{ width: `${(workout as any)?.criticScore}%` }}
                 />
               </div>
             </Card>
           )}
 
           {/* Rationale */}
-          {workout.rationale && (
+          {(workout as any)?.rationale && (
             <Card className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <ThumbsUp className="w-4 h-4 text-muted-foreground" />
                 <span className="text-body font-medium text-foreground">AI Rationale</span>
               </div>
-              <p className="text-body text-muted-foreground">{workout.rationale}</p>
+              <p className="text-body text-muted-foreground">{(workout as any)?.rationale}</p>
             </Card>
           )}
 
           {/* Critic Issues */}
-          {workout.criticIssues && workout.criticIssues.length > 0 && (
+          {(workout as any)?.criticIssues && (workout as any)?.criticIssues.length > 0 && (
             <Card className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-4 h-4 text-yellow-600" />
                 <span className="text-body font-medium text-foreground">Areas for Improvement</span>
               </div>
               <ul className="space-y-1">
-                {workout.criticIssues.map((issue, index) => (
+                {(workout as any)?.criticIssues.map((issue: any, index: number) => (
                   <li key={index} className="text-body text-muted-foreground flex items-start gap-2">
                     <span className="text-yellow-600 mt-1">•</span>
                     {issue}
@@ -302,14 +356,14 @@ export default function WorkoutDetail() {
           )}
 
           {/* Rendered Workout */}
-          {workout.rendered && (
+          {(workout as any)?.rendered && (
             <Card className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Dumbbell className="w-4 h-4 text-muted-foreground" />
                 <span className="text-body font-medium text-foreground">Professional Format</span>
               </div>
               <pre className="text-caption font-mono text-muted-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-lg overflow-x-auto">
-                {workout.rendered}
+                {(workout as any)?.rendered}
               </pre>
             </Card>
           )}
@@ -320,7 +374,7 @@ export default function WorkoutDetail() {
       <div className="space-y-4">
         <h2 className="text-subheading font-semibold text-foreground">Workout Structure</h2>
         
-        {workout.sets.map((set, index) => (
+        {(workout as any)?.sets?.map((set: any, index: number) => (
           <Card key={index} className="p-4" data-testid={`exercise-set-${index}`}>
             <div className="space-y-2">
               <h3 className="text-body font-semibold text-foreground">{set.exercise}</h3>
@@ -339,7 +393,7 @@ export default function WorkoutDetail() {
       </div>
 
       {/* Action Buttons */}
-      {!workout.completed && (
+      {!(workout as any)?.completed && (
         <div className="space-y-3">
           <Button 
             variant="secondary" 
