@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireAdmin, AuthenticatedRequest, AdminRequest } from '../middleware/auth';
 import { db } from '../db';
-import { wearableConnections, wearableTokens, healthReports } from '../../shared/schema';
+import { wearableConnections, wearableTokens, healthReports, profiles } from '../../shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { seal, open } from '../lib/crypto';
 import { storeEncryptedTokens, getDecryptedTokens, deleteTokens } from '../dal/tokens';
 import { getProviderRegistry, listAvailableProviders } from '../providers/health';
 import { backfillDailies, backfillSleeps, backfillHRV } from '../providers/health/garminBackfill';
+import { computeDailyMetrics } from '../services/metrics/index';
 
 const router = Router();
 
@@ -445,8 +446,95 @@ router.get('/admin/whoop/ping', requireAdmin, async (req, res) => {
   }
 });
 
-// DEV ONLY: Test Garmin backfill functions
+// DEV ONLY: Test compute endpoints without authentication  
 if (process.env.NODE_ENV !== 'production') {
+  router.post('/dev/compute/test', async (req, res) => {
+    try {
+      // Use the user ID from logs for testing
+      const testUserId = '6ce9255e-0502-4472-9911-bca4e9ffb9c1';
+      const testDate = '2025-09-24';
+      
+      console.log(`[DEV] Testing compute daily endpoint for user ${testUserId}, date: ${testDate}`);
+      
+      // Compute daily metrics
+      const metrics = await computeDailyMetrics(testUserId, testDate);
+      
+      // Check if report already exists for this date
+      const existingReport = await db
+        .select()
+        .from(healthReports)
+        .where(and(
+          eq(healthReports.userId, testUserId),
+          eq(healthReports.date, testDate)
+        ))
+        .limit(1);
+
+      const reportData = {
+        vitalityScore: metrics.vitalityScore,
+        performancePotentialScore: metrics.performancePotentialScore,
+        circadianScore: metrics.circadianScore,
+        energyBalanceScore: metrics.energyBalanceScore,
+        rawBiometrics: metrics.rawBiometrics,
+        derived: metrics.derived,
+        environment: metrics.environment,
+        baselines: metrics.baselines,
+      };
+
+      if (existingReport[0]) {
+        // Merge with existing metrics (upsert operation)
+        const currentMetrics = existingReport[0].metrics as any || {};
+        const mergedMetrics = { 
+          ...currentMetrics,
+          ...reportData,
+        };
+        
+        await db
+          .update(healthReports)
+          .set({
+            metrics: mergedMetrics,
+          })
+          .where(and(
+            eq(healthReports.userId, testUserId),
+            eq(healthReports.date, testDate)
+          ));
+          
+        console.log(`[DEV] Updated existing report for ${testDate}`);
+      } else {
+        // Create new report
+        await db
+          .insert(healthReports)
+          .values({
+            userId: testUserId,
+            date: testDate,
+            metrics: reportData,
+            suggestions: [],
+          });
+          
+        console.log(`[DEV] Created new report for ${testDate}`);
+      }
+
+      res.json({
+        success: true,
+        test: 'dev-compute-endpoint',
+        date: testDate,
+        scores: {
+          vitality: metrics.vitalityScore,
+          performance: metrics.performancePotentialScore,
+          circadian: metrics.circadianScore,
+          energy: metrics.energyBalanceScore,
+        },
+        upserted: existingReport[0] ? 'updated' : 'created',
+      });
+    } catch (error) {
+      console.error('[DEV] Test compute error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        test: 'dev-compute-endpoint'
+      });
+    }
+  });
+
+// DEV ONLY: Test Garmin backfill functions
   router.get('/dev/garmin/test-backfill', requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
@@ -535,5 +623,241 @@ if (process.env.NODE_ENV !== 'production') {
     }
   });
 }
+
+// POST /api/health/compute/daily → compute daily metrics and upsert to health_reports
+router.post('/health/compute/daily', requireAuth, async (req, res) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.id;
+    
+    const bodySchema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    });
+    
+    const { date } = bodySchema.parse(req.body);
+    const targetDate = date || new Date().toISOString().split('T')[0]; // Default to today
+    
+    console.log(`[COMPUTE] Computing daily metrics for user ${userId}, date: ${targetDate}`);
+    
+    // Load user's location from profile
+    const profile = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1);
+    
+    let userLocation: { lat: number; lon: number; timezone: string } | null = null;
+    if (profile[0] && profile[0].latitude && profile[0].longitude) {
+      userLocation = {
+        lat: profile[0].latitude,
+        lon: profile[0].longitude,
+        timezone: profile[0].timezone || 'UTC',
+      };
+      console.log(`[COMPUTE] Using profile location: lat=${userLocation.lat}, lon=${userLocation.lon}, tz=${userLocation.timezone}`);
+    } else {
+      console.log(`[COMPUTE] No location data in profile, environment service will use null coordinates`);
+    }
+    
+    // Compute daily metrics
+    const metrics = await computeDailyMetrics(userId, targetDate);
+    console.log(`[COMPUTE] Computed metrics for ${targetDate}:`, {
+      vitality: metrics.vitalityScore,
+      performance: metrics.performancePotentialScore,
+      circadian: metrics.circadianScore,
+      energy: metrics.energyBalanceScore,
+    });
+    
+    // Check if report already exists for this date
+    const existingReport = await db
+      .select()
+      .from(healthReports)
+      .where(and(
+        eq(healthReports.userId, userId),
+        eq(healthReports.date, targetDate)
+      ))
+      .limit(1);
+
+    const reportData = {
+      vitalityScore: metrics.vitalityScore,
+      performancePotentialScore: metrics.performancePotentialScore,
+      circadianScore: metrics.circadianScore,
+      energyBalanceScore: metrics.energyBalanceScore,
+      rawBiometrics: metrics.rawBiometrics,
+      derived: metrics.derived,
+      environment: metrics.environment,
+      baselines: metrics.baselines,
+    };
+
+    if (existingReport[0]) {
+      // Merge with existing metrics (upsert operation)
+      const currentMetrics = existingReport[0].metrics as any || {};
+      const mergedMetrics = { 
+        ...currentMetrics,
+        ...reportData,
+      };
+      
+      await db
+        .update(healthReports)
+        .set({
+          metrics: mergedMetrics,
+        })
+        .where(and(
+          eq(healthReports.userId, userId),
+          eq(healthReports.date, targetDate)
+        ));
+        
+      console.log(`[COMPUTE] Updated existing report for ${targetDate}`);
+    } else {
+      // Create new report
+      await db
+        .insert(healthReports)
+        .values({
+          userId,
+          date: targetDate,
+          metrics: reportData,
+          suggestions: [],
+        });
+        
+      console.log(`[COMPUTE] Created new report for ${targetDate}`);
+    }
+
+    res.json({
+      success: true,
+      date: targetDate,
+      computed_at: new Date().toISOString(),
+      scores: {
+        vitality: metrics.vitalityScore,
+        performance: metrics.performancePotentialScore,
+        circadian: metrics.circadianScore,
+        energy: metrics.energyBalanceScore,
+      },
+    });
+  } catch (error) {
+    console.error('[COMPUTE] Error computing daily metrics:', error);
+    res.status(500).json({ 
+      message: 'Failed to compute daily metrics',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// POST /api/health/compute/backfill → admin/dev endpoint to backfill N days
+router.post('/health/compute/backfill', requireAdmin, async (req, res) => {
+  try {
+    const adminReq = req as AdminRequest;
+    const userId = adminReq.user.id;
+    
+    const bodySchema = z.object({
+      days: z.number().min(1).max(365),
+    });
+    
+    const { days } = bodySchema.parse(req.body);
+    
+    console.log(`[BACKFILL] Starting backfill for ${days} days, user: ${userId}`);
+    
+    const results = [];
+    const today = new Date();
+    
+    for (let i = 0; i < days; i++) {
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() - i);
+      const dateStr = targetDate.toISOString().split('T')[0];
+      
+      try {
+        console.log(`[BACKFILL] Processing date: ${dateStr} (${i + 1}/${days})`);
+        
+        // Compute daily metrics
+        const metrics = await computeDailyMetrics(userId, dateStr);
+        
+        // Check if report already exists
+        const existingReport = await db
+          .select()
+          .from(healthReports)
+          .where(and(
+            eq(healthReports.userId, userId),
+            eq(healthReports.date, dateStr)
+          ))
+          .limit(1);
+
+        const reportData = {
+          vitalityScore: metrics.vitalityScore,
+          performancePotentialScore: metrics.performancePotentialScore,
+          circadianScore: metrics.circadianScore,
+          energyBalanceScore: metrics.energyBalanceScore,
+          rawBiometrics: metrics.rawBiometrics,
+          derived: metrics.derived,
+          environment: metrics.environment,
+          baselines: metrics.baselines,
+        };
+
+        if (existingReport[0]) {
+          // Update existing report
+          const currentMetrics = existingReport[0].metrics as any || {};
+          const mergedMetrics = { 
+            ...currentMetrics,
+            ...reportData,
+          };
+          
+          await db
+            .update(healthReports)
+            .set({
+              metrics: mergedMetrics,
+            })
+            .where(and(
+              eq(healthReports.userId, userId),
+              eq(healthReports.date, dateStr)
+            ));
+        } else {
+          // Create new report
+          await db
+            .insert(healthReports)
+            .values({
+              userId,
+              date: dateStr,
+              metrics: reportData,
+              suggestions: [],
+            });
+        }
+        
+        results.push({
+          date: dateStr,
+          success: true,
+          scores: {
+            vitality: metrics.vitalityScore,
+            performance: metrics.performancePotentialScore,
+            circadian: metrics.circadianScore,
+            energy: metrics.energyBalanceScore,
+          },
+        });
+        
+      } catch (error) {
+        console.error(`[BACKFILL] Error processing ${dateStr}:`, error);
+        results.push({
+          date: dateStr,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+    
+    const successCount = results.filter(r => r.success).length;
+    console.log(`[BACKFILL] Completed: ${successCount}/${days} successful`);
+
+    res.json({
+      success: true,
+      processed: days,
+      successful: successCount,
+      failed: days - successCount,
+      results,
+      backfilled_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('[BACKFILL] Error during backfill:', error);
+    res.status(500).json({ 
+      message: 'Failed to backfill metrics',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
 
 export default router;
