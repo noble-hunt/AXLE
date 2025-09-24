@@ -7,6 +7,7 @@ import { StatBadge } from "@/components/swift/stat-badge"
 import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/store/useAppStore"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import MetricCard from "@/components/health/MetricCard"
 
 export default function Health() {
   const { 
@@ -107,33 +108,82 @@ export default function Health() {
 
       {hasData ? (
         <>
-          {/* Today's Health Metrics */}
-          <div className="space-y-4">
-            <h2 className="text-subheading font-semibold text-foreground">Today's Metrics</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <StatBadge
-                icon={<Activity className="w-4 h-4" />}
-                value={todayMetrics?.hrv ? `${todayMetrics.hrv}` : "--"}
-                label="HRV"
-                data-testid="today-hrv"
+          {/* Today's Metrics */}
+          <div className="px-4 sm:px-5 md:px-6 mt-4">
+            <div className="text-white/90 text-lg font-semibold mb-2">Today's Metrics</div>
+
+            {/* Row 1: Proprietary */}
+            <div className="grid grid-cols-2 gap-3">
+              <MetricCard 
+                keyName="axle_health_score" 
+                title="AXLE Health Score" 
+                description="Your all-in score combining vitality, performance, circadian alignment and energy-system balance." 
+                colorClass="text-sky-400" 
+                icon={<Zap className="w-5 h-5" />}
               />
-              <StatBadge
-                icon={<Heart className="w-4 h-4" />}
-                value={todayMetrics?.restingHR ? `${todayMetrics.restingHR}` : "--"}
-                label="Resting HR"
-                data-testid="today-resting-hr"
+              <MetricCard 
+                keyName="vitality_score" 
+                title="Vitality" 
+                description="Daily well-being from sleep quality, activity, recovery and training intensity." 
+                colorClass="text-emerald-400" 
+                icon={<Heart className="w-5 h-5" />}
               />
-              <StatBadge
-                icon={<Clock className="w-4 h-4" />}
-                value={todayMetrics?.sleepScore ? `${todayMetrics.sleepScore}` : "--"}
-                label="Sleep Score"
-                data-testid="today-sleep-score"
+              <MetricCard 
+                keyName="performance_potential" 
+                title="Performance Potential" 
+                description="Readiness to push harder today, driven by recovery, intensity tolerance and resting HR." 
+                colorClass="text-indigo-400" 
+                icon={<TrendingUp className="w-5 h-5" />}
               />
-              <StatBadge
-                icon={<BatteryLow className="w-4 h-4" />}
-                value={todayMetrics?.fatigue ? `${todayMetrics.fatigue}%` : "--"}
-                label="Fatigue Score"
-                data-testid="today-fatigue"
+              <MetricCard 
+                keyName="circadian_alignment" 
+                title="Circadian Alignment" 
+                description="How well your behaviors align with daylight: activity in sunlight, steady sleep, and small boosts from UV while avoiding high pollution." 
+                colorClass="text-amber-400" 
+                icon={<Calendar className="w-5 h-5" />}
+              />
+              <MetricCard 
+                keyName="energy_systems_balance" 
+                title="Energy Systems" 
+                description="How balanced your training is across alactic, lactic and aerobic energy systems over the last month." 
+                colorClass="text-pink-400" 
+                icon={<Brain className="w-5 h-5" />}
+              />
+            </div>
+
+            {/* Row 2: Provider core metrics */}
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <MetricCard 
+                keyName="hrv" 
+                title="HRV" 
+                unit=" ms" 
+                description="Higher HRV generally means better recovery. Track trends over time, not single days." 
+                colorClass="text-cyan-400" 
+                icon={<Activity className="w-5 h-5" />}
+              />
+              <MetricCard 
+                keyName="resting_hr" 
+                title="Resting HR" 
+                unit=" bpm" 
+                description="Lower resting heart rate often indicates improved aerobic fitness and recovery." 
+                colorClass="text-rose-400" 
+                icon={<Heart className="w-5 h-5" />}
+              />
+              <MetricCard 
+                keyName="sleep_score" 
+                title="Sleep Score" 
+                unit="" 
+                description="Overall sleep quality from your provider. Aim for consistency plus 7–9 hours nightly." 
+                colorClass="text-purple-400" 
+                icon={<Clock className="w-5 h-5" />}
+              />
+              <MetricCard 
+                keyName="fatigue_score" 
+                title="Fatigue Score" 
+                unit="" 
+                description="AXLE's fatigue estimate from training load, sleep and recovery signals." 
+                colorClass="text-orange-400" 
+                icon={<BatteryLow className="w-5 h-5" />}
               />
             </div>
           </div>
