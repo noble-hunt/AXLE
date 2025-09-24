@@ -70,6 +70,11 @@
   --spacing: 0.25rem;
 }
 
+/* Safe area helper for iOS devices */
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0) + 1rem);
+}
+
 .dark {
   /* SwiftUI Design Tokens - Dark Mode */
   --background: hsl(0, 0%, 0%);
