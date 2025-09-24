@@ -1,0 +1,239 @@
+Persist Location Sharing & Cache Coordinates
+
+Goal
+When a user enables “Location for Health Insights”, remember it on their account and don’t re-prompt each visit. Cache the last coordinates + timezone for weather/solar calculations. Use them in health report generation if fresh coords aren’t sent.
+
+1) DB migration (Supabase SQL)
+
+Add persistent consent + cache fields to public.profiles:
+
+alter table public.profiles
+  add column if not exists location_opt_in boolean not null default false,
+  add column if not exists location_consent_at timestamptz,
+  add column if not exists last_lat numeric(9,6),
+  add column if not exists last_lon numeric(9,6),
+  add column if not exists timezone text;
+
+-- existing RLS policies already allow users to update their own profiles
+
+2) Server routes (read/update location consent)
+
+Create/modify server/routes/profile-location.ts and register it in the API index.
+
+// server/routes/profile-location.ts
+import { Router } from "express";
+import { getUserClient } from "../supabaseClient"; // helper that returns a Supabase client bound to user token
+import { requireAuth } from "../middleware/auth";  // ensures req.user.id and user Supabase token
+
+const router = Router();
+
+/** Read current location consent + cache */
+router.get("/api/me/location", requireAuth, async (req, res) => {
+  const supabase = getUserClient(req);
+  const userId = req.user.id;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("location_opt_in, location_consent_at, last_lat, last_lon, timezone")
+    .eq("user_id", userId)
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({
+    optIn: data?.location_opt_in ?? false,
+    consentAt: data?.location_consent_at ?? null,
+    lat: data?.last_lat ?? null,
+    lon: data?.last_lon ?? null,
+    timezone: data?.timezone ?? null,
+  });
+});
+
+/** Update consent; optionally refresh cached coords + tz */
+router.post("/api/me/location", requireAuth, async (req, res) => {
+  const supabase = getUserClient(req);
+  const userId = req.user.id;
+  const { optIn, lat, lon, tz } = req.body as {
+    optIn: boolean; lat?: number; lon?: number; tz?: string;
+  };
+
+  const updates: any = {
+    user_id: userId,
+    location_opt_in: !!optIn,
+    location_consent_at: new Date().toISOString(),
+  };
+
+  if (optIn) {
+    if (typeof lat === "number" && typeof lon === "number") {
+      updates.last_lat = lat;
+      updates.last_lon = lon;
+    }
+    if (tz) updates.timezone = tz;
+  } else {
+    // Optional: wipe cached coords on opt-out
+    updates.last_lat = null;
+    updates.last_lon = null;
+  }
+
+  const { error } = await supabase.from("profiles").upsert(updates);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+export default router;
+
+
+Register in server/index.ts (or routes hub):
+
+import profileLocation from "./routes/profile-location";
+app.use(profileLocation);
+
+3) Client store + hydration
+
+Update client/src/state/useAppStore.ts (or equivalent global store):
+
+type LocationState = {
+  locationOptIn: boolean;
+  timezone?: string | null;
+  lastLat?: number | null;
+  lastLon?: number | null;
+  hydrateLocation: () => Promise<void>;
+  setLocationOptIn: (optIn: boolean) => Promise<void>;
+  refreshLocationNow: () => Promise<void>;
+};
+
+const useAppStore = create<AppState & LocationState>((set, get) => ({
+  // ...
+  locationOptIn: false,
+  timezone: null,
+  lastLat: null,
+  lastLon: null,
+
+  hydrateLocation: async () => {
+    const r = await fetch("/api/me/location", { headers: await authHeaders() });
+    if (!r.ok) return;
+    const j = await r.json();
+    set({
+      locationOptIn: !!j.optIn,
+      timezone: j.timezone ?? null,
+      lastLat: j.lat ?? null,
+      lastLon: j.lon ?? null,
+    });
+    // small localStorage cache to avoid UI flicker
+    localStorage.setItem("axle:locationOptIn", String(!!j.optIn));
+  },
+
+  setLocationOptIn: async (optIn: boolean) => {
+    if (optIn) {
+      // request geolocation once on opt-in
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      await new Promise<void>((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const lat = +pos.coords.latitude.toFixed(6);
+            const lon = +pos.coords.longitude.toFixed(6);
+            await fetch("/api/me/location", {
+              method: "POST",
+              headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+              body: JSON.stringify({ optIn: true, lat, lon, tz }),
+            });
+            set({ locationOptIn: true, lastLat: lat, lastLon: lon, timezone: tz });
+            localStorage.setItem("axle:locationOptIn", "true");
+            resolve();
+          },
+          async () => {
+            // still persist consent, coords may come later
+            await fetch("/api/me/location", {
+              method: "POST",
+              headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+              body: JSON.stringify({ optIn: true, tz }),
+            });
+            set({ locationOptIn: true, timezone: tz });
+            localStorage.setItem("axle:locationOptIn", "true");
+            resolve();
+          },
+          { enableHighAccuracy: false, timeout: 8000 }
+        );
+      });
+    } else {
+      await fetch("/api/me/location", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ optIn: false }),
+      });
+      set({ locationOptIn: false, lastLat: null, lastLon: null });
+      localStorage.setItem("axle:locationOptIn", "false");
+    }
+  },
+
+  // Optional: user taps "Update location" to refresh the cache
+  refreshLocationNow: async () => {
+    if (!get().locationOptIn) return;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = +pos.coords.latitude.toFixed(6);
+      const lon = +pos.coords.longitude.toFixed(6);
+      await fetch("/api/me/location", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ optIn: true, lat, lon, tz }),
+      });
+      set({ lastLat: lat, lastLon: lon, timezone: tz });
+    });
+  },
+}));
+
+
+Call hydrateLocation() after auth session is restored (e.g., in your app shell or after Supabase auth ready).
+
+4) UI toggle wiring
+
+In the “Location for Health Insights” section:
+
+Bind the toggle to store.locationOptIn
+
+On change → store.setLocationOptIn(newValue)
+
+Optionally show a small “Update location” button if optIn === true to call refreshLocationNow() (no auto re-prompt on every visit—user controls it).
+
+5) Backend: use cached coords for weather
+
+Where you build health reports / fetch weather (e.g., server/routes/health.ts or DAL that composes the daily report):
+
+// pseudo inside report creation
+const supabase = getUserClient(req);
+const userId = req.user.id;
+
+// Prefer client-supplied coords this request; else fall back to profile cache
+let { lat, lon } = req.body ?? {};
+if (typeof lat !== "number" || typeof lon !== "number") {
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("location_opt_in, last_lat, last_lon, timezone")
+    .eq("user_id", userId)
+    .single();
+  if (prof?.location_opt_in && prof.last_lat && prof.last_lon) {
+    lat = prof.last_lat; lon = prof.last_lon;
+  }
+}
+
+// If lat/lon are present, include them in weather fetch & store in health_reports.metrics.weather
+
+6) Privacy behavior
+
+Turning off the toggle sets location_opt_in=false and clears last_lat/last_lon (keeps timezone if you want).
+
+We do not automatically request permission on page load. We only call getCurrentPosition() when the user toggles on or presses “Update location”.
+
+Acceptance Criteria
+
+Toggling on location once persists to profiles.location_opt_in=true with location_consent_at timestamp. After logout/login (or app reload), the toggle reflects the saved state without re-prompting.
+
+On first opt-in, if permission is granted, last_lat/last_lon and timezone are saved; if permission denied, consent still persists and can be refreshed later.
+
+The backend uses request coords when provided; otherwise it falls back to the cached profiles.last_lat/last_lon when location_opt_in=true.
+
+Opt-out sets location_opt_in=false and clears cached coords.
+
+No repeated browser permission prompts on page load; geolocation is only requested on explicit user action (toggle on or manual refresh).
+
+Health/weather calculations work with cached coords when fresh ones aren’t available.
+
+This makes location sharing “stick” per account and keeps the UX frictionless.
