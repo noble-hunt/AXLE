@@ -229,6 +229,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/workouts - Create a new workout
+  app.post("/api/workouts", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const validatedData = insertWorkoutSchema.parse(req.body);
+      
+      // Create workout data for insertion - map to expected format
+      const workoutData = {
+        title: validatedData.title,
+        request: validatedData.request as Record<string, any>,
+        sets: validatedData.sets as Record<string, any>,
+        notes: validatedData.notes || undefined,
+        completed: validatedData.completed || false,
+        feedback: validatedData.feedback as Record<string, any> | undefined
+      };
+      
+      // Insert workout using data access layer
+      const workout = await insertWorkout({ userId: authReq.user.id, workout: workoutData });
+      
+      // Validate that we got a valid UUID back
+      const UUIDv4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!workout?.id || !UUIDv4.test(workout.id)) {
+        console.error('[workouts:create] invalid id returned:', workout?.id);
+        return res.status(500).json({ error: 'no_valid_id' });
+      }
+      
+      console.log(`[WORKOUTS] Created workout ${workout.id} for user ${authReq.user.id}`);
+      
+      // Return only the id as specified
+      return res.status(200).json({ id: workout.id });
+    } catch (error: any) {
+      console.error('[workouts:create] error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'validation_failed', issues: error.issues });
+      }
+      return res.status(500).json({ error: 'create_failed' });
+    }
+  });
+
   // POST /api/me/location - Update user location for environment insights
   const locationSchema = z.object({
     lat: z.number().min(-90).max(90),
