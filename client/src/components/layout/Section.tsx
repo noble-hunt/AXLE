@@ -1,14 +1,13 @@
 import React from "react";
 
-type Props = React.PropsWithChildren<{
-  className?: string;
-}>;
-
-export default function Section({ children, className }: Props) {
-  // These paddings must match stat tiles container paddings so edges align
-  return (
-    <div className={`w-full px-5 sm:px-6 ${className ?? ""}`}>
-      {children}
-    </div>
-  );
+/**
+ * Mobile-first page gutter that matches Privacy card width.
+ * Use this wrapper for EVERY block on the Health page.
+ * px-6 = 24px per side on mobile. Adjust here if you ever change the design.
+ */
+export default function Section({
+  children,
+  className,
+}: React.PropsWithChildren<{ className?: string }>) {
+  return <div className={`w-full px-6 ${className ?? ""}`}>{children}</div>;
 }

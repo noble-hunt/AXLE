@@ -320,7 +320,7 @@ export default function Connect() {
 
       {/* Development Mode row: vertically center label + switch */}
       {(providers || []).some((p: any) => p.id === 'Mock') && (
-        <Section className="mt-2">
+        <Section className="mt-4">
           <div className="rounded-2xl bg-[#1d1f24] px-5 h-14 flex items-center justify-between shadow">
             <div className="flex items-center gap-3">
               <Settings className="w-5 h-5 opacity-80" />
@@ -493,104 +493,110 @@ export default function Connect() {
       </Section>
       
       {enrichedProviders.length === 0 && (
-        <Card className="p-8 text-center" data-testid="no-providers">
-          <Wifi className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">No Providers Available</h3>
-          <p className="text-muted-foreground">Health providers will appear here when configured.</p>
-        </Card>
+        <Section className="mt-6">
+          <Card className="p-8 text-center" data-testid="no-providers">
+            <Wifi className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No Providers Available</h3>
+            <p className="text-muted-foreground">Health providers will appear here when configured.</p>
+          </Card>
+        </Section>
       )}
 
       {/* Privacy Settings */}
-      <Card className="p-4 card-shadow border border-border">
-        <div className="flex items-center gap-3 mb-4">
-          <Settings className="w-5 h-5 text-muted-foreground" />
-          <h3 className="text-lg font-semibold text-foreground">Privacy Settings</h3>
-        </div>
-        
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-foreground">Share health data</p>
-              <p className="text-sm text-muted-foreground">Allow connected providers to access health information</p>
-            </div>
-            <Switch defaultChecked data-testid="toggle-health-sharing" />
+      <Section className="mt-6">
+        <Card className="p-4 card-shadow border border-border">
+          <div className="flex items-center gap-3 mb-4">
+            <Settings className="w-5 h-5 text-muted-foreground" />
+            <h3 className="text-lg font-semibold text-foreground">Privacy Settings</h3>
           </div>
           
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-foreground">Data retention</p>
-              <p className="text-sm text-muted-foreground">Keep health data for analysis and insights</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground">Share health data</p>
+                <p className="text-sm text-muted-foreground">Allow connected providers to access health information</p>
+              </div>
+              <Switch defaultChecked data-testid="toggle-health-sharing" />
             </div>
-            <Switch defaultChecked data-testid="toggle-data-retention" />
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground">Data retention</p>
+                <p className="text-sm text-muted-foreground">Keep health data for analysis and insights</p>
+              </div>
+              <Switch defaultChecked data-testid="toggle-data-retention" />
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </Section>
 
       {/* Location for Health Insights */}
-      <Card className="p-4 card-shadow border border-border bg-blue-50/50 dark:bg-blue-950/20">
-        <div className="flex items-start gap-3">
-          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-          <div className="space-y-3">
-            <h4 className="font-medium text-foreground">Location for Health Insights</h4>
-            <p className="text-sm text-muted-foreground">
-              Enable location to get daylight exposure and UV index insights as part of your health analytics. 
-              Location data is quantized for privacy (approximately 110-meter accuracy) and used only for 
-              environmental health recommendations.
-            </p>
-            
-            {location ? (
-              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" />
-                Location enabled for timezone: {location.timezone}
+      <Section className="mt-6">
+        <Card className="p-4 card-shadow border border-border bg-blue-50/50 dark:bg-blue-950/20">
+          <div className="flex items-start gap-3">
+            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
+            <div className="space-y-3">
+              <h4 className="font-medium text-foreground">Location for Health Insights</h4>
+              <p className="text-sm text-muted-foreground">
+                Enable location to get daylight exposure and UV index insights as part of your health analytics. 
+                Location data is quantized for privacy (approximately 110-meter accuracy) and used only for 
+                environmental health recommendations.
               </p>
-            ) : (
-              <Button 
-                onClick={async () => {
-                  setBusy('location')
-                  try {
-                    const success = await requestAndSaveLocation()
-                    if (success) {
+              
+              {location ? (
+                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Location enabled for timezone: {location.timezone}
+                </p>
+              ) : (
+                <Button 
+                  onClick={async () => {
+                    setBusy('location')
+                    try {
+                      const success = await requestAndSaveLocation()
+                      if (success) {
+                        toast({
+                          title: "Location Enabled",
+                          description: "Location saved for health insights",
+                        })
+                      } else {
+                        toast({
+                          title: "Location Permission Denied",
+                          description: "You can enable this later for daylight/UV insights",
+                          variant: "destructive",
+                        })
+                      }
+                    } catch (error: any) {
                       toast({
-                        title: "Location Enabled",
-                        description: "Location saved for health insights",
-                      })
-                    } else {
-                      toast({
-                        title: "Location Permission Denied",
-                        description: "You can enable this later for daylight/UV insights",
+                        title: "Location Failed",
+                        description: error.message || "Unable to get location",
                         variant: "destructive",
                       })
+                    } finally {
+                      setBusy(null)
                     }
-                  } catch (error: any) {
-                    toast({
-                      title: "Location Failed",
-                      description: error.message || "Unable to get location",
-                      variant: "destructive",
-                    })
-                  } finally {
-                    setBusy(null)
-                  }
-                }}
-                disabled={busy === 'location'}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                data-testid="enable-location-button"
-              >
-                {busy === 'location' ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Requesting Location...
-                  </>
-                ) : (
-                  <>
-                    <Heart className="w-4 h-4 mr-2" />
-                    Enable Location for Insights
-                  </>
-                )}
-              </Button>
-            )}
+                  }}
+                  disabled={busy === 'location'}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  data-testid="enable-location-button"
+                >
+                  {busy === 'location' ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Requesting Location...
+                    </>
+                  ) : (
+                    <>
+                      <Heart className="w-4 h-4 mr-2" />
+                      Enable Location for Insights
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </Section>
       
       {/* Debug WHOOP Button (visible when ?debug=1 in dev builds) */}
       {showDebug && (
