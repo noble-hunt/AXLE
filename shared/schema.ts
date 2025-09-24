@@ -12,6 +12,10 @@ export const profiles = pgTable("profiles", {
   avatarUrl: text("avatar_url"),
   dateOfBirth: date("date_of_birth"),
   providers: text("providers").array().notNull().default(sql`'{}'`), // Array of linked identity providers
+  // Location data for environment service integration
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  timezone: text("timezone"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
