@@ -6,23 +6,9 @@ import { wearableConnections, wearableTokens, healthReports } from '../../shared
 import { eq, and, desc } from 'drizzle-orm';
 import { seal, open } from '../lib/crypto';
 import { storeEncryptedTokens, getDecryptedTokens, deleteTokens } from '../dal/tokens';
-import { MockHealthProvider } from '../providers/health/mock';
-import { FitbitHealthProvider } from '../providers/health/fitbit';
-import { OuraHealthProvider } from '../providers/health/oura';
-import { WhoopHealthProvider } from '../providers/health/whoop';
-import { GarminHealthProvider } from '../providers/health/garmin';
-import { HealthProvider } from '../providers/health/types';
+import { getProviderRegistry, listAvailableProviders } from '../providers/health';
 
 const router = Router();
-
-// Initialize providers
-const providers: Record<string, HealthProvider> = {
-  Mock: new MockHealthProvider(),
-  Fitbit: new FitbitHealthProvider(),
-  Oura: new OuraHealthProvider(),
-  Whoop: new WhoopHealthProvider(),
-  Garmin: new GarminHealthProvider(),
-};
 
 // GET /api/connect/providers → list providers with { id, supported: boolean, connected, last_sync, status }
 router.get('/connect/providers', requireAuth, async (req, res) => {
@@ -36,7 +22,8 @@ router.get('/connect/providers', requireAuth, async (req, res) => {
       .from(wearableConnections)
       .where(eq(wearableConnections.userId, userId));
 
-    // Build provider list
+    // Get available providers from registry
+    const providers = getProviderRegistry();
     const providerList = Object.values(providers).map(provider => {
       const connection = connections.find(c => c.provider === provider.id);
       
@@ -64,6 +51,7 @@ router.post('/connect/:provider/start', requireAuth, async (req, res) => {
     const userId = authReq.user.id;
     const { provider: providerName } = req.params;
 
+    const providers = getProviderRegistry();
     const provider = providers[providerName];
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found' });
@@ -139,6 +127,7 @@ router.get('/connect/:provider/callback', requireAuth, async (req, res) => {
     const userId = authReq.user.id;
     const { provider: providerName } = req.params;
 
+    const providers = getProviderRegistry();
     const provider = providers[providerName];
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found' });
@@ -189,6 +178,7 @@ router.post('/health/sync', requireAuth, async (req, res) => {
     
     const { provider: providerName } = bodySchema.parse(req.body);
 
+    const providers = getProviderRegistry();
     const provider = providers[providerName];
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found' });

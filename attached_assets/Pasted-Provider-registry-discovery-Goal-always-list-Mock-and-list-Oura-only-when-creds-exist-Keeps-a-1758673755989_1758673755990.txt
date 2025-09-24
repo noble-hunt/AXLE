@@ -1,0 +1,72 @@
+Provider registry & discovery
+
+Goal: always list Mock, and list Oura only when creds exist. Keeps /api/connect/providers aligned with UI.
+
+Files
+
+server/providers/health/index.ts (new or update)
+
+(uses your existing provider interface + mock provider)
+
+// server/providers/health/index.ts
+import type { HealthProvider } from './types';
+import { MockHealthProvider } from './mock';
+import { OuraHealthProvider } from './oura'; // will add in Prompt C
+
+export function getProviderRegistry(): Record<string, HealthProvider> {
+  const hasOura = !!(process.env.OURA_CLIENT_ID && process.env.OURA_CLIENT_SECRET);
+  const reg: Record<string, HealthProvider> = {
+    Mock: new MockHealthProvider(),
+  };
+  if (hasOura) reg['Oura'] = new OuraHealthProvider();
+  return reg;
+}
+
+export function listAvailableProviders() {
+  const reg = getProviderRegistry();
+  return Object.keys(reg).map(id => ({
+    id,
+    available: true,
+  }));
+}
+
+
+Update your providers list endpoint to use it:
+
+// server/routes/health.ts (snippet)
+import { listAvailableProviders, getProviderRegistry } from '../providers/health';
+
+router.get('/connect/providers', async (_req, res) => {
+  res.json({ providers: listAvailableProviders() });
+});
+
+// Start / Callback delegations (if not already present)
+router.post('/connect/:provider/start', async (req, res) => {
+  const p = getProviderRegistry()[req.params.provider];
+  if (!p?.authStart) return res.status(400).json({ error: 'Provider does not support OAuth' });
+  const { user } = (await supabaseFromReq(req).auth.getUser()).data;
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  const out = await p.authStart(user.id);
+  res.json(out); // { redirectUrl }
+});
+
+router.get('/connect/:provider/callback', async (req, res) => {
+  const p = getProviderRegistry()[req.params.provider];
+  if (!p?.authCallback) return res.status(400).send('Unsupported');
+  await p.authCallback(Object.fromEntries(new URL(req.url, 'https://x').searchParams), '');
+  // redirect back to health page
+  res.redirect('/health?connected=' + encodeURIComponent(req.params.provider));
+});
+
+router.post('/health/sync', async (req, res) => {
+  const { provider } = req.body ?? {};
+  const p = getProviderRegistry()[provider];
+  if (!p?.fetchLatest) return res.status(400).json({ error: 'Unsupported' });
+  const sb = supabaseFromReq(req);
+  const { user } = (await sb.auth.getUser()).data;
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  const snap = await p.fetchLatest(user.id);
+  // you already have DAL for upserts; reuse it
+  // e.g., insertReport(user.id, snap)
+  res.json({ success: true, snapshot: snap });
+});
