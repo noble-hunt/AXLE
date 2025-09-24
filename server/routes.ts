@@ -23,6 +23,7 @@ import { registerGroupRoutes } from "./routes/groups";
 import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
 import healthRoutes from "./routes/health";
 import storageRouter from "./routes/storage";
+import profileLocationRouter from "./routes/profile-location";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Workout generation route (no auth required, handle 405 explicitly) - must be first to avoid conflicts
@@ -68,6 +69,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register health provider routes
   app.use("/api", healthRoutes);
+  
+  // Register profile location routes
+  app.use("/api", profileLocationRouter);
   
   // Register group routes
   registerGroupRoutes(app);
