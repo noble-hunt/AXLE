@@ -23,7 +23,6 @@ import { registerGroupRoutes } from "./routes/groups";
 import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
 import healthRoutes from "./routes/health";
 import storageRouter from "./routes/storage";
-import profileLocationRouter from "./routes/profile-location";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Workout generation route (no auth required, handle 405 explicitly) - must be first to avoid conflicts
@@ -70,8 +69,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register health provider routes
   app.use("/api", healthRoutes);
   
-  // Register profile location routes
-  app.use("/api", profileLocationRouter);
   
   // Register group routes
   registerGroupRoutes(app);
@@ -272,42 +269,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/me/location - Update user location for environment insights
-  const locationSchema = z.object({
-    lat: z.number().min(-90).max(90),
-    lon: z.number().min(-180).max(180),
+  // GET /api/me/location - Read current location consent + cache
+  app.get("/api/me/location", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      
+      const result = await db.execute(sql`
+        SELECT location_opt_in, location_consent_at, last_lat, last_lon, timezone
+        FROM profiles 
+        WHERE user_id = ${userId}
+      `);
+      
+      const profile = result?.rows?.[0];
+      
+      res.json({
+        optIn: profile?.location_opt_in ?? false,
+        consentAt: profile?.location_consent_at ?? null,
+        lat: profile?.last_lat ?? null,
+        lon: profile?.last_lon ?? null,
+        timezone: profile?.timezone ?? null,
+      });
+    } catch (error) {
+      console.error("Error fetching location consent:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // POST /api/me/location - Update consent; optionally refresh cached coords + tz
+  const locationUpdateSchema = z.object({
+    optIn: z.boolean(),
+    lat: z.number().min(-90).max(90).optional(),
+    lon: z.number().min(-180).max(180).optional(),
     timezone: z.string().optional()
   });
 
   app.post("/api/me/location", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
-      const validatedData = locationSchema.parse(req.body);
-      
-      // Quantize coordinates to 3 decimal places for privacy (~110m accuracy)
-      const quantizedLat = parseFloat(validatedData.lat.toFixed(3));
-      const quantizedLon = parseFloat(validatedData.lon.toFixed(3));
+      const validatedData = locationUpdateSchema.parse(req.body);
       
       const { db } = await import("./db");
       const { sql } = await import("drizzle-orm");
       
-      // Update location using raw SQL for reliability
-      const result = await db.execute(sql`
-        UPDATE profiles 
-        SET 
-          latitude = ${quantizedLat},
-          longitude = ${quantizedLon},
-          timezone = COALESCE(${validatedData.timezone}, timezone)
-        WHERE user_id = ${authReq.user.id}
-        RETURNING latitude, longitude, timezone
-      `);
-
-      if (!result || !result.rows || result.rows.length === 0) {
-        console.error('[location/update] No result returned from SQL');
-        return res.status(500).json({ message: 'Failed to update location' });
+      let updateSql;
+      
+      if (validatedData.optIn) {
+        if (typeof validatedData.lat === "number" && typeof validatedData.lon === "number") {
+          // Quantize coordinates to 3 decimal places for privacy (~110m accuracy)
+          const quantizedLat = parseFloat(validatedData.lat.toFixed(3));
+          const quantizedLon = parseFloat(validatedData.lon.toFixed(3));
+          updateSql = sql`
+            UPDATE profiles 
+            SET 
+              location_opt_in = ${validatedData.optIn},
+              location_consent_at = ${new Date().toISOString()},
+              last_lat = ${quantizedLat},
+              last_lon = ${quantizedLon}
+              ${validatedData.timezone ? sql`, timezone = ${validatedData.timezone}` : sql``}
+            WHERE user_id = ${authReq.user.id}
+            RETURNING user_id
+          `;
+        } else if (validatedData.timezone) {
+          updateSql = sql`
+            UPDATE profiles 
+            SET 
+              location_opt_in = ${validatedData.optIn},
+              location_consent_at = ${new Date().toISOString()},
+              timezone = ${validatedData.timezone}
+            WHERE user_id = ${authReq.user.id}
+            RETURNING user_id
+          `;
+        } else {
+          updateSql = sql`
+            UPDATE profiles 
+            SET 
+              location_opt_in = ${validatedData.optIn},
+              location_consent_at = ${new Date().toISOString()}
+            WHERE user_id = ${authReq.user.id}
+            RETURNING user_id
+          `;
+        }
+      } else {
+        // Clear cached coords and consent timestamp on opt-out (consent granted = null when opted out)
+        updateSql = sql`
+          UPDATE profiles 
+          SET 
+            location_opt_in = ${validatedData.optIn},
+            location_consent_at = NULL,
+            last_lat = NULL,
+            last_lon = NULL
+          WHERE user_id = ${authReq.user.id}
+          RETURNING user_id
+        `;
       }
 
-      console.log(`[LOCATION] Updated location for user ${authReq.user.id}: lat=${quantizedLat}, lon=${quantizedLon}, tz=${validatedData.timezone || 'unchanged'}`);
+      const result = await db.execute(updateSql);
+
+      if (!result || !result.rows || result.rows.length === 0) {
+        console.error('[location/update] No rows updated - user may not exist');
+        return res.status(500).json({ message: 'Failed to update location consent' });
+      }
+
+      console.log(`[LOCATION] Updated location consent for user ${authReq.user.id}: optIn=${validatedData.optIn}`);
       
       return res.status(200).json({ ok: true });
     } catch (error: any) {

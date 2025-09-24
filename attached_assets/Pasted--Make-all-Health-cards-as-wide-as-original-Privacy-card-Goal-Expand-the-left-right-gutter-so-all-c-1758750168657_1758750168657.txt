@@ -1,0 +1,124 @@
+“Make all Health cards as wide as original Privacy card”
+
+Goal
+Expand the left/right gutter so all cards above Privacy line up to the same width as the original Privacy card. Do not reduce Privacy width; instead increase everything else. Prevent any double-padding that narrows cards.
+
+1) Replace the Section wrapper with a wider gutter (mobile-first)
+
+Update client/src/components/layout/Section.tsx to use a wider mobile gutter and scale slightly up on larger breakpoints. (The earlier px-6 made things narrower.)
+
+// client/src/components/layout/Section.tsx
+import React from "react";
+
+/**
+ * Page gutter for the Health screen.
+ * Use a slightly smaller padding to make content WIDER.
+ * This matches the original Privacy card visual width.
+ *
+ * Mobile:  px-4  (16px per side)
+ * >=sm:    px-5  (20px per side)
+ * >=md:    px-6  (24px per side) – optional headroom on tablets
+ */
+export default function Section({
+  children,
+  className,
+}: React.PropsWithChildren<{ className?: string }>) {
+  return <div className={`w-full px-4 sm:px-5 md:px-6 ${className ?? ""}`}>{children}</div>;
+}
+
+
+If Privacy still looks wider on your device, drop mobile to px-3 (12px) and keep sm:px-5 md:px-6. But px-4 usually matches the original Privacy look on typical mobile widths.
+
+2) Ensure everything on the Health page uses Section exactly once
+
+Edit client/src/pages/health.tsx (or your Health page) so each block is wrapped by Section once and not nested in extra containers that add horizontal padding:
+
+import Section from "@/components/layout/Section";
+import { PageTitle, SectionTitle } from "@/components/typography/Heading";
+import ProviderCard from "@/components/health/ProviderCard";
+
+/* A) Title + Stat tiles */
+<Section>
+  <PageTitle>Connect Health Providers</PageTitle>
+  <div className="grid grid-cols-2 gap-4">
+    <div className="rounded-2xl bg-[#1d1f24] px-5 py-6 shadow">{/* Connected */}</div>
+    <div className="rounded-2xl bg-[#1d1f24] px-5 py-6 shadow">{/* Available */}</div>
+  </div>
+</Section>
+
+/* B) Development Mode row (center the label vertically) */
+<Section className="mt-4">
+  <div className="rounded-2xl bg-[#1d1f24] h-14 px-5 flex items-center justify-between shadow">
+    <div className="flex items-center gap-3">
+      <span className="i-lucide-settings h-5 w-5 opacity-80" />
+      <span className="text-base font-medium text-white">Development Mode</span>
+    </div>
+    <DevModeSwitch />
+  </div>
+</Section>
+
+/* C) Providers header + list (full width) */
+<Section className="mt-6">
+  <SectionTitle>Health Providers</SectionTitle>
+  <div className="flex flex-col gap-3">
+    {/* ProviderCard elements */}
+  </div>
+</Section>
+
+/* D) Privacy card – IMPORTANT: also inside a SINGLE <Section>, no extra horizontal wrappers */
+<Section className="mt-6">
+  {/* Privacy Settings card as-is */}
+</Section>
+
+
+Important sanity check:
+Search the file for other wrappers like container, mx-4, px-6, etc., around these blocks. Remove any extra horizontal padding on parents. The only horizontal padding should come from Section.
+
+3) ProviderCard must be full-width within Section (no extra margins)
+
+Verify client/src/components/health/ProviderCard.tsx outer container:
+
+<div className="w-full rounded-2xl bg-[#1d1f24] shadow px-5 py-4">
+  {/* ... */}
+</div>
+
+
+No mx-* or extra px-* on parent containers other than the card’s internal px-5 (that’s inner padding, not page gutter).
+
+Keep actions stacked and compact:
+
+{/* Right action column */}
+<div className="flex flex-col items-stretch gap-2 shrink-0 w-36">
+  <button className="h-9 rounded-xl text-sm font-medium ...">Sync Now</button>
+  <button className="h-9 rounded-xl text-sm font-medium ...">Disconnect</button>
+</div>
+
+4) Headings parity
+
+Ensure:
+
+<PageTitle>Connect Health Providers</PageTitle>
+<SectionTitle>Health Providers</SectionTitle>
+
+
+Both components should render at text-3xl font-bold per your Heading.tsx. If not, align the styles there.
+
+5) Remove any double-wrapping of the Privacy card
+
+If the Privacy card sits inside another layout component (e.g., a page-level container with padding), remove that extra padding or convert it to a simple div without px-*. The Privacy card should only receive width from the same Section as everything else.
+
+Acceptance Criteria
+
+On mobile, all cards (Connected, Available, Dev Mode row, every Provider card, Privacy Settings) share identical left/right edges and are as wide as the original Privacy card (i.e., wider than before).
+
+There is no double horizontal padding anywhere; no card is narrower than others.
+
+Provider action buttons are stacked vertically, compact, and fully inside the card with comfortable spacing (no overlap or clipping).
+
+The “Development Mode” label is vertically centered with its switch.
+
+“Connect Health Providers” and “Health Providers” headings use the same font size/weight and align visually.
+
+No horizontal scrolling on iOS Safari/Chrome Android; text does not clip at the edges.
+
+If it’s still a hair narrower than your original Privacy look, lower the mobile gutter once more (change px-4 → px-3 in Section.tsx) and re-run. The point is: we widen the content by reducing the gutter, not by shrinking Privacy.
