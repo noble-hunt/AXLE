@@ -1,0 +1,16 @@
+/* Buttons baseline */
+.btn { 
+  @apply rounded-xl px-4 py-2 text-sm font-medium whitespace-nowrap; 
+}
+
+.btn-primary { 
+  @apply bg-blue-600 text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400; 
+}
+
+.btn-danger { 
+  @apply bg-red-600/90 text-white hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400; 
+}
+
+.btn-ghost { 
+  @apply border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-400; 
+}

@@ -366,124 +366,131 @@ export default function Connect() {
       )}
 
       {/* Health Providers Grid */}
-      <div className="space-y-4">
+      <div className="mx-auto w-full max-w-[1100px] px-4 md:px-6">
         <SectionTitle title="Health Providers" />
         
-        <div className="mx-auto max-w-[720px]">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {enrichedProviders.map((provider: AllProviderInfo) => {
-              const isUnavailable = !provider.supported
-              return (
-                <div key={provider.id} className="relative">
-                <ProviderCard
-                  id={provider.id}
-                  title={provider.name}
-                  subtitle={provider.description}
-                  status={isUnavailable ? 'unavailable' : toStatus(provider)}
-                  lastSync={provider.last_sync ? new Date(provider.last_sync).toLocaleTimeString() : null}
-                  busy={busy === provider.id || busy === 'sync:'+provider.id}
-                  disabled={isUnavailable}
-                  badge={provider.id === 'Garmin' ? 'Beta' : undefined}
-                  onConnect={isUnavailable ? undefined : async () => {
-                    setBusy(provider.id)
-                    try {
-                      const token = (await supabase.auth.getSession()).data.session?.access_token
-                      const r = await fetch(`/api/connect/${provider.id}/start`, {
-                        method: 'POST',
-                        headers: { Authorization: `Bearer ${token ?? ''}` }
-                      })
-                      const { redirectUrl, error, connected } = await r.json()
-                      if (error) throw new Error(error)
-                      
-                      if (redirectUrl) {
-                        window.location.href = redirectUrl
-                      } else if (connected) {
-                        await loadProviders()
-                        await fetchReports()
-                        toast({
-                          title: "Connected",
-                          description: `Successfully connected to ${provider.name}`,
-                        })
-                      }
-                    } catch (e: any) { 
-                      toast({
-                        title: "Connection Failed",
-                        description: e.message,
-                        variant: "destructive",
-                      })
-                    }
-                    finally { setBusy(null) }
-                  }}
-                  onSync={isUnavailable ? undefined : async () => {
-                    setBusy('sync:'+provider.id)
-                    try {
-                      const params = provider.id === 'Mock' && devMode ? {
-                        stress: mockStress,
-                        sleep: mockSleep
-                      } : undefined
-                      
-                      await syncProviderNow(provider.id, params)
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+          {enrichedProviders.map((provider: AllProviderInfo) => {
+            const isUnavailable = !provider.supported
+            const status = isUnavailable ? 'unavailable' : toStatus(provider)
+            
+            // Choose badge
+            const badge = 
+              status === 'unavailable' ? 'Unavailable' : 
+              provider.id === 'Garmin' ? 'Beta' : 
+              null;
+
+            return (
+              <ProviderCard
+                key={provider.id}
+                id={provider.id}
+                title={
+                  provider.id === 'Mock' ? 'Mock Provider' :
+                  provider.id === 'Whoop' ? 'WHOOP 4.0' :
+                  provider.id === 'Oura' ? 'Oura Ring' :
+                  provider.id === 'Garmin' ? 'Garmin Connect' :
+                  provider.name
+                }
+                subtitle={
+                  provider.id === 'Mock' 
+                    ? 'Development testing provider'
+                    : provider.description || undefined
+                }
+                status={status as any}
+                lastSync={provider.last_sync ? new Date(provider.last_sync).toLocaleTimeString() : null}
+                busy={busy === provider.id || busy === 'sync:'+provider.id}
+                badge={badge as any}
+                onConnect={isUnavailable ? undefined : async () => {
+                  setBusy(provider.id)
+                  try {
+                    const token = (await supabase.auth.getSession()).data.session?.access_token
+                    const r = await fetch(`/api/connect/${provider.id}/start`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token ?? ''}` }
+                    })
+                    const { redirectUrl, error, connected } = await r.json()
+                    if (error) throw new Error(error)
+                    
+                    if (redirectUrl) {
+                      window.location.href = redirectUrl
+                    } else if (connected) {
                       await loadProviders()
+                      await fetchReports()
                       toast({
-                        title: "Sync Complete",
-                        description: `Successfully synced data from ${provider.name}`,
-                      })
-                    } catch (e: any) { 
-                      toast({
-                        title: "Sync Failed", 
-                        description: e.message || "Unable to sync data. Please try again.",
-                        variant: "destructive",
+                        title: "Connected",
+                        description: `Successfully connected to ${provider.name}`,
                       })
                     }
-                    finally { setBusy(null) }
-                  }}
-                  onDisconnect={isUnavailable ? undefined : async () => {
-                    setBusy(provider.id)
-                    try {
-                      const token = (await supabase.auth.getSession()).data.session?.access_token
-                      const r = await fetch(`/api/connect/${provider.id}/disconnect`, {
-                        method: 'POST',
-                        headers: { Authorization: `Bearer ${token ?? ''}` }
-                      })
-                      const j = await r.json()
-                      if (!r.ok) throw new Error(j?.error || 'disconnect failed')
-                      
-                      await loadProviders()
-                      toast({
-                        title: "Disconnected",
-                        description: `Successfully disconnected from ${provider.name}`,
-                      })
-                    } catch (e: any) { 
-                      toast({
-                        title: "Disconnect Failed",
-                        description: e.message,
-                        variant: "destructive",
-                      })
-                    }
-                    finally { setBusy(null) }
-                  }}
-                />
-                {isUnavailable && (
-                  <div className="absolute top-2 right-2">
-                    <Badge variant="secondary" className="text-xs">
-                      Unavailable
-                    </Badge>
-                  </div>
-                )}
-              </div>
-            )
-            })}
-          </div>
+                  } catch (e: any) { 
+                    toast({
+                      title: "Connection Failed",
+                      description: e.message,
+                      variant: "destructive",
+                    })
+                  }
+                  finally { setBusy(null) }
+                }}
+                onSync={isUnavailable ? undefined : async () => {
+                  setBusy('sync:'+provider.id)
+                  try {
+                    const params = provider.id === 'Mock' && devMode ? {
+                      stress: mockStress,
+                      sleep: mockSleep
+                    } : undefined
+                    
+                    await syncProviderNow(provider.id, params)
+                    await loadProviders()
+                    toast({
+                      title: "Sync Complete",
+                      description: `Successfully synced data from ${provider.name}`,
+                    })
+                  } catch (e: any) { 
+                    toast({
+                      title: "Sync Failed", 
+                      description: e.message || "Unable to sync data. Please try again.",
+                      variant: "destructive",
+                    })
+                  }
+                  finally { setBusy(null) }
+                }}
+                onDisconnect={isUnavailable ? undefined : async () => {
+                  setBusy(provider.id)
+                  try {
+                    const token = (await supabase.auth.getSession()).data.session?.access_token
+                    const r = await fetch(`/api/connect/${provider.id}/disconnect`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token ?? ''}` }
+                    })
+                    const j = await r.json()
+                    if (!r.ok) throw new Error(j?.error || 'disconnect failed')
+                    
+                    await loadProviders()
+                    toast({
+                      title: "Disconnected",
+                      description: `Successfully disconnected from ${provider.name}`,
+                    })
+                  } catch (e: any) { 
+                    toast({
+                      title: "Disconnect Failed",
+                      description: e.message,
+                      variant: "destructive",
+                    })
+                  }
+                  finally { setBusy(null) }
+                }}
+              />
+            );
+          })}
         </div>
-        
-        {enrichedProviders.length === 0 && (
-          <Card className="p-8 text-center" data-testid="no-providers">
-            <Wifi className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No Providers Available</h3>
-            <p className="text-muted-foreground">Health providers will appear here when configured.</p>
-          </Card>
-        )}
       </div>
+      
+      {enrichedProviders.length === 0 && (
+        <Card className="p-8 text-center" data-testid="no-providers">
+          <Wifi className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Providers Available</h3>
+          <p className="text-muted-foreground">Health providers will appear here when configured.</p>
+        </Card>
+      )}
 
       {/* Privacy Settings */}
       <Card className="p-4 card-shadow border border-border">

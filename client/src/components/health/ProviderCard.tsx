@@ -1,74 +1,126 @@
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
+import React from "react";
+import clsx from "clsx";
+
+type Status = "connected" | "disconnected" | "error" | "unavailable";
 
 type Props = {
   id: string;
   title: string;
   subtitle?: string;
-  status?: 'connected' | 'disconnected' | 'error' | 'unavailable';
+  status: Status;
   lastSync?: string | null;
+  busy?: boolean;
+  badge?: "Unavailable" | "Beta" | null;
   onConnect?: () => void;
   onSync?: () => void;
   onDisconnect?: () => void;
-  busy?: boolean;
-  disabled?: boolean;
-  badge?: string;
 };
 
 export function ProviderCard({
-  id, title, subtitle, status = 'disconnected', lastSync, onConnect, onSync, onDisconnect, busy, disabled = false, badge
+  id,
+  title,
+  subtitle,
+  status,
+  lastSync,
+  busy,
+  badge,
+  onConnect,
+  onSync,
+  onDisconnect,
 }: Props) {
   const dot =
-    status === 'connected' ? 'bg-green-500' :
-    status === 'error' ? 'bg-red-500' :
-    status === 'unavailable' ? 'bg-gray-300' : 'bg-gray-500';
-  
-  const statusText =
-    status === 'connected' ? 'Connected' :
-    status === 'unavailable' ? 'Unavailable' : 'Not connected';
+    status === "connected"
+      ? "bg-green-500"
+      : status === "error"
+      ? "bg-red-500"
+      : "bg-gray-500";
+
+  const disabled = status === "unavailable";
 
   return (
-    <div className={`rounded-2xl bg-card p-4 flex flex-col gap-3 border border-border ${disabled ? 'opacity-60' : ''}`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="text-lg font-semibold text-card-foreground">{title}</div>
-            {badge && <Badge variant="secondary" className="text-xs">{badge}</Badge>}
-          </div>
-          {subtitle && <div className="text-muted-foreground text-sm">{subtitle}</div>}
-          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-            <span className={`inline-block w-2 h-2 rounded-full ${dot}`} />
-            {statusText}
-            {lastSync && status !== 'unavailable' && <span className="ml-2">• Last sync: {lastSync}</span>}
-          </div>
+    <div
+      className={clsx(
+        "relative rounded-2xl bg-card shadow/20 shadow-black/10",
+        "p-4 flex flex-col justify-between min-h-[220px]",
+        "border border-border"
+      )}
+    >
+      {/* Badge (pinned) */}
+      {badge && (
+        <span
+          className={clsx(
+            "absolute top-3 right-3 z-10",
+            "rounded-full px-2.5 py-1 text-xs font-semibold",
+            badge === "Unavailable"
+              ? "bg-white text-black"
+              : "bg-white/20 text-white backdrop-blur"
+          )}
+        >
+          {badge}
+        </span>
+      )}
+
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold leading-tight truncate">{title}</h3>
+          {subtitle && (
+            <p className="mt-1 text-sm text-muted-foreground leading-snug line-clamp-2">
+              {subtitle}
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        {disabled || status === 'unavailable' ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="w-full text-center text-sm text-muted-foreground py-2">
-                  Provider configuration required
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Configure in Settings</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : status !== 'connected' ? (
-          <button className="btn w-full" onClick={onConnect} disabled={busy}>
+      {/* Status & meta */}
+      <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2">
+        <span className={clsx("inline-block w-2 h-2 rounded-full", dot)} />
+        <span className="capitalize">
+          {status === "unavailable" ? "Unavailable" : status}
+        </span>
+        {lastSync && status === "connected" && (
+          <span className="before:content-['•'] before:mx-2">
+            Last sync: {lastSync}
+          </span>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="mt-4">
+        {/* Unavailable → disabled */}
+        {status === "unavailable" ? (
+          <button
+            disabled
+            className="w-full cursor-not-allowed opacity-60 select-none rounded-xl border border-white/10 px-4 py-2 text-sm"
+            title="Provider configuration required"
+          >
             Connect
           </button>
-        ) : (
-          <>
-            <button className="btn flex-1" onClick={onSync} disabled={busy}>Sync Now</button>
-            <button className="btn-destructive flex-1" onClick={onDisconnect} disabled={busy}>
+        ) : status === "connected" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={onSync}
+              disabled={busy}
+              className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {busy ? "Syncing…" : "Sync Now"}
+            </button>
+            <button
+              onClick={onDisconnect}
+              disabled={busy}
+              className="rounded-xl bg-red-600/90 hover:bg-red-600 text-white px-4 py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-400"
+            >
               Disconnect
             </button>
-          </>
+          </div>
+        ) : (
+          <button
+            onClick={onConnect}
+            disabled={busy}
+            className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            {busy ? "Connecting…" : "Connect"}
+          </button>
         )}
       </div>
     </div>

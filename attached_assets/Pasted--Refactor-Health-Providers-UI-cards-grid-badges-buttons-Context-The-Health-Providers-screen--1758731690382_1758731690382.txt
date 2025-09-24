@@ -1,0 +1,253 @@
+“Refactor Health Providers UI (cards, grid, badges, buttons)”
+
+Context: The Health Providers screen shows misaligned cards, overlapping chips/tooltips, buttons wrapping (“Sync↵Now”), and inconsistent spacing. Make the layout responsive and visually consistent.
+
+Changes to implement:
+
+Create/replace client/src/components/health/ProviderCard.tsx:
+
+import React from "react";
+import clsx from "clsx";
+
+type Status = "connected" | "disconnected" | "error" | "unavailable";
+
+type Props = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  status: Status;
+  lastSync?: string | null;
+  busy?: boolean;
+  badge?: "Unavailable" | "Beta" | null;
+  onConnect?: () => void;
+  onSync?: () => void;
+  onDisconnect?: () => void;
+};
+
+export function ProviderCard({
+  id,
+  title,
+  subtitle,
+  status,
+  lastSync,
+  busy,
+  badge,
+  onConnect,
+  onSync,
+  onDisconnect,
+}: Props) {
+  const dot =
+    status === "connected"
+      ? "bg-green-500"
+      : status === "error"
+      ? "bg-red-500"
+      : "bg-gray-500";
+
+  const disabled = status === "unavailable";
+
+  return (
+    <div
+      className={clsx(
+        "relative rounded-2xl bg-[--layer-2] shadow/20 shadow-black/10",
+        "p-4 flex flex-col justify-between min-h-[220px]",
+        "border border-white/5"
+      )}
+    >
+      {/* Badge (pinned) */}
+      {badge && (
+        <span
+          className={clsx(
+            "absolute top-3 right-3 z-10",
+            "rounded-full px-2.5 py-1 text-xs font-semibold",
+            badge === "Unavailable"
+              ? "bg-white text-black"
+              : "bg-white/20 text-white backdrop-blur"
+          )}
+        >
+          {badge}
+        </span>
+      )}
+
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold leading-tight truncate">{title}</h3>
+          {subtitle && (
+            <p className="mt-1 text-sm text-[--muted] leading-snug line-clamp-2">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Status & meta */}
+      <div className="mt-3 text-xs text-[--muted] flex items-center gap-2">
+        <span className={clsx("inline-block w-2 h-2 rounded-full", dot)} />
+        <span className="capitalize">
+          {status === "unavailable" ? "Unavailable" : status}
+        </span>
+        {lastSync && status === "connected" && (
+          <span className="before:content-['•'] before:mx-2">
+            Last sync: {lastSync}
+          </span>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="mt-4">
+        {/* Unavailable → disabled */}
+        {status === "unavailable" ? (
+          <button
+            disabled
+            className="w-full cursor-not-allowed opacity-60 select-none rounded-xl border border-white/10 px-4 py-2 text-sm"
+            title="Provider configuration required"
+          >
+            Connect
+          </button>
+        ) : status === "connected" ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={onSync}
+              disabled={busy}
+              className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 text-sm font-medium whitespace-nowrap"
+            >
+              {busy ? "Syncing…" : "Sync Now"}
+            </button>
+            <button
+              onClick={onDisconnect}
+              disabled={busy}
+              className="rounded-xl bg-red-600/90 hover:bg-red-600 text-white px-4 py-2 text-sm font-medium whitespace-nowrap"
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onConnect}
+            disabled={busy}
+            className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 text-sm font-medium whitespace-nowrap"
+          >
+            {busy ? "Connecting…" : "Connect"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+Update grid layout on the providers screen so cards don’t drift and spacing is consistent.
+
+Edit client/src/pages/health/providers/ProvidersPage.tsx (or wherever you render the list):
+
+// imports…
+import { ProviderCard } from "@/components/health/ProviderCard";
+
+// inside component render:
+return (
+  <div className="mx-auto w-full max-w-[1100px] px-4 md:px-6">
+    <h1 className="text-3xl font-bold mb-4">Health Providers</h1>
+
+    <div
+      className={`
+        grid gap-4
+        grid-cols-1
+        sm:grid-cols-2
+        lg:grid-cols-3
+      `}
+    >
+      {providers.map((p) => {
+        const conn = connectionsById[p.id];
+        const status =
+          !p.available
+            ? ("unavailable" as const)
+            : conn?.status === "connected"
+            ? ("connected" as const)
+            : conn?.status === "error"
+            ? ("error" as const)
+            : ("disconnected" as const);
+
+        // choose badge
+        const badge =
+          status === "unavailable" ? "Unavailable" : p.id === "Garmin" ? "Beta" : null;
+
+        return (
+          <ProviderCard
+            key={p.id}
+            id={p.id}
+            title={
+              p.id === "Mock" ? "Mock Provider"
+              : p.id === "Whoop" ? "WHOOP 4.0"
+              : p.id === "Oura" ? "Oura Ring"
+              : p.id === "Garmin" ? "Garmin Connect"
+              : p.id
+            }
+            subtitle={
+              p.id === "Mock"
+                ? "Development testing provider"
+                : p.description || undefined
+            }
+            status={status}
+            lastSync={
+              conn?.last_sync
+                ? new Date(conn.last_sync).toLocaleTimeString()
+                : null
+            }
+            badge={badge as any}
+            busy={busy === p.id || busy === "sync:" + p.id}
+            onConnect={() => handleConnect(p.id)}
+            onSync={() => handleSync(p.id)}
+            onDisconnect={() => handleDisconnect(p.id)}
+          />
+        );
+      })}
+    </div>
+  </div>
+);
+
+
+Remove overlapping tooltips: search this page and delete any data-tip/Tooltip wrappers that hover over the action row. They are the source of that dark overlay.
+
+Button utility classes (ensure consistent one-line labels):
+
+Add (or ensure) the following base classes in a shared CSS file (e.g., client/src/styles/buttons.css) and import it once in your app entry:
+
+/* Buttons baseline */
+.btn { @apply rounded-xl px-4 py-2 text-sm font-medium whitespace-nowrap; }
+.btn-primary { @apply bg-blue-600 text-white hover:bg-blue-500; }
+.btn-danger { @apply bg-red-600/90 text-white hover:bg-red-600; }
+.btn-ghost { @apply border border-white/10; }
+
+
+Content truncation & height consistency:
+
+Title uses truncate.
+
+Subtitle uses line-clamp-2. Ensure the Tailwind line-clamp plugin is enabled; if not, add it to tailwind.config.js (plugins: [require('@tailwindcss/line-clamp')]), then restart dev server.
+
+Make “Development Mode” row not push cards (if it sits above the grid):
+
+Wrap the dev-toggle row in its own container with mb-4 and avoid absolute/fixed elements near the grid.
+
+<div className="mx-auto w-full max-w-[1100px] px-4 md:px-6 mb-4">
+  {/* Dev toggle section */}
+</div>
+
+
+Accessibility & focus:
+
+Ensure buttons are focusable and visible: Tailwind already gives outline; add focus:outline-none focus:ring-2 focus:ring-blue-400 to the button classes if your global reset removed it.
+
+Acceptance Criteria
+
+Mobile (≤430px): Grid is 1 column, cards full-width, no chip/badge overlaps; action buttons are single-line; no black overlay covers action row.
+
+Tablet (≥768px): Grid is 2 columns with equal gaps; cards align top; badges pinned top-right; no horizontal drift.
+
+Desktop (≥1024px): Grid is 3 columns; cards maintain consistent min height; long titles/subtitles truncate neatly.
+
+Unavailable providers: Card is visible but disabled (faded), “Unavailable” chip pinned, Connect button disabled with tooltip title “Provider configuration required”.
+
+Connected providers: “Sync Now” and “Disconnect” appear on the same row; clicking doesn’t shift layout; “Last sync” shows in small muted text.
+
+No tooltips or overlays obstructing buttons anywhere on the page.
