@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, CheckCircle, AlertCircle, Clock } from "lucide-react"
 import { supabase } from '@/lib/supabase'
 import { useToast } from "@/hooks/use-toast"
+import { useAppStore } from "@/store/useAppStore"
 
 type ProviderInfo = { 
   id: string; 
@@ -25,6 +26,7 @@ export default function Connect() {
   const [mockStress, setMockStress] = useState(5)
   const [mockSleep, setMockSleep] = useState(75)
   const { toast } = useToast()
+  const { fetchReports } = useAppStore()
   
   // Load providers and connections on mount
   useEffect(() => {
@@ -178,6 +180,7 @@ export default function Connect() {
       if (!r.ok) throw new Error(j?.error || 'sync failed')
       
       await loadProviders() // Refresh to update last sync time
+      await fetchReports() // Refresh health dashboard data
       toast({
         title: "Sync Complete",
         description: `Successfully synced data from ${getProviderInfo(providerId).displayName}`,
