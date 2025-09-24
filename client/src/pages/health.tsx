@@ -15,7 +15,8 @@ export default function Health() {
     fetchReports,
     fetchConnections,
     getRecentReports,
-    getLatestReport
+    getLatestReport,
+    loadHealthCharts
   } = useAppStore()
   
   const [loading, setLoading] = useState(true)
@@ -27,7 +28,8 @@ export default function Health() {
       try {
         await Promise.all([
           fetchReports(),
-          fetchConnections()
+          fetchConnections(),
+          loadHealthCharts()
         ])
       } catch (error) {
         console.error('Failed to load health data:', error)
@@ -36,7 +38,7 @@ export default function Health() {
       }
     }
     loadHealthData()
-  }, [fetchReports, fetchConnections])
+  }, [fetchReports, fetchConnections, loadHealthCharts])
   
   const latestReport = getLatestReport()
   const recentReports = getRecentReports(14)

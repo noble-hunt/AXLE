@@ -1928,6 +1928,9 @@ export const useAppStore = create<AppState>()(
       // Reports
       reports: seedReports,
       
+      // Charts state
+      charts: {} as Record<any, { date: string; value: number | null }[]>,
+      
       addReport: (reportData) => {
         const report: HealthReport = {
           ...reportData,
@@ -1947,6 +1950,21 @@ export const useAppStore = create<AppState>()(
       getLatestReport: () => {
         const reports = get().reports;
         return reports.sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+      },
+
+      loadHealthCharts: async (days = 14) => {
+        try {
+          const { authFetch } = await import('@/lib/authFetch');
+          const r = await authFetch(`/api/health/metrics?days=${days}`);
+          if (!r.ok) return;
+          const { points } = await r.json();
+          const keys = ["axle_health_score","vitality_score","performance_potential","circadian_alignment","energy_systems_balance","hrv","resting_hr","sleep_score","fatigue_score"];
+          const charts: any = {};
+          for (const k of keys) charts[k] = points.map((p: any) => ({ date: p.date, value: (p[k] ?? null) }));
+          set({ charts });
+        } catch (error) {
+          console.error('Failed to load health charts:', error);
+        }
       },
 
       // Server data loading methods

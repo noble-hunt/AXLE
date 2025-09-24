@@ -406,11 +406,23 @@ export interface WearableState {
   fetchReports: () => Promise<void>;
 }
 
+// Health metrics types
+type MetricPoint = { date: string; value: number | null };
+type HealthCharts = {
+  series: MetricPoint[];
+  last?: MetricPoint;
+};
+type MetricKey =
+  | "axle_health_score" | "vitality_score" | "performance_potential" | "circadian_alignment" | "energy_systems_balance"
+  | "hrv" | "resting_hr" | "sleep_score" | "fatigue_score";
+
 export interface ReportState {
   reports: HealthReport[];
+  charts: Record<MetricKey, { date: string; value: number | null }[]>;
   addReport: (report: Omit<HealthReport, 'id' | 'createdAt'>) => void;
   getRecentReports: (days: number) => HealthReport[];
   getLatestReport: () => HealthReport | undefined;
+  loadHealthCharts: (days?: number) => Promise<void>;
 }
 
 
