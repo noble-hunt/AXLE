@@ -1,0 +1,113 @@
+Frontend wiring (providers screen)
+
+Goal: show available providers, connect flows, sync now, and accurate “Available/Connected” counts.
+
+Files
+
+client/src/pages/health/providers/ProvidersPage.tsx (or wherever your “Connect Health Providers” UI lives)
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+
+type ProviderInfo = { id: string; available: boolean; };
+
+export default function ProvidersPage() {
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [connected, setConnected] = useState<string[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const r = await fetch('/api/connect/providers'); // { providers: [{id,available}] }
+      const { providers } = await r.json();
+      setProviders(providers);
+
+      // optional: fetch connection statuses if you have endpoint
+      // otherwise, infer from your existing store after you call fetchConnections()
+    })();
+  }, []);
+
+  async function connect(id: string) {
+    setBusy(id);
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const r = await fetch(`/api/connect/${id}/start`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token ?? ''}` }
+      });
+      const { redirectUrl, error } = await r.json();
+      if (error) throw new Error(error);
+      window.location.href = redirectUrl; // go to OAuth
+    } catch (e:any) {
+      alert(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function syncNow(id: string) {
+    setBusy('sync:'+id);
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const r = await fetch('/api/health/sync', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
+        body: JSON.stringify({ provider: id })
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'sync failed');
+      // trigger your existing fetchReports() to refresh charts
+    } catch (e:any) { alert(e.message); }
+    finally { setBusy(null); }
+  }
+
+  const available = providers.filter(p => p.available);
+  const connectedCount = connected.length; // fill from your store if you already have it
+
+  return (
+    <div className="px-4 pb-24">
+      <div className="grid grid-cols-2 gap-4 my-4">
+        <StatCard label="Connected" value={connectedCount} />
+        <StatCard label="Available" value={available.length} />
+      </div>
+
+      <h2 className="text-2xl font-bold my-4">Health Providers</h2>
+
+      {available.length === 0 && (
+        <EmptyCard title="No Providers Available" subtitle="Health providers will appear here when configured." />
+      )}
+
+      <div className="flex flex-col gap-3">
+        {available.map(p => (
+          <div key={p.id} className="rounded-2xl bg-[--layer-2] p-4 flex items-center justify-between">
+            <div className="font-medium">{p.id}</div>
+            <div className="flex gap-2">
+              <button className="btn" onClick={() => connect(p.id)} disabled={!!busy}>Connect</button>
+              <button className="btn" onClick={() => syncNow(p.id)} disabled={!!busy}>Sync Now</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({label,value}:{label:string;value:number}) {
+  return (
+    <div className="rounded-2xl bg-[--layer-2] p-6 text-center">
+      <div className="text-3xl font-semibold">{value}</div>
+      <div className="text-[--muted]">{label}</div>
+    </div>
+  );
+}
+function EmptyCard({title,subtitle}:{title:string;subtitle:string}) {
+  return (
+    <div className="rounded-3xl bg-[--layer-2] p-8 text-center text-[--muted] my-4">
+      <div className="text-xl font-semibold text-white/95 mb-1">{title}</div>
+      <div>{subtitle}</div>
+    </div>
+  );
+}
+
+
+If you already have a providers page/component, just replace the list & button handlers with the above logic.
