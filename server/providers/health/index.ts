@@ -25,8 +25,14 @@ export function getProviderRegistry(): Record<string, HealthProvider> {
 
 export function listAvailableProviders() {
   const reg = getProviderRegistry();
-  return Object.keys(reg).map(id => ({
-    id,
-    available: true,
-  }));
+  const allProviders = ['Mock', 'Fitbit', 'Whoop', 'Oura', 'Garmin'];
+  
+  return allProviders.map(id => {
+    const provider = reg[id];
+    return {
+      id,
+      available: !!provider,
+      hasConfig: provider?.hasConfig() || false,
+    };
+  });
 }

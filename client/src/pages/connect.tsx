@@ -19,6 +19,18 @@ type ProviderInfo = {
   error: string | null;
 };
 
+type AllProviderInfo = {
+  id: string;
+  name: string;
+  description: string;
+  icon: any;
+  supported: boolean;
+  connected: boolean;
+  last_sync: string | null;
+  status: string;
+  error: string | null;
+};
+
 export default function Connect() {
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [busy, setBusy] = useState<string | null>(null)
@@ -117,8 +129,9 @@ export default function Connect() {
     return { status: 'disconnected', color: 'bg-gray-400', text: 'Disconnected', icon: Clock }
   }
 
-  function toStatus(provider?: ProviderInfo): 'connected' | 'disconnected' | 'error' {
+  function toStatus(provider?: ProviderInfo | AllProviderInfo): 'connected' | 'disconnected' | 'error' | 'unavailable' {
     if (!provider) return 'disconnected'
+    if (!provider.supported) return 'unavailable'
     if (provider.connected) return 'connected'
     if (provider.error) return 'error'
     return 'disconnected'
@@ -226,9 +239,32 @@ export default function Connect() {
     }
   }
   
-  const availableProviders = providers.filter(p => p.supported)
-  const connectedCount = providers.filter(p => p.connected).length
+  // Define all possible providers with their metadata
+  const allProviders = [
+    { id: 'Mock', name: 'Mock Provider', description: 'Development testing provider', icon: Settings },
+    { id: 'Fitbit', name: 'Fitbit', description: 'Fitbit wearable devices', icon: Heart },
+    { id: 'Whoop', name: 'WHOOP 4.0', description: 'WHOOP fitness tracker', icon: Heart },
+    { id: 'Oura', name: 'Oura Ring', description: 'Oura ring health tracker', icon: Heart },
+    { id: 'Garmin', name: 'Garmin Connect', description: 'Garmin wearable devices', icon: Watch },
+  ];
+
+  // Merge with actual provider data
+  const enrichedProviders = allProviders.map(providerMeta => {
+    const providerData = providers.find(p => p.id === providerMeta.id);
+    return {
+      ...providerMeta,
+      supported: providerData?.supported || false,
+      connected: providerData?.connected || false,
+      last_sync: providerData?.last_sync || null,
+      status: providerData?.status || 'disconnected',
+      error: providerData?.error || null,
+    };
+  });
+
+  const availableProviders = enrichedProviders.filter(p => p.supported)
+  const connectedCount = enrichedProviders.filter(p => p.connected).length
   const availableCount = availableProviders.length
+  const unavailableCount = enrichedProviders.filter(p => !p.supported).length
 
   if (loading) {
     return (
@@ -327,114 +363,122 @@ export default function Connect() {
         <SectionTitle title="Health Providers" />
         
         <div className="flex flex-col gap-3">
-          {availableProviders.map((provider: ProviderInfo) => {
-            const providerInfo = getProviderInfo(provider.id)
-            const conn = connectionsById[provider.id]
+          {enrichedProviders.map((provider: AllProviderInfo) => {
+            const isUnavailable = !provider.supported
             return (
-              <ProviderCard
-                key={provider.id}
-                id={provider.id}
-                title={provider.id === 'Mock' ? 'Mock Provider' : provider.id}
-                subtitle={provider.id === 'Mock' ? 'Development testing provider' : providerInfo.description}
-                status={toStatus(conn)}
-                lastSync={conn?.last_sync ? new Date(conn.last_sync).toLocaleTimeString() : null}
-                busy={busy === provider.id || busy === 'sync:'+provider.id}
-                onConnect={async () => {
-                  setBusy(provider.id)
-                  try {
-                    const token = (await supabase.auth.getSession()).data.session?.access_token
-                    const r = await fetch(`/api/connect/${provider.id}/start`, {
-                      method: 'POST',
-                      headers: { Authorization: `Bearer ${token ?? ''}` }
-                    })
-                    const { redirectUrl, error, connected } = await r.json()
-                    if (error) throw new Error(error)
-                    
-                    if (redirectUrl) {
-                      window.location.href = redirectUrl
-                    } else if (connected) {
+              <div key={provider.id} className="relative">
+                <ProviderCard
+                  id={provider.id}
+                  title={provider.name}
+                  subtitle={provider.description}
+                  status={isUnavailable ? 'unavailable' : toStatus(provider)}
+                  lastSync={provider.last_sync ? new Date(provider.last_sync).toLocaleTimeString() : null}
+                  busy={busy === provider.id || busy === 'sync:'+provider.id}
+                  disabled={isUnavailable}
+                  onConnect={isUnavailable ? undefined : async () => {
+                    setBusy(provider.id)
+                    try {
+                      const token = (await supabase.auth.getSession()).data.session?.access_token
+                      const r = await fetch(`/api/connect/${provider.id}/start`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token ?? ''}` }
+                      })
+                      const { redirectUrl, error, connected } = await r.json()
+                      if (error) throw new Error(error)
+                      
+                      if (redirectUrl) {
+                        window.location.href = redirectUrl
+                      } else if (connected) {
+                        await loadProviders()
+                        await fetchReports()
+                        toast({
+                          title: "Connected",
+                          description: `Successfully connected to ${provider.name}`,
+                        })
+                      }
+                    } catch (e: any) { 
+                      toast({
+                        title: "Connection Failed",
+                        description: e.message,
+                        variant: "destructive",
+                      })
+                    }
+                    finally { setBusy(null) }
+                  }}
+                  onSync={isUnavailable ? undefined : async () => {
+                    setBusy('sync:'+provider.id)
+                    try {
+                      const params = provider.id === 'Mock' && devMode ? {
+                        stress: mockStress,
+                        sleep: mockSleep
+                      } : undefined
+                      
+                      const token = (await supabase.auth.getSession()).data.session?.access_token
+                      const r = await fetch('/api/health/sync', {
+                        method: 'POST',
+                        headers: { 
+                          'content-type': 'application/json', 
+                          Authorization: `Bearer ${token ?? ''}` 
+                        },
+                        body: JSON.stringify({ provider: provider.id, ...params })
+                      })
+                      const j = await r.json()
+                      if (!r.ok) throw new Error(j?.error || 'sync failed')
+                      
                       await loadProviders()
                       await fetchReports()
                       toast({
-                        title: "Connected",
-                        description: `Successfully connected to ${providerInfo.displayName}`,
+                        title: "Sync Complete",
+                        description: `Successfully synced data from ${provider.name}`,
+                      })
+                    } catch (e: any) { 
+                      toast({
+                        title: "Sync Failed", 
+                        description: e.message || "Unable to sync data. Please try again.",
+                        variant: "destructive",
                       })
                     }
-                  } catch (e: any) { 
-                    toast({
-                      title: "Connection Failed",
-                      description: e.message,
-                      variant: "destructive",
-                    })
-                  }
-                  finally { setBusy(null) }
-                }}
-                onSync={async () => {
-                  setBusy('sync:'+provider.id)
-                  try {
-                    const params = provider.id === 'Mock' && devMode ? {
-                      stress: mockStress,
-                      sleep: mockSleep
-                    } : undefined
-                    
-                    const token = (await supabase.auth.getSession()).data.session?.access_token
-                    const r = await fetch('/api/health/sync', {
-                      method: 'POST',
-                      headers: { 
-                        'content-type': 'application/json', 
-                        Authorization: `Bearer ${token ?? ''}` 
-                      },
-                      body: JSON.stringify({ provider: provider.id, ...params })
-                    })
-                    const j = await r.json()
-                    if (!r.ok) throw new Error(j?.error || 'sync failed')
-                    
-                    await loadProviders()
-                    await fetchReports()
-                    toast({
-                      title: "Sync Complete",
-                      description: `Successfully synced data from ${providerInfo.displayName}`,
-                    })
-                  } catch (e: any) { 
-                    toast({
-                      title: "Sync Failed", 
-                      description: e.message || "Unable to sync data. Please try again.",
-                      variant: "destructive",
-                    })
-                  }
-                  finally { setBusy(null) }
-                }}
-                onDisconnect={async () => {
-                  setBusy(provider.id)
-                  try {
-                    const token = (await supabase.auth.getSession()).data.session?.access_token
-                    const r = await fetch(`/api/connect/${provider.id}/disconnect`, {
-                      method: 'POST',
-                      headers: { Authorization: `Bearer ${token ?? ''}` }
-                    })
-                    const j = await r.json()
-                    if (!r.ok) throw new Error(j?.error || 'disconnect failed')
-                    
-                    await loadProviders()
-                    toast({
-                      title: "Disconnected",
-                      description: `Successfully disconnected from ${providerInfo.displayName}`,
-                    })
-                  } catch (e: any) { 
-                    toast({
-                      title: "Disconnect Failed",
-                      description: e.message,
-                      variant: "destructive",
-                    })
-                  }
-                  finally { setBusy(null) }
-                }}
-              />
+                    finally { setBusy(null) }
+                  }}
+                  onDisconnect={isUnavailable ? undefined : async () => {
+                    setBusy(provider.id)
+                    try {
+                      const token = (await supabase.auth.getSession()).data.session?.access_token
+                      const r = await fetch(`/api/connect/${provider.id}/disconnect`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token ?? ''}` }
+                      })
+                      const j = await r.json()
+                      if (!r.ok) throw new Error(j?.error || 'disconnect failed')
+                      
+                      await loadProviders()
+                      toast({
+                        title: "Disconnected",
+                        description: `Successfully disconnected from ${provider.name}`,
+                      })
+                    } catch (e: any) { 
+                      toast({
+                        title: "Disconnect Failed",
+                        description: e.message,
+                        variant: "destructive",
+                      })
+                    }
+                    finally { setBusy(null) }
+                  }}
+                />
+                {isUnavailable && (
+                  <div className="absolute top-2 right-2">
+                    <Badge variant="secondary" className="text-xs">
+                      Unavailable
+                    </Badge>
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>
         
-        {(providers || []).length === 0 && (
+        {enrichedProviders.length === 0 && (
           <Card className="p-8 text-center" data-testid="no-providers">
             <Wifi className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">No Providers Available</h3>
