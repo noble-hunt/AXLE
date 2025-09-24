@@ -9,7 +9,7 @@ import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, Chec
 import { supabase } from '@/lib/supabase'
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
-import { ProviderCard } from '@/components/health/ProviderCard'
+import ProviderRow from '@/components/health/ProviderRow'
 
 type ProviderInfo = { 
   id: string; 
@@ -43,6 +43,17 @@ export default function Connect() {
   const [debugDialogOpen, setDebugDialogOpen] = useState(false)
   const { toast } = useToast()
   const { fetchReports, syncProviderNow } = useAppStore()
+  
+  // Helper function to format time
+  function formatTime(ts?: string) {
+    if (!ts) return null;
+    try {
+      const d = new Date(ts);
+      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    } catch {
+      return null;
+    }
+  }
   
   // Check if debug mode is enabled via URL parameter (dev builds only)
   const isDebugMode = new URLSearchParams(window.location.search).get('debug') === '1'
@@ -306,70 +317,72 @@ export default function Connect() {
 
       {/* Dev Mode Toggle (only show if Mock provider exists) */}
       {(providers || []).some((p: any) => p.id === 'Mock') && (
-        <Card className="p-4 card-shadow border border-border">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Settings className="w-5 h-5 text-muted-foreground" />
-              <h3 className="text-lg font-semibold text-foreground">Development Mode</h3>
+        <div className="mx-auto w-full max-w-[1100px] px-4 md:px-6 mb-3">
+          <Card className="p-4 card-shadow border border-border">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Settings className="w-5 h-5 text-muted-foreground" />
+                <h3 className="text-lg font-semibold text-foreground">Development Mode</h3>
+              </div>
+              <Switch 
+                checked={devMode} 
+                onCheckedChange={setDevMode}
+                data-testid="dev-mode-toggle"
+              />
             </div>
-            <Switch 
-              checked={devMode} 
-              onCheckedChange={setDevMode}
-              data-testid="dev-mode-toggle"
-            />
-          </div>
-          
-          {devMode && (
-            <div className="space-y-4 p-4 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground">Simulate health metrics for Mock provider:</p>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Stress Level (1-10)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="1"
-                      max="10"
-                      value={mockStress}
-                      onChange={(e) => setMockStress(Number(e.target.value))}
-                      className="flex-1"
-                      data-testid="stress-slider"
-                    />
-                    <Badge variant="outline" className="w-8 h-6 text-xs justify-center">
-                      {mockStress}
-                    </Badge>
-                  </div>
-                </div>
+            
+            {devMode && (
+              <div className="space-y-4 p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">Simulate health metrics for Mock provider:</p>
                 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Sleep Score (0-100)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={mockSleep}
-                      onChange={(e) => setMockSleep(Number(e.target.value))}
-                      className="flex-1"
-                      data-testid="sleep-slider"
-                    />
-                    <Badge variant="outline" className="w-10 h-6 text-xs justify-center">
-                      {mockSleep}
-                    </Badge>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Stress Level (1-10)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={mockStress}
+                        onChange={(e) => setMockStress(Number(e.target.value))}
+                        className="flex-1"
+                        data-testid="stress-slider"
+                      />
+                      <Badge variant="outline" className="w-8 h-6 text-xs justify-center">
+                        {mockStress}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Sleep Score (0-100)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={mockSleep}
+                        onChange={(e) => setMockSleep(Number(e.target.value))}
+                        className="flex-1"
+                        data-testid="sleep-slider"
+                      />
+                      <Badge variant="outline" className="w-10 h-6 text-xs justify-center">
+                        {mockSleep}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </Card>
+            )}
+          </Card>
+        </div>
       )}
 
-      {/* Health Providers Grid */}
+      {/* Health Providers */}
       <div className="mx-auto w-full max-w-[1100px] px-4 md:px-6">
-        <SectionTitle title="Health Providers" />
+        <h2 className="text-3xl font-bold mt-6 mb-3">Health Providers</h2>
         
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+        <div className="flex flex-col gap-3">
           {enrichedProviders.map((provider: AllProviderInfo) => {
             const isUnavailable = !provider.supported
             const status = isUnavailable ? 'unavailable' : toStatus(provider)
@@ -380,24 +393,27 @@ export default function Connect() {
               provider.id === 'Garmin' ? 'Beta' : 
               null;
 
+            const title =
+              provider.id === 'Mock' ? 'Mock Provider' :
+              provider.id === 'Whoop' ? 'WHOOP 4.0' :
+              provider.id === 'Oura' ? 'Oura Ring' :
+              provider.id === 'Garmin' ? 'Garmin Connect' :
+              provider.id === 'Fitbit' ? 'Fitbit' :
+              provider.name;
+
+            const subtitle =
+              provider.id === 'Mock'
+                ? 'Development testing provider'
+                : provider.description || undefined;
+
             return (
-              <ProviderCard
+              <ProviderRow
                 key={provider.id}
                 id={provider.id}
-                title={
-                  provider.id === 'Mock' ? 'Mock Provider' :
-                  provider.id === 'Whoop' ? 'WHOOP 4.0' :
-                  provider.id === 'Oura' ? 'Oura Ring' :
-                  provider.id === 'Garmin' ? 'Garmin Connect' :
-                  provider.name
-                }
-                subtitle={
-                  provider.id === 'Mock' 
-                    ? 'Development testing provider'
-                    : provider.description || undefined
-                }
+                title={title}
+                subtitle={subtitle}
                 status={status as any}
-                lastSync={provider.last_sync ? new Date(provider.last_sync).toLocaleTimeString() : null}
+                lastSync={formatTime(provider.last_sync)}
                 busy={busy === provider.id || busy === 'sync:'+provider.id}
                 badge={badge as any}
                 onConnect={isUnavailable ? undefined : async () => {
