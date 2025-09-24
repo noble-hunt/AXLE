@@ -683,6 +683,180 @@ export const useAppStore = create<AppState>()(
           lastUpdated: new Date()
         }
       }),
+      
+      // Persistent location consent state
+      locationOptIn: false,
+      timezone: null,
+      lastLat: null,
+      lastLon: null,
+      
+      // Hydrate location consent from server
+      hydrateLocation: async () => {
+        try {
+          const { authFetch } = await import('@/lib/authFetch');
+          const response = await authFetch("/api/me/location");
+          
+          if (response.ok) {
+            const data = await response.json();
+            set({
+              locationOptIn: !!data.optIn,
+              timezone: data.timezone ?? null,
+              lastLat: data.lat ?? null,
+              lastLon: data.lon ?? null,
+            });
+            
+            // Cache to localStorage to avoid UI flicker
+            localStorage.setItem("axle:locationOptIn", String(!!data.optIn));
+          }
+        } catch (error) {
+          console.error("Failed to hydrate location consent:", error);
+        }
+      },
+      
+      // Update location consent with optional coordinate refresh
+      setLocationOptIn: async (optIn: boolean) => {
+        try {
+          const { authFetch } = await import('@/lib/authFetch');
+          
+          if (optIn) {
+            // Request geolocation once on opt-in
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            
+            const success = await new Promise<boolean>((resolve) => {
+              navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                  try {
+                    const lat = parseFloat(pos.coords.latitude.toFixed(6));
+                    const lon = parseFloat(pos.coords.longitude.toFixed(6));
+                    
+                    const response = await authFetch("/api/me/location", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ optIn: true, lat, lon, timezone: tz }),
+                    });
+                    
+                    if (response.ok) {
+                      set({ 
+                        locationOptIn: true, 
+                        lastLat: parseFloat(lat.toFixed(3)), // Use quantized value
+                        lastLon: parseFloat(lon.toFixed(3)), // Use quantized value
+                        timezone: tz 
+                      });
+                      localStorage.setItem("axle:locationOptIn", "true");
+                      resolve(true);
+                    } else {
+                      resolve(false);
+                    }
+                  } catch (error) {
+                    console.error("Error saving location with coords:", error);
+                    resolve(false);
+                  }
+                },
+                async () => {
+                  // Permission denied - still persist consent, coords may come later
+                  try {
+                    const response = await authFetch("/api/me/location", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ optIn: true, timezone: tz }),
+                    });
+                    
+                    if (response.ok) {
+                      set({ locationOptIn: true, timezone: tz });
+                      localStorage.setItem("axle:locationOptIn", "true");
+                      resolve(true);
+                    } else {
+                      resolve(false);
+                    }
+                  } catch (error) {
+                    console.error("Error saving location consent:", error);
+                    resolve(false);
+                  }
+                },
+                { enableHighAccuracy: false, timeout: 8000 }
+              );
+            });
+            
+            return success;
+          } else {
+            // Opt out - clear consent and cached coordinates
+            const response = await authFetch("/api/me/location", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ optIn: false }),
+            });
+            
+            if (response.ok) {
+              set({ 
+                locationOptIn: false, 
+                lastLat: null, 
+                lastLon: null,
+                timezone: null 
+              });
+              localStorage.setItem("axle:locationOptIn", "false");
+              return true;
+            }
+            return false;
+          }
+        } catch (error) {
+          console.error("Failed to update location consent:", error);
+          return false;
+        }
+      },
+      
+      // Optional: refresh cached location without changing consent
+      refreshLocationNow: async () => {
+        const { locationOptIn } = get();
+        if (!locationOptIn) return false;
+        
+        try {
+          const { authFetch } = await import('@/lib/authFetch');
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          
+          const success = await new Promise<boolean>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              async (pos) => {
+                try {
+                  const lat = parseFloat(pos.coords.latitude.toFixed(6));
+                  const lon = parseFloat(pos.coords.longitude.toFixed(6));
+                  
+                  const response = await authFetch("/api/me/location", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ optIn: true, lat, lon, timezone: tz }),
+                  });
+                  
+                  if (response.ok) {
+                    set({ 
+                      lastLat: parseFloat(lat.toFixed(3)), // Use quantized value
+                      lastLon: parseFloat(lon.toFixed(3)), // Use quantized value
+                      timezone: tz 
+                    });
+                    resolve(true);
+                  } else {
+                    resolve(false);
+                  }
+                } catch (error) {
+                  console.error("Error refreshing location:", error);
+                  resolve(false);
+                }
+              },
+              (error) => {
+                console.error("Geolocation failed:", error);
+                resolve(false);
+              },
+              { enableHighAccuracy: false, timeout: 8000 }
+            );
+          });
+          
+          return success;
+        } catch (error) {
+          console.error("Failed to refresh location:", error);
+          return false;
+        }
+      },
+      
+      // Legacy location methods (kept for compatibility)
       requestAndSaveLocation: async () => {
         try {
           const { requestAndSaveLocation } = await import('@/lib/geo');

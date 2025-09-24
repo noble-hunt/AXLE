@@ -440,6 +440,17 @@ export interface LocationState {
   setLocation: (location: LocationData) => void;
   requestAndSaveLocation: () => Promise<boolean>;
   clearLocation: () => void;
+  
+  // Persistent location consent state
+  locationOptIn: boolean;
+  timezone: string | null;
+  lastLat: number | null;
+  lastLon: number | null;
+  
+  // Location consent management methods
+  hydrateLocation: () => Promise<void>;
+  setLocationOptIn: (optIn: boolean) => Promise<boolean>;
+  refreshLocationNow: () => Promise<boolean>;
 }
 
 export interface AppState extends WorkoutState, PRState, AchievementState, WearableState, ReportState, LocationState {
