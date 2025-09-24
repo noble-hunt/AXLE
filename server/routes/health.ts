@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireAdmin, AuthenticatedRequest, AdminRequest } from '../middleware/auth';
 import { db } from '../db';
 import { wearableConnections, wearableTokens, healthReports } from '../../shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -381,6 +381,52 @@ router.get('/health/reports', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching health reports:', error);
     res.status(500).json({ message: 'Failed to fetch health reports' });
+  }
+});
+
+// GET /api/admin/whoop/ping → admin debug endpoint for WHOOP config
+router.get('/admin/whoop/ping', requireAdmin, async (req, res) => {
+  try {
+    const providers = getProviderRegistry();
+    const whoopProvider = providers['Whoop'];
+    
+    if (!whoopProvider) {
+      return res.status(404).json({ 
+        ok: false, 
+        error: 'WHOOP provider not found',
+        redirectUri: null,
+        scopes: null
+      });
+    }
+
+    const hasConfig = whoopProvider.hasConfig();
+    const redirectUri = hasConfig ? 
+      `${process.env.SITE_URL || process.env.VITE_SITE_URL}/api/connect/Whoop/callback` : 
+      null;
+    const scopes = hasConfig ? 
+      'read:profile read:body_measurement read:recovery read:cycles read:sleep read:workout' : 
+      null;
+
+    console.log(`[WHOOP] Admin ping: hasConfig=${hasConfig}, redirectUri=${redirectUri}`);
+
+    res.json({
+      ok: hasConfig,
+      redirectUri,
+      scopes,
+      environment: {
+        has_client_id: !!(process.env.WHOOP_CLIENT_ID),
+        has_client_secret: !!(process.env.WHOOP_CLIENT_SECRET),
+        has_site_url: !!(process.env.SITE_URL || process.env.VITE_SITE_URL)
+      }
+    });
+  } catch (error) {
+    console.error('[WHOOP] Admin ping error:', error);
+    res.status(500).json({ 
+      ok: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      redirectUri: null,
+      scopes: null
+    });
   }
 });
 

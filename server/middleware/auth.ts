@@ -8,6 +8,13 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+export interface AdminRequest extends AuthenticatedRequest {
+  user: {
+    id: string;
+    email: string;
+  };
+}
+
 export async function requireAuth(
   req: Request,
   res: Response,
@@ -40,4 +47,29 @@ export async function requireAuth(
     console.error('Auth error:', error);
     res.status(401).json({ message: 'Authentication failed' });
   }
+}
+
+// Admin middleware - checks if user is admin based on email
+export async function requireAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  // First check authentication
+  await new Promise<void>((resolve, reject) => {
+    requireAuth(req, res, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+  
+  const authReq = req as AuthenticatedRequest;
+  const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(email => email.trim());
+  
+  if (!adminEmails.includes(authReq.user.email || '')) {
+    res.status(403).json({ message: 'Admin access required' });
+    return;
+  }
+  
+  next();
 }
