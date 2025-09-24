@@ -675,6 +675,49 @@ const seedReports: HealthReport[] = [
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      // Location state
+      location: null,
+      setLocation: (location) => set({ 
+        location: {
+          ...location,
+          lastUpdated: new Date()
+        }
+      }),
+      requestAndSaveLocation: async () => {
+        try {
+          const { requestLocationOnce, saveLocationToProfile } = await import('@/lib/geo');
+          
+          // Get actual location coordinates
+          const locationData = await requestLocationOnce();
+          
+          // Quantize coordinates to 3 decimals for privacy (client-side)
+          const quantizedLocation = {
+            lat: parseFloat(locationData.lat.toFixed(3)),
+            lon: parseFloat(locationData.lon.toFixed(3)),
+            timezone: locationData.timezone
+          };
+          
+          // Save to server
+          await saveLocationToProfile(quantizedLocation);
+          
+          // Update local store with actual quantized coordinates
+          set({ 
+            location: {
+              latitude: quantizedLocation.lat,
+              longitude: quantizedLocation.lon,
+              timezone: quantizedLocation.timezone,
+              lastUpdated: new Date()
+            }
+          });
+          
+          return true;
+        } catch (error) {
+          console.error('Failed to request and save location:', error);
+          return false;
+        }
+      },
+      clearLocation: () => set({ location: null }),
+      
       // Theme
       theme: 'light',
       setTheme: (theme) => set({ theme }),
@@ -1982,6 +2025,14 @@ export const useAppStore = create<AppState>()(
             date: new Date(report.date),
             createdAt: new Date(report.createdAt),
           }));
+          
+          // Rehydrate location data with proper Date object
+          if (state.location) {
+            state.location = {
+              ...state.location,
+              lastUpdated: new Date(state.location.lastUpdated),
+            };
+          }
         }
       },
     }

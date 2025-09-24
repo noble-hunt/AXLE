@@ -427,7 +427,22 @@ export interface FreeformParsed {
   confidence: number;             // 0..1 from AI
 }
 
-export interface AppState extends WorkoutState, PRState, AchievementState, WearableState, ReportState {
+// Location data types
+export interface LocationData {
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  lastUpdated: Date;
+}
+
+export interface LocationState {
+  location: LocationData | null;
+  setLocation: (location: LocationData) => void;
+  requestAndSaveLocation: () => Promise<boolean>;
+  clearLocation: () => void;
+}
+
+export interface AppState extends WorkoutState, PRState, AchievementState, WearableState, ReportState, LocationState {
   // Profile state
   profile: any; // Will be typed properly when imported from @shared/schema
   setProfile: (profile: any) => void;

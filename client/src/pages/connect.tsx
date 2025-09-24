@@ -42,7 +42,7 @@ export default function Connect() {
   const [debugData, setDebugData] = useState<any>(null)
   const [debugDialogOpen, setDebugDialogOpen] = useState(false)
   const { toast } = useToast()
-  const { fetchReports, syncProviderNow } = useAppStore()
+  const { fetchReports, syncProviderNow, location, requestAndSaveLocation } = useAppStore()
   
   // Helper function to format time
   function formatTime(ts?: string) {
@@ -59,7 +59,7 @@ export default function Connect() {
   const isDebugMode = new URLSearchParams(window.location.search).get('debug') === '1'
   const showDebug = import.meta.env.DEV && isDebugMode
   
-  // Load providers and connections on mount
+  // Load providers on mount
   useEffect(() => {
     loadProviders()
   }, [])
@@ -413,7 +413,7 @@ export default function Connect() {
                 title={title}
                 subtitle={subtitle}
                 status={status as any}
-                lastSync={formatTime(provider.last_sync)}
+                lastSync={formatTime(provider.last_sync || undefined)}
                 busy={busy === provider.id || busy === 'sync:'+provider.id}
                 badge={badge as any}
                 onConnect={isUnavailable ? undefined : async () => {
@@ -530,6 +530,72 @@ export default function Connect() {
               <p className="text-sm text-muted-foreground">Keep health data for analysis and insights</p>
             </div>
             <Switch defaultChecked data-testid="toggle-data-retention" />
+          </div>
+        </div>
+      </Card>
+
+      {/* Location for Health Insights */}
+      <Card className="p-4 card-shadow border border-border bg-blue-50/50 dark:bg-blue-950/20">
+        <div className="flex items-start gap-3">
+          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
+          <div className="space-y-3">
+            <h4 className="font-medium text-foreground">Location for Health Insights</h4>
+            <p className="text-sm text-muted-foreground">
+              Enable location to get daylight exposure and UV index insights as part of your health analytics. 
+              Location data is quantized for privacy (approximately 110-meter accuracy) and used only for 
+              environmental health recommendations.
+            </p>
+            
+            {location ? (
+              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                Location enabled for timezone: {location.timezone}
+              </p>
+            ) : (
+              <Button 
+                onClick={async () => {
+                  setBusy('location')
+                  try {
+                    const success = await requestAndSaveLocation()
+                    if (success) {
+                      toast({
+                        title: "Location Enabled",
+                        description: "Location saved for health insights",
+                      })
+                    } else {
+                      toast({
+                        title: "Location Permission Denied",
+                        description: "You can enable this later for daylight/UV insights",
+                        variant: "destructive",
+                      })
+                    }
+                  } catch (error: any) {
+                    toast({
+                      title: "Location Failed",
+                      description: error.message || "Unable to get location",
+                      variant: "destructive",
+                    })
+                  } finally {
+                    setBusy(null)
+                  }
+                }}
+                disabled={busy === 'location'}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                data-testid="enable-location-button"
+              >
+                {busy === 'location' ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Requesting Location...
+                  </>
+                ) : (
+                  <>
+                    <Heart className="w-4 h-4 mr-2" />
+                    Enable Location for Insights
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </Card>

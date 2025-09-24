@@ -229,6 +229,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/me/location - Update user location for environment insights
+  const locationSchema = z.object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+    timezone: z.string().optional()
+  });
+
+  app.post("/api/me/location", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const validatedData = locationSchema.parse(req.body);
+      
+      // Quantize coordinates to 3 decimal places for privacy (~110m accuracy)
+      const quantizedLat = parseFloat(validatedData.lat.toFixed(3));
+      const quantizedLon = parseFloat(validatedData.lon.toFixed(3));
+      
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      
+      // Update location using raw SQL for reliability
+      const result = await db.execute(sql`
+        UPDATE profiles 
+        SET 
+          latitude = ${quantizedLat},
+          longitude = ${quantizedLon},
+          timezone = COALESCE(${validatedData.timezone}, timezone)
+        WHERE user_id = ${authReq.user.id}
+        RETURNING latitude, longitude, timezone
+      `);
+
+      if (!result || !result.rows || result.rows.length === 0) {
+        console.error('[location/update] No result returned from SQL');
+        return res.status(500).json({ message: 'Failed to update location' });
+      }
+
+      console.log(`[LOCATION] Updated location for user ${authReq.user.id}: lat=${quantizedLat}, lon=${quantizedLon}, tz=${validatedData.timezone || 'unchanged'}`);
+      
+      return res.status(200).json({ ok: true });
+    } catch (error: any) {
+      console.error('[location/update] error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid location data', issues: error.issues });
+      }
+      return res.status(500).json({ 
+        message: 'Failed to update location', 
+        detail: error.message ?? error 
+      });
+    }
+  });
+
   // PUT /api/profiles - Stable endpoint that bypasses Supabase schema cache
   const putProfileSchema = z.object({
     first_name: z.string().trim().max(80).optional().nullable(),
