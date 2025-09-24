@@ -14,6 +14,7 @@ import { computeAxleScores } from '../metrics/axle';
 import { upsertDailyReport } from '../dal/reports';
 import { getEnvironment } from '../services/environment';
 import { computeFatigue } from '../logic/suggestions';
+import { backfillAxleScores } from '../scripts/backfill-axle';
 
 const router = Router();
 
@@ -860,6 +861,40 @@ router.post('/health/compute/backfill', requireAdmin, async (req, res) => {
     console.error('[BACKFILL] Error during backfill:', error);
     res.status(500).json({ 
       message: 'Failed to backfill metrics',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// POST /api/health/backfill-axle - Admin-only route to backfill Axle scores
+router.post('/health/backfill-axle', requireAdmin, async (req, res) => {
+  try {
+    const adminReq = req as AdminRequest;
+    const userId = adminReq.user.id; // Use the admin's own user ID
+    
+    const bodySchema = z.object({
+      days: z.number().min(1).max(90).default(30),
+      force: z.boolean().default(false),
+    });
+    
+    const { days, force } = bodySchema.parse(req.body);
+    
+    console.log(`[AXLE_BACKFILL] Admin ${adminReq.user.email} triggered backfill for ${days} days, force=${force}`);
+    
+    const result = await backfillAxleScores(userId, days, force);
+    
+    res.json({
+      success: true,
+      message: `Backfill completed: ${result.updated} updated, ${result.skipped} skipped, ${result.failed} failed`,
+      ...result,
+      backfilled_at: new Date().toISOString(),
+      admin_user: adminReq.user.email,
+    });
+    
+  } catch (error) {
+    console.error('[AXLE_BACKFILL] Error during admin backfill:', error);
+    res.status(500).json({ 
+      message: 'Failed to backfill Axle scores',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
