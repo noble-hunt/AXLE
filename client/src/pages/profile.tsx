@@ -28,11 +28,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 
 // Health connections component
 function HealthConnections() {
+  const [, setLocation] = useLocation()
+  
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-subheading font-semibold text-foreground">Health Connections</h3>
-        <Button variant="ghost" size="sm" data-testid="manage-connections">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          data-testid="manage-connections"
+          onClick={() => setLocation("/connect")}
+        >
           <span className="text-primary">Manage</span>
         </Button>
       </div>
