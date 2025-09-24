@@ -8,6 +8,7 @@ import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, Chec
 import { supabase } from '@/lib/supabase'
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
+import { ProviderCard } from '@/components/health/ProviderCard'
 
 type ProviderInfo = { 
   id: string; 
@@ -116,6 +117,18 @@ export default function Connect() {
     return { status: 'disconnected', color: 'bg-gray-400', text: 'Disconnected', icon: Clock }
   }
 
+  function toStatus(provider?: ProviderInfo): 'connected' | 'disconnected' | 'error' {
+    if (!provider) return 'disconnected'
+    if (provider.connected) return 'connected'
+    if (provider.error) return 'error'
+    return 'disconnected'
+  }
+
+  // Create connections by ID lookup
+  const connectionsById = Object.fromEntries(
+    providers.map(p => [p.id, p])
+  )
+
   const handleConnect = async (providerId: string) => {
     setBusy(providerId)
     try {
@@ -149,13 +162,30 @@ export default function Connect() {
   }
 
   const handleDisconnect = async (providerId: string) => {
-    // TODO: Implement disconnect endpoint when added to backend
-    console.log('Disconnect provider:', providerId)
-    toast({
-      title: "Disconnect Not Implemented",
-      description: "Disconnect functionality coming soon",
-      variant: "destructive",
-    })
+    setBusy(providerId)
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      const r = await fetch(`/api/connect/${providerId}/disconnect`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token ?? ''}` }
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j?.error || 'disconnect failed')
+      
+      await loadProviders() // Refresh the list
+      toast({
+        title: "Disconnected",
+        description: `Successfully disconnected from ${getProviderInfo(providerId).displayName}`,
+      })
+    } catch (error: any) {
+      toast({
+        title: "Disconnect Failed",
+        description: error.message || "Unable to disconnect provider",
+        variant: "destructive",
+      })
+    } finally {
+      setBusy(null)
+    }
   }
 
   const handleSync = async (providerId: string) => {
@@ -296,109 +326,113 @@ export default function Connect() {
       <div className="space-y-4">
         <SectionTitle title="Health Providers" />
         
-        {availableProviders.map((provider: ProviderInfo) => {
-          const providerInfo = getProviderInfo(provider.id)
-          const statusInfo = getStatusInfo(provider)
-          const Icon = providerInfo.icon
-          const StatusIcon = statusInfo.icon
-          const isConnected = provider.connected
-          const isConfigured = provider.supported
-          const lastSync = provider.last_sync ? new Date(provider.last_sync) : null
-          
-          return (
-            <Card key={provider.id} className="p-4 card-shadow border border-border" data-testid={`provider-${provider.id}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center relative">
-                    <Icon className="w-6 h-6 text-muted-foreground" />
-                    <div 
-                      className={`absolute -bottom-1 -right-1 w-4 h-4 ${statusInfo.color} rounded-full border-2 border-background`}
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-foreground">{providerInfo.displayName}</h4>
-                      {!isConfigured && provider.id !== 'Mock' && (
-                        <Badge variant="secondary" className="text-xs">
-                          Not Configured
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{providerInfo.description}</p>
-                    {lastSync && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Clock className="w-3 h-3 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">
-                          Last sync: {lastSync.toLocaleTimeString()}
-                        </p>
-                      </div>
-                    )}
-                    {provider.error && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <AlertCircle className="w-3 h-3 text-destructive" />
-                        <p className="text-xs text-destructive">{provider.error}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant={statusInfo.status === 'connected' ? 'default' : 'secondary'}
-                    className="text-xs"
-                  >
-                    {statusInfo.text}
-                  </Badge>
-                  
-                  {isConnected ? (
-                    <>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="rounded-xl" 
-                        data-testid={`sync-${provider.id}`}
-                        onClick={() => handleSync(provider.id)}
-                        disabled={busy === `sync:${provider.id}` || !!busy}
-                      >
-                        {busy === `sync:${provider.id}` ? (
-                          <>
-                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                            Syncing...
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="w-3 h-3 mr-1" />
-                            Sync Now
-                          </>
-                        )}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10" 
-                        data-testid={`disconnect-${provider.id}`}
-                        onClick={() => handleDisconnect(provider.id)}
-                      >
-                        Disconnect
-                      </Button>
-                    </>
-                  ) : (
-                    <Button 
-                      size="sm" 
-                      className="rounded-xl bg-primary text-primary-foreground" 
-                      data-testid={`connect-${provider.id}`}
-                      onClick={() => handleConnect(provider.id)}
-                      disabled={!isConfigured && provider.id !== 'Mock'}
-                    >
-                      Connect
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Card>
-          )
-        })}
+        <div className="flex flex-col gap-3">
+          {availableProviders.map((provider: ProviderInfo) => {
+            const providerInfo = getProviderInfo(provider.id)
+            const conn = connectionsById[provider.id]
+            return (
+              <ProviderCard
+                key={provider.id}
+                id={provider.id}
+                title={provider.id === 'Mock' ? 'Mock Provider' : provider.id}
+                subtitle={provider.id === 'Mock' ? 'Development testing provider' : providerInfo.description}
+                status={toStatus(conn)}
+                lastSync={conn?.last_sync ? new Date(conn.last_sync).toLocaleTimeString() : null}
+                busy={busy === provider.id || busy === 'sync:'+provider.id}
+                onConnect={async () => {
+                  setBusy(provider.id)
+                  try {
+                    const token = (await supabase.auth.getSession()).data.session?.access_token
+                    const r = await fetch(`/api/connect/${provider.id}/start`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token ?? ''}` }
+                    })
+                    const { redirectUrl, error, connected } = await r.json()
+                    if (error) throw new Error(error)
+                    
+                    if (redirectUrl) {
+                      window.location.href = redirectUrl
+                    } else if (connected) {
+                      await loadProviders()
+                      await fetchReports()
+                      toast({
+                        title: "Connected",
+                        description: `Successfully connected to ${providerInfo.displayName}`,
+                      })
+                    }
+                  } catch (e: any) { 
+                    toast({
+                      title: "Connection Failed",
+                      description: e.message,
+                      variant: "destructive",
+                    })
+                  }
+                  finally { setBusy(null) }
+                }}
+                onSync={async () => {
+                  setBusy('sync:'+provider.id)
+                  try {
+                    const params = provider.id === 'Mock' && devMode ? {
+                      stress: mockStress,
+                      sleep: mockSleep
+                    } : undefined
+                    
+                    const token = (await supabase.auth.getSession()).data.session?.access_token
+                    const r = await fetch('/api/health/sync', {
+                      method: 'POST',
+                      headers: { 
+                        'content-type': 'application/json', 
+                        Authorization: `Bearer ${token ?? ''}` 
+                      },
+                      body: JSON.stringify({ provider: provider.id, ...params })
+                    })
+                    const j = await r.json()
+                    if (!r.ok) throw new Error(j?.error || 'sync failed')
+                    
+                    await loadProviders()
+                    await fetchReports()
+                    toast({
+                      title: "Sync Complete",
+                      description: `Successfully synced data from ${providerInfo.displayName}`,
+                    })
+                  } catch (e: any) { 
+                    toast({
+                      title: "Sync Failed", 
+                      description: e.message || "Unable to sync data. Please try again.",
+                      variant: "destructive",
+                    })
+                  }
+                  finally { setBusy(null) }
+                }}
+                onDisconnect={async () => {
+                  setBusy(provider.id)
+                  try {
+                    const token = (await supabase.auth.getSession()).data.session?.access_token
+                    const r = await fetch(`/api/connect/${provider.id}/disconnect`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token ?? ''}` }
+                    })
+                    const j = await r.json()
+                    if (!r.ok) throw new Error(j?.error || 'disconnect failed')
+                    
+                    await loadProviders()
+                    toast({
+                      title: "Disconnected",
+                      description: `Successfully disconnected from ${providerInfo.displayName}`,
+                    })
+                  } catch (e: any) { 
+                    toast({
+                      title: "Disconnect Failed",
+                      description: e.message,
+                      variant: "destructive",
+                    })
+                  }
+                  finally { setBusy(null) }
+                }}
+              />
+            )
+          })}
+        </div>
         
         {(providers || []).length === 0 && (
           <Card className="p-8 text-center" data-testid="no-providers">

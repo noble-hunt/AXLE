@@ -290,4 +290,13 @@
   .pb-safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  /* Button styles for ProviderCard */
+  .btn { 
+    @apply px-4 py-2 rounded-xl bg-blue-600 text-white font-medium disabled:opacity-60 hover:bg-blue-700 transition-colors; 
+  }
+
+  .btn-destructive { 
+    @apply px-4 py-2 rounded-xl bg-red-600 text-white font-medium disabled:opacity-60 hover:bg-red-700 transition-colors; 
+  }
 }

@@ -1,0 +1,153 @@
+Providers UI polish (no more misaligned buttons / overlap)
+
+Tighten the layout to avoid that black overlay crowding the “Sync Now” button and keep “Disconnect” aligned.
+
+Update your providers list component (or create a card component) to:
+
+use a grid for actions,
+
+prevent overflow,
+
+ensure hit targets are big on mobile,
+
+and drop any data-tip / Tooltip wrappers that float over the button row.
+
+// client/src/components/health/ProviderCard.tsx  (new)
+type Props = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  status?: 'connected' | 'disconnected' | 'error';
+  lastSync?: string | null;
+  onConnect?: () => void;
+  onSync?: () => void;
+  onDisconnect?: () => void;
+  busy?: boolean;
+};
+
+export function ProviderCard({
+  id, title, subtitle, status = 'disconnected', lastSync, onConnect, onSync, onDisconnect, busy
+}: Props) {
+  const dot =
+    status === 'connected' ? 'bg-green-500' :
+    status === 'error' ? 'bg-red-500' : 'bg-gray-500';
+
+  return (
+    <div className="rounded-2xl bg-[--layer-2] p-4 flex flex-col gap-3">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-lg font-semibold">{title}</div>
+          {subtitle && <div className="text-[--muted] text-sm">{subtitle}</div>}
+          <div className="flex items-center gap-2 mt-2 text-xs text-[--muted]">
+            <span className={`inline-block w-2 h-2 rounded-full ${dot}`} />
+            {status === 'connected' ? 'Connected' : 'Not connected'}
+            {lastSync && <span className="ml-2">• Last sync: {lastSync}</span>}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {status !== 'connected' ? (
+          <button className="btn col-span-3" onClick={onConnect} disabled={busy}>
+            Connect
+          </button>
+        ) : (
+          <>
+            <button className="btn" onClick={onSync} disabled={busy}>Sync Now</button>
+            <div className="col-span-2 flex justify-end">
+              <button className="btn-destructive" onClick={onDisconnect} disabled={busy}>
+                Disconnect
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+Wire it in your Providers page:
+
+// client/src/pages/health/providers/ProvidersPage.tsx  (replace the list rendering)
+import { ProviderCard } from '@/components/health/ProviderCard';
+import { supabase } from '@/lib/supabaseClient';
+
+function toStatus(conn?: { status?: string }) {
+  if (!conn) return 'disconnected' as const;
+  if (conn.status === 'connected') return 'connected' as const;
+  if (conn.status === 'error') return 'error' as const;
+  return 'disconnected' as const;
+}
+
+// inside component render:
+<div className="flex flex-col gap-3">
+  {providers.map(p => {
+    const conn = connectionsById[p.id]; // from your store fetchConnections()
+    return (
+      <ProviderCard
+        key={p.id}
+        id={p.id}
+        title={p.id === 'Mock' ? 'Mock Provider' : p.id}
+        subtitle={p.id === 'Mock' ? 'Development testing provider' : undefined}
+        status={toStatus(conn)}
+        lastSync={conn?.last_sync ? new Date(conn.last_sync).toLocaleTimeString() : null}
+        busy={busy === p.id || busy === 'sync:'+p.id}
+        onConnect={async () => {
+          setBusy(p.id);
+          try {
+            const token = (await supabase.auth.getSession()).data.session?.access_token;
+            const r = await fetch(`/api/connect/${p.id}/start`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token ?? ''}` }
+            });
+            const { redirectUrl, error } = await r.json();
+            if (error) throw new Error(error);
+            window.location.href = redirectUrl;
+          } catch (e:any) { toast.error(e.message); }
+          finally { setBusy(null); }
+        }}
+        onSync={async () => {
+          setBusy('sync:'+p.id);
+          try {
+            const token = (await supabase.auth.getSession()).data.session?.access_token;
+            const r = await fetch('/api/health/sync', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
+              body: JSON.stringify({ provider: p.id })
+            });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j?.error || 'sync failed');
+            await fetchConnections(); // and fetchReports() to refresh UI
+            await fetchReports();
+          } catch (e:any) { toast.error(e.message); }
+          finally { setBusy(null); }
+        }}
+        onDisconnect={async () => {
+          setBusy(p.id);
+          try {
+            const token = (await supabase.auth.getSession()).data.session?.access_token;
+            const r = await fetch(`/api/connect/${p.id}/disconnect`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token ?? ''}` }
+            });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j?.error || 'disconnect failed');
+            await fetchConnections();
+          } catch (e:any) { toast.error(e.message); }
+          finally { setBusy(null); }
+        }}
+      />
+    );
+  })}
+</div>
+
+
+Small style helpers (if you don’t already have):
+
+/* client/src/styles/buttons.css */
+.btn { @apply px-4 py-2 rounded-xl bg-blue-600 text-white font-medium disabled:opacity-60; }
+.btn-destructive { @apply px-4 py-2 rounded-xl bg-red-600 text-white font-medium disabled:opacity-60; }
+
+
+Remove any leftover Tooltip wrappers or data-tip attributes near the action row; they cause that black overlay.
