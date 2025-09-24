@@ -685,32 +685,25 @@ export const useAppStore = create<AppState>()(
       }),
       requestAndSaveLocation: async () => {
         try {
-          const { requestLocationOnce, saveLocationToProfile } = await import('@/lib/geo');
+          const { requestAndSaveLocation } = await import('@/lib/geo');
           
-          // Get actual location coordinates
-          const locationData = await requestLocationOnce();
+          // Get and save quantized location
+          const quantizedLocation = await requestAndSaveLocation();
           
-          // Quantize coordinates to 3 decimals for privacy (client-side)
-          const quantizedLocation = {
-            lat: parseFloat(locationData.lat.toFixed(3)),
-            lon: parseFloat(locationData.lon.toFixed(3)),
-            timezone: locationData.timezone
-          };
-          
-          // Save to server
-          await saveLocationToProfile(quantizedLocation);
-          
-          // Update local store with actual quantized coordinates
-          set({ 
-            location: {
-              latitude: quantizedLocation.lat,
-              longitude: quantizedLocation.lon,
-              timezone: quantizedLocation.timezone,
-              lastUpdated: new Date()
-            }
-          });
-          
-          return true;
+          if (quantizedLocation) {
+            // Update local store with quantized coordinates from server
+            set({ 
+              location: {
+                latitude: quantizedLocation.lat,
+                longitude: quantizedLocation.lon,
+                timezone: quantizedLocation.timezone,
+                lastUpdated: new Date()
+              }
+            });
+            return true;
+          } else {
+            return false;
+          }
         } catch (error) {
           console.error('Failed to request and save location:', error);
           return false;

@@ -60,11 +60,38 @@ export async function requestLocationOnce(): Promise<LocationData> {
 }
 
 /**
- * Save user location to profile via API
+ * Quantize coordinates to 3 decimal places for privacy (~110m precision)
  */
-export async function saveLocationToProfile(location: LocationData): Promise<void> {
+function quantizeCoordinates(lat: number, lon: number) {
+  return {
+    lat: Math.round(lat * 1000) / 1000,
+    lon: Math.round(lon * 1000) / 1000
+  };
+}
+
+/**
+ * Save user location to profile via API (with client-side quantization for privacy)
+ */
+export async function saveLocationToProfile(location: LocationData): Promise<LocationData> {
   try {
-    await apiRequest('POST', '/api/me/location', location);
+    // Quantize coordinates on client-side for privacy before transmission
+    const quantized = quantizeCoordinates(location.lat, location.lon);
+    const payload = {
+      lat: quantized.lat,
+      lon: quantized.lon,
+      timezone: location.timezone
+    };
+    
+    console.log(`🔒 Quantizing coordinates: ${location.lat.toFixed(6)}, ${location.lon.toFixed(6)} → ${quantized.lat.toFixed(3)}, ${quantized.lon.toFixed(3)}`);
+    
+    await apiRequest('POST', '/api/me/location', payload);
+    
+    // Return quantized location for consistency
+    return {
+      lat: quantized.lat,
+      lon: quantized.lon,
+      timezone: location.timezone
+    };
   } catch (error) {
     console.error('Failed to save location to profile:', error);
     throw error;
@@ -73,21 +100,21 @@ export async function saveLocationToProfile(location: LocationData): Promise<voi
 
 /**
  * Request location permission and save to profile
- * Returns true if successful, false if permission denied or error
+ * Returns quantized location data if successful, null if permission denied or error
  */
-export async function requestAndSaveLocation(): Promise<boolean> {
+export async function requestAndSaveLocation(): Promise<LocationData | null> {
   try {
     console.log('🌍 Requesting user location for daylight/UV insights...');
     
     const location = await requestLocationOnce();
-    console.log(`📍 Got location: ${location.lat.toFixed(3)}, ${location.lon.toFixed(3)} (${location.timezone})`);
+    console.log(`📍 Got location: ${location.lat.toFixed(6)}, ${location.lon.toFixed(6)} (${location.timezone})`);
     
-    await saveLocationToProfile(location);
-    console.log('✅ Location saved to profile');
+    const quantizedLocation = await saveLocationToProfile(location);
+    console.log(`✅ Location saved to profile (quantized): ${quantizedLocation.lat}, ${quantizedLocation.lon} (${quantizedLocation.timezone})`);
     
-    return true;
+    return quantizedLocation;
   } catch (error) {
     console.warn('❌ Failed to get/save location:', error);
-    return false;
+    return null;
   }
 }
