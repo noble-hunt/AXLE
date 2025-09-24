@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react"
-import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +8,9 @@ import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, Chec
 import { supabase } from '@/lib/supabase'
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
-import ProviderRow from '@/components/health/ProviderRow'
+import Section from '@/components/layout/Section'
+import { PageTitle, SectionTitle } from '@/components/typography/Heading'
+import ProviderCard from '@/components/health/ProviderCard'
 
 type ProviderInfo = { 
   id: string; 
@@ -298,101 +299,95 @@ export default function Connect() {
 
   return (
     <div className="space-y-6">
-      <SectionTitle title="Connect Health Providers" />
+      <Section>
+        <PageTitle>Connect Health Providers</PageTitle>
+        <div className="grid grid-cols-2 gap-4">
+          {/* Connected tile */}
+          <div className="rounded-2xl bg-[#1d1f24] px-5 py-6 shadow">
+            <Wifi className="w-6 h-6 text-chart-2 mx-auto mb-2" />
+            <p className="text-lg font-bold text-white text-center">{connectedCount}</p>
+            <p className="text-xs text-zinc-400 text-center">Connected</p>
+          </div>
 
-      {/* Connection Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="connected-services">
-          <Wifi className="w-6 h-6 text-chart-2 mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{connectedCount}</p>
-          <p className="text-xs text-muted-foreground">Connected</p>
-        </Card>
-        
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="available-services">
-          <Share className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{availableCount}</p>
-          <p className="text-xs text-muted-foreground">Available</p>
-        </Card>
-      </div>
+          {/* Available tile */}
+          <div className="rounded-2xl bg-[#1d1f24] px-5 py-6 shadow">
+            <Share className="w-6 h-6 text-primary mx-auto mb-2" />
+            <p className="text-lg font-bold text-white text-center">{availableCount}</p>
+            <p className="text-xs text-zinc-400 text-center">Available</p>
+          </div>
+        </div>
+      </Section>
 
-      {/* Dev Mode Toggle (only show if Mock provider exists) */}
+      {/* Development Mode row: vertically center label + switch */}
       {(providers || []).some((p: any) => p.id === 'Mock') && (
-        <div className="mx-auto w-full max-w-[1100px] px-4 md:px-6 mb-3">
-          <Card className="p-4 card-shadow border border-border">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Settings className="w-5 h-5 text-muted-foreground" />
-                <h3 className="text-lg font-semibold text-foreground">Development Mode</h3>
-              </div>
-              <Switch 
-                checked={devMode} 
-                onCheckedChange={setDevMode}
-                data-testid="dev-mode-toggle"
-              />
+        <Section className="mt-2">
+          <div className="rounded-2xl bg-[#1d1f24] px-5 h-14 flex items-center justify-between shadow">
+            <div className="flex items-center gap-3">
+              <Settings className="w-5 h-5 opacity-80" />
+              <span className="text-base font-medium text-white">Development Mode</span>
             </div>
-            
-            {devMode && (
-              <div className="space-y-4 p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Simulate health metrics for Mock provider:</p>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Stress Level (1-10)</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        min="1"
-                        max="10"
-                        value={mockStress}
-                        onChange={(e) => setMockStress(Number(e.target.value))}
-                        className="flex-1"
-                        data-testid="stress-slider"
-                      />
-                      <Badge variant="outline" className="w-8 h-6 text-xs justify-center">
-                        {mockStress}
-                      </Badge>
-                    </div>
+            <Switch 
+              checked={devMode} 
+              onCheckedChange={setDevMode}
+              data-testid="dev-mode-toggle"
+            />
+          </div>
+          
+          {devMode && (
+            <div className="mt-4 space-y-4 p-4 bg-zinc-800 rounded-lg">
+              <p className="text-sm text-zinc-300">Simulate health metrics for Mock provider:</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-white">Stress Level (1-10)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={mockStress}
+                      onChange={(e) => setMockStress(Number(e.target.value))}
+                      className="flex-1"
+                      data-testid="stress-slider"
+                    />
+                    <Badge variant="outline" className="w-8 h-6 text-xs justify-center">
+                      {mockStress}
+                    </Badge>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Sleep Score (0-100)</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={mockSleep}
-                        onChange={(e) => setMockSleep(Number(e.target.value))}
-                        className="flex-1"
-                        data-testid="sleep-slider"
-                      />
-                      <Badge variant="outline" className="w-10 h-6 text-xs justify-center">
-                        {mockSleep}
-                      </Badge>
-                    </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-white">Sleep Score (0-100)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={mockSleep}
+                      onChange={(e) => setMockSleep(Number(e.target.value))}
+                      className="flex-1"
+                      data-testid="sleep-slider"
+                    />
+                    <Badge variant="outline" className="w-10 h-6 text-xs justify-center">
+                      {mockSleep}
+                    </Badge>
                   </div>
                 </div>
               </div>
-            )}
-          </Card>
-        </div>
+            </div>
+          )}
+        </Section>
       )}
 
-      {/* Health Providers */}
-      <div className="mx-auto w-full max-w-[1100px] px-4 md:px-6">
-        <h2 className="text-3xl font-bold mt-6 mb-3">Health Providers</h2>
-        
+      {/* Page: render provider list in a vertical stack (aligned to stat tiles) */}
+      <Section className="mt-6">
+        <SectionTitle>Health Providers</SectionTitle>
+
         <div className="flex flex-col gap-3">
           {enrichedProviders.map((provider: AllProviderInfo) => {
             const isUnavailable = !provider.supported
             const status = isUnavailable ? 'unavailable' : toStatus(provider)
             
-            // Choose badge
-            const badge = 
-              status === 'unavailable' ? 'Unavailable' : 
-              provider.id === 'Garmin' ? 'Beta' : 
-              null;
-
             const title =
               provider.id === 'Mock' ? 'Mock Provider' :
               provider.id === 'Whoop' ? 'WHOOP 4.0' :
@@ -407,15 +402,12 @@ export default function Connect() {
                 : provider.description || undefined;
 
             return (
-              <ProviderRow
+              <ProviderCard
                 key={provider.id}
-                id={provider.id}
-                title={title}
-                subtitle={subtitle}
+                name={title}
+                description={subtitle}
                 status={status as any}
-                lastSync={formatTime(provider.last_sync || undefined)}
-                busy={busy === provider.id || busy === 'sync:'+provider.id}
-                badge={badge as any}
+                lastSyncText={provider.last_sync ? `Last sync: ${formatTime(provider.last_sync)}` : undefined}
                 onConnect={isUnavailable ? undefined : async () => {
                   setBusy(provider.id)
                   try {
@@ -498,7 +490,7 @@ export default function Connect() {
             );
           })}
         </div>
-      </div>
+      </Section>
       
       {enrichedProviders.length === 0 && (
         <Card className="p-8 text-center" data-testid="no-providers">
