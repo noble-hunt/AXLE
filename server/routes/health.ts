@@ -111,13 +111,14 @@ router.post('/connect/:provider/start', requireAuth, async (req, res) => {
         return res.status(500).json({ message: 'Provider does not support authentication' });
       }
 
-      console.log(`[WHOOP] authStart: Starting auth for provider ${providerName}, user ${userId}`);
+      console.log(`[${providerName}] authStart: Starting auth for provider ${providerName}, user ${userId}`);
       const { redirectUrl } = await provider.authStart(userId);
-      console.log(`[WHOOP] authStart: Generated redirect URL for ${providerName}`);
+      console.log(`[${providerName}] authStart: Generated redirect URL for ${providerName}`);
       return res.json({ redirectUrl });
     }
   } catch (error) {
-    console.error('Error starting provider connection:', error);
+    const reqId = (req as any).id || 'unknown';
+    console.error(`[${reqId}] Error starting provider connection:`, error instanceof Error ? error.message : error);
     res.status(500).json({ message: 'Failed to start provider connection' });
   }
 });
@@ -129,10 +130,21 @@ router.get('/connect/:provider/callback', requireAuth, async (req, res) => {
     const userId = authReq.user.id;
     const { provider: providerName } = req.params;
 
+    // Allowlist redirect paths for security
+    const allowedCallbacks = ['Mock', 'Fitbit', 'Whoop', 'Oura', 'Garmin', 'AppleHealth'];
+    if (!allowedCallbacks.includes(providerName)) {
+      return res.status(400).json({ message: 'Invalid callback provider' });
+    }
+
     const providers = getProviderRegistry();
     const provider = providers[providerName];
     if (!provider) {
       return res.status(404).json({ message: 'Provider not found' });
+    }
+
+    // Security check: fail with 400 if provider not configured
+    if (!provider.hasConfig()) {
+      return res.status(400).json({ message: 'Provider not configured' });
     }
 
     if (provider.id === 'Mock') {
@@ -145,9 +157,9 @@ router.get('/connect/:provider/callback', requireAuth, async (req, res) => {
     }
 
     // Handle OAuth callback for real providers
-    console.log(`[WHOOP] callback: Processing callback for provider ${providerName}, user ${userId}`);
+    console.log(`[${providerName}] callback: Processing callback for provider ${providerName}, user ${userId}`);
     await provider.authCallback(req.query as Record<string, string>, userId);
-    console.log(`[WHOOP] callback: Successfully processed callback for ${providerName}`);
+    console.log(`[${providerName}] callback: Successfully processed callback for ${providerName}`);
     
     // Mark provider as connected after successful callback
     await db
@@ -165,7 +177,8 @@ router.get('/connect/:provider/callback', requireAuth, async (req, res) => {
     
     res.json({ success: true });
   } catch (error) {
-    console.error('Error handling provider callback:', error);
+    const reqId = (req as any).id || 'unknown';
+    console.error(`[${reqId}] Error handling provider callback:`, error instanceof Error ? error.message : error);
     res.status(500).json({ message: 'Failed to handle provider callback' });
   }
 });
@@ -206,7 +219,8 @@ router.post('/connect/:provider/disconnect', requireAuth, async (req, res) => {
 
     return res.json({ success: true });
   } catch (error) {
-    console.error('Error disconnecting provider:', error);
+    const reqId = (req as any).id || 'unknown';
+    console.error(`[${reqId}] Error disconnecting provider:`, error instanceof Error ? error.message : error);
     return res.status(500).json({ error: error instanceof Error ? error.message : 'disconnect failed' });
   }
 });

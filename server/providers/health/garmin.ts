@@ -108,13 +108,13 @@ export class GarminHealthProvider implements HealthProvider {
     // Map to HealthSnapshot (robust null guards)
     const latest = Array.isArray(dailies) && dailies.length ? dailies[dailies.length - 1] as Record<string, unknown> : null;
     const snapshot: HealthSnapshot = {
-      date: latest?.calendarDate || new Date().toISOString().slice(0, 10),
-      hrv: latest?.hrvSummary?.avgRmssd || null,
-      restingHR: latest?.restingHeartRate || null,
-      sleepScore: latest?.sleepDurationInSeconds ? Math.round(Math.min(100, (latest.sleepDurationInSeconds / 28800) * 100)) : null,
-      stress: latest?.stressLevel || null,
-      steps: latest?.steps || null,
-      calories: latest?.calories || null,
+      date: (latest?.calendarDate as string) || new Date().toISOString().slice(0, 10),
+      hrv: (latest?.hrvSummary as Record<string, unknown>)?.avgRmssd as number || null,
+      restingHR: latest?.restingHeartRate as number || null,
+      sleepScore: typeof latest?.sleepDurationInSeconds === 'number' ? Math.round(Math.min(100, (latest.sleepDurationInSeconds / 28800) * 100)) : null,
+      stress: latest?.stressLevel as number || null,
+      steps: latest?.steps as number || null,
+      calories: latest?.calories as number || null,
     };
     
     // Update last sync time
