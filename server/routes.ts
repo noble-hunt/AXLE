@@ -10,7 +10,7 @@ import { generateWorkout } from "./workoutGenerator";
 import { workoutRequestSchema, WorkoutRequest } from "../shared/schema";
 import { z } from "zod";
 import { requireAuth, AuthenticatedRequest } from "./middleware/auth";
-import { listWorkouts, getWorkout, insertWorkout, updateWorkout } from "./dal/workouts";
+import { listWorkouts, getWorkout, insertWorkout, updateWorkout, getRecentRPE, getZoneMinutes14d, getStrain } from "./dal/workouts";
 import { listPRs } from "./dal/prs";
 import { list as listAchievements } from "./dal/achievements";
 import { listReports } from "./dal/reports";
@@ -1085,6 +1085,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Debug workouts error:", error);
       res.status(500).json({ message: "Failed to get workouts debug info" });
+    }
+  });
+
+  // Test endpoint for new DAL functions
+  app.get("/api/debug/dal-functions", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      
+      // Test the new DAL functions
+      const rpe = await getRecentRPE(userId, 24);
+      const zoneMinutes = await getZoneMinutes14d(userId);
+      const strain = await getStrain(userId, 24);
+      
+      res.json({
+        message: "DAL functions tested successfully",
+        results: {
+          recentRPE: rpe,
+          zoneMinutes14d: zoneMinutes,
+          strain24h: strain
+        }
+      });
+    } catch (error: any) {
+      console.error("DAL function test error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 

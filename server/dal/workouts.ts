@@ -99,3 +99,202 @@ export async function updateWorkout(userId: string, id: string, patch: UpdateWor
 
   return data;
 }
+
+/**
+ * Get average RPE (perceived intensity) from recent completed workouts
+ * @param userId - User ID to query workouts for
+ * @param hours - Number of hours to look back (default: 24)
+ * @returns Average difficulty score from feedback, or null if no completed workouts found
+ */
+export async function getRecentRPE(userId: string, hours: number = 24): Promise<number | null> {
+  const cutoffDate = new Date();
+  cutoffDate.setHours(cutoffDate.getHours() - hours);
+
+  const { data, error } = await supabaseAdmin
+    .from('workouts')
+    .select('feedback')
+    .eq('user_id', userId)
+    .eq('completed', true)
+    .gte('created_at', cutoffDate.toISOString())
+    .not('feedback', 'is', null);
+
+  if (error) {
+    throw new Error(`Failed to get recent RPE: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    return null;
+  }
+
+  // Extract difficulty scores from feedback
+  const difficultyScores: number[] = [];
+  for (const workout of data) {
+    const feedback = workout.feedback as any;
+    if (feedback && typeof feedback.difficulty === 'number') {
+      difficultyScores.push(feedback.difficulty);
+    }
+  }
+
+  if (difficultyScores.length === 0) {
+    return null;
+  }
+
+  // Calculate average
+  const sum = difficultyScores.reduce((acc, score) => acc + score, 0);
+  return Math.round((sum / difficultyScores.length) * 10) / 10; // Round to 1 decimal place
+}
+
+/**
+ * Get zone minutes distribution over last 14 days
+ * @param userId - User ID to query workouts for
+ * @returns Object with minutes per zone, or null if no workouts found
+ */
+export async function getZoneMinutes14d(userId: string): Promise<Record<string, number> | null> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - 14);
+
+  const { data, error } = await supabaseAdmin
+    .from('workouts')
+    .select('sets, request')
+    .eq('user_id', userId)
+    .eq('completed', true)
+    .gte('created_at', cutoffDate.toISOString());
+
+  if (error) {
+    throw new Error(`Failed to get zone minutes: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    return null;
+  }
+
+  // Initialize zone counters
+  const zoneMinutes: Record<string, number> = {
+    'zone1': 0, // Recovery (50-60% max HR)
+    'zone2': 0, // Aerobic Base (60-70% max HR)
+    'zone3': 0, // Aerobic (70-80% max HR)
+    'zone4': 0, // Lactate Threshold (80-90% max HR)
+    'zone5': 0, // Neuromuscular Power (90-100% max HR)
+  };
+
+  // Process each workout
+  for (const workout of data) {
+    const sets = workout.sets as any;
+    const request = workout.request as any;
+    
+    if (!sets || !Array.isArray(sets)) continue;
+
+    // Get workout intensity from request (if available)
+    const workoutIntensity = request?.intensity || 5; // Default to moderate intensity
+
+    // Calculate zone based on intensity level
+    let zone: string;
+    if (workoutIntensity <= 2) zone = 'zone1';
+    else if (workoutIntensity <= 4) zone = 'zone2';
+    else if (workoutIntensity <= 6) zone = 'zone3';
+    else if (workoutIntensity <= 8) zone = 'zone4';
+    else zone = 'zone5';
+
+    // Sum up duration from all sets
+    let totalMinutes = 0;
+    for (const set of sets) {
+      if (typeof set.duration === 'number') {
+        totalMinutes += set.duration / 60; // Convert seconds to minutes
+      }
+    }
+
+    // If no set durations, use estimated duration based on set count and rest
+    if (totalMinutes === 0 && sets.length > 0) {
+      // Estimate ~1 minute per set plus rest time
+      totalMinutes = sets.length * 1.5; // 1.5 minutes per set (including rest)
+    }
+
+    zoneMinutes[zone] += totalMinutes;
+  }
+
+  // Round all values
+  Object.keys(zoneMinutes).forEach(zone => {
+    zoneMinutes[zone] = Math.round(zoneMinutes[zone]);
+  });
+
+  return zoneMinutes;
+}
+
+/**
+ * Calculate workout strain over a given time period
+ * @param userId - User ID to query workouts for
+ * @param hours - Number of hours to look back
+ * @returns Strain score (0-100), or null if no workouts found
+ */
+export async function getStrain(userId: string, hours: number): Promise<number | null> {
+  const cutoffDate = new Date();
+  cutoffDate.setHours(cutoffDate.getHours() - hours);
+
+  const { data, error } = await supabaseAdmin
+    .from('workouts')
+    .select('sets, request, feedback')
+    .eq('user_id', userId)
+    .eq('completed', true)
+    .gte('created_at', cutoffDate.toISOString());
+
+  if (error) {
+    throw new Error(`Failed to get strain: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    return null;
+  }
+
+  let totalStrain = 0;
+
+  for (const workout of data) {
+    const sets = workout.sets as any;
+    const request = workout.request as any;
+    const feedback = workout.feedback as any;
+
+    // Get intensity factor from various sources
+    let intensityFactor = 1.0;
+    
+    // Use feedback difficulty if available (1-10 scale)
+    if (feedback?.difficulty) {
+      intensityFactor = feedback.difficulty / 10;
+    }
+    // Fallback to request intensity (1-10 scale)
+    else if (request?.intensity) {
+      intensityFactor = request.intensity / 10;
+    }
+    
+    // Calculate workout duration in minutes
+    let durationMinutes = 0;
+    
+    if (sets && Array.isArray(sets)) {
+      // Sum up duration from all sets
+      for (const set of sets) {
+        if (typeof set.duration === 'number') {
+          durationMinutes += set.duration / 60; // Convert seconds to minutes
+        }
+      }
+      
+      // If no set durations, estimate based on set count
+      if (durationMinutes === 0) {
+        durationMinutes = sets.length * 1.5; // ~1.5 minutes per set
+      }
+    }
+    
+    // Fallback to request duration if available
+    if (durationMinutes === 0 && request?.duration) {
+      durationMinutes = request.duration;
+    }
+
+    // Calculate strain for this workout: duration * intensity factor
+    const workoutStrain = durationMinutes * intensityFactor;
+    totalStrain += workoutStrain;
+  }
+
+  // Scale to 0-100 range
+  // Using a logarithmic scale where 60 minutes at max intensity = 100 strain
+  const maxStrain = 60 * 1.0; // 60 minutes at full intensity
+  const scaledStrain = Math.min(100, (totalStrain / maxStrain) * 100);
+  
+  return Math.round(scaledStrain);
+}
