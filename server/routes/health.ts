@@ -166,6 +166,47 @@ router.get('/connect/:provider/callback', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/connect/:provider/disconnect → revoke provider tokens and mark as disconnected
+router.post('/connect/:provider/disconnect', requireAuth, async (req, res) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.id;
+    const { provider: providerName } = req.params;
+
+    const providers = getProviderRegistry();
+    const provider = providers[providerName];
+    if (!provider) {
+      return res.status(404).json({ error: 'Unknown provider' });
+    }
+
+    // Call revoke method if available
+    if ('revoke' in provider && typeof (provider as any).revoke === 'function') {
+      await (provider as any).revoke(userId);
+    } else {
+      // If no revoke method, just delete tokens and update connection
+      await deleteTokens(userId, providerName);
+      
+      // Mark as disconnected in database
+      await db
+        .update(wearableConnections)
+        .set({
+          connected: false,
+          status: 'disconnected',
+          error: null,
+        })
+        .where(and(
+          eq(wearableConnections.userId, userId),
+          eq(wearableConnections.provider, providerName)
+        ));
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error disconnecting provider:', error);
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'disconnect failed' });
+  }
+});
+
 // POST /api/health/sync (body { provider }) → fetchLatest → upsert health_reports row for today (merge metrics) and update wearable_connections.last_sync
 router.post('/health/sync', requireAuth, async (req, res) => {
   try {
