@@ -43,7 +43,19 @@ export default function Connect() {
   const [debugData, setDebugData] = useState<any>(null)
   const [debugDialogOpen, setDebugDialogOpen] = useState(false)
   const { toast } = useToast()
-  const { fetchReports, syncProviderNow, location, requestAndSaveLocation } = useAppStore()
+  const { 
+    fetchReports, 
+    syncProviderNow, 
+    location, 
+    requestAndSaveLocation, 
+    locationOptIn, 
+    timezone,
+    lastLat,
+    lastLon,
+    hydrateLocation,
+    setLocationOptIn,
+    refreshLocationNow
+  } = useAppStore()
   
   // Helper function to format time
   function formatTime(ts?: string) {
@@ -60,9 +72,10 @@ export default function Connect() {
   const isDebugMode = new URLSearchParams(window.location.search).get('debug') === '1'
   const showDebug = import.meta.env.DEV && isDebugMode
   
-  // Load providers on mount
+  // Load providers and hydrate location on mount
   useEffect(() => {
     loadProviders()
+    hydrateLocation()
   }, [])
 
   async function loadProviders() {
@@ -543,33 +556,38 @@ export default function Connect() {
                 environmental health recommendations.
               </p>
               
-              {location ? (
-                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" />
-                  Location enabled for timezone: {location.timezone}
-                </p>
-              ) : (
-                <Button 
-                  onClick={async () => {
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Location sharing</p>
+                  <p className="text-sm text-muted-foreground">
+                    Get daylight exposure and UV index insights based on your location
+                  </p>
+                </div>
+                <Switch 
+                  checked={locationOptIn}
+                  data-testid="toggle-location-sharing"
+                  onCheckedChange={async (checked) => {
                     setBusy('location')
                     try {
-                      const success = await requestAndSaveLocation()
+                      const success = await setLocationOptIn(checked)
                       if (success) {
                         toast({
-                          title: "Location Enabled",
-                          description: "Location saved for health insights",
+                          title: checked ? "Location Enabled" : "Location Disabled",
+                          description: checked 
+                            ? "Location enabled for health insights" 
+                            : "Location disabled - no environmental data will be collected",
                         })
                       } else {
                         toast({
-                          title: "Location Permission Denied",
-                          description: "You can enable this later for daylight/UV insights",
+                          title: "Location Update Failed",
+                          description: "Unable to update location preference",
                           variant: "destructive",
                         })
                       }
                     } catch (error: any) {
                       toast({
-                        title: "Location Failed",
-                        description: error.message || "Unable to get location",
+                        title: "Location Error",
+                        description: error.message || "Unable to update location preference",
                         variant: "destructive",
                       })
                     } finally {
@@ -577,22 +595,64 @@ export default function Connect() {
                     }
                   }}
                   disabled={busy === 'location'}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                  data-testid="enable-location-button"
-                >
-                  {busy === 'location' ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Requesting Location...
-                    </>
-                  ) : (
-                    <>
-                      <Heart className="w-4 h-4 mr-2" />
-                      Enable Location for Insights
-                    </>
-                  )}
-                </Button>
-              )}
+                />
+              </div>
+              
+              {locationOptIn && (lastLat && lastLon ? (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Location cached{timezone && ` • ${timezone}`}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      setBusy('refresh-location')
+                      try {
+                        const success = await refreshLocationNow()
+                        if (success) {
+                          toast({
+                            title: "Location Updated",
+                            description: "Current location saved for health insights",
+                          })
+                        } else {
+                          toast({
+                            title: "Location Update Failed",
+                            description: "Unable to refresh current location",
+                            variant: "destructive",
+                          })
+                        }
+                      } catch (error: any) {
+                        toast({
+                          title: "Location Error",
+                          description: error.message || "Unable to refresh location",
+                          variant: "destructive",
+                        })
+                      } finally {
+                        setBusy(null)
+                      }
+                    }}
+                    disabled={busy === 'refresh-location'}
+                    className="text-xs h-6"
+                    data-testid="refresh-location-button"
+                  >
+                    {busy === 'refresh-location' ? (
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <>
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        Refresh
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Waiting for location permission...
+                </p>
+              ))}
             </div>
           </div>
         </Card>
