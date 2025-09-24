@@ -7,7 +7,11 @@ import {
   deleteTokens 
 } from "../../dal/tokens";
 import { upsertWearable } from "../../dal/wearables";
-import { subDays, format } from "date-fns";
+import { subDays, format, subMinutes } from "date-fns";
+import { toSnapshot, createNullSnapshot } from "../whoop/map";
+import { db } from "../../db";
+import { wearableConnections } from "../../../shared/schema";
+import { eq, and } from "drizzle-orm";
 
 const WHOOP_AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth";
 const WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";
@@ -62,7 +66,7 @@ async function tokenRefresh(refreshToken: string) {
   return res.json() as Promise<{ access_token: string; refresh_token?: string; expires_in?: number }>;
 }
 
-async function authedFetch(userId: string, input: RequestInfo, init?: RequestInit) {
+async function authedFetch(userId: string, input: RequestInfo, init?: RequestInit): Promise<{ response: Response; tokenRefreshed: boolean }> {
   let tok = await getDecryptedTokens(userId, "Whoop");
   if (!tok) throw new Error("No WHOOP token on file");
   
@@ -71,20 +75,40 @@ async function authedFetch(userId: string, input: RequestInfo, init?: RequestIni
     headers: { ...(init?.headers || {}), Authorization: `Bearer ${tok.accessToken}` },
   });
   
+  let tokenRefreshed = false;
+  
+  // Handle 401 with token refresh and retry once
   if (res.status === 401 && tok.refreshToken) {
-    const refreshed = await tokenRefresh(tok.refreshToken);
-    const expiresAt = refreshed.expires_in ? Date.now() + refreshed.expires_in * 1000 : undefined;
-    await storeEncryptedTokens(userId, "Whoop", {
-      accessToken: refreshed.access_token,
-      refreshToken: refreshed.refresh_token ?? tok.refreshToken,
-      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
-    });
-    res = await fetch(input, {
-      ...(init || {}),
-      headers: { ...(init?.headers || {}), Authorization: `Bearer ${refreshed.access_token}` },
-    });
+    try {
+      const refreshed = await tokenRefresh(tok.refreshToken);
+      const expiresAt = refreshed.expires_in ? Date.now() + refreshed.expires_in * 1000 : undefined;
+      await storeEncryptedTokens(userId, "Whoop", {
+        accessToken: refreshed.access_token,
+        refreshToken: refreshed.refresh_token ?? tok.refreshToken,
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      });
+      
+      // Retry the request with new token
+      res = await fetch(input, {
+        ...(init || {}),
+        headers: { ...(init?.headers || {}), Authorization: `Bearer ${refreshed.access_token}` },
+      });
+      tokenRefreshed = true;
+    } catch (refreshError) {
+      // Token refresh failed - update wearable connection with error
+      await upsertWearable({
+        userId,
+        provider: "Whoop",
+        connected: false,
+        lastSync: null,
+        error: "Session expired, please reconnect WHOOP",
+        status: "error"
+      });
+      throw new Error("Session expired, please reconnect WHOOP");
+    }
   }
-  return res;
+  
+  return { response: res, tokenRefreshed };
 }
 
 export class WhoopHealthProvider implements HealthProvider {
@@ -131,67 +155,163 @@ export class WhoopHealthProvider implements HealthProvider {
   }
 
   async fetchLatest(userId: string) {
-    const end = new Date();
+    const now = new Date();
+    
+    // Rate limiting: check if last sync was less than 10 minutes ago
+    const connection = await db
+      .select()
+      .from(wearableConnections)
+      .where(and(
+        eq(wearableConnections.userId, userId),
+        eq(wearableConnections.provider, "Whoop")
+      ))
+      .limit(1);
+    
+    const lastSync = connection[0]?.lastSync;
+    if (lastSync) {
+      const lastSyncDate = new Date(lastSync);
+      const tenMinutesAgo = subMinutes(now, 10);
+      if (lastSyncDate > tenMinutesAgo) {
+        // Too recent, return cached data or null snapshot
+        const nullSnapshot = createNullSnapshot(now);
+        console.log(`WHOOP: Rate limit hit, last sync was ${lastSyncDate.toISOString()}`);
+        return nullSnapshot;
+      }
+    }
+
+    const end = now;
     const start = subDays(end, 2);
+    let tokenRefreshed = false;
 
-    // 1) Recent cycles (day windows)
-    const cyclesRes = await authedFetch(
-      userId,
-      `${WHOOP_API}/cycle?limit=5&start=${start.toISOString()}&end=${end.toISOString()}`
-    );
-    if (!cyclesRes.ok) throw new Error(`WHOOP cycles error: ${cyclesRes.status}`);
-    const cycles = await cyclesRes.json(); // { records: [...] }
-    const latestCycle = cycles?.records?.[0];
+    try {
+      // Defensive fetching with null checks for all WHOOP endpoints
+      let latestCycle = null;
+      let latestRecovery = null;
+      let latestSleep = null;
+      let workouts = { records: [] };
 
-    // 2) Recovery (collection)
-    const recRes = await authedFetch(
-      userId,
-      `${WHOOP_API}/recovery?limit=5&start=${start.toISOString()}&end=${end.toISOString()}`
-    );
-    const recData = recRes.ok ? await recRes.json() : { records: [] };
-    const latestRecovery = recData.records?.[0];
+      // 1) Recent cycles (day windows)
+      try {
+        const { response: cyclesRes, tokenRefreshed: refreshed1 } = await authedFetch(
+          userId,
+          `${WHOOP_API}/cycle?limit=5&start=${start.toISOString()}&end=${end.toISOString()}`
+        );
+        tokenRefreshed = tokenRefreshed || refreshed1;
+        
+        if (cyclesRes.ok) {
+          const cycles = await cyclesRes.json();
+          latestCycle = cycles?.records?.[0] || null;
+        } else {
+          console.warn(`WHOOP cycles API returned ${cyclesRes.status}`);
+        }
+      } catch (error) {
+        console.warn('WHOOP cycles fetch failed:', error);
+      }
 
-    // 3) Sleep (collection)
-    const sleepRes = await authedFetch(
-      userId,
-      `${WHOOP_API}/sleep?limit=5&start=${start.toISOString()}&end=${end.toISOString()}`
-    );
-    const sleepData = sleepRes.ok ? await sleepRes.json() : { records: [] };
-    const latestSleep = sleepData.records?.[0];
+      // 2) Recovery (collection)
+      try {
+        const { response: recRes, tokenRefreshed: refreshed2 } = await authedFetch(
+          userId,
+          `${WHOOP_API}/recovery?limit=5&start=${start.toISOString()}&end=${end.toISOString()}`
+        );
+        tokenRefreshed = tokenRefreshed || refreshed2;
+        
+        if (recRes.ok) {
+          const recData = await recRes.json();
+          latestRecovery = recData?.records?.[0] || null;
+        } else {
+          console.warn(`WHOOP recovery API returned ${recRes.status}`);
+        }
+      } catch (error) {
+        console.warn('WHOOP recovery fetch failed:', error);
+      }
 
-    // 4) Workouts (collection) – optional enrichment
-    const wRes = await authedFetch(
-      userId,
-      `${WHOOP_API}/workout?limit=1&start=${start.toISOString()}&end=${end.toISOString()}`
-    );
-    const workouts = wRes.ok ? await wRes.json() : { records: [] };
+      // 3) Sleep (collection)
+      try {
+        const { response: sleepRes, tokenRefreshed: refreshed3 } = await authedFetch(
+          userId,
+          `${WHOOP_API}/sleep?limit=5&start=${start.toISOString()}&end=${end.toISOString()}`
+        );
+        tokenRefreshed = tokenRefreshed || refreshed3;
+        
+        if (sleepRes.ok) {
+          const sleepData = await sleepRes.json();
+          latestSleep = sleepData?.records?.[0] || null;
+        } else {
+          console.warn(`WHOOP sleep API returned ${sleepRes.status}`);
+        }
+      } catch (error) {
+        console.warn('WHOOP sleep fetch failed:', error);
+      }
 
-    // Map into standardized health snapshot format
-    const snapshot = {
-      provider: "Whoop",
-      date: format(end, 'yyyy-MM-dd'),
-      hrv_ms: latestRecovery?.score?.hrv_rmssd_milli || latestRecovery?.hrv_rmssd_milli || null,
-      resting_hr_bpm: latestRecovery?.score?.resting_heart_rate || latestRecovery?.resting_heart_rate || null,
-      sleep_score: latestSleep?.score?.sleep_performance_percentage || null,
-      steps: null, // WHOOP doesn't track steps directly
-      calories: latestCycle?.score?.kilojoule ? Math.round(latestCycle.score.kilojoule / 4.184) : null,
-      stress_0_10: null, // WHOOP uses strain instead of traditional stress
-      raw: {
-        cycle: latestCycle || null,
-        recovery: latestRecovery || null,
-        sleep: latestSleep || null,
-        workouts: workouts.records || [],
-      },
-    };
+      // 4) Workouts (collection) – optional enrichment
+      try {
+        const { response: wRes, tokenRefreshed: refreshed4 } = await authedFetch(
+          userId,
+          `${WHOOP_API}/workout?limit=1&start=${start.toISOString()}&end=${end.toISOString()}`
+        );
+        tokenRefreshed = tokenRefreshed || refreshed4;
+        
+        if (wRes.ok) {
+          workouts = await wRes.json();
+        } else {
+          console.warn(`WHOOP workout API returned ${wRes.status}`);
+        }
+      } catch (error) {
+        console.warn('WHOOP workout fetch failed:', error);
+      }
 
-    await upsertWearable({
-      userId,
-      provider: "Whoop",
-      connected: true,
-      lastSync: new Date().toISOString()
-    });
+      // Check if we have any data from the last 2 days
+      const hasData = latestCycle || latestRecovery || latestSleep || (workouts.records && workouts.records.length > 0);
+      
+      let snapshot;
+      if (!hasData) {
+        // No data available, return null snapshot but still record sync
+        snapshot = createNullSnapshot(end);
+        console.log('WHOOP: No data found in last 2 days, returning null snapshot');
+      } else {
+        // Map WHOOP data to standardized format using pure mapper
+        snapshot = toSnapshot({
+          cycle: latestCycle,
+          recovery: latestRecovery,
+          sleep: latestSleep,
+          workouts: workouts.records
+        }, end);
+      }
 
-    return snapshot;
+      // Update wearable connection with successful sync
+      await upsertWearable({
+        userId,
+        provider: "Whoop",
+        connected: true,
+        lastSync: new Date().toISOString(),
+        error: null, // Clear any previous errors
+        status: "connected"
+      });
+
+      return snapshot;
+      
+    } catch (error) {
+      console.error('WHOOP fetchLatest error:', error);
+      
+      // For 401 errors that couldn't be refreshed, the error is already handled in authedFetch
+      if ((error as Error).message?.includes('Session expired')) {
+        throw error; // Re-throw to surface the "reconnect" message
+      }
+      
+      // For other errors, update connection with error state but don't throw
+      await upsertWearable({
+        userId,
+        provider: "Whoop",
+        connected: true, // Keep connected but log error
+        lastSync: new Date().toISOString(),
+        error: `API Error: ${(error as Error).message}`,
+        status: "error"
+      });
+      
+      // Return null snapshot even on errors to ensure sync completes
+      return createNullSnapshot(end);
+    }
   }
 
   async disconnect(userId: string) {
@@ -201,7 +321,9 @@ export class WhoopHealthProvider implements HealthProvider {
         userId,
         provider: "Whoop",
         connected: false,
-        lastSync: null
+        lastSync: null,
+        error: null,
+        status: "disconnected"
       });
       return { success: true };
     } catch (error) {
@@ -210,7 +332,9 @@ export class WhoopHealthProvider implements HealthProvider {
         userId,
         provider: "Whoop",
         connected: false,
-        lastSync: null
+        lastSync: null,
+        error: null,
+        status: "disconnected"
       });
       throw error;
     }

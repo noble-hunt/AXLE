@@ -5,6 +5,8 @@ export interface UpsertWearableParams {
   provider: string;
   connected: boolean;
   lastSync?: string | null;
+  error?: string | null;
+  status?: string;
 }
 
 export async function upsertWearable(params: UpsertWearableParams) {
@@ -14,7 +16,9 @@ export async function upsertWearable(params: UpsertWearableParams) {
       user_id: params.userId,
       provider: params.provider,
       connected: params.connected,
-      last_sync: params.lastSync
+      last_sync: params.lastSync,
+      error: params.error,
+      status: params.status || (params.connected ? 'connected' : 'disconnected')
     }, {
       onConflict: 'user_id,provider'
     })
