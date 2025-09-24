@@ -1,3 +1,5 @@
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 type Props = {
   id: string;
   title: string;
@@ -37,23 +39,30 @@ export function ProviderCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="flex items-center justify-between gap-2">
         {disabled || status === 'unavailable' ? (
-          <div className="col-span-3 text-center text-sm text-muted-foreground py-2">
-            Provider configuration required
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="w-full text-center text-sm text-muted-foreground py-2">
+                  Provider configuration required
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Configure in Settings</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : status !== 'connected' ? (
-          <button className="btn col-span-3" onClick={onConnect} disabled={busy}>
+          <button className="btn w-full" onClick={onConnect} disabled={busy}>
             Connect
           </button>
         ) : (
           <>
-            <button className="btn" onClick={onSync} disabled={busy}>Sync Now</button>
-            <div className="col-span-2 flex justify-end">
-              <button className="btn-destructive" onClick={onDisconnect} disabled={busy}>
-                Disconnect
-              </button>
-            </div>
+            <button className="btn flex-1" onClick={onSync} disabled={busy}>Sync Now</button>
+            <button className="btn-destructive flex-1" onClick={onDisconnect} disabled={busy}>
+              Disconnect
+            </button>
           </>
         )}
       </div>

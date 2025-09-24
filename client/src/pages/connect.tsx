@@ -39,7 +39,7 @@ export default function Connect() {
   const [mockStress, setMockStress] = useState(5)
   const [mockSleep, setMockSleep] = useState(75)
   const { toast } = useToast()
-  const { fetchReports } = useAppStore()
+  const { fetchReports, syncProviderNow } = useAppStore()
   
   // Load providers and connections on mount
   useEffect(() => {
@@ -362,11 +362,12 @@ export default function Connect() {
       <div className="space-y-4">
         <SectionTitle title="Health Providers" />
         
-        <div className="flex flex-col gap-3">
-          {enrichedProviders.map((provider: AllProviderInfo) => {
-            const isUnavailable = !provider.supported
-            return (
-              <div key={provider.id} className="relative">
+        <div className="mx-auto max-w-[720px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {enrichedProviders.map((provider: AllProviderInfo) => {
+              const isUnavailable = !provider.supported
+              return (
+                <div key={provider.id} className="relative">
                 <ProviderCard
                   id={provider.id}
                   title={provider.name}
@@ -413,20 +414,8 @@ export default function Connect() {
                         sleep: mockSleep
                       } : undefined
                       
-                      const token = (await supabase.auth.getSession()).data.session?.access_token
-                      const r = await fetch('/api/health/sync', {
-                        method: 'POST',
-                        headers: { 
-                          'content-type': 'application/json', 
-                          Authorization: `Bearer ${token ?? ''}` 
-                        },
-                        body: JSON.stringify({ provider: provider.id, ...params })
-                      })
-                      const j = await r.json()
-                      if (!r.ok) throw new Error(j?.error || 'sync failed')
-                      
+                      await syncProviderNow(provider.id, params)
                       await loadProviders()
-                      await fetchReports()
                       toast({
                         title: "Sync Complete",
                         description: `Successfully synced data from ${provider.name}`,
@@ -475,7 +464,8 @@ export default function Connect() {
                 )}
               </div>
             )
-          })}
+            })}
+          </div>
         </div>
         
         {enrichedProviders.length === 0 && (
