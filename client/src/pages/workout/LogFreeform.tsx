@@ -4,9 +4,11 @@ import { Button } from "@/components/swift/button"
 import { Card } from "@/components/swift/card"
 import { Chip } from "@/components/swift/chip"
 import { SectionTitle } from "@/components/ui/section-title"
-import { authFetch } from "@/lib/authFetch"
-import { apiRequest, queryClient } from "@/lib/queryClient"
+import { useToast } from "@/hooks/use-toast"
+import { queryClient } from "@/lib/queryClient"
 import { useAppStore } from "@/store/useAppStore"
+import { transcribeAudio } from '@/features/voice/api'
+import { parseFreeform, logFreeform } from '@/features/workouts/freeformApi'
 import { 
   Category, 
   FreeformParsed, 
@@ -66,23 +68,22 @@ const getConfidenceVariant = (level: "high" | "medium" | "low") => {
 }
 
 export default function LogFreeform() {
-  const [, setLocation] = useLocation()
+  const [, navigate] = useLocation()
+  const { toast } = useToast()
   const { addWorkout } = useAppStore()
   
   // Form state
-  const [text, setText] = useState("")
+  const [transcript, setTranscript] = useState("")
   const [isRecording, setIsRecording] = useState(false)
   const [parsed, setParsed] = useState<FreeformParsed | null>(null)
   const [isEditing, setIsEditing] = useState(false)
-  const [isParsing, setIsParsing] = useState(false)
-  const [isLogging, setIsLogging] = useState(false)
+  const [isBusy, setBusy] = useState(false)
   const [showManualForm, setShowManualForm] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDiagnostics, setShowDiagnostics] = useState(false)
-  const [diagnostics, setDiagnostics] = useState<any>(null)
+  const [diagnostics, setDiag] = useState<any>(null)
   const [isServerRecording, setIsServerRecording] = useState(false)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
-  const [isTranscribing, setIsTranscribing] = useState(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   
@@ -159,7 +160,7 @@ export default function LogFreeform() {
       diag.speechRecognitionInstantiation = 'error: ' + err.message
     }
 
-    setDiagnostics(diag)
+    setDiag(diag)
     console.log('🔍 Voice Diagnostics:', diag)
     return diag
   }
@@ -171,7 +172,8 @@ export default function LogFreeform() {
       
       audioChunksRef.current = []
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
+        mimeType: 'audio/webm;codecs=opus',
+        bitsPerSecond: 64000
       })
       
       mediaRecorder.ondataavailable = (event) => {
@@ -210,35 +212,21 @@ export default function LogFreeform() {
     }
   }
 
-  const transcribeAudio = async () => {
-    if (!audioBlob) return
-    
-    setIsTranscribing(true)
-    setError(null)
-    
+  async function onTranscribe(blob: Blob) {
     try {
-      const formData = new FormData()
-      formData.append('audio', audioBlob, 'recording.webm')
-      
-      const response = await authFetch('/api/stt/whisper', {
-        method: 'POST',
-        body: formData
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Transcription failed')
-      }
-      
-      const data = await response.json()
-      setText(prevText => prevText + (prevText ? ' ' : '') + data.transcript)
-      setAudioBlob(null) // Clear the audio blob after successful transcription
-      
-    } catch (err: any) {
-      console.error('Transcription failed:', err)
-      setError(`Transcription failed: ${err.message}`)
+      setDiag(null);
+      setBusy(true);
+      const text = await transcribeAudio(blob);
+      setTranscript(text || '');
+    } catch (e:any) {
+      setTranscript('');
+      toast({ 
+        variant: "destructive",
+        title: "Transcription failed", 
+        description: e?.message || 'Failed to transcribe audio'
+      });
     } finally {
-      setIsTranscribing(false)
+      setBusy(false);
     }
   }
 
@@ -264,7 +252,7 @@ export default function LogFreeform() {
       }
       
       if (finalTranscript) {
-        setText(prevText => prevText + finalTranscript)
+        setTranscript(prevText => prevText + finalTranscript)
       }
     }
     
@@ -395,99 +383,36 @@ export default function LogFreeform() {
     }
   }
 
-  const parseWorkout = async () => {
-    if (!text.trim()) {
-      setError('Please describe your workout first')
-      return
-    }
-    
-    setIsParsing(true)
-    setError(null)
-    
-    console.log('🚀 Starting workout parse for text:', text.trim().substring(0, 100) + '...')
-    
+  async function onParse() {
     try {
-      console.log('📡 Making request to /api/workouts/parse-freeform')
-      const response = await authFetch('/api/workouts/parse-freeform', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.trim() })
-      })
-      
-      console.log('📡 Response received:', response.status, response.statusText)
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ API Error Response:', errorText)
-        throw new Error(`Parse failed: ${response.statusText} - ${errorText}`)
-      }
-      
-      const data = await response.json()
-      console.log('✅ Parse successful:', data)
-      setParsed(data.parsed)
-    } catch (err) {
-      console.error('❌ Parse error:', err)
-      if (err instanceof Error) {
-        if (err.message.includes('Failed to fetch')) {
-          setError('Connection failed. Please check your internet connection and try again.')
-        } else {
-          setError(`Parse failed: ${err.message}`)
-        }
-      } else {
-        setError('Failed to parse workout. Please try manual entry.')
-      }
-      setShowManualForm(true)
-    } finally {
-      setIsParsing(false)
-    }
+      setBusy(true);
+      const parsed = await parseFreeform(transcript);
+      setParsed(parsed);
+    } catch (e:any) {
+      toast({ 
+        variant: "destructive",
+        title: "Parse failed", 
+        description: e?.message || 'Failed to parse workout'
+      });
+    } finally { setBusy(false); }
   }
 
-  const logWorkout = async () => {
-    if (!parsed) return
-    
-    setIsLogging(true)
-    setError(null)
-    
+  async function onSave() {
     try {
-      const response = await authFetch('/api/workouts/log-freeform', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parsed })
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Log failed: ${response.statusText}`)
-      }
-      
-      const data = await response.json()
-      
-      // Update store directly to immediately show in home page
-      useAppStore.setState((state) => ({
-        workouts: [...state.workouts, {
-          id: data.id,
-          name: parsed.title,
-          category: parsed.request.category,
-          description: parsed.notes || '',
-          duration: parsed.request.durationMinutes || 30,
-          intensity: parsed.request.intensity || 5,
-          sets: parsed.sets,
-          date: new Date(),
-          completed: false,
-          notes: parsed.notes || '',
-          createdAt: new Date()
-        }]
-      }))
-      
-      // Invalidate cache and navigate
-      await queryClient.invalidateQueries({ queryKey: ['/api/workouts'] })
-      setLocation(`/workout/${data.id}`)
-      
-    } catch (err) {
-      console.error('Log error:', err)
-      setError('Failed to save workout. Please try again.')
-    } finally {
-      setIsLogging(false)
-    }
+      setBusy(true);
+      const id = await logFreeform(parsed, parsed?.title);
+      toast({ 
+        title: "Workout saved", 
+        description: "Your workout has been logged successfully"
+      });
+      navigate(`/workouts/${id}`);
+    } catch (e:any) {
+      toast({ 
+        variant: "destructive",
+        title: "Save failed", 
+        description: e?.message || 'Failed to save workout'
+      });
+    } finally { setBusy(false); }
   }
 
   const updateParsedField = (field: keyof FreeformParsed, value: any) => {
@@ -541,7 +466,7 @@ export default function LogFreeform() {
         <Button 
           variant="ghost" 
           size="sm"
-          onClick={() => setLocation('/workout')}
+          onClick={() => navigate('/workout')}
           data-testid="back-button"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -564,15 +489,15 @@ export default function LogFreeform() {
       <div className="space-y-3">
         <div className="relative">
           <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
             placeholder={EXAMPLE_TEXT}
             className="w-full min-h-32 p-4 border border-border rounded-lg bg-background text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             maxLength={3000}
             data-testid="workout-textarea"
           />
           <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
-            {text.length}/3000
+            {transcript.length}/3000
           </div>
         </div>
         
@@ -582,7 +507,7 @@ export default function LogFreeform() {
             <Button
               variant={isRecording ? "destructive" : "secondary"}
               onClick={toggleRecording}
-              disabled={isParsing || isServerRecording || isTranscribing}
+              disabled={isBusy || isServerRecording}
               data-testid="voice-button"
             >
               {isRecording ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
@@ -594,7 +519,7 @@ export default function LogFreeform() {
           <Button
             variant={isServerRecording ? "destructive" : "secondary"}
             onClick={isServerRecording ? stopServerRecording : startServerRecording}
-            disabled={isParsing || isRecording || isTranscribing}
+            disabled={isBusy || isRecording}
             data-testid="server-voice-button"
           >
             {isServerRecording ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
@@ -605,23 +530,23 @@ export default function LogFreeform() {
           {audioBlob && (
             <Button
               variant="primary"
-              onClick={transcribeAudio}
-              disabled={isTranscribing || isParsing || isRecording || isServerRecording}
+              onClick={() => onTranscribe(audioBlob!)}
+              disabled={isBusy || isRecording || isServerRecording}
               data-testid="transcribe-button"
             >
               <Send className="w-4 h-4 mr-2" />
-              {isTranscribing ? 'Transcribing...' : 'Transcribe Audio'}
+              {isBusy ? 'Transcribing...' : 'Transcribe Audio'}
             </Button>
           )}
           
           {/* Parse Button */}
           <Button
-            onClick={parseWorkout}
-            disabled={!text.trim() || isParsing || isRecording || isServerRecording || isTranscribing}
+            onClick={onParse}
+            disabled={!transcript.trim() || isBusy || isRecording || isServerRecording}
             data-testid="parse-button"
           >
             <Send className="w-4 h-4 mr-2" />
-            {isParsing ? 'Parsing...' : 'Parse Workout'}
+            {isBusy ? 'Parsing...' : 'Parse Workout'}
           </Button>
         </div>
       </div>
@@ -877,13 +802,13 @@ export default function LogFreeform() {
 
           {/* Confirm & Log Button */}
           <Button
-            onClick={logWorkout}
-            disabled={isLogging}
+            onClick={onSave}
+            disabled={isBusy}
             className="w-full"
             data-testid="confirm-log-button"
           >
             <Check className="w-4 h-4 mr-2" />
-            {isLogging ? 'Logging...' : 'Confirm & Log Workout'}
+            {isBusy ? 'Logging...' : 'Confirm & Log Workout'}
           </Button>
         </Card>
       )}
