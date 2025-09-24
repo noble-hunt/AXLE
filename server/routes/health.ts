@@ -571,8 +571,8 @@ router.post('/health/compute/daily', requireAuth, async (req, res) => {
       console.log(`[COMPUTE] No location data in profile, environment service will use null coordinates`);
     }
     
-    // Compute daily metrics
-    const metrics = await computeDailyMetrics(userId, targetDate);
+    // Compute daily metrics with location data if available
+    const metrics = await computeDailyMetrics(userId, targetDate, userLocation);
     console.log(`[COMPUTE] Computed metrics for ${targetDate}:`, {
       vitality: metrics.vitalityScore,
       performance: metrics.performancePotentialScore,
@@ -591,10 +591,21 @@ router.post('/health/compute/daily', requireAuth, async (req, res) => {
       .limit(1);
 
     const reportData = {
+      // Top-level fields for baseline computation compatibility
+      hrv: metrics.rawBiometrics.hrv,
+      restingHR: metrics.rawBiometrics.restingHR,
+      sleepScore: metrics.rawBiometrics.sleepScore,
+      stress: metrics.rawBiometrics.stress,
+      steps: metrics.rawBiometrics.steps,
+      calories: metrics.rawBiometrics.calories,
+      
+      // Computed scores (top-level for easy access)
       vitalityScore: metrics.vitalityScore,
       performancePotentialScore: metrics.performancePotentialScore,
       circadianScore: metrics.circadianScore,
       energyBalanceScore: metrics.energyBalanceScore,
+      
+      // Structured data for advanced analysis
       rawBiometrics: metrics.rawBiometrics,
       derived: metrics.derived,
       environment: metrics.environment,
@@ -668,6 +679,24 @@ router.post('/health/compute/backfill', requireAdmin, async (req, res) => {
     
     console.log(`[BACKFILL] Starting backfill for ${days} days, user: ${userId}`);
     
+    // Load user's location from profile (once, outside the loop)
+    const profile = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId))
+      .limit(1);
+    
+    let userLocation: { lat: number; lon: number } | null = null;
+    if (profile[0] && profile[0].latitude && profile[0].longitude) {
+      userLocation = {
+        lat: profile[0].latitude,
+        lon: profile[0].longitude,
+      };
+      console.log(`[BACKFILL] Using profile location: lat=${userLocation.lat}, lon=${userLocation.lon}`);
+    } else {
+      console.log(`[BACKFILL] No location data in profile, environment service will use null coordinates`);
+    }
+    
     const results = [];
     const today = new Date();
     
@@ -679,8 +708,8 @@ router.post('/health/compute/backfill', requireAdmin, async (req, res) => {
       try {
         console.log(`[BACKFILL] Processing date: ${dateStr} (${i + 1}/${days})`);
         
-        // Compute daily metrics
-        const metrics = await computeDailyMetrics(userId, dateStr);
+        // Compute daily metrics with location data if available
+        const metrics = await computeDailyMetrics(userId, dateStr, userLocation);
         
         // Check if report already exists
         const existingReport = await db
@@ -693,10 +722,21 @@ router.post('/health/compute/backfill', requireAdmin, async (req, res) => {
           .limit(1);
 
         const reportData = {
+          // Top-level fields for baseline computation compatibility
+          hrv: metrics.rawBiometrics.hrv,
+          restingHR: metrics.rawBiometrics.restingHR,
+          sleepScore: metrics.rawBiometrics.sleepScore,
+          stress: metrics.rawBiometrics.stress,
+          steps: metrics.rawBiometrics.steps,
+          calories: metrics.rawBiometrics.calories,
+          
+          // Computed scores (top-level for easy access)
           vitalityScore: metrics.vitalityScore,
           performancePotentialScore: metrics.performancePotentialScore,
           circadianScore: metrics.circadianScore,
           energyBalanceScore: metrics.energyBalanceScore,
+          
+          // Structured data for advanced analysis
           rawBiometrics: metrics.rawBiometrics,
           derived: metrics.derived,
           environment: metrics.environment,

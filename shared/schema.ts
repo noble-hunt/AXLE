@@ -340,7 +340,17 @@ export type SuggestionRationale = {
     lastWorkout?: Workout | null;
     weeklyCounts?: Record<Category, number>;
     monthlyCounts?: Record<Category, number>;
-    health?: { hrv?: number|null; sleepScore?: number|null; restingHR?: number|null; stress?: number|null };
+    health?: { 
+      hrv?: number|null; 
+      sleepScore?: number|null; 
+      restingHR?: number|null; 
+      stress?: number|null;
+      performancePotential?: number|null;
+      vitality?: number|null;
+      energyBalance?: number|null;
+      circadian?: number|null;
+      uvMax?: number|null;
+    };
   };
 };
 

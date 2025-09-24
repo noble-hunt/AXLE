@@ -312,7 +312,7 @@ export async function computeSuggestion(userId: string, today = new Date()) {
   const energyBalance = healthMetrics?.energyBalanceScore ?? null;
   const circadian = healthMetrics?.circadianScore ?? null;
   const environment = healthMetrics?.environment || null;
-  const uvMax = environment?.weather?.uvMax ?? null;
+  const uvMax = environment?.weather?.uvIndex ?? null;
   
   console.log(`🎯 Suggestion metrics: performance=${performancePotential}, vitality=${vitality}, energy=${energyBalance}, circadian=${circadian}, uvMax=${uvMax}`);
   

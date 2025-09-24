@@ -468,7 +468,11 @@ function scoreEnergyBalance(zoneMinutes14d: {
 /**
  * Compute daily metrics for a user and date
  */
-export async function computeDailyMetrics(userId: string, date: string): Promise<DailyMetricsResult> {
+export async function computeDailyMetrics(
+  userId: string, 
+  date: string, 
+  location?: { lat: number; lon: number } | null
+): Promise<DailyMetricsResult> {
   try {
     // 1. Get raw biometrics from health reports
     const { data: healthReport } = await supabaseAdmin
@@ -565,8 +569,12 @@ export async function computeDailyMetrics(userId: string, date: string): Promise
       stepsFirst2h
     };
 
-    // 3. Get environment data
-    const environment = await getEnvironment(null, null, date); // Will return null data for missing coords
+    // 3. Get environment data (use provided location if available)
+    const environment = await getEnvironment(
+      location?.lat ?? null, 
+      location?.lon ?? null, 
+      date
+    );
 
     // 4. Compute baselines
     const baselines = await computeBaselines(userId);
