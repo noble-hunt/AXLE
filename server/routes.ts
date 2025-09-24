@@ -22,6 +22,7 @@ import whisperRouter from "./routes/whisper-transcription";
 import { registerGroupRoutes } from "./routes/groups";
 import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
 import healthRoutes from "./routes/health";
+import healthMetricsRouter from "./routes/health-metrics";
 import storageRouter from "./routes/storage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -69,6 +70,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register health provider routes
   app.use("/api", healthRoutes);
   
+  // Register health metrics routes
+  app.use("/api/health", healthMetricsRouter);
   
   // Register group routes
   registerGroupRoutes(app);
