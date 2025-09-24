@@ -54,7 +54,7 @@ export default function Health() {
                    report.metrics?.sleep?.quality === 'fair' ? 60 : 
                    report.metrics?.sleep?.quality === 'poor' ? 40 : null,
     stress: null, // Stress data comes from sync parameters, not stored metrics
-    fatigue: report.fatigueScore ? Math.round(report.fatigueScore * 100) : null, // Convert 0-1 to 0-100 scale
+    fatigue: (report as any).fatigueScore ? Math.round((report as any).fatigueScore * 100) : null, // Convert 0-1 to 0-100 scale
   })).reverse() // Show chronologically
   
   // Get today's metrics from latest report
@@ -66,7 +66,7 @@ export default function Health() {
                 latestReport.metrics?.sleep?.quality === 'fair' ? 60 : 
                 latestReport.metrics?.sleep?.quality === 'poor' ? 40 : null,
     stress: null, // Stress data comes from sync parameters, not stored metrics
-    fatigue: latestReport.fatigueScore ? Math.round(latestReport.fatigueScore * 100) : null, // Convert 0-1 to 0-100 scale
+    fatigue: (latestReport as any).fatigueScore ? Math.round((latestReport as any).fatigueScore * 100) : null, // Convert 0-1 to 0-100 scale
   } : null
 
   if (loading) {

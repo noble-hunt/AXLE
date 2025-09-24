@@ -5,39 +5,52 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Smartphone, Watch, Wifi, Users, Share, Settings, Heart, RefreshCw, CheckCircle, AlertCircle, Clock } from "lucide-react"
-import { useAppStore } from "@/store/useAppStore"
+import { supabase } from '@/lib/supabase'
 import { useToast } from "@/hooks/use-toast"
 
+type ProviderInfo = { 
+  id: string; 
+  supported: boolean;
+  connected: boolean;
+  last_sync: string | null;
+  status: string;
+  error: string | null;
+};
+
 export default function Connect() {
-  const { 
-    providers, 
-    connections, 
-    loadingProviders, 
-    loadingConnections,
-    fetchProviders, 
-    fetchConnections, 
-    connectProvider, 
-    disconnectProvider,
-    syncProviderNow 
-  } = useAppStore()
-  const { toast } = useToast()
-  const [syncingProviders, setSyncingProviders] = useState<string[]>([])
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [busy, setBusy] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const [devMode, setDevMode] = useState(false)
   const [mockStress, setMockStress] = useState(5)
   const [mockSleep, setMockSleep] = useState(75)
+  const { toast } = useToast()
   
   // Load providers and connections on mount
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        await fetchProviders()
-        await fetchConnections()
-      } catch (error) {
-        console.error('Failed to load provider data:', error)
-      }
+    loadProviders()
+  }, [])
+
+  async function loadProviders() {
+    setLoading(true)
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      const r = await fetch('/api/connect/providers', {
+        headers: { Authorization: `Bearer ${token ?? ''}` }
+      })
+      const data = await r.json()
+      setProviders(data || [])
+    } catch (error) {
+      console.error('Failed to load providers:', error)
+      toast({
+        title: "Load Failed",
+        description: "Unable to load health providers",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
-    loadData()
-  }, [fetchProviders, fetchConnections])
+  }
   
   // Map provider ID to icon and display info
   const getProviderInfo = (providerId: string) => {
@@ -82,59 +95,69 @@ export default function Connect() {
   }
 
   const getConnectionForProvider = (providerId: string) => {
-    return (connections || []).find((conn: any) => conn.provider === providerId)
+    return providers.find(p => p.id === providerId)
   }
 
-  const getStatusInfo = (connection: any) => {
-    if (!connection) {
-      return { status: 'disconnected', color: 'bg-gray-500', text: 'Disconnected' }
+  const getStatusInfo = (provider: ProviderInfo) => {
+    if (!provider?.supported) {
+      return { status: 'unavailable', color: 'bg-gray-500', text: 'Unavailable', icon: AlertCircle }
     }
     
-    if (connection.connected) {
-      return { status: 'connected', color: 'bg-green-500', text: 'Connected' }
+    if (provider.connected) {
+      return { status: 'connected', color: 'bg-green-500', text: 'Connected', icon: CheckCircle }
     }
     
-    if (connection.error) {
-      return { status: 'error', color: 'bg-red-500', text: 'Error' }
+    if (provider.error) {
+      return { status: 'error', color: 'bg-red-500', text: 'Error', icon: AlertCircle }
     }
     
-    return { status: 'pending', color: 'bg-yellow-500', text: 'Pending' }
+    return { status: 'disconnected', color: 'bg-gray-400', text: 'Disconnected', icon: Clock }
   }
 
   const handleConnect = async (providerId: string) => {
+    setBusy(providerId)
     try {
-      await connectProvider(providerId)
-      toast({
-        title: "Connection Started",
-        description: `Connecting to ${getProviderInfo(providerId).displayName}...`,
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      const r = await fetch(`/api/connect/${providerId}/start`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token ?? ''}` }
       })
-    } catch (error) {
+      const { redirectUrl, error, connected } = await r.json()
+      if (error) throw new Error(error)
+      
+      if (redirectUrl) {
+        window.location.href = redirectUrl // go to OAuth
+      } else if (connected) {
+        // Mock provider connected instantly
+        await loadProviders() // Refresh the list
+        toast({
+          title: "Connected",
+          description: `Successfully connected to ${getProviderInfo(providerId).displayName}`,
+        })
+      }
+    } catch (error: any) {
       toast({
-        title: "Connection Failed", 
-        description: "Unable to connect. Please try again.",
+        title: "Connection Failed",
+        description: error.message || "Unable to connect to provider",
         variant: "destructive",
       })
+    } finally {
+      setBusy(null)
     }
   }
 
   const handleDisconnect = async (providerId: string) => {
-    try {
-      await disconnectProvider(providerId)
-      toast({
-        title: "Disconnected",
-        description: `Disconnected from ${getProviderInfo(providerId).displayName}`,
-      })
-    } catch (error) {
-      toast({
-        title: "Disconnect Failed", 
-        description: "Unable to disconnect. Please try again.",
-        variant: "destructive",
-      })
-    }
+    // TODO: Implement disconnect endpoint when added to backend
+    console.log('Disconnect provider:', providerId)
+    toast({
+      title: "Disconnect Not Implemented",
+      description: "Disconnect functionality coming soon",
+      variant: "destructive",
+    })
   }
 
   const handleSync = async (providerId: string) => {
-    setSyncingProviders(prev => [...prev, providerId])
+    setBusy('sync:' + providerId)
     
     try {
       const params = providerId === 'Mock' && devMode ? {
@@ -142,27 +165,39 @@ export default function Connect() {
         sleep: mockSleep
       } : undefined
       
-      await syncProviderNow(providerId, params)
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      const r = await fetch('/api/health/sync', {
+        method: 'POST',
+        headers: { 
+          'content-type': 'application/json', 
+          Authorization: `Bearer ${token ?? ''}` 
+        },
+        body: JSON.stringify({ provider: providerId, ...params })
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j?.error || 'sync failed')
       
+      await loadProviders() // Refresh to update last sync time
       toast({
         title: "Sync Complete",
         description: `Successfully synced data from ${getProviderInfo(providerId).displayName}`,
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Sync Failed", 
-        description: "Unable to sync data. Please try again.",
+        description: error.message || "Unable to sync data. Please try again.",
         variant: "destructive",
       })
     } finally {
-      setSyncingProviders(prev => prev.filter(id => id !== providerId))
+      setBusy(null)
     }
   }
   
-  const connectedCount = (connections || []).filter((conn: any) => conn.connected).length
-  const availableCount = (providers || []).length
+  const availableProviders = providers.filter(p => p.supported)
+  const connectedCount = providers.filter(p => p.connected).length
+  const availableCount = availableProviders.length
 
-  if (loadingProviders || loadingConnections) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <SectionTitle title="Connect Health Providers" />
@@ -258,14 +293,14 @@ export default function Connect() {
       <div className="space-y-4">
         <SectionTitle title="Health Providers" />
         
-        {(providers || []).map((provider: any) => {
+        {availableProviders.map((provider: ProviderInfo) => {
           const providerInfo = getProviderInfo(provider.id)
-          const connection = getConnectionForProvider(provider.id)
-          const statusInfo = getStatusInfo(connection)
+          const statusInfo = getStatusInfo(provider)
           const Icon = providerInfo.icon
-          const isConnected = connection?.connected
-          const isConfigured = provider.hasConfig
-          const lastSync = connection?.lastSync ? new Date(connection.lastSync) : null
+          const StatusIcon = statusInfo.icon
+          const isConnected = provider.connected
+          const isConfigured = provider.supported
+          const lastSync = provider.last_sync ? new Date(provider.last_sync) : null
           
           return (
             <Card key={provider.id} className="p-4 card-shadow border border-border" data-testid={`provider-${provider.id}`}>
@@ -296,10 +331,10 @@ export default function Connect() {
                         </p>
                       </div>
                     )}
-                    {connection?.error && (
+                    {provider.error && (
                       <div className="flex items-center gap-1 mt-1">
                         <AlertCircle className="w-3 h-3 text-destructive" />
-                        <p className="text-xs text-destructive">{connection.error}</p>
+                        <p className="text-xs text-destructive">{provider.error}</p>
                       </div>
                     )}
                   </div>
@@ -321,9 +356,9 @@ export default function Connect() {
                         className="rounded-xl" 
                         data-testid={`sync-${provider.id}`}
                         onClick={() => handleSync(provider.id)}
-                        disabled={syncingProviders.includes(provider.id)}
+                        disabled={busy === `sync:${provider.id}` || !!busy}
                       >
-                        {syncingProviders.includes(provider.id) ? (
+                        {busy === `sync:${provider.id}` ? (
                           <>
                             <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
                             Syncing...
