@@ -9,6 +9,10 @@ import { OuraHealthProvider } from "../providers/health/oura";
 import { WhoopHealthProvider } from "../providers/health/whoop";
 import { GarminHealthProvider } from "../providers/health/garmin";
 import { HealthProvider } from "../providers/health/types";
+import { MetricsEnvelope } from "@shared/health/types";
+import { computeAxleScores } from "../metrics/axle";
+import { upsertDailyReport } from "../dal/reports";
+import { getEnvironment } from "../services/environment";
 
 /**
  * Last run timestamp for health reporting
@@ -107,25 +111,61 @@ async function syncHealthDataIfNeeded(userId: string, today: string): Promise<vo
       if (rulesApplied.length > 0) {
         console.log(`📋 [CRON] Fatigue rules applied: ${rulesApplied.join(', ')}`);
       }
+
+      // Get user location consent and cached coordinates for environmental data
+      let weatherData = undefined;
+      try {
+        const profileResult = await db.execute(sql`
+          SELECT location_opt_in, last_lat, last_lon 
+          FROM profiles 
+          WHERE user_id = ${userId}
+        `);
+        const profile = profileResult.rows;
+        
+        if (profile[0]?.location_opt_in && profile[0]?.last_lat && profile[0]?.last_lon) {
+          console.log(`🌍 [CRON] Fetching environmental data for user ${userId}`);
+          const lat = Number(profile[0].last_lat);
+          const lon = Number(profile[0].last_lon);
+          const envData = await getEnvironment(lat, lon, today);
+          weatherData = {
+            lat: lat,
+            lon: lon,
+            tz: envData.location?.lat ? 'UTC' : undefined, // TODO: get actual timezone
+            sunrise: envData.solar.sunrise || undefined,
+            sunset: envData.solar.sunset || undefined,
+            uv_index: envData.weather.uvIndex,
+            aqi: envData.aqi.overallIndex,
+            temp_c: envData.weather.temperature
+          };
+        }
+      } catch (error) {
+        console.warn(`⚠️ [CRON] Failed to fetch environmental data for user ${userId}:`, error);
+      }
       
-      // Create health report with fatigue score
-      await db
-        .insert(healthReports)
-        .values({
-          userId: userId,
-          date: today,
-          summary: `Auto-synced from ${device.provider}`,
-          metrics: {
-            hrv: healthSnapshot.hrv,
-            restingHR: healthSnapshot.restingHR,
-            sleepScore: healthSnapshot.sleepScore,
-            stress: healthSnapshot.stress,
-            steps: healthSnapshot.steps,
-            calories: healthSnapshot.calories,
-          },
-          suggestions: [],
-          fatigueScore: fatigueScore,
-        });
+      // Create MetricsEnvelope with provider metrics
+      const envelope: MetricsEnvelope = {
+        provider: {
+          hrv: healthSnapshot.hrv,
+          resting_hr: healthSnapshot.restingHR,
+          sleep_score: healthSnapshot.sleepScore,
+          fatigue_score: fatigueScore,
+        },
+        weather: weatherData,
+        axle: {}, // Will be filled by computeAxleScores
+      };
+
+      // Compute proprietary Axle scores
+      console.log(`🧠 [CRON] Computing Axle scores for user ${userId}`);
+      envelope.axle = await computeAxleScores({ 
+        userId, 
+        dateISO: today, 
+        metrics: envelope 
+      });
+      
+      console.log(`✨ [CRON] Computed Axle scores: Health ${envelope.axle.axle_health_score}/100, Vitality ${envelope.axle.vitality_score}/100`);
+      
+      // Upsert health report with complete metrics envelope
+      await upsertDailyReport(userId, today, envelope);
 
       console.log(`✅ [CRON] Created health report from ${device.provider} for user ${userId}`);
       

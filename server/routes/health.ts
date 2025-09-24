@@ -2,13 +2,18 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireAdmin, AuthenticatedRequest, AdminRequest } from '../middleware/auth';
 import { db } from '../db';
-import { wearableConnections, wearableTokens, healthReports, profiles } from '../../shared/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { wearableConnections, wearableTokens, healthReports, profiles, workouts } from '../../shared/schema';
+import { eq, and, desc, gte, sql } from 'drizzle-orm';
 import { seal, open } from '../lib/crypto';
 import { storeEncryptedTokens, getDecryptedTokens, deleteTokens } from '../dal/tokens';
 import { getProviderRegistry, listAvailableProviders } from '../providers/health';
 import { backfillDailies, backfillSleeps, backfillHRV } from '../providers/health/garminBackfill';
 import { computeDailyMetrics } from '../services/metrics/index';
+import { MetricsEnvelope } from '@shared/health/types';
+import { computeAxleScores } from '../metrics/axle';
+import { upsertDailyReport } from '../dal/reports';
+import { getEnvironment } from '../services/environment';
+import { computeFatigue } from '../logic/suggestions';
 
 const router = Router();
 
@@ -281,48 +286,95 @@ router.post('/health/sync', requireAuth, async (req, res) => {
       ))
       .limit(1);
 
-    if (existingReport[0]) {
-      // Merge with existing metrics
-      const currentMetrics = existingReport[0].metrics as any || {};
-      const mergedMetrics = { ...currentMetrics };
+    // Get user location consent and cached coordinates for environmental data
+    let weatherData = undefined;
+    try {
+      const profileResult = await db.execute(sql`
+        SELECT location_opt_in, last_lat, last_lon 
+        FROM profiles 
+        WHERE user_id = ${userId}
+      `);
+      const profile = profileResult.rows;
       
-      // Update with new data from snapshot
-      if (healthSnapshot.hrv !== undefined) mergedMetrics.hrv = healthSnapshot.hrv;
-      if (healthSnapshot.restingHR !== undefined) mergedMetrics.restingHR = healthSnapshot.restingHR;
-      if (healthSnapshot.sleepScore !== undefined) mergedMetrics.sleepScore = healthSnapshot.sleepScore;
-      if (healthSnapshot.stress !== undefined) mergedMetrics.stress = healthSnapshot.stress;
-      if (healthSnapshot.steps !== undefined) mergedMetrics.steps = healthSnapshot.steps;
-      if (healthSnapshot.calories !== undefined) mergedMetrics.calories = healthSnapshot.calories;
+      if (profile[0]?.location_opt_in && profile[0]?.last_lat && profile[0]?.last_lon) {
+        console.log(`🌍 [SYNC] Fetching environmental data for user ${userId}`);
+        const lat = Number(profile[0].last_lat);
+        const lon = Number(profile[0].last_lon);
+        const envData = await getEnvironment(lat, lon, today);
+        weatherData = {
+          lat: lat,
+          lon: lon,
+          tz: envData.location?.lat ? 'UTC' : undefined,
+          sunrise: envData.solar.sunrise || undefined,
+          sunset: envData.solar.sunset || undefined,
+          uv_index: envData.weather.uvIndex,
+          aqi: envData.aqi.overallIndex,
+          temp_c: envData.weather.temperature
+        };
+      }
+    } catch (error) {
+      console.warn(`⚠️ [SYNC] Failed to fetch environmental data for user ${userId}:`, error);
+    }
 
-      await db
-        .update(healthReports)
-        .set({
-          metrics: mergedMetrics,
-        })
-        .where(and(
-          eq(healthReports.userId, userId),
-          eq(healthReports.date, today)
-        ));
-    } else {
-      // Create new report
-      const metrics = {
+    // Calculate fatigue score for the new data
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    
+    const last14Workouts = await db
+      .select()
+      .from(workouts)
+      .where(and(
+        eq(workouts.userId, userId),
+        gte(workouts.createdAt, fourteenDaysAgo)
+      ))
+      .orderBy(desc(workouts.createdAt));
+
+    // Create temporary health report object for fatigue calculation
+    const tempHealthReport = {
+      id: '',
+      userId: userId,
+      date: today,
+      metrics: {
         hrv: healthSnapshot.hrv,
         restingHR: healthSnapshot.restingHR,
         sleepScore: healthSnapshot.sleepScore,
         stress: healthSnapshot.stress,
         steps: healthSnapshot.steps,
         calories: healthSnapshot.calories,
-      };
+      },
+      summary: null,
+      suggestions: [],
+      fatigueScore: null
+    };
 
-      await db
-        .insert(healthReports)
-        .values({
-          userId,
-          date: today,
-          metrics,
-          suggestions: [],
-        });
-    }
+    // Calculate fatigue score
+    const rulesApplied: string[] = [];
+    const fatigueScore = computeFatigue(tempHealthReport, last14Workouts, rulesApplied);
+    
+    // Create MetricsEnvelope with provider metrics
+    const envelope: MetricsEnvelope = {
+      provider: {
+        hrv: healthSnapshot.hrv,
+        resting_hr: healthSnapshot.restingHR,
+        sleep_score: healthSnapshot.sleepScore,
+        fatigue_score: fatigueScore,
+      },
+      weather: weatherData,
+      axle: {}, // Will be filled by computeAxleScores
+    };
+
+    // Compute proprietary Axle scores
+    console.log(`🧠 [SYNC] Computing Axle scores for user ${userId}`);
+    envelope.axle = await computeAxleScores({ 
+      userId, 
+      dateISO: today, 
+      metrics: envelope 
+    });
+    
+    console.log(`✨ [SYNC] Computed Axle scores: Health ${envelope.axle.axle_health_score}/100, Vitality ${envelope.axle.vitality_score}/100`);
+    
+    // Upsert health report with complete metrics envelope
+    await upsertDailyReport(userId, today, envelope);
 
     // Update last sync time
     await db

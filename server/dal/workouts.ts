@@ -298,3 +298,38 @@ export async function getStrain(userId: string, hours: number): Promise<number |
   
   return Math.round(scaledStrain);
 }
+
+/**
+ * Get user's recent workouts for a specified number of days
+ * @param userId - User ID to query workouts for
+ * @param options - Options including number of days to look back
+ * @returns Array of recent workouts
+ */
+export async function getUserRecentWorkouts(userId: string, options: { days: number }) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - options.days);
+
+  const { data, error } = await supabaseAdmin
+    .from('workouts')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('completed', true)
+    .gte('created_at', cutoffDate.toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to get recent workouts: ${error.message}`);
+  }
+
+  // Transform the data to include the fields needed by the score engine
+  return (data || []).map(workout => ({
+    ...workout,
+    total_active_minutes: workout.sets && Array.isArray(workout.sets) 
+      ? workout.sets.reduce((total: number, set: any) => {
+          return total + (set.duration ? set.duration / 60 : 1.5); // Convert seconds to minutes or estimate
+        }, 0)
+      : 0,
+    intensity: (workout.request as any)?.intensity ?? 5,
+    energy_system: (workout.request as any)?.energy_system ?? 'aerobic'
+  }));
+}
