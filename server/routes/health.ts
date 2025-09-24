@@ -7,6 +7,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { seal, open } from '../lib/crypto';
 import { storeEncryptedTokens, getDecryptedTokens, deleteTokens } from '../dal/tokens';
 import { getProviderRegistry, listAvailableProviders } from '../providers/health';
+import { backfillDailies, backfillSleeps, backfillHRV } from '../providers/health/garminBackfill';
 
 const router = Router();
 
@@ -443,5 +444,96 @@ router.get('/admin/whoop/ping', requireAdmin, async (req, res) => {
     });
   }
 });
+
+// DEV ONLY: Test Garmin backfill functions
+if (process.env.NODE_ENV !== 'production') {
+  router.get('/dev/garmin/test-backfill', requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      
+      // Get Garmin tokens for the user
+      const tokens = await getDecryptedTokens(userId, 'Garmin');
+      if (!tokens) {
+        return res.status(400).json({ 
+          error: 'No Garmin tokens found. Connect Garmin first.',
+          available: false
+        });
+      }
+      
+      // Test time range: last 2 days
+      const end = Math.floor(Date.now() / 1000);
+      const start = end - 2 * 86400;
+      
+      console.log(`[DEV] Testing Garmin backfill for user ${userId}, range: ${start} to ${end}`);
+      
+      // Test all backfill functions
+      const results: any = {
+        timeRange: { start, end },
+        tests: {}
+      };
+      
+      try {
+        console.log('[DEV] Testing backfillDailies...');
+        const dailies = await backfillDailies(tokens.accessToken, start, end);
+        results.tests.dailies = { 
+          success: true, 
+          count: Array.isArray(dailies) ? dailies.length : 0,
+          sample: Array.isArray(dailies) && dailies.length > 0 ? dailies[0] : null
+        };
+      } catch (error) {
+        results.tests.dailies = { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+      
+      try {
+        console.log('[DEV] Testing backfillSleeps...');
+        const sleeps = await backfillSleeps(tokens.accessToken, start, end);
+        results.tests.sleeps = { 
+          success: true, 
+          count: Array.isArray(sleeps) ? sleeps.length : 0,
+          sample: Array.isArray(sleeps) && sleeps.length > 0 ? sleeps[0] : null
+        };
+      } catch (error) {
+        results.tests.sleeps = { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+      
+      try {
+        console.log('[DEV] Testing backfillHRV...');
+        const hrv = await backfillHRV(tokens.accessToken, start, end);
+        results.tests.hrv = { 
+          success: true, 
+          count: Array.isArray(hrv) ? hrv.length : 0,
+          sample: Array.isArray(hrv) && hrv.length > 0 ? hrv[0] : null
+        };
+      } catch (error) {
+        results.tests.hrv = { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+      
+      console.log('[DEV] Garmin backfill test results:', JSON.stringify(results, null, 2));
+      
+      res.json({
+        message: 'Garmin backfill test completed',
+        available: true,
+        ...results
+      });
+      
+    } catch (error) {
+      console.error('[DEV] Garmin backfill test error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        available: false
+      });
+    }
+  });
+}
 
 export default router;
