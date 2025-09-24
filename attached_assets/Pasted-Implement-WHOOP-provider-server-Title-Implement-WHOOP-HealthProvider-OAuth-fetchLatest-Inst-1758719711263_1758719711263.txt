@@ -1,0 +1,220 @@
+Implement WHOOP provider (server)
+
+Title: Implement WHOOP HealthProvider (OAuth + fetchLatest)
+
+Instructions to agent:
+
+Create server/providers/health/whoop.ts implementing our HealthProvider interface (same pattern as mock.ts / fitbit.ts):
+
+// server/providers/health/whoop.ts
+import type { HealthProvider } from "./types";
+import { saveWearableToken, getWearableToken, upsertWearableConnection } from "../../dal/tokens"; // adjust to actual DAL names
+import { insertHealthReport } from "../../dal/reports"; // adjust import
+import { DateTime } from "luxon";
+
+const WHOOP_AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth";
+const WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";
+
+function siteUrl() {
+  // Prefer server-side SITE_URL; fall back to Vercel URL or VITE_SITE_URL
+  return (
+    process.env.SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.VITE_SITE_URL)
+  );
+}
+
+function redirectUri() {
+  return `${siteUrl()}/api/connect/Whoop/callback`;
+}
+
+function hasConfigEnv() {
+  return !!(process.env.WHOOP_CLIENT_ID && process.env.WHOOP_CLIENT_SECRET);
+}
+
+async function tokenExchange(code: string) {
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: redirectUri(),
+    client_id: process.env.WHOOP_CLIENT_ID!,
+    client_secret: process.env.WHOOP_CLIENT_SECRET!,
+  });
+  const res = await fetch(WHOOP_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) throw new Error(`WHOOP token exchange failed: ${res.status}`);
+  return res.json() as Promise<{ access_token: string; refresh_token?: string; expires_in?: number }>;
+}
+
+async function tokenRefresh(refreshToken: string) {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: process.env.WHOOP_CLIENT_ID!,
+    client_secret: process.env.WHOOP_CLIENT_SECRET!,
+  });
+  const res = await fetch(WHOOP_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) throw new Error(`WHOOP token refresh failed: ${res.status}`);
+  return res.json() as Promise<{ access_token: string; refresh_token?: string; expires_in?: number }>;
+}
+
+async function authedFetch(userId: string, input: RequestInfo, init?: RequestInit) {
+  let tok = await getWearableToken(userId, "Whoop");
+  if (!tok) throw new Error("No WHOOP token on file");
+  let res = await fetch(input, {
+    ...(init || {}),
+    headers: { ...(init?.headers || {}), Authorization: `Bearer ${tok.access_token}` },
+  });
+  if (res.status === 401 && tok.refresh_token) {
+    const refreshed = await tokenRefresh(tok.refresh_token);
+    const expiresAt = refreshed.expires_in ? Date.now() + refreshed.expires_in * 1000 : undefined;
+    await saveWearableToken(userId, "Whoop", {
+      access_token: refreshed.access_token,
+      refresh_token: refreshed.refresh_token ?? tok.refresh_token,
+      expires_at: expiresAt,
+    });
+    res = await fetch(input, {
+      ...(init || {}),
+      headers: { ...(init?.headers || {}), Authorization: `Bearer ${refreshed.access_token}` },
+    });
+  }
+  return res;
+}
+
+export const WhoopHealthProvider: HealthProvider = {
+  id: "Whoop",
+  hasConfig() {
+    return hasConfigEnv();
+  },
+
+  async authStart(userId: string) {
+    if (!hasConfigEnv()) throw new Error("WHOOP not configured");
+    const scope =
+      "read:profile read:body_measurement read:recovery read:cycles read:sleep read:workout";
+    const url = new URL(WHOOP_AUTH_URL);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("client_id", process.env.WHOOP_CLIENT_ID!);
+    url.searchParams.set("redirect_uri", redirectUri());
+    url.searchParams.set("scope", scope);
+    // optional: state to protect CSRF (persist to KV/session if available)
+    url.searchParams.set("state", userId);
+    return { redirectUrl: url.toString() };
+  },
+
+  async authCallback(params, userId) {
+    const code = params["code"];
+    if (!code) throw new Error("Missing WHOOP code");
+    const exchanged = await tokenExchange(code);
+    const expiresAt = exchanged.expires_in ? Date.now() + exchanged.expires_in * 1000 : undefined;
+    await saveWearableToken(userId, "Whoop", {
+      access_token: exchanged.access_token,
+      refresh_token: exchanged.refresh_token,
+      expires_at: expiresAt,
+    });
+    await upsertWearableConnection(userId, "Whoop", { status: "connected", last_error: null });
+  },
+
+  // Normalize WHOOP → HealthSnapshot for today
+  async fetchLatest(userId: string) {
+    const end = DateTime.now().toUTC();
+    const start = end.minus({ days: 2 });
+    const base = "https://api.prod.whoop.com/developer/v2";
+
+    // 1) Recent cycles (day windows)
+    const cyclesRes = await authedFetch(
+      userId,
+      `${base}/cycle?limit=5&start=${start.toISO()}&end=${end.toISO()}`
+    );
+    if (!cyclesRes.ok) throw new Error(`WHOOP cycles error: ${cyclesRes.status}`);
+    const cycles = await cyclesRes.json(); // { records: [...] }
+    const latestCycle = cycles?.records?.[0];
+
+    // 2) Recovery (collection)
+    const recRes = await authedFetch(
+      userId,
+      `${base}/recovery?limit=5&start=${start.toISO()}&end=${end.toISO()}`
+    );
+    const recData = recRes.ok ? await recRes.json() : { records: [] };
+    const latestRecovery = recData.records?.[0];
+
+    // 3) Sleep (collection)
+    const sleepRes = await authedFetch(
+      userId,
+      `${base}/sleep?limit=5&start=${start.toISO()}&end=${end.toISO()}`
+    );
+    const sleepData = sleepRes.ok ? await sleepRes.json() : { records: [] };
+    const latestSleep = sleepData.records?.[0];
+
+    // 4) Workouts (collection) – optional enrichment
+    const wRes = await authedFetch(
+      userId,
+      `${base}/workout?limit=1&start=${start.toISO()}&end=${end.toISO()}`
+    );
+    const workouts = wRes.ok ? await wRes.json() : { records: [] };
+
+    // Map into our HealthSnapshot
+    const snapshot = {
+      provider: "Whoop",
+      date: end.toISODate(),
+      hrv_ms:
+        latestRecovery?.hrv_milli || latestRecovery?.score?.hrv_milli || null,
+      resting_hr_bpm:
+        latestRecovery?.resting_heart_rate || latestRecovery?.score?.resting_heart_rate || null,
+      sleep_score:
+        latestSleep?.score?.sleep_performance_percentage ??
+        latestSleep?.score?.sleep_score ??
+        null,
+      steps: latestCycle?.score?.kilojoule ? Math.round(latestCycle.score.kilojoule / 20) : null, // naive estimate if steps not present
+      calories: latestCycle?.score?.kilojoule
+        ? Math.round(latestCycle.score.kilojoule / 4.184)
+        : null,
+      stress: null,
+      extras: {
+        cycle: latestCycle || null,
+        recovery: latestRecovery || null,
+        sleep: latestSleep || null,
+        workouts: workouts.records || [],
+      },
+    };
+
+    await insertHealthReport(userId, snapshot); // DAL already aggregates → health_reports
+    await upsertWearableConnection(userId, "Whoop", {
+      status: "connected",
+      last_sync: new Date().toISOString(),
+      last_error: null,
+    });
+
+    return snapshot;
+  },
+};
+
+export default WhoopHealthProvider;
+
+
+Register provider:
+
+Add export to server/providers/health/index.ts (or wherever the registry lives):
+
+import { WhoopHealthProvider } from "./whoop";
+registry.Whoop = WhoopHealthProvider;
+
+
+The routes under /api/connect/:provider/start|callback should auto-wire via the registry. If not, extend them to include “Whoop”.
+
+Acceptance criteria (P1):
+
+GET /api/connect/providers now lists “Whoop” with hasConfig() reflecting env presence.
+
+Hitting /api/connect/Whoop/start builds a proper WHOOP auth URL.
+
+GET /api/connect/Whoop/callback?code=... stores token in wearable_tokens, marks wearable_connections “connected”.
+
+(Reference for WHOOP OAuth/scopes/endpoints used above. 
+developer.whoop.com
+)
