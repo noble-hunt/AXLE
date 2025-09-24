@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useLocation, useSearch } from "wouter"
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/ui/card"
@@ -15,7 +15,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
 import { Category, WorkoutRequest, workoutRequestSchema } from "@shared/schema"
 import { useAppStore } from "@/store/useAppStore"
-import { Dumbbell, Clock, Target, Zap, Sparkles, Calendar, Users } from "lucide-react"
+import { Dumbbell, Clock, Target, Zap, Sparkles, Calendar, Users, Activity, Sun, Droplets } from "lucide-react"
 
 // Extended form schema for group workouts with scheduling
 const groupWorkoutSchema = workoutRequestSchema.extend({
@@ -40,6 +40,24 @@ export default function WorkoutGenerate() {
   const mode = urlParams.get("mode")
   const isGroupMode = mode === "group" && groupId
 
+  // Fetch health metrics for readiness display
+  const { data: healthReports } = useQuery({
+    queryKey: ['/api/health/reports', { days: 1 }],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const todayMetrics = (healthReports as any)?.[0]?.metrics;
+  const performancePotential = todayMetrics?.performancePotentialScore;
+  const uvMax = todayMetrics?.environment?.weather?.uvMax;
+
+  // Helper function to get readiness color and message
+  const getReadinessInfo = (score: number | undefined) => {
+    if (score === undefined || score === null) return { color: "text-muted-foreground", message: "Unknown", bgColor: "bg-muted/20" };
+    if (score >= 80) return { color: "text-green-600", message: "Excellent", bgColor: "bg-green-50 dark:bg-green-950" };
+    if (score >= 65) return { color: "text-blue-600", message: "Good", bgColor: "bg-blue-50 dark:bg-blue-950" };
+    if (score >= 50) return { color: "text-yellow-600", message: "Moderate", bgColor: "bg-yellow-50 dark:bg-yellow-950" };
+    return { color: "text-red-600", message: "Low", bgColor: "bg-red-50 dark:bg-red-950" };
+  };
 
   // Use different form schema based on mode
   const form = useForm<GroupWorkoutRequestForm>({
@@ -56,6 +74,11 @@ export default function WorkoutGenerate() {
     },
   })
   
+  // Check if workout might be outdoor-focused (after form is initialized)
+  const selectedCategory = form.watch("category");
+  const isOutdoorWorkout = selectedCategory === Category.CARDIO;
+  const showHydrationWarning = uvMax !== undefined && uvMax >= 6 && isOutdoorWorkout;
+
   // Set default date and time for group workouts
   useEffect(() => {
     if (isGroupMode && !form.getValues("scheduledDate")) {
@@ -491,6 +514,46 @@ export default function WorkoutGenerate() {
         title="Generate Workout" 
         subtitle="AI-powered workout generation"
       />
+
+      {/* Readiness Banner */}
+      <Card className={`p-4 ${getReadinessInfo(performancePotential).bgColor} border border-border/50`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Activity className={`w-5 h-5 ${getReadinessInfo(performancePotential).color}`} data-testid="readiness-icon" />
+            <div>
+              <span className="font-semibold text-foreground" data-testid="readiness-label">
+                Readiness: 
+              </span>
+              <span className={`ml-2 font-bold ${getReadinessInfo(performancePotential).color}`} data-testid="readiness-score">
+                {performancePotential ?? "Unknown"}
+              </span>
+            </div>
+          </div>
+          <span className={`text-sm font-medium ${getReadinessInfo(performancePotential).color}`} data-testid="readiness-status">
+            {getReadinessInfo(performancePotential).message}
+          </span>
+        </div>
+      </Card>
+
+      {/* Hydration Warning */}
+      {showHydrationWarning && (
+        <Card className="p-4 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Sun className="w-5 h-5 text-orange-600" data-testid="sun-icon" />
+              <Droplets className="w-5 h-5 text-blue-600" data-testid="hydration-icon" />
+            </div>
+            <div>
+              <span className="font-semibold text-orange-900 dark:text-orange-100" data-testid="hydration-warning">
+                High UV Alert: 
+              </span>
+              <span className="text-orange-800 dark:text-orange-200" data-testid="hydration-message">
+                Stay hydrated and consider sunscreen for outdoor activities (UV: {uvMax})
+              </span>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Introduction Card */}
       <Card className="p-6 card-shadow border border-border">

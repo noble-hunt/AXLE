@@ -75,6 +75,7 @@ export function registerSuggestionRoutes(app: Express) {
       
       res.json({
         ...insertedSuggestion[0],
+        customSuggestions: suggestionResult.customSuggestions || [],
         isExisting: false
       });
 
@@ -194,10 +195,11 @@ export function registerSuggestionRoutes(app: Express) {
       ]);
 
       // Build enhanced request for the workout generator  
+      const requestData = suggestion.request as any;
       const enhancedRequest = {
-        category: suggestion.request.category,
-        duration: suggestion.request.duration,
-        intensity: suggestion.request.intensity,
+        category: requestData.category,
+        duration: requestData.duration,
+        intensity: requestData.intensity,
         recentPRs: recentPRs.map((pr: any) => ({
           exercise: `${pr.movement} (${pr.category})`,
           weight: pr.weightKg ? parseFloat(pr.weightKg.toString()) * 2.20462 : undefined, // Convert kg to lbs
@@ -207,9 +209,9 @@ export function registerSuggestionRoutes(app: Express) {
         })),
         lastWorkouts: recentWorkouts.slice(0, 3).map((w: any) => ({
           name: w.title,
-          category: w.request?.category || suggestion.request.category,
-          duration: w.request?.duration || suggestion.request.duration,
-          intensity: w.request?.intensity || suggestion.request.intensity,
+          category: w.request?.category || requestData.category,
+          duration: w.request?.duration || requestData.duration,
+          intensity: w.request?.intensity || requestData.intensity,
           date: w.createdAt,
           exercises: [] // Could extract from sets if needed
         })),
@@ -222,7 +224,7 @@ export function registerSuggestionRoutes(app: Express) {
       };
 
       // Generate the actual workout using existing AI system
-      console.log(`🤖 Generating workout with AI for category: ${suggestion.request.category}`);
+      console.log(`🤖 Generating workout with AI for category: ${requestData.category}`);
       const generatedWorkout = await generateWorkout(enhancedRequest);
 
       // Store the workout in the database

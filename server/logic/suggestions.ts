@@ -274,6 +274,25 @@ function hasRepeatedIntensity(workouts: Workout[], targetIntensity: number): boo
 }
 
 /**
+ * Returns the category that has been least represented in recent workouts
+ */
+function getUnderrepresentedCategory(weeklyCounts: Record<Category, number>): Category {
+  const categories = Object.values(Category);
+  let minCategory = Category.STRENGTH;
+  let minCount = weeklyCounts[minCategory] || 0;
+  
+  for (const category of categories) {
+    const count = weeklyCounts[category] || 0;
+    if (count < minCount) {
+      minCount = count;
+      minCategory = category;
+    }
+  }
+  
+  return minCategory;
+}
+
+/**
  * Main function to compute daily workout suggestion
  */
 export async function computeSuggestion(userId: string, today = new Date()) {
@@ -286,6 +305,17 @@ export async function computeSuggestion(userId: string, today = new Date()) {
   const { last1, last7, last14, last28 } = await fetchWorkoutData(userId, today);
   const latestHealth = await fetchLatestHealthReport(userId);
   
+  // Extract new health metrics from computed daily metrics
+  const healthMetrics = latestHealth?.metrics as any;
+  const performancePotential = healthMetrics?.performancePotentialScore ?? null;
+  const vitality = healthMetrics?.vitalityScore ?? null;
+  const energyBalance = healthMetrics?.energyBalanceScore ?? null;
+  const circadian = healthMetrics?.circadianScore ?? null;
+  const environment = healthMetrics?.environment || null;
+  const uvMax = environment?.weather?.uvMax ?? null;
+  
+  console.log(`🎯 Suggestion metrics: performance=${performancePotential}, vitality=${vitality}, energy=${energyBalance}, circadian=${circadian}, uvMax=${uvMax}`);
+  
   // Compute helper values
   const weeklyCounts = computeCategoryCounts(last7);
   const monthlyCounts = computeCategoryCounts(last28);
@@ -297,13 +327,27 @@ export async function computeSuggestion(userId: string, today = new Date()) {
   // Build rationale
   const rulesApplied: string[] = [];
   
-  // Compute fatigue with rules tracking
+  // Compute fatigue with rules tracking (keeping original logic as fallback)
   const fatigue = computeFatigue(latestHealth, last14, rulesApplied);
   
   // Determine category
   let category: Category;
+  let customSuggestions: string[] = [];
   
-  if (last28.length === 0) {
+  // NEW LOGIC: Performance & Energy-based suggestions
+  if (performancePotential !== null && performancePotential < 55) {
+    // Low performance → suggest zone 2 + mobility
+    category = Category.CARDIO; // Zone 2 falls under cardio
+    rulesApplied.push(`Low performance potential (${performancePotential}) → recommending Zone 2 cardio + mobility work`);
+    customSuggestions.push("Focus on Zone 2 heart rate training (conversational pace)");
+    customSuggestions.push("Include 10-15 minutes of mobility/stretching work");
+  } else if (performancePotential !== null && performancePotential > 75 && energyBalance !== null && energyBalance < 50) {
+    // High performance but low energy balance → suggest underrepresented zone
+    const underrepresentedCategory = getUnderrepresentedCategory(weeklyCounts);
+    category = underrepresentedCategory;
+    rulesApplied.push(`High performance (${performancePotential}) but low energy balance (${energyBalance}) → suggesting underrepresented zone: ${category}`);
+    customSuggestions.push("Your body is ready for intensity, but energy balance suggests targeting underrepresented training zones");
+  } else if (last28.length === 0) {
     // No history → alternate between Aerobic/Gymnastics by date parity
     const dayOfMonth = today.getDate();
     category = dayOfMonth % 2 === 0 ? Category.CARDIO : Category.HIIT;
@@ -315,6 +359,12 @@ export async function computeSuggestion(userId: string, today = new Date()) {
     } else {
       rulesApplied.push(`Suggesting ${category} based on weekly activity balance`);
     }
+  }
+  
+  // NEW LOGIC: Daylight walk suggestion
+  if (uvMax !== null && uvMax >= 3 && circadian !== null && circadian < 65) {
+    customSuggestions.push("Add a 10-20 minute daylight walk within 90 minutes of waking to improve circadian rhythm");
+    rulesApplied.push(`UV index ${uvMax} ≥ 3 and circadian score ${circadian} < 65 → recommending morning daylight exposure`);
   }
   
   // Determine duration
@@ -388,6 +438,11 @@ export async function computeSuggestion(userId: string, today = new Date()) {
         sleepScore: (latestHealth.metrics as any).sleepScore || null,
         restingHR: (latestHealth.metrics as any).restingHR || null,
         stress: (latestHealth.metrics as any).stress || null,
+        performancePotential,
+        vitality,
+        energyBalance,
+        circadian,
+        uvMax,
       } : undefined,
     },
   };
@@ -404,5 +459,6 @@ export async function computeSuggestion(userId: string, today = new Date()) {
     date: dateStr,
     request,
     rationale,
+    customSuggestions,
   };
 }
