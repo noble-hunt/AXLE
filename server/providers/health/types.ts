@@ -6,6 +6,7 @@ export type HealthSnapshot = {
   stress?: number | null;       // 0-10
   steps?: number | null;
   calories?: number | null;
+  raw?: Record<string, unknown>; // Full raw data from provider
 };
 
 export interface HealthProvider {

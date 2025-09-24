@@ -1,4 +1,5 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 type Props = {
   id: string;
@@ -11,10 +12,11 @@ type Props = {
   onDisconnect?: () => void;
   busy?: boolean;
   disabled?: boolean;
+  badge?: string;
 };
 
 export function ProviderCard({
-  id, title, subtitle, status = 'disconnected', lastSync, onConnect, onSync, onDisconnect, busy, disabled = false
+  id, title, subtitle, status = 'disconnected', lastSync, onConnect, onSync, onDisconnect, busy, disabled = false, badge
 }: Props) {
   const dot =
     status === 'connected' ? 'bg-green-500' :
@@ -29,7 +31,10 @@ export function ProviderCard({
     <div className={`rounded-2xl bg-card p-4 flex flex-col gap-3 border border-border ${disabled ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-lg font-semibold text-card-foreground">{title}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-lg font-semibold text-card-foreground">{title}</div>
+            {badge && <Badge variant="secondary" className="text-xs">{badge}</Badge>}
+          </div>
           {subtitle && <div className="text-muted-foreground text-sm">{subtitle}</div>}
           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
             <span className={`inline-block w-2 h-2 rounded-full ${dot}`} />

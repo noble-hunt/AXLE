@@ -105,16 +105,37 @@ export class GarminHealthProvider implements HealthProvider {
     if (!dailiesRes.ok) throw new Error(`Garmin dailies failed: ${dailiesRes.status}`);
     const dailies = await dailiesRes.json() as unknown[];
 
-    // Map to HealthSnapshot (robust null guards)
+    // Map to HealthSnapshot with resilient field guards
     const latest = Array.isArray(dailies) && dailies.length ? dailies[dailies.length - 1] as Record<string, unknown> : null;
+    
+    // Helper function to safely extract numeric values
+    const safeNumber = (value: unknown): number | null => {
+      if (typeof value === 'number' && !isNaN(value)) return value;
+      return null;
+    };
+    
+    // Helper function to safely extract nested values
+    const safeNested = (obj: unknown, key: string): unknown => {
+      if (obj && typeof obj === 'object' && key in obj) {
+        return (obj as Record<string, unknown>)[key];
+      }
+      return null;
+    };
+
     const snapshot: HealthSnapshot = {
-      date: (latest?.calendarDate as string) || new Date().toISOString().slice(0, 10),
-      hrv: (latest?.hrvSummary as Record<string, unknown>)?.avgRmssd as number || null,
-      restingHR: latest?.restingHeartRate as number || null,
-      sleepScore: typeof latest?.sleepDurationInSeconds === 'number' ? Math.round(Math.min(100, (latest.sleepDurationInSeconds / 28800) * 100)) : null,
-      stress: latest?.stressLevel as number || null,
-      steps: latest?.steps as number || null,
-      calories: latest?.calories as number || null,
+      date: (typeof latest?.calendarDate === 'string') ? latest.calendarDate : new Date().toISOString().slice(0, 10),
+      hrv: safeNumber(safeNested(latest?.hrvSummary, 'avgRmssd')),
+      restingHR: safeNumber(latest?.restingHeartRate),
+      sleepScore: (() => {
+        const sleepDuration = safeNumber(latest?.sleepDurationInSeconds);
+        if (sleepDuration === null) return null;
+        // Convert sleep duration to a 0-100 score (8 hours = 100%)
+        return Math.round(Math.min(100, (sleepDuration / 28800) * 100));
+      })(),
+      stress: safeNumber(latest?.stressLevel),
+      steps: safeNumber(latest?.steps),
+      calories: safeNumber(latest?.calories),
+      raw: latest ? { garminDaily: latest } : undefined,
     };
     
     // Update last sync time

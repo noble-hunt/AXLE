@@ -383,6 +383,7 @@ export default function Connect() {
                   lastSync={provider.last_sync ? new Date(provider.last_sync).toLocaleTimeString() : null}
                   busy={busy === provider.id || busy === 'sync:'+provider.id}
                   disabled={isUnavailable}
+                  badge={provider.id === 'Garmin' ? 'Beta' : undefined}
                   onConnect={isUnavailable ? undefined : async () => {
                     setBusy(provider.id)
                     try {
