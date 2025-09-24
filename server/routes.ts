@@ -650,9 +650,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const authReq = req as AuthenticatedRequest;
       const days = parseInt(req.query.days as string) || 14;
+      
+      // Get base health reports
+      const { listReports } = await import("./dal/reports");
       const reports = await listReports(authReq.user.id, { days });
-      res.json(reports);
+      
+      // Check if user has location consent and cached coordinates (using raw SQL like /api/me/location)
+      const { db } = await import("./db");
+      const { sql } = await import("drizzle-orm");
+      
+      const profileResult = await db.execute(sql`
+        SELECT location_opt_in, last_lat, last_lon 
+        FROM profiles 
+        WHERE user_id = ${authReq.user.id}
+        LIMIT 1
+      `);
+      
+      const profileRow = profileResult.rows[0];
+      const hasLocationConsent = profileRow?.location_opt_in && 
+                                profileRow?.last_lat !== null && 
+                                profileRow?.last_lon !== null;
+      
+      if (hasLocationConsent) {
+        // Fetch environmental data for reports with cached coordinates
+        const { getEnvironment } = await import("./services/environment");
+        const lat = Number(profileRow.last_lat);
+        const lon = Number(profileRow.last_lon);
+        
+        // Enrich each report with environmental data for its date
+        const enrichedReports = await Promise.all(
+          reports.map(async (report) => {
+            try {
+              const environmentData = await getEnvironment(lat, lon, report.date);
+              return {
+                ...report,
+                environment: environmentData
+              };
+            } catch (error) {
+              console.error(`Failed to fetch environment data for report ${report.id}:`, error);
+              // Return report without environment data if fetch fails
+              return report;
+            }
+          })
+        );
+        
+        console.log(`[HEALTH-REPORTS] Enriched ${enrichedReports.length} reports with environmental data using cached location`);
+        res.json(enrichedReports);
+      } else {
+        console.log('[HEALTH-REPORTS] No location consent or cached coordinates - returning reports without environmental data');
+        res.json(reports);
+      }
     } catch (error) {
+      console.error('Failed to fetch health reports:', error);
       res.status(500).json({ message: "Failed to fetch health reports" });
     }
   });
