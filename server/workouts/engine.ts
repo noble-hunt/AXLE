@@ -6,14 +6,25 @@
  */
 
 import { z } from 'zod';
-import { WorkoutRequest, WorkoutPlan, Block } from '../types';
+import { 
+  WorkoutRequest, 
+  WorkoutPlan, 
+  Block, 
+  WorkoutFocus as ExistingWorkoutFocus,
+  MetricsSnapshot,
+  WorkoutHistoryItem,
+  IntensityFeedback,
+  BlockType,
+  EnergySystem,
+  MovementCategory
+} from './types';
 import { getBlocks, getBlockById, type WorkoutBlock, type BlockFilter } from './library/index';
 
-// Engine-specific types
-export interface WorkoutFocus {
+// Engine-specific types  
+export interface InternalWorkoutFocus {
   primary: 'strength' | 'conditioning' | 'technique' | 'recovery';
   energySystem: 'alactic' | 'phosphocreatine' | 'glycolytic' | 'aerobicZ1' | 'aerobicZ2' | 'aerobicZ3';
-  movementPattern: 'squat' | 'hinge' | 'push' | 'pull' | 'carry' | 'locomotion' | 'power' | 'core';
+  movementPattern: MovementCategory;
   rationale: string;
 }
 
@@ -37,8 +48,8 @@ export interface BiometricInputs {
 
 export interface WorkoutHistory {
   date: string;
-  primaryPattern: string;
-  energySystems: string[];
+  primaryPattern: MovementCategory;
+  energySystems: EnergySystem[];
   estimatedTSS: number;
   intensityRating?: number; // 1-10 user feedback
 }
@@ -94,15 +105,22 @@ export function generateWorkoutPlan(
     rationale
   );
   
-  // 6. Build final workout plan
+  // 6. Convert to expected focus format
+  const workoutFocus: ExistingWorkoutFocus = convertToExistingFocus(adjustedFocus);
+  
+  // 7. Build final workout plan
   const workoutPlan: WorkoutPlan = {
-    id: generateWorkoutId(),
-    title: generateWorkoutTitle(adjustedFocus, adjustedIntensity),
-    estimatedDuration: blocksWithProgression.reduce((sum, block) => sum + block.durationMin, 0),
+    focus: workoutFocus,
     targetIntensity: adjustedIntensity,
+    targetRPE: {
+      min: Math.max(1, adjustedIntensity - 1),
+      max: Math.min(10, adjustedIntensity + 1),
+      target: adjustedIntensity
+    },
     blocks: blocksWithProgression,
-    rationale: rationale.map(r => `${r.step}: ${r.decision} (${r.factors.join(', ')})`),
-    progressionNotes: generateProgressionNotes(blocksWithProgression, progressionStates)
+    estimatedCalories: estimateCalories(blocksWithProgression, adjustedIntensity),
+    estimatedTSS: estimateTSS(blocksWithProgression, adjustedIntensity),
+    rationale: rationale.map(r => `${r.step}: ${r.decision} (${r.factors.join(', ')})`)
   };
   
   return workoutPlan;
@@ -114,11 +132,11 @@ function determineFocus(
   history: WorkoutHistory[],
   biometrics: BiometricInputs,
   rationale: SelectionRationale[]
-): WorkoutFocus {
+): InternalWorkoutFocus {
   const factors: string[] = [];
-  let primary: WorkoutFocus['primary'] = 'conditioning';
-  let energySystem: WorkoutFocus['energySystem'] = 'aerobicZ2';
-  let movementPattern: WorkoutFocus['movementPattern'] = 'squat';
+  let primary: InternalWorkoutFocus['primary'] = 'conditioning';
+  let energySystem: InternalWorkoutFocus['energySystem'] = 'aerobicZ2';
+  let movementPattern: InternalWorkoutFocus['movementPattern'] = 'squat';
   
   // Analyze recent history (last 7 days)
   const recentHistory = history.filter(h => 
@@ -152,7 +170,7 @@ function determineFocus(
   }
   
   // Movement pattern selection based on history
-  const movementPatterns: WorkoutFocus['movementPattern'][] = ['squat', 'hinge', 'push', 'pull'];
+  const movementPatterns: MovementCategory[] = ['squat', 'hinge', 'push', 'pull'];
   const patternCounts = movementPatterns.map(pattern => ({
     pattern,
     count: recentHistory.filter(h => h.primaryPattern === pattern).length
@@ -181,7 +199,7 @@ function determineFocus(
   }, {} as Record<string, number>);
   
   // Adjust energy system for balance
-  const allEnergySystems: WorkoutFocus['energySystem'][] = [
+  const allEnergySystems: InternalWorkoutFocus['energySystem'][] = [
     'alactic', 'phosphocreatine', 'glycolytic', 'aerobicZ1', 'aerobicZ2', 'aerobicZ3'
   ];
   const leastUsedEnergySystem = allEnergySystems
@@ -266,12 +284,12 @@ function calculateTargetIntensity(
 
 // Safety guardrails and adjustments
 function applySafetyGuardrails(
-  focus: WorkoutFocus,
+  focus: InternalWorkoutFocus,
   intensity: number,
   biometrics: BiometricInputs,
   rationale: SelectionRationale[]
-): { focus?: WorkoutFocus; intensity?: number } {
-  const adjustments: { focus?: WorkoutFocus; intensity?: number } = {};
+): { focus?: InternalWorkoutFocus; intensity?: number } {
+  const adjustments: { focus?: InternalWorkoutFocus; intensity?: number } = {};
   const factors: string[] = [];
   
   const vitality = biometrics.vitality || 50;
@@ -308,7 +326,7 @@ function applySafetyGuardrails(
 
 // Workout composition
 function composeWorkout(
-  focus: WorkoutFocus,
+  focus: InternalWorkoutFocus,
   intensity: number,
   request: WorkoutRequest,
   history: WorkoutHistory[],
@@ -489,18 +507,54 @@ function generateWorkoutId(): string {
   return `wkt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-function generateWorkoutTitle(focus: WorkoutFocus, intensity: number): string {
-  const focusNames = {
-    strength: 'Strength',
-    conditioning: 'Conditioning', 
-    technique: 'Technique',
-    recovery: 'Recovery'
-  };
+function convertToExistingFocus(focus: InternalWorkoutFocus): ExistingWorkoutFocus {
+  // Map internal focus to the existing focus enum
+  if (focus.primary === 'strength') {
+    return focus.movementPattern === 'squat' || focus.movementPattern === 'hinge' 
+      ? 'Strength Lower' : 'Strength Upper';
+  }
+  if (focus.primary === 'conditioning') {
+    if (focus.energySystem === 'aerobicZ2' || focus.energySystem === 'aerobicZ1') {
+      return 'Endurance Zone2';
+    }
+    if (focus.energySystem === 'phosphocreatine') {
+      return 'Power Development';
+    }
+    return 'Hybrid MetCon';
+  }
+  if (focus.primary === 'recovery') {
+    return 'Recovery Active';
+  }
+  if (focus.primary === 'technique') {
+    return 'Mobility Focus';
+  }
+  return 'Hybrid MetCon';
+}
+
+function estimateCalories(blocks: Block[], intensity: number): number {
+  // Simple estimation based on duration and intensity
+  const totalMinutes = blocks.reduce((sum, block) => {
+    // Convert to minutes - assuming block durations are in minutes
+    return sum + (block.prescription?.time ? block.prescription.time / 60 : 20);
+  }, 0);
   
-  const intensityNames = ['', 'Easy', 'Light', 'Moderate', 'Moderate+', 'Challenging', 
-                         'Hard', 'Very Hard', 'Intense', 'Max', 'All-Out'];
+  const baseCaloriesPerMinute = 8; // Conservative estimate
+  const intensityMultiplier = 0.5 + (intensity / 10) * 1.5; // 0.5 to 2.0 range
   
-  return `${focusNames[focus.primary]} - ${intensityNames[intensity] || 'Moderate'}`;
+  return Math.round(totalMinutes * baseCaloriesPerMinute * intensityMultiplier);
+}
+
+function estimateTSS(blocks: Block[], intensity: number): number {
+  // Training Stress Score estimation
+  const totalMinutes = blocks.reduce((sum, block) => {
+    return sum + (block.prescription?.time ? block.prescription.time / 60 : 20);
+  }, 0);
+  
+  // TSS roughly correlates with intensity^2 * duration
+  const intensityFactor = Math.pow(intensity / 10, 2);
+  const baseTSSPerHour = 100;
+  
+  return Math.round((totalMinutes / 60) * baseTSSPerHour * intensityFactor);
 }
 
 function generateProgressionNotes(blocks: Block[], progressionStates: ProgressionState[]): string[] {
@@ -518,20 +572,52 @@ function convertToBlock(workoutBlock: WorkoutBlock): Block {
   // Select a variant (simplified - could be more sophisticated)
   const variant = workoutBlock.variants[0];
   
+  // Map energy systems
+  const energySystems: EnergySystem[] = workoutBlock.energySystems.map(es => {
+    switch (es) {
+      case 'alactic':
+      case 'phosphocreatine':
+        return 'phosphocreatine';
+      case 'glycolytic':
+      case 'aerobicZ3':
+        return 'glycolytic';
+      case 'aerobicZ1':
+      case 'aerobicZ2':
+        return 'oxidative';
+      default:
+        return 'mixed';
+    }
+  });
+  
   return {
-    id: workoutBlock.id,
-    type: workoutBlock.type,
-    title: variant.name,
-    durationMin: workoutBlock.durationMin,
-    exercises: variant.movements.map(movement => ({
+    type: workoutBlock.type as BlockType,
+    energySystems: energySystems.length > 0 ? energySystems : ['mixed'],
+    movements: variant.movements.map(movement => ({
       name: movement,
-      sets: 1,
-      reps: undefined,
-      weight: undefined,
-      notes: undefined
+      category: workoutBlock.movementPatterns[0] || 'squat',
+      primaryMuscles: ['unknown'], // Would need more detailed mapping
+      equipment: workoutBlock.minEquipment || [],
+      complexity: workoutBlock.experience === 'beginner' ? 'simple' : 'moderate'
     })),
-    progressionKey: workoutBlock.progressionKey,
-    notes: undefined
+    prescription: {
+      time: workoutBlock.durationMin * 60, // Convert to seconds
+      load: {
+        type: 'RPE',
+        value: 6 // Default RPE
+      }
+    },
+    rest: {
+      betweenSets: 60,
+      betweenMovements: 30,
+      betweenBlocks: 120,
+      type: 'incomplete'
+    },
+    notes: variant.name,
+    scaling: {
+      beginner: 'Reduce intensity by 20%',
+      intermediate: 'As prescribed',
+      advanced: 'Increase intensity by 10%'
+    }
   };
 }
 
@@ -539,16 +625,49 @@ function createBodyweightFallback(availableMinutes: number): Block[] {
   const duration = Math.max(10, availableMinutes);
   
   return [{
-    id: 'bodyweight-fallback',
     type: 'primary',
-    title: 'Bodyweight Circuit',
-    durationMin: duration,
-    exercises: [
-      { name: 'Bodyweight squats', sets: 3, reps: 15 },
-      { name: 'Push-ups', sets: 3, reps: 10 },
-      { name: 'Walking/jogging', sets: 1, reps: undefined, notes: `${Math.max(5, Math.floor(duration/2))} minutes` }
+    energySystems: ['mixed'],
+    movements: [
+      {
+        name: 'Bodyweight squats',
+        category: 'squat',
+        primaryMuscles: ['quadriceps', 'glutes'],
+        equipment: [],
+        complexity: 'simple'
+      },
+      {
+        name: 'Push-ups',
+        category: 'push',
+        primaryMuscles: ['chest', 'triceps'],
+        equipment: [],
+        complexity: 'simple'
+      },
+      {
+        name: 'Walking',
+        category: 'locomotion',
+        primaryMuscles: ['legs'],
+        equipment: [],
+        complexity: 'simple'
+      }
     ],
-    progressionKey: 'bodyweight-basic',
-    notes: 'Equipment-free workout'
+    prescription: {
+      time: duration * 60,
+      load: {
+        type: 'bodyweight',
+        value: 1
+      }
+    },
+    rest: {
+      betweenSets: 30,
+      betweenMovements: 60,
+      betweenBlocks: 0,
+      type: 'incomplete'
+    },
+    notes: 'Equipment-free workout',
+    scaling: {
+      beginner: 'Reduce reps by 50%',
+      intermediate: 'As prescribed',
+      advanced: 'Add plyometric variations'
+    }
   }];
 }
