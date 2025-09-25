@@ -305,6 +305,53 @@ export async function getStrain(userId: string, hours: number): Promise<number |
  * @param options - Options including number of days to look back
  * @returns Array of recent workouts
  */
+/**
+ * Insert workout feedback into the workout_feedback table
+ */
+export interface InsertWorkoutFeedbackParams {
+  workoutId: string;
+  userId: string;
+  perceivedIntensity: number;
+  notes?: string;
+}
+
+export async function insertWorkoutFeedback({ workoutId, userId, perceivedIntensity, notes }: InsertWorkoutFeedbackParams) {
+  const { data, error } = await supabaseAdmin
+    .from('workout_feedback')
+    .insert({
+      workout_id: workoutId,
+      user_id: userId,
+      perceived_intensity: perceivedIntensity,
+      notes: notes || null
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to insert workout feedback: ${error.message}`);
+  }
+
+  return data;
+}
+
+/**
+ * Get recent RPE values for a user to inform progression decisions
+ */
+export async function getRecentRPEs(userId: string, limit: number = 10) {
+  const { data, error } = await supabaseAdmin
+    .from('workout_feedback')
+    .select('perceived_intensity, created_at, workout_id')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to get recent RPEs: ${error.message}`);
+  }
+
+  return data || [];
+}
+
 export async function getUserRecentWorkouts(userId: string, options: { days: number }) {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - options.days);

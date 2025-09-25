@@ -152,4 +152,41 @@ router.post('/log-freeform', requireAuth, async (req, res) => {
   }
 });
 
+// Add workout feedback endpoint
+router.post('/:id/feedback', requireAuth, async (req, res) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.id;
+    const workoutId = req.params.id;
+    
+    // Validate request body
+    const { perceivedIntensity, notes } = req.body;
+    
+    if (!perceivedIntensity || perceivedIntensity < 1 || perceivedIntensity > 10) {
+      return res.status(400).json({ error: 'perceivedIntensity must be between 1 and 10' });
+    }
+    
+    // Verify workout exists and belongs to user
+    const { getWorkout, insertWorkoutFeedback } = await import('../dal/workouts');
+    const workout = await getWorkout(userId, workoutId);
+    
+    if (!workout) {
+      return res.status(404).json({ error: 'Workout not found' });
+    }
+    
+    // Insert feedback
+    const feedback = await insertWorkoutFeedback({
+      workoutId,
+      userId,
+      perceivedIntensity: parseInt(perceivedIntensity),
+      notes: notes || ''
+    });
+    
+    res.json({ success: true, feedback });
+  } catch (error: any) {
+    console.error('Failed to save workout feedback:', error);
+    res.status(500).json({ error: 'Failed to save feedback' });
+  }
+});
+
 export default router;
