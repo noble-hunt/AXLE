@@ -1,32 +1,18 @@
-import { Router } from "express";
-import { storage } from "../storage";
+import { Router } from 'express';
+import os from 'os';
+import pkg from '../../package.json' assert { type: 'json' };
 
-const router = Router();
-
-router.get("/", async (_req, res) => {
-  try {
-    // Lightweight health check - just verify storage interface exists
-    // Using a timeout to avoid hanging during incidents
-    const healthPromise = Promise.resolve(storage.getWorkouts ? true : false);
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Health check timeout')), 5000)
-    );
-    
-    await Promise.race([healthPromise, timeoutPromise]);
-    
-    return res.json({ 
-      ok: true, 
-      ts: Date.now(),
-      service: "axle-fitness"
-    });
-  } catch (e: any) {
-    return res.status(500).json({ 
-      ok: false, 
-      error: String(e),
-      ts: Date.now(),
-      service: "axle-fitness"
-    });
-  }
+const r = Router();
+r.get('/', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'axle-api',
+    version: pkg.version ?? '0.0.0',
+    env: process.env.NODE_ENV || 'unknown',
+    uptime_s: Math.round(process.uptime()),
+    hostname: os.hostname(),
+    time: new Date().toISOString()
+  });
 });
 
-export default router;
+export default r;
