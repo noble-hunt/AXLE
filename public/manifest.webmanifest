@@ -1,0 +1,11 @@
+{
+  "name": "AXLE",
+  "short_name": "AXLE",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0F14",
+  "theme_color": "#0B5FFF",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "48x48", "type": "image/x-icon" }
+  ]
+}
