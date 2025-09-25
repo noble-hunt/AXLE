@@ -136,7 +136,7 @@ describe('Workout Engine Tests', () => {
         {
           date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
           primaryPattern: 'hinge',
-          energySystems: ['aerobicZ1'],
+          energySystems: ['oxidative'],
           estimatedTSS: 50,
           intensityRating: 3
         }
