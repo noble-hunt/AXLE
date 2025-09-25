@@ -40,6 +40,8 @@ import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Callback from "@/pages/auth/Callback";
 import ResetPassword from "@/pages/auth/ResetPassword";
+import PrivacyPolicy from "@/pages/legal/privacy";
+import TermsOfService from "@/pages/legal/terms";
 
 function OverlayWrapper() {
   const search = useSearch();
@@ -69,6 +71,10 @@ function OverlayWrapper() {
         <Route path="/auth/register" component={Register} />
         <Route path="/auth/callback" component={Callback} />
         <Route path="/auth/reset-password" component={ResetPassword} />
+        
+        {/* Legal routes - accessible to all */}
+        <Route path="/legal/privacy" component={PrivacyPolicy} />
+        <Route path="/legal/terms" component={TermsOfService} />
         
         {/* Home route - accessible to all */}
         <Route path="/" component={Home} />
