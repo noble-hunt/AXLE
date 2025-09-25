@@ -12,23 +12,66 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Badge } from "@/components/ui/badge"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
-import { Category, WorkoutRequest, workoutRequestSchema } from "@shared/schema"
+import { httpJSON } from "@/lib/http"
 import { useAppStore } from "@/store/useAppStore"
-import { Dumbbell, Clock, Target, Zap, Sparkles, Calendar, Users, Activity, Sun, Droplets } from "lucide-react"
+import { 
+  Dumbbell, Clock, Target, Zap, Sparkles, Calendar, Users, Activity, Sun, Droplets, 
+  ChevronDown, ChevronUp, Edit3, RotateCcw, Heart, Brain, Moon, Battery,
+  ThumbsUp, ThumbsDown, HelpCircle, Settings, RefreshCcw
+} from "lucide-react"
 
-// Extended form schema for group workouts with scheduling
-const groupWorkoutSchema = workoutRequestSchema.extend({
-  scheduledDate: z.string().min(1, "Please select a date"),
-  scheduledTime: z.string().min(1, "Please select a time"),
-  location: z.string().optional(),
-})
+// V2 Workout Generation Schema  
+const v2WorkoutRequestSchema = z.object({
+  duration: z.number().min(5).max(120),
+  intensity: z.number().min(1).max(10),
+  equipment: z.array(z.string()).optional(),
+  constraints: z.array(z.string()).optional(),
+  goals: z.array(z.string()).optional(),
+  metricsSnapshot: z.object({
+    vitality: z.number().min(0).max(100).optional(),
+    performancePotential: z.number().min(0).max(100).optional(),
+    circadianAlignment: z.number().min(0).max(100).optional(),
+    energySystemsBalance: z.number().min(0).max(100).optional(),
+    fatigueScore: z.number().min(0).max(100).optional(),
+    hrv: z.number().min(0).optional(),
+    rhr: z.number().min(30).max(200).optional(),
+    sleepScore: z.number().min(0).max(100).optional()
+  }).optional()
+});
 
-type WorkoutRequestForm = WorkoutRequest
-type GroupWorkoutRequestForm = z.infer<typeof groupWorkoutSchema>
+type V2WorkoutRequest = z.infer<typeof v2WorkoutRequestSchema>;
+
+// Equipment options
+const EQUIPMENT_OPTIONS = [
+  { value: "barbell", label: "Barbell" },
+  { value: "dumbbell", label: "Dumbbells" },
+  { value: "kettlebell", label: "Kettlebells" },
+  { value: "resistance_bands", label: "Resistance Bands" },
+  { value: "pull_up_bar", label: "Pull-up Bar" },
+  { value: "bodyweight", label: "Bodyweight Only" },
+  { value: "cardio_machine", label: "Cardio Machine" },
+  { value: "yoga_mat", label: "Yoga Mat" }
+];
+
+// Focus options for editing
+const FOCUS_OPTIONS = [
+  { value: "strength", label: "Strength" },
+  { value: "cardio", label: "Cardiovascular" },
+  { value: "hybrid", label: "Hybrid Training" },
+  { value: "recovery", label: "Recovery" },
+  { value: "mobility", label: "Mobility" }
+];
 
 export default function WorkoutGenerate() {
   const [generatedWorkout, setGeneratedWorkout] = useState<any>(null)
+  const [showRationale, setShowRationale] = useState(false)
+  const [showEditControls, setShowEditControls] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+  const [lastFeedback, setLastFeedback] = useState<{ type: 'easy' | 'hard'; intensity: number } | null>(null)
   const { addWorkout } = useAppStore()
   const [, setLocation] = useLocation()
   const { toast } = useToast()
@@ -40,230 +83,186 @@ export default function WorkoutGenerate() {
   const mode = urlParams.get("mode")
   const isGroupMode = mode === "group" && groupId
 
-  // Fetch health metrics for readiness display
+  // Fetch health metrics for AXLE display
   const { data: healthReports } = useQuery({
     queryKey: ['/api/health/reports', { days: 1 }],
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const todayMetrics = (healthReports as any)?.[0]?.metrics;
-  const performancePotential = todayMetrics?.performancePotentialScore;
-  const uvMax = todayMetrics?.environment?.weather?.uvMax;
-
-  // Helper function to get readiness color and message
-  const getReadinessInfo = (score: number | undefined) => {
-    if (score === undefined || score === null) return { color: "text-muted-foreground", message: "Unknown", bgColor: "bg-muted/20" };
-    if (score >= 80) return { color: "text-green-600", message: "Excellent", bgColor: "bg-green-50 dark:bg-green-950" };
-    if (score >= 65) return { color: "text-blue-600", message: "Good", bgColor: "bg-blue-50 dark:bg-blue-950" };
-    if (score >= 50) return { color: "text-yellow-600", message: "Moderate", bgColor: "bg-yellow-50 dark:bg-yellow-950" };
-    return { color: "text-red-600", message: "Low", bgColor: "bg-red-50 dark:bg-red-950" };
+  const axleMetrics = {
+    vitality: todayMetrics?.vitality || 65,
+    performancePotential: todayMetrics?.performancePotentialScore || 70,
+    circadianAlignment: todayMetrics?.circadianAlignment || 75,
+    energySystemsBalance: todayMetrics?.energySystemsBalance || 70
   };
 
-  // Use different form schema based on mode
-  const form = useForm<GroupWorkoutRequestForm>({
-    resolver: zodResolver(isGroupMode ? groupWorkoutSchema : workoutRequestSchema),
+  // Form for workout generation
+  const form = useForm<V2WorkoutRequest>({
+    resolver: zodResolver(v2WorkoutRequestSchema),
     defaultValues: {
-      category: Category.STRENGTH,
       duration: 30,
       intensity: 5,
-      ...(isGroupMode && {
-        scheduledDate: "",
-        scheduledTime: "",
-        location: "",
-      }),
+      equipment: ["bodyweight"],
     },
   })
-  
-  // Check if workout might be outdoor-focused (after form is initialized)
-  const selectedCategory = form.watch("category");
-  const isOutdoorWorkout = selectedCategory === Category.CARDIO;
-  const showHydrationWarning = uvMax !== undefined && uvMax >= 6 && isOutdoorWorkout;
 
-  // Set default date and time for group workouts
-  useEffect(() => {
-    if (isGroupMode && !form.getValues("scheduledDate")) {
-      const today = new Date()
-      const tomorrow = new Date(today)
-      tomorrow.setDate(today.getDate() + 1)
-      
-      // Default to tomorrow at 6 PM (using local date formatting)
-      const year = tomorrow.getFullYear()
-      const month = String(tomorrow.getMonth() + 1).padStart(2, '0')
-      const day = String(tomorrow.getDate()).padStart(2, '0')
-      const defaultDate = `${year}-${month}-${day}`
-      
-      form.setValue("scheduledDate", defaultDate)
-      form.setValue("scheduledTime", "18:00")
+  // Helper function to get metric color and description
+  const getMetricInfo = (value: number, type: string) => {
+    let color = "bg-gray-100 text-gray-700";
+    let description = "";
+    
+    if (value >= 80) {
+      color = "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300";
+      description = type === "vitality" ? "Excellent energy levels" :
+                   type === "performancePotential" ? "Ready for high intensity" :
+                   type === "circadianAlignment" ? "Perfect timing" : "Balanced systems";
+    } else if (value >= 65) {
+      color = "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+      description = type === "vitality" ? "Good energy levels" :
+                   type === "performancePotential" ? "Good for moderate work" :
+                   type === "circadianAlignment" ? "Good timing" : "Well balanced";
+    } else if (value >= 50) {
+      color = "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300";
+      description = type === "vitality" ? "Moderate energy" :
+                   type === "performancePotential" ? "Light work recommended" :
+                   type === "circadianAlignment" ? "Suboptimal timing" : "Slightly imbalanced";
+    } else {
+      color = "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300";
+      description = type === "vitality" ? "Low energy, rest focus" :
+                   type === "performancePotential" ? "Recovery recommended" :
+                   type === "circadianAlignment" ? "Poor timing" : "Needs balancing";
     }
-  }, [isGroupMode, form])
+    
+    return { color, description };
+  };
 
+  // V2 Workout Generation Mutation
   const generateMutation = useMutation({
-    mutationFn: async (data: GroupWorkoutRequestForm) => {
-      const { authFetch } = await import('@/lib/authFetch');
+    mutationFn: async (data: V2WorkoutRequest) => {
+      setIsRegenerating(true)
       
-      // For group mode, first generate the workout, then create group event
-      if (isGroupMode) {
-        // Generate the workout first
-        const workoutRequest = {
-          category: data.category,
-          duration: data.duration,
-          intensity: data.intensity
+      // Prepare request with AXLE metrics and feedback
+      const requestData = {
+        ...data,
+        metricsSnapshot: {
+          vitality: axleMetrics.vitality,
+          performancePotential: axleMetrics.performancePotential,
+          circadianAlignment: axleMetrics.circadianAlignment,
+          energySystemsBalance: axleMetrics.energySystemsBalance,
+          ...data.metricsSnapshot
         }
-        
-        const workoutResponse = await authFetch('/api/generate-workout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(workoutRequest)
-        })
-        
-        if (!workoutResponse.ok) {
-          let errorMessage = `Server error: ${workoutResponse.status}`
-          try {
-            const error = await workoutResponse.json()
-            errorMessage = error.message || errorMessage
-          } catch {
-            // Ignore JSON parsing errors for non-JSON responses
-          }
-          
-          if (workoutResponse.status === 401) {
-            throw new Error('Authentication required. Please sign in to generate workouts.')
-          }
-          throw new Error(errorMessage)
-        }
-        
-        const generatedWorkout = await workoutResponse.json()
-        
-        // Create group event with workout data (using local time, not forcing UTC)
-        const [year, month, day] = data.scheduledDate.split('-').map(Number)
-        const [hours, minutes] = data.scheduledTime.split(':').map(Number)
-        const scheduledDateTime = new Date(year, month - 1, day, hours, minutes)
-        
-        const eventData = {
-          kind: "event",
-          content: {
-            title: `Group Workout: ${generatedWorkout.name}`,
-            description: `${generatedWorkout.description}\n\nWorkout Details:\n• Duration: ${generatedWorkout.duration} minutes\n• Intensity: ${generatedWorkout.intensity}/10\n• ${generatedWorkout.sets?.length || 0} exercises`,
-            start_at: scheduledDateTime.toISOString(),
-            duration_min: generatedWorkout.duration,
-            location: data.location || undefined,
-            workoutData: generatedWorkout // Include full workout data
-          },
-          groupIds: [groupId!]
-        }
-        
-        const eventResponse = await authFetch('/api/posts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(eventData)
-        })
-        
-        if (!eventResponse.ok) {
-          throw new Error('Failed to create group workout event')
-        }
-        
-        const eventPost = await eventResponse.json()
-        return { ...generatedWorkout, isGroupWorkout: true, eventPost }
-      } else {
-        // Individual workout mode - existing logic
-        const response = await authFetch('/api/generate-workout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        })
-        
-        if (!response.ok) {
-          let errorMessage = `Server error: ${response.status}`
-          try {
-            const error = await response.json()
-            errorMessage = error.message || errorMessage
-          } catch {
-            // Ignore JSON parsing errors for non-JSON responses
-          }
-          
-          if (response.status === 401) {
-            throw new Error('Authentication required. Please sign in to generate workouts.')
-          }
-          throw new Error(errorMessage)
-        }
-        
-        return await response.json()
+      };
+
+      // Apply feedback adjustments if we have recent feedback
+      if (lastFeedback && lastFeedback.type === 'hard') {
+        requestData.intensity = Math.max(1, requestData.intensity - 1);
+        toast({
+          title: "Intensity Adjusted",
+          description: "Lowered intensity based on your 'too hard' feedback.",
+        });
+      } else if (lastFeedback && lastFeedback.type === 'easy') {
+        requestData.intensity = Math.min(10, requestData.intensity + 1);
+        toast({
+          title: "Intensity Adjusted", 
+          description: "Increased intensity based on your 'too easy' feedback.",
+        });
       }
+
+      const response = await httpJSON('/api/generate/v2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+      });
+
+      return response;
     },
     onSuccess: (data) => {
       setGeneratedWorkout(data)
-      if (data.isGroupWorkout) {
-        toast({
-          title: "Group Workout Created!",
-          description: `Created a scheduled group workout for ${data.duration} minutes.`,
-        })
-        // Redirect back to group feed after 2 seconds to show the new event
-        setTimeout(() => {
-          setLocation(`/groups/${groupId}`)
-        }, 2000)
-      } else {
-        toast({
-          title: "Workout Generated!",
-          description: `Generated a ${data.duration}-minute ${data.category} workout.`,
-        })
-      }
+      setIsRegenerating(false)
+      setLastFeedback(null) // Clear feedback after successful generation
+      toast({
+        title: "Workout Generated!",
+        description: `Created a ${data.plan?.targetIntensity || 'custom'}-intensity workout plan.`,
+      })
     },
     onError: (error: any) => {
+      setIsRegenerating(false)
       console.error('Generate workout error:', error)
-      const isAuthError = error.message?.includes('Authentication required') || error.message?.includes('Authorization')
-      
       toast({
-        title: isAuthError ? "Authentication Required" : "Generation Failed",
-        description: isAuthError 
-          ? "Please sign in to generate AI-powered workouts." 
-          : error.message || "Failed to generate workout. Please try again.",
+        title: "Generation Failed",
+        description: error.message || "Failed to generate workout. Please try again.",
         variant: "destructive",
       })
-      
-      // If auth error, could redirect to login
-      if (isAuthError) {
-        // Could navigate to /auth or show login modal
-        console.log('User needs to authenticate to generate workouts')
-      }
     },
   })
 
+  // Feedback submission mutation
+  const feedbackMutation = useMutation({
+    mutationFn: async ({ type, workoutId }: { type: 'easy' | 'hard'; workoutId: string }) => {
+      const intensityFeedback = type === 'easy' ? 3 : 8; // Map to 1-10 scale
+      
+      await httpJSON('/api/workouts/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workoutId, intensityFeedback })
+      });
+
+      return { type, intensity: intensityFeedback };
+    },
+    onSuccess: (data) => {
+      setLastFeedback({ type: data.type, intensity: data.intensity });
+      toast({
+        title: "Feedback Saved",
+        description: `We'll adjust future workouts based on your feedback.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Feedback Failed",
+        description: error.message || "Failed to save feedback.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Save workout mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!generatedWorkout) throw new Error("No workout to save");
       
       const { createWorkout } = await import('@/lib/workoutAPI');
       
-      // Create workout using robust API
       const workoutData = {
-        title: generatedWorkout.name,
-        notes: 'AI Generated Workout',
-        sets: generatedWorkout.sets || {},
+        title: generatedWorkout.plan?.focus || 'AI Generated Workout',
+        notes: generatedWorkout.plan?.rationale?.join('\n') || 'AI Generated Workout',
+        sets: generatedWorkout.plan?.blocks || [],
         completed: false,
         request: {
-          category: generatedWorkout.category,
-          duration: generatedWorkout.duration,
-          intensity: generatedWorkout.intensity
+          duration: form.getValues('duration'),
+          intensity: form.getValues('intensity'),
+          equipment: form.getValues('equipment')
         },
         feedback: {
-          source: 'ai_generation',
-          generated_at: new Date().toISOString()
+          source: 'ai_generation_v2',
+          generated_at: new Date().toISOString(),
+          axle_metrics: axleMetrics
         }
       };
       
-      // Use robust authentication and UUID validation
       const workoutId = await createWorkout(workoutData);
       
       // Also add to local store for immediate UI updates
       addWorkout({
-        name: generatedWorkout.name,
-        category: generatedWorkout.category,
-        description: generatedWorkout.description,
-        duration: generatedWorkout.duration,
-        intensity: generatedWorkout.intensity,
-        sets: generatedWorkout.sets,
+        name: generatedWorkout.plan?.focus || 'AI Generated Workout',
+        category: 'AI Generated' as any,
+        description: generatedWorkout.plan?.rationale?.[0] || '',
+        duration: form.getValues('duration'),
+        intensity: generatedWorkout.plan?.targetIntensity || form.getValues('intensity'),
+        sets: generatedWorkout.plan?.blocks || [],
         date: new Date(),
         completed: false,
-        notes: 'AI Generated Workout',
+        notes: generatedWorkout.plan?.rationale?.join('\n') || '',
       });
       
       return { workoutId, workout: generatedWorkout };
@@ -274,7 +273,6 @@ export default function WorkoutGenerate() {
           title: "Workout Saved!",
           description: "Your workout has been saved successfully!",
         });
-        // Navigate to the created workout
         setLocation(`/workout/${result.workoutId}`);
       }
     },
@@ -288,7 +286,7 @@ export default function WorkoutGenerate() {
     },
   })
 
-  const onSubmit = (data: GroupWorkoutRequestForm) => {
+  const onSubmit = (data: V2WorkoutRequest) => {
     generateMutation.mutate(data)
   }
 
@@ -298,456 +296,626 @@ export default function WorkoutGenerate() {
 
   const handleGenerateNew = () => {
     setGeneratedWorkout(null)
-    form.reset()
+    setShowRationale(false)
+    setShowEditControls(false)
+    setLastFeedback(null)
+  }
+
+  const handleEditAndRegenerate = (data: V2WorkoutRequest) => {
+    form.reset(data);
+    generateMutation.mutate(data);
+    setShowEditControls(false);
+  }
+
+  const handleFeedback = (type: 'easy' | 'hard') => {
+    // For demo purposes, we'll use a mock workout ID
+    // In a real app, this would be the actual saved workout ID
+    const mockWorkoutId = 'demo-workout-id';
+    feedbackMutation.mutate({ type, workoutId: mockWorkoutId });
   }
 
   if (generatedWorkout) {
     return (
-      <>
-        <SectionTitle title={isGroupMode ? "Group Workout Created!" : "Generated Workout"} />
+      <div className="space-y-6">
+        <SectionTitle title="Generated Workout" />
 
+        {/* AXLE Metrics Chips */}
+        <TooltipProvider>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`p-3 rounded-xl ${getMetricInfo(axleMetrics.vitality, 'vitality').color} cursor-help transition-colors`}>
+                  <div className="flex items-center gap-2">
+                    <Battery className="w-4 h-4" />
+                    <div>
+                      <div className="font-semibold">Vitality</div>
+                      <div className="text-lg font-bold">{axleMetrics.vitality}</div>
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{getMetricInfo(axleMetrics.vitality, 'vitality').description}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`p-3 rounded-xl ${getMetricInfo(axleMetrics.performancePotential, 'performancePotential').color} cursor-help transition-colors`}>
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4" />
+                    <div>
+                      <div className="font-semibold">Performance</div>
+                      <div className="text-lg font-bold">{axleMetrics.performancePotential}</div>
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{getMetricInfo(axleMetrics.performancePotential, 'performancePotential').description}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`p-3 rounded-xl ${getMetricInfo(axleMetrics.circadianAlignment, 'circadianAlignment').color} cursor-help transition-colors`}>
+                  <div className="flex items-center gap-2">
+                    <Moon className="w-4 h-4" />
+                    <div>
+                      <div className="font-semibold">Circadian</div>
+                      <div className="text-lg font-bold">{axleMetrics.circadianAlignment}</div>
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{getMetricInfo(axleMetrics.circadianAlignment, 'circadianAlignment').description}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`p-3 rounded-xl ${getMetricInfo(axleMetrics.energySystemsBalance, 'energySystemsBalance').color} cursor-help transition-colors`}>
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4" />
+                    <div>
+                      <div className="font-semibold">Balance</div>
+                      <div className="text-lg font-bold">{axleMetrics.energySystemsBalance}</div>
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{getMetricInfo(axleMetrics.energySystemsBalance, 'energySystemsBalance').description}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+
+        {/* Workout Plan Card */}
         <Card className="p-6 card-shadow border border-border">
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-primary" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">{generatedWorkout.plan?.focus}</h2>
+                  <p className="text-sm text-muted-foreground">Intensity: {generatedWorkout.plan?.targetIntensity}/10</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">{generatedWorkout.name}</h2>
-                <p className="text-sm text-muted-foreground">{generatedWorkout.description}</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowEditControls(!showEditControls)}
+                  data-testid="edit-workout"
+                >
+                  <Edit3 className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
               </div>
             </div>
 
             {/* Workout Stats */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="text-center">
                 <Clock className="w-5 h-5 text-primary mx-auto mb-1" />
-                <p className="text-lg font-bold text-foreground">{generatedWorkout.duration}</p>
+                <p className="text-lg font-bold text-foreground">{form.getValues('duration')}</p>
                 <p className="text-xs text-muted-foreground">minutes</p>
               </div>
               <div className="text-center">
                 <Target className="w-5 h-5 text-chart-2 mx-auto mb-1" />
-                <p className="text-lg font-bold text-foreground">{generatedWorkout.intensity}</p>
+                <p className="text-lg font-bold text-foreground">{generatedWorkout.plan?.targetIntensity}</p>
                 <p className="text-xs text-muted-foreground">intensity</p>
               </div>
               <div className="text-center">
                 <Dumbbell className="w-5 h-5 text-chart-3 mx-auto mb-1" />
-                <p className="text-lg font-bold text-foreground">{generatedWorkout.sets?.length || 0}</p>
-                <p className="text-xs text-muted-foreground">exercises</p>
+                <p className="text-lg font-bold text-foreground">{generatedWorkout.plan?.blocks?.length || 0}</p>
+                <p className="text-xs text-muted-foreground">blocks</p>
+              </div>
+              <div className="text-center">
+                <Activity className="w-5 h-5 text-chart-4 mx-auto mb-1" />
+                <p className="text-lg font-bold text-foreground">{generatedWorkout.plan?.estimatedTSS || 0}</p>
+                <p className="text-xs text-muted-foreground">TSS</p>
               </div>
             </div>
           </div>
         </Card>
 
-        {/* Exercise List */}
+        {/* Edit Controls */}
+        {showEditControls && (
+          <Card className="p-6 border-2 border-primary/20 bg-primary/5">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Edit & Regenerate
+            </h3>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleEditAndRegenerate)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="duration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Duration (minutes)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={5}
+                            max={120}
+                            {...field}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="intensity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Intensity (1-10)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={10}
+                            {...field}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="equipment"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Available Equipment</FormLabel>
+                        <FormControl>
+                          <Select onValueChange={(value) => field.onChange([value])} defaultValue={field.value?.[0]}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select equipment" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {EQUIPMENT_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="flex gap-3">
+                  <Button
+                    type="submit"
+                    disabled={generateMutation.isPending}
+                    className="flex-1"
+                  >
+                    {generateMutation.isPending ? (
+                      <>
+                        <LoadingSpinner size="sm" className="mr-2" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCcw className="w-4 h-4 mr-2" />
+                        Regenerate
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowEditControls(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </Card>
+        )}
+
+        {/* Why This Plan? Expandable */}
+        <Collapsible open={showRationale} onOpenChange={setShowRationale}>
+          <CollapsibleTrigger asChild>
+            <Card className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <HelpCircle className="w-5 h-5 text-primary" />
+                  <span className="font-semibold">Why this plan?</span>
+                </div>
+                {showRationale ? (
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+            </Card>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card className="p-6 mt-2 bg-muted/30">
+              <div className="space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Brain className="w-5 h-5" />
+                  AI Rationale & AXLE Metrics
+                </h3>
+                
+                {/* Display AXLE scores used */}
+                <div className="bg-background p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">AXLE Scores Used:</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>Vitality: <span className="font-mono">{axleMetrics.vitality}</span></div>
+                    <div>Performance Potential: <span className="font-mono">{axleMetrics.performancePotential}</span></div>
+                    <div>Circadian Alignment: <span className="font-mono">{axleMetrics.circadianAlignment}</span></div>
+                    <div>Energy Balance: <span className="font-mono">{axleMetrics.energySystemsBalance}</span></div>
+                  </div>
+                </div>
+
+                {/* Display rationale */}
+                <div className="space-y-3">
+                  <h4 className="font-medium">Decision Rules:</h4>
+                  {generatedWorkout.plan?.rationale?.map((reason: string, index: number) => (
+                    <div key={index} className="flex items-start gap-3 text-sm">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-primary">{index + 1}</span>
+                      </div>
+                      <p className="text-muted-foreground">{reason}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Workout Structure */}
         <div className="space-y-4">
           <SectionTitle title="Workout Structure" />
           
-          {(() => {
-            // Group exercises by type
-            const warmupSets = generatedWorkout.sets?.filter((set: any) => 
-              set.exercise.toLowerCase().includes('warm') || 
-              set.exercise.toLowerCase().includes('dynamic')
-            ) || []
-            
-            const metconSets = generatedWorkout.sets?.filter((set: any) => 
-              set.exercise.toLowerCase().includes('metcon')
-            ) || []
-            
-            const otherSets = generatedWorkout.sets?.filter((set: any) => 
-              !set.exercise.toLowerCase().includes('warm') && 
-              !set.exercise.toLowerCase().includes('dynamic') &&
-              !set.exercise.toLowerCase().includes('metcon')
-            ) || []
-
-            const formatExerciseContent = (sets: any[]) => {
-              if (sets.length === 0) return null;
-              
-              // For single set, use the notes which contain the full formatted content
-              if (sets.length === 1 && sets[0].notes) {
-                return sets[0].notes.split('\n').map((line: string, i: number) => (
-                  <div key={i} className={line.trim() === '' ? 'h-3' : ''}>
-                    {line.trim() === '' ? <br /> : line.trim()}
-                  </div>
-                ));
-              }
-              
-              // For multiple sets, format each exercise
-              return sets.map((set: any, index: number) => (
-                <div key={index} className="space-y-1">
-                  {set.exercise && (
-                    <div className="font-medium text-foreground">{set.exercise}</div>
-                  )}
-                  {(set.reps || set.weight || set.duration || set.distance) && (
-                    <div className="text-sm text-muted-foreground">
-                      {set.reps && <div>{set.reps} reps</div>}
-                      {set.weight && <div>{set.weight} lbs</div>}
-                      {set.duration && <div>{set.duration} seconds</div>}
-                      {set.distance && <div>{set.distance} meters</div>}
-                    </div>
-                  )}
-                  {set.notes && (
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {set.notes.split('\n').map((line: string, i: number) => (
-                        <div key={i} className={line.trim() === '' ? 'h-2' : ''}>
-                          {line.trim() === '' ? <br /> : line.trim()}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {index < sets.length - 1 && <div className="h-3" />}
+          {generatedWorkout.plan?.blocks?.map((block: any, index: number) => (
+            <Card key={index} className="p-6 card-shadow border border-border">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-foreground capitalize">{block.type}</h3>
+                  <Badge variant="outline">{block.prescription?.time ? `${Math.round(block.prescription.time / 60)} min` : 'Flexible'}</Badge>
                 </div>
-              ));
-            };
-
-            return (
-              <>
-                {/* Warm-up Section */}
-                {warmupSets.length > 0 && (
-                  <Card className="p-6 card-shadow border border-border" data-testid="warmup-section">
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-semibold text-foreground">Warm-up</h3>
-                      <div className="text-sm leading-relaxed">
-                        {formatExerciseContent(warmupSets)}
+                
+                <div className="space-y-3">
+                  {block.movements?.map((movement: any, moveIndex: number) => (
+                    <div key={moveIndex} className="bg-muted/30 p-3 rounded-lg">
+                      <div className="font-medium text-foreground mb-1">{movement.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Category: {movement.category} | Complexity: {movement.complexity}
                       </div>
                     </div>
-                  </Card>
+                  ))}
+                </div>
+
+                {block.prescription && (
+                  <div className="text-sm text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Target RPE: {block.prescription.load?.value}/10</span>
+                      <span>Rest: {block.rest?.betweenSets}s between sets</span>
+                    </div>
+                  </div>
                 )}
 
-                {/* Metcon Section */}
-                {metconSets.length > 0 && (
-                  <Card className="p-6 card-shadow border border-border" data-testid="metcon-section">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-foreground">Metcon</h3>
-                      <div className="text-sm leading-relaxed space-y-4">
-                        {formatExerciseContent(metconSets)}
-                      </div>
-                    </div>
-                  </Card>
+                {block.notes && (
+                  <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg text-sm">
+                    <strong>Notes:</strong> {block.notes}
+                  </div>
                 )}
-
-                {/* Other Exercises */}
-                {otherSets.length > 0 && (
-                  <Card className="p-6 card-shadow border border-border" data-testid="other-exercises-section">
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-semibold text-foreground">Exercises</h3>
-                      <div className="text-sm leading-relaxed space-y-3">
-                        {formatExerciseContent(otherSets)}
-                      </div>
-                    </div>
-                  </Card>
-                )}
-              </>
-            );
-          })()}
+              </div>
+            </Card>
+          ))}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            className="flex-1 rounded-2xl" 
-            onClick={handleGenerateNew}
-            data-testid="generate-new-workout"
-          >
-            Generate New
-          </Button>
-          <Button 
-            className="flex-1 rounded-2xl bg-primary text-primary-foreground" 
-            onClick={handleSaveWorkout}
-            disabled={saveMutation.isPending}
-            data-testid="save-workout"
-          >
-            {saveMutation.isPending ? (
-              <>
-                <LoadingSpinner size="sm" className="mr-2" />
-                Saving...
-              </>
-            ) : (
-              'Save Workout'
-            )}
-          </Button>
+        {/* Feedback & Action Buttons */}
+        <div className="space-y-4">
+          {/* Difficulty Feedback */}
+          <Card className="p-4 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-amber-900 dark:text-amber-100">How was this workout?</h3>
+                <p className="text-sm text-amber-800 dark:text-amber-200">Your feedback helps us improve future recommendations</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleFeedback('easy')}
+                  disabled={feedbackMutation.isPending}
+                  className="border-green-200 text-green-700 hover:bg-green-50"
+                  data-testid="feedback-easy"
+                >
+                  <ThumbsUp className="w-4 h-4 mr-1" />
+                  Too Easy
+                </Button>
+                <Button
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleFeedback('hard')}
+                  disabled={feedbackMutation.isPending}
+                  className="border-red-200 text-red-700 hover:bg-red-50"
+                  data-testid="feedback-hard"
+                >
+                  <ThumbsDown className="w-4 h-4 mr-1" />
+                  Too Hard
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Main Action Buttons */}
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              className="flex-1 rounded-2xl" 
+              onClick={handleGenerateNew}
+              data-testid="generate-new-workout"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Generate New
+            </Button>
+            <Button 
+              className="flex-1 rounded-2xl bg-primary text-primary-foreground" 
+              onClick={handleSaveWorkout}
+              disabled={saveMutation.isPending}
+              data-testid="save-workout"
+            >
+              {saveMutation.isPending ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Saving...
+                </>
+              ) : (
+                'Save Workout'
+              )}
+            </Button>
+          </div>
         </div>
-      </>
+      </div>
     )
   }
 
   return (
-    <>
+    <div className="space-y-6">
       <SectionTitle 
         title="Generate Workout" 
-        subtitle="AI-powered workout generation"
+        subtitle="AI-powered workout generation with AXLE metrics"
       />
 
-      {/* Readiness Banner */}
-      <Card className={`p-4 ${getReadinessInfo(performancePotential).bgColor} border border-border/50`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Activity className={`w-5 h-5 ${getReadinessInfo(performancePotential).color}`} data-testid="readiness-icon" />
-            <div>
-              <span className="font-semibold text-foreground" data-testid="readiness-label">
-                Readiness: 
-              </span>
-              <span className={`ml-2 font-bold ${getReadinessInfo(performancePotential).color}`} data-testid="readiness-score">
-                {performancePotential ?? "Unknown"}
-              </span>
-            </div>
-          </div>
-          <span className={`text-sm font-medium ${getReadinessInfo(performancePotential).color}`} data-testid="readiness-status">
-            {getReadinessInfo(performancePotential).message}
-          </span>
-        </div>
-      </Card>
+      {/* AXLE Metrics Display */}
+      <TooltipProvider>
+        <Card className="p-6 card-shadow border border-border">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Brain className="w-5 h-5 text-primary" />
+            Current AXLE Metrics
+          </h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`p-4 rounded-xl ${getMetricInfo(axleMetrics.vitality, 'vitality').color} cursor-help transition-colors`}>
+                  <div className="flex items-center gap-3">
+                    <Battery className="w-5 h-5" />
+                    <div>
+                      <div className="font-semibold">Vitality</div>
+                      <div className="text-2xl font-bold">{axleMetrics.vitality}</div>
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{getMetricInfo(axleMetrics.vitality, 'vitality').description}</p>
+              </TooltipContent>
+            </Tooltip>
 
-      {/* Hydration Warning */}
-      {showHydrationWarning && (
-        <Card className="p-4 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Sun className="w-5 h-5 text-orange-600" data-testid="sun-icon" />
-              <Droplets className="w-5 h-5 text-blue-600" data-testid="hydration-icon" />
-            </div>
-            <div>
-              <span className="font-semibold text-orange-900 dark:text-orange-100" data-testid="hydration-warning">
-                High UV Alert: 
-              </span>
-              <span className="text-orange-800 dark:text-orange-200" data-testid="hydration-message">
-                Stay hydrated and consider sunscreen for outdoor activities (UV: {uvMax})
-              </span>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`p-4 rounded-xl ${getMetricInfo(axleMetrics.performancePotential, 'performancePotential').color} cursor-help transition-colors`}>
+                  <div className="flex items-center gap-3">
+                    <Zap className="w-5 h-5" />
+                    <div>
+                      <div className="font-semibold">Performance</div>
+                      <div className="text-2xl font-bold">{axleMetrics.performancePotential}</div>
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{getMetricInfo(axleMetrics.performancePotential, 'performancePotential').description}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`p-4 rounded-xl ${getMetricInfo(axleMetrics.circadianAlignment, 'circadianAlignment').color} cursor-help transition-colors`}>
+                  <div className="flex items-center gap-3">
+                    <Moon className="w-5 h-5" />
+                    <div>
+                      <div className="font-semibold">Circadian</div>
+                      <div className="text-2xl font-bold">{axleMetrics.circadianAlignment}</div>
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{getMetricInfo(axleMetrics.circadianAlignment, 'circadianAlignment').description}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className={`p-4 rounded-xl ${getMetricInfo(axleMetrics.energySystemsBalance, 'energySystemsBalance').color} cursor-help transition-colors`}>
+                  <div className="flex items-center gap-3">
+                    <Brain className="w-5 h-5" />
+                    <div>
+                      <div className="font-semibold">Balance</div>
+                      <div className="text-2xl font-bold">{axleMetrics.energySystemsBalance}</div>
+                    </div>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{getMetricInfo(axleMetrics.energySystemsBalance, 'energySystemsBalance').description}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </Card>
-      )}
-
-      {/* Introduction Card */}
-      <Card className="p-6 card-shadow border border-border">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">AI Workout Generator</h3>
-            <p className="text-sm text-muted-foreground">Get a personalized workout based on your preferences</p>
-          </div>
-        </div>
-        
-        <div className="text-sm text-muted-foreground space-y-2">
-          <p>• Choose your preferred workout category and style</p>
-          <p>• Set your desired duration and intensity level</p>
-          <p>• Get a complete workout with exercises, sets, and reps</p>
-        </div>
-      </Card>
+      </TooltipProvider>
 
       {/* Generation Form */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           
-          {/* Category Selection */}
+          {/* Duration & Intensity */}
+          <Card className="p-6 card-shadow border border-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Duration: {field.value} minutes
+                    </FormLabel>
+                    <FormControl>
+                      <Slider
+                        value={[field.value]}
+                        onValueChange={(value) => field.onChange(value[0])}
+                        max={120}
+                        min={5}
+                        step={5}
+                        className="mt-4"
+                        data-testid="duration-slider"
+                      />
+                    </FormControl>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                      <span>5 min</span>
+                      <span>120 min</span>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="intensity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <Target className="w-4 h-4" />
+                      Intensity: {field.value}/10
+                    </FormLabel>
+                    <FormControl>
+                      <Slider
+                        value={[field.value]}
+                        onValueChange={(value) => field.onChange(value[0])}
+                        max={10}
+                        min={1}
+                        step={1}
+                        className="mt-4"
+                        data-testid="intensity-slider"
+                      />
+                    </FormControl>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                      <span>Light</span>
+                      <span>Max</span>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </Card>
+
+          {/* Equipment Selection */}
           <Card className="p-6 card-shadow border border-border">
             <FormField
               control={form.control}
-              name="category"
+              name="equipment"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-base font-semibold text-foreground flex items-center gap-2">
                     <Dumbbell className="w-4 h-4" />
-                    Workout Category
+                    Available Equipment
                   </FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="rounded-xl" data-testid="category-select">
-                        <SelectValue placeholder="Select a workout category" />
+                  <FormControl>
+                    <Select onValueChange={(value) => field.onChange([value])} defaultValue={field.value?.[0]}>
+                      <SelectTrigger className="rounded-xl mt-4" data-testid="equipment-select">
+                        <SelectValue placeholder="Select available equipment" />
                       </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {Object.values(Category).map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </Card>
-
-          {/* Duration Slider */}
-          <Card className="p-6 card-shadow border border-border">
-            <FormField
-              control={form.control}
-              name="duration"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base font-semibold text-foreground flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Duration: {field.value} minutes
-                  </FormLabel>
-                  <FormControl>
-                    <div className="px-3">
-                      <Slider
-                        min={5}
-                        max={120}
-                        step={5}
-                        value={[field.value]}
-                        onValueChange={(value) => field.onChange(value[0])}
-                        className="w-full"
-                        data-testid="duration-slider"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                        <span>5 min</span>
-                        <span>60 min</span>
-                        <span>120 min</span>
-                      </div>
-                    </div>
+                      <SelectContent>
+                        {EQUIPMENT_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </Card>
-
-          {/* Intensity Slider */}
-          <Card className="p-6 card-shadow border border-border">
-            <FormField
-              control={form.control}
-              name="intensity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base font-semibold text-foreground flex items-center gap-2">
-                    <Zap className="w-4 h-4" />
-                    Intensity: {field.value}/10
-                  </FormLabel>
-                  <FormControl>
-                    <div className="px-3">
-                      <Slider
-                        min={1}
-                        max={10}
-                        step={1}
-                        value={[field.value]}
-                        onValueChange={(value) => field.onChange(value[0])}
-                        className="w-full"
-                        data-testid="intensity-slider"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                        <span>Low</span>
-                        <span>Medium</span>
-                        <span>High</span>
-                      </div>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </Card>
-
-          {/* Group Mode Scheduling Fields */}
-          {isGroupMode && (
-            <>
-              <Card className="p-6 card-shadow border border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Users className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold text-lg">Group Workout Schedule</h3>
-                </div>
-                
-                <div className="space-y-4">
-                  {/* Date Field */}
-                  <FormField
-                    control={form.control}
-                    name="scheduledDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-medium text-foreground flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          Date
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="date"
-                            className="rounded-xl"
-                            data-testid="scheduled-date-input"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  {/* Time Field */}
-                  <FormField
-                    control={form.control}
-                    name="scheduledTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-medium text-foreground flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          Time
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="time"
-                            className="rounded-xl"
-                            data-testid="scheduled-time-input"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  {/* Location Field */}
-                  <FormField
-                    control={form.control}
-                    name="location"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-medium text-foreground flex items-center gap-2">
-                          <Target className="w-4 h-4" />
-                          Location (Optional)
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., Main Gym, Central Park, Home"
-                            className="rounded-xl"
-                            data-testid="location-input"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </Card>
-            </>
-          )}
 
           {/* Generate Button */}
           <Button 
             type="submit" 
-            className="w-full rounded-2xl bg-primary text-primary-foreground h-12 text-base"
+            className="w-full h-14 text-lg rounded-2xl bg-primary text-primary-foreground"
             disabled={generateMutation.isPending}
             data-testid="generate-workout-button"
           >
             {generateMutation.isPending ? (
               <>
-                <LoadingSpinner size="sm" className="mr-2" />
-                Generating...
+                <LoadingSpinner size="sm" className="mr-3" />
+                Generating Your Perfect Workout...
               </>
             ) : (
               <>
-                <Sparkles className="w-5 h-5 mr-2" />
-{isGroupMode ? "Create Group Workout" : "Generate Workout"}
+                <Sparkles className="w-5 h-5 mr-3" />
+                Generate AI Workout
               </>
             )}
           </Button>
-          
         </form>
       </Form>
-    </>
+    </div>
   )
 }

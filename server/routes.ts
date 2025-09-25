@@ -1425,6 +1425,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Workout feedback endpoint
+  app.post("/api/workouts/feedback", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { workoutId, intensityFeedback } = req.body;
+      
+      if (!workoutId || typeof intensityFeedback !== 'number' || intensityFeedback < 1 || intensityFeedback > 10) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid workoutId or intensityFeedback (must be 1-10)" 
+        });
+      }
+
+      // Update workout feedback in database
+      const { updateWorkout } = await import("./dal/workouts");
+      await updateWorkout(workoutId, {
+        feedback: {
+          intensityFeedback,
+          submittedAt: new Date().toISOString(),
+          userId: authReq.user.id
+        }
+      });
+
+      res.json({ success: true, message: "Feedback saved successfully" });
+    } catch (error) {
+      console.error("Feedback submission error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to save feedback" 
+      });
+    }
+  });
+
   // Test endpoint for new DAL functions
   app.get("/api/debug/dal-functions", requireAuth, async (req, res) => {
     try {
