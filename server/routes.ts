@@ -1429,24 +1429,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/workouts/feedback", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
-      const { workoutId, intensityFeedback } = req.body;
+      const { 
+        workoutId, 
+        generationId,
+        intensityFeedback, 
+        difficultyRating, 
+        rpe, 
+        completionPercentage, 
+        overallSatisfaction,
+        comments,
+        sessionDuration
+      } = req.body;
       
-      if (!workoutId || typeof intensityFeedback !== 'number' || intensityFeedback < 1 || intensityFeedback > 10) {
+      // Validate required fields
+      if (!workoutId) {
         return res.status(400).json({ 
           success: false, 
-          message: "Invalid workoutId or intensityFeedback (must be 1-10)" 
+          message: "workoutId is required" 
+        });
+      }
+
+      // Validate intensity feedback if provided (legacy support)
+      if (intensityFeedback !== undefined && (typeof intensityFeedback !== 'number' || intensityFeedback < 1 || intensityFeedback > 10)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "intensityFeedback must be between 1-10" 
+        });
+      }
+
+      // Validate other feedback fields if provided
+      if (rpe !== undefined && (typeof rpe !== 'number' || rpe < 1 || rpe > 10)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "RPE must be between 1-10" 
+        });
+      }
+
+      if (completionPercentage !== undefined && (typeof completionPercentage !== 'number' || completionPercentage < 0 || completionPercentage > 100)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Completion percentage must be between 0-100" 
+        });
+      }
+
+      if (overallSatisfaction !== undefined && (typeof overallSatisfaction !== 'number' || overallSatisfaction < 1 || overallSatisfaction > 10)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Overall satisfaction must be between 1-10" 
+        });
+      }
+
+      if (difficultyRating !== undefined && !['easy', 'moderate', 'hard'].includes(difficultyRating)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Difficulty rating must be 'easy', 'moderate', or 'hard'" 
         });
       }
 
       // Update workout feedback in database
       const { updateWorkout } = await import("./dal/workouts");
-      await updateWorkout(workoutId, {
-        feedback: {
-          intensityFeedback,
-          submittedAt: new Date().toISOString(),
-          userId: authReq.user.id
+      const feedbackData = {
+        intensityFeedback,
+        difficultyRating,
+        rpe,
+        completionPercentage,
+        overallSatisfaction,
+        comments,
+        sessionDuration,
+        submittedAt: new Date().toISOString(),
+        userId: authReq.user.id
+      };
+      
+      await updateWorkout(workoutId, { feedback: feedbackData });
+
+      // Log telemetry for RL training data collection
+      try {
+        const { logFeedbackEvent } = await import("./workouts/telemetry.js");
+        
+        // Log each type of feedback as separate events for better data analysis
+        const feedbackEvents = [];
+        
+        if (difficultyRating !== undefined) {
+          feedbackEvents.push({
+            feedbackType: 'difficulty' as const,
+            difficultyRating,
+            comments,
+            sessionDuration
+          });
         }
-      });
+
+        if (rpe !== undefined) {
+          feedbackEvents.push({
+            feedbackType: 'rpe' as const,
+            rpe,
+            comments,
+            sessionDuration
+          });
+        }
+
+        if (completionPercentage !== undefined) {
+          feedbackEvents.push({
+            feedbackType: 'completion' as const,
+            completionPercentage,
+            comments,
+            sessionDuration
+          });
+        }
+
+        if (overallSatisfaction !== undefined || intensityFeedback !== undefined) {
+          feedbackEvents.push({
+            feedbackType: 'overall' as const,
+            overallSatisfaction,
+            comments,
+            sessionDuration
+          });
+        }
+
+        // Log all feedback events if generationId is provided
+        if (generationId && feedbackEvents.length > 0) {
+          for (const eventData of feedbackEvents) {
+            await logFeedbackEvent(authReq.user.id, workoutId, generationId, eventData);
+          }
+        } else {
+          console.log('📝 [TELEMETRY] Feedback received but no generationId provided for linking');
+        }
+        
+      } catch (telemetryError) {
+        // Don't fail the request if telemetry fails
+        console.error('❌ [TELEMETRY] Failed to log feedback event:', telemetryError);
+      }
 
       res.json({ success: true, message: "Feedback saved successfully" });
     } catch (error) {
