@@ -304,7 +304,7 @@ export default function Debug() {
           ) : (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Badge variant="warning">Session Loading</Badge>
+                <Badge variant="secondary">Session Loading</Badge>
                 <span className="text-sm text-muted-foreground">Checking authentication...</span>
               </div>
               <Button 

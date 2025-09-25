@@ -16,7 +16,7 @@ export async function fetchGroupPosts(groupId: string, since?: string): Promise<
   try {
     const token = (await supabase.auth.getSession()).data.session?.access_token;
     const qs = since ? `?since=${encodeURIComponent(since)}` : '';
-    const data = await httpJSON(`/api/groups/${groupId}/posts${qs}`, {
+    const data = await httpJSON(`groups/${groupId}/posts${qs}`, {
       headers: { Authorization: `Bearer ${token ?? ''}` },
     });
     return data.posts as GroupPost[];

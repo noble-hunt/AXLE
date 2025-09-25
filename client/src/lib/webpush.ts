@@ -129,10 +129,6 @@ export async function unsubscribeFromWebPush(): Promise<boolean> {
               endpoint: subscriptionJson.endpoint,
             }),
           });
-
-          if (!response.ok) {
-            console.warn('Failed to unregister web push subscription from server');
-          }
         } catch (error) {
           console.warn('Error unregistering from server:', error);
         }

@@ -301,7 +301,7 @@ export default function Connect() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <SectionTitle title="Connect Health Providers" />
+        <SectionTitle>Connect Health Providers</SectionTitle>
         <div className="text-center py-8">
           <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">Loading health providers...</p>
