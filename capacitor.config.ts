@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'AXLE',
   webDir: 'dist',
   server: { 
+    url: undefined, // For production builds
     androidScheme: 'https' // harmless on iOS
   }
 };

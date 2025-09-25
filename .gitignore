@@ -4,3 +4,11 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# iOS
+ios/App/Pods/
+ios/Pods/
+ios/build/
+ios/*.xcarchive
+ios/DerivedData/
+*.ipa
