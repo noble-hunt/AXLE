@@ -1,0 +1,131 @@
+Fix API base & proxy (stop calling localhost:5000 from the browser)
+
+Goal
+Stop the client from hard-coding http://localhost:5000 (which is not reachable from the user’s browser in Replit). Use a relative /api base in the browser and add a Vite dev proxy to forward /api/** to the Express server on port 5000. Keep CORS correct. This must fix the Groups page fetches.
+
+Tasks
+
+Update the client HTTP helper to prefer /api in the browser
+
+File: client/src/lib/http.ts
+Replace the base URL logic with this:
+
+// client/src/lib/http.ts
+const isBrowser = typeof window !== "undefined";
+
+// Prefer relative /api in the browser so Vite (dev) and Vercel (prod) proxies can work.
+// Fall back to localhost only for non-browser contexts.
+const FALLBACK_BASE = isBrowser ? "/api" : "http://localhost:5000";
+
+const BASE =
+  (import.meta.env.VITE_API_BASE_URL?.trim() || FALLBACK_BASE).replace(/\/$/, "");
+
+export async function httpJSON(path: string, init?: RequestInit) {
+  const url =
+    /^https?:\/\//i.test(path)
+      ? path
+      : `${BASE}/${path.replace(/^\//, "")}`;
+
+  const res = await fetch(url, {
+    // keep existing options you used (headers, credentials, etc.)
+    ...init,
+  });
+
+  const ct = res.headers.get("content-type") || "";
+  if (!res.ok) {
+    const body = ct.includes("application/json") ? await res.json().catch(() => ({})) : await res.text().catch(() => "");
+    const err: any = new Error((body && (body.message || body.error)) || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.body = body;
+    throw err;
+  }
+  return ct.includes("application/json") ? res.json() : res.text();
+}
+
+
+Add a Vite dev proxy for /api → http://localhost:5000
+
+File: client/vite.config.ts
+Ensure we have the proxy and keep your existing plugins/alias:
+
+import path from "path";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tsconfigPaths from "vite-tsconfig-paths";
+
+export default defineConfig({
+  server: {
+    host: "0.0.0.0",
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+        // keep path as-is (/api/*)
+        rewrite: (p) => p,
+      },
+    },
+    // Optional: quiet the full-screen overlay if you want
+    // hmr: { overlay: true },
+  },
+  plugins: [react(), tsconfigPaths()],
+  resolve: {
+    alias: { "@": path.resolve(__dirname, "./src") },
+  },
+});
+
+
+Fix the local env so we don’t force localhost:5000 in the browser
+
+File: client/.env.local
+
+Either remove VITE_API_BASE_URL or set it to /api:
+
+VITE_API_BASE_URL=/api
+
+
+Confirm CORS allows Replit/Vite origin (already added, but verify)
+
+File: server/index.ts
+Allowed origins should include:
+
+^https?:\/\/.*\.replit\.dev$
+
+http://localhost:5173
+
+your prod domain (e.g., https://axle-ebon.vercel.app)
+
+Clean caches and restart dev
+
+Commands:
+
+rm -rf node_modules/.vite client/node_modules/.vite || true
+npm ci
+npm run dev
+
+
+Verification
+
+In the Replit Preview tab, open DevTools → Network.
+
+Navigate to Groups → open a group.
+
+Requests should hit GET /api/... (relative to the preview host) and return 200, not Failed to fetch.
+
+In a new tab within the same Preview host, open /api/healthz — should return JSON from Express.
+
+There should be no “Failed to fetch (localhost:5000)” overlay.
+
+Acceptance criteria
+
+Opening a group loads posts without network errors.
+
+All client API calls use /api/... (visible in the Network panel).
+
+No CORS errors, no 5xx fetch errors in the console.
+
+Notes
+
+This setup also works for production: Vercel can proxy /api/** to your API, or you can host the API separately and set VITE_API_BASE_URL to your public API URL at build time. For dev, keeping it relative /api + Vite proxy is the simplest and avoids localhost in the browser.

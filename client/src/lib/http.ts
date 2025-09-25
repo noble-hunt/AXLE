@@ -1,18 +1,30 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const isBrowser = typeof window !== "undefined";
 
-export async function httpJSON(input: RequestInfo, init?: RequestInit) {
-  // If input is a relative path starting with /api, prefix with base URL
-  let url = input;
-  if (typeof input === 'string' && input.startsWith('/api')) {
-    // In development, let relative URLs go through Vite proxy to Express
-    url = API_BASE ? API_BASE + input : input;
-  }
-  
-  const res = await fetch(url, init);
-  const ct = res.headers.get('content-type') || '';
+// Prefer relative /api in the browser so Vite (dev) and Vercel (prod) proxies can work.
+// Fall back to localhost only for non-browser contexts.
+const FALLBACK_BASE = isBrowser ? "/api" : "http://localhost:5000";
+
+const BASE =
+  (import.meta.env.VITE_API_BASE_URL?.trim() || FALLBACK_BASE).replace(/\/$/, "");
+
+export async function httpJSON(path: string, init?: RequestInit) {
+  const url =
+    /^https?:\/\//i.test(path)
+      ? path
+      : `${BASE}/${path.replace(/^\//, "")}`;
+
+  const res = await fetch(url, {
+    // keep existing options you used (headers, credentials, etc.)
+    ...init,
+  });
+
+  const ct = res.headers.get("content-type") || "";
   if (!res.ok) {
-    const body = ct.includes('application/json') ? await res.json().catch(() => ({})) : await res.text();
-    throw Object.assign(new Error(`HTTP ${res.status} on ${url}`), { status: res.status, body });
+    const body = ct.includes("application/json") ? await res.json().catch(() => ({})) : await res.text().catch(() => "");
+    const err: any = new Error((body && (body.message || body.error)) || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.body = body;
+    throw err;
   }
-  return ct.includes('application/json') ? res.json() : res.text();
+  return ct.includes("application/json") ? res.json() : res.text();
 }
