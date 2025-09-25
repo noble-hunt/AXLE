@@ -67,7 +67,8 @@ interface WizardState {
 interface GeneratedWorkout {
   title: string;
   est_duration_min: number;
-  intensity: number;
+  intensity: number | string;
+  seed?: string;
   exercises: Array<{
     name: string;
     sets?: number;
@@ -543,7 +544,7 @@ export default function WorkoutGenerateWizard() {
 
           {/* Equipment Chips */}
           <div className="flex flex-wrap gap-2">
-            {userEquipment.map((item) => {
+            {userEquipment.map((item: string) => {
               const isSelected = wizardState.equipment.includes(item);
               
               return (

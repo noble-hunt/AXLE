@@ -316,9 +316,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const r = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        temperature: 0.1, // Lower temperature for more deterministic results
+        temperature: 0, // Set to 0 for maximum determinism
         response_format: { type: 'json_object' },
-        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }]
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }],
+        seed: parseInt(workoutSeed.slice(-8), 36) // Use seed as numeric seed for OpenAI
       });
       
       const raw = r.choices?.[0]?.message?.content ?? '{}';
@@ -371,9 +372,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const r = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        temperature: 0.1, // Lower temperature for more deterministic results
+        temperature: 0, // Set to 0 for maximum determinism
         response_format: { type: 'json_object' },
-        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }]
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }],
+        seed: parseInt(workoutSeed.slice(-8), 36) // Use seed as numeric seed for OpenAI
       });
       
       const raw = r.choices?.[0]?.message?.content ?? '{}';
