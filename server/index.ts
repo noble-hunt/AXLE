@@ -1,5 +1,6 @@
 // server/index.ts
 import express, { type Request, Response, NextFunction } from "express";
+import cors from 'cors';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startSuggestionsCron } from "./jobs/suggestions-cron";
@@ -81,6 +82,17 @@ const app = express();
 if (Sentry.Handlers) {
   app.use(Sentry.Handlers.requestHandler());
 }
+
+// CORS configuration
+const allowed = [/\.vercel\.app$/, 'https://axle-ebon.vercel.app'];
+app.use(cors({ 
+  origin: (o, cb) => {
+    if (!o) return cb(null, true);
+    if (allowed.some(a => (a instanceof RegExp ? a.test(o) : a === o))) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  }, 
+  credentials: true 
+}));
 
 // Structured logging with correlation IDs
 app.use(logging);
