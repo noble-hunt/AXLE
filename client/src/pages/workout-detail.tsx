@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
 import type { WorkoutFeedback } from "../types"
 import type { Workout } from "@shared/schema"
+import { ROUTES } from "@/lib/routes"
 
 // Union type for workouts from local store vs API
 type WorkoutUnion = Workout | {
@@ -64,14 +65,15 @@ export default function WorkoutDetail() {
   useEffect(() => {
     if (!id || !isValidUuid) {
       console.log('Invalid or missing workout ID, redirecting to generator')
-      toast({
-        title: "Let's create a workout!",
-        description: "We couldn't find that workout, so let's generate a new one instead.",
-      })
-      setLocation('/workout/generate', { replace: true })
+      setLocation(`${ROUTES.WORKOUT_GENERATE}?reason=missing`, { replace: true })
       return
     }
-  }, [id, isValidUuid, setLocation, toast])
+  }, [id, isValidUuid, setLocation])
+
+  // Early return if redirecting due to invalid ID
+  if (!id || !isValidUuid) {
+    return null
+  }
   
   // First try local store, then API if not found
   const localWorkout = getWorkout(id as string)
@@ -82,8 +84,28 @@ export default function WorkoutDetail() {
     enabled: !localWorkout && !!id && isValidUuid, // Only fetch if not in local store, ID exists, and is valid UUID
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
+
   
   const workout = localWorkout || apiWorkout as WorkoutUnion | undefined
+
+  // Show loading while fetching from API
+  if (!localWorkout && isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Loading workout...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If still no workout after loading (including API errors), redirect
+  if (!workout && !isLoading) {
+    console.log('No workout found, redirecting to generator')
+    setLocation(`${ROUTES.WORKOUT_GENERATE}?reason=missing`, { replace: true })
+    return null
+  }
 
   const form = useForm<z.infer<typeof feedbackSchema>>({
     resolver: zodResolver(feedbackSchema),
@@ -147,51 +169,7 @@ export default function WorkoutDetail() {
     }
   }
 
-  // Show loading state while fetching from API
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
-          <Dumbbell className="w-8 h-8 text-muted-foreground animate-pulse" />
-        </div>
-        <h2 className="text-heading font-bold text-foreground">Loading Workout...</h2>
-        <p className="text-body text-muted-foreground text-center">Fetching your workout details.</p>
-      </div>
-    )
-  }
 
-  // Show not found only after loading is complete and no workout found
-  // This only shows if UUID is valid but workout doesn't exist
-  if (!workout && isValidUuid) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
-          <Dumbbell className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <h2 className="text-heading font-bold text-foreground">Workout Not Found</h2>
-        <p className="text-body text-muted-foreground text-center">
-          This workout doesn't exist. Let's create a new one instead!
-        </p>
-        <div className="space-y-3 w-full max-w-xs">
-          <Button 
-            onClick={() => setLocation('/workout/generate')} 
-            className="w-full"
-            data-testid="button-generate-workout"
-          >
-            Generate New Workout
-          </Button>
-          <Button 
-            variant="secondary" 
-            onClick={() => setLocation('/history')} 
-            className="w-full"
-            data-testid="button-view-history"
-          >
-            View Workout History
-          </Button>
-        </div>
-      </div>
-    )
-  }
 
   if (showSuccessState) {
     return (
@@ -227,11 +205,11 @@ export default function WorkoutDetail() {
         </Card>
 
         <div className="space-y-3 w-full max-w-sm">
-          <Button className="w-full" onClick={() => setLocation('/history')}>
+          <Button className="w-full" onClick={() => setLocation(ROUTES.HISTORY)}>
             View All Workouts
           </Button>
-          <Button variant="secondary" className="w-full" onClick={() => setLocation('/')}>
-            Generate New Workout
+          <Button variant="secondary" className="w-full" onClick={() => setLocation(ROUTES.HOME)}>
+            Back to Home
           </Button>
         </div>
       </motion.div>

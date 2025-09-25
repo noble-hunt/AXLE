@@ -1,0 +1,94 @@
+Add deterministic Seed JSON storage + regenerate-from-seed
+
+Goal: Persist seeds, show them, and allow exact regeneration.
+
+DB migration (Supabase):
+
+New columns on workouts:
+
+gen_seed JSONB NOT NULL DEFAULT '{}'
+
+generator_version TEXT NOT NULL DEFAULT 'v0.3.0'
+
+Optional helper view workout_seeds exposing id, user_id, created_at, generator_version, gen_seed.
+
+Server:
+
+File(s): server/routes/workouts.ts (or your API layer)
+
+On generation (POST /api/workouts/generate):
+
+Compute: rngSeed (number/string), generatorVersion (e.g., 'v0.3.0').
+
+Build seed object (TypeScript type below).
+
+Save to DB with the new columns.
+
+Regen endpoint (POST /api/workouts/regenerate):
+
+Accept body: { workoutId } or { seed }.
+
+If workoutId, fetch its gen_seed and generator_version.
+
+Pass exactly those values to generator and return a new workout instance or a dry-run preview (configurable via ?preview=true).
+
+Dry-run endpoint (POST /api/workouts/simulate):
+
+Accepts { inputs, rngSeed, generatorVersion }, does not persist, just returns the workout JSON.
+
+Types (server + client shared, place in shared or client/src/types/generator.ts):
+
+export type GeneratorInputs = {
+  archetype: 'strength'|'conditioning'|'mixed'|'endurance';
+  minutes: number;
+  targetIntensity: 1|2|3|4|5|6|7|8|9|10;
+  equipment: string[];          // e.g., ['dumbbells','kettlebell','rower']
+  constraints?: string[];       // movement or injury constraints by tag
+  location?: 'home'|'gym'|'outside';
+};
+
+export type GeneratorContext = {
+  dateISO: string;
+  userId: string;
+  healthModifiers?: {
+    axleScore?: number;         // 0..100
+    vitality?: number;          // 0..100
+    performancePotential?: number; // 0..100
+    circadian?: number;         // 0..100
+  };
+};
+
+export type GeneratorChoices = {
+  templateId: string;           // picked structure template
+  movementPoolIds: string[];    // IDs of moves considered
+  schemeId: string;             // rep/time scheme chosen
+};
+
+export type GeneratorSeed = {
+  rngSeed: string;              // e.g., uuid or numeric string
+  generatorVersion: string;     // e.g., 'v0.3.0'
+  inputs: GeneratorInputs;
+  context: GeneratorContext;
+  choices?: GeneratorChoices;   // optional until post-pick
+};
+
+
+Client:
+
+Show a tiny “Seed” chip on the workout detail (bottom meta row):
+
+Displays first 8 chars of rngSeed and the generatorVersion.
+
+Copy button copies the full JSON.
+
+Add “Regenerate with same seed” and “Regenerate with new seed” menu actions:
+
+Same seed → POST /api/workouts/regenerate with { workoutId }.
+
+New seed → POST /api/workouts/generate with same inputs but a new rngSeed.
+
+Acceptance:
+
+Creating a workout stores gen_seed + generator_version.
+
+Re-running with the same seed reproduces identical structure (unit test compares normalized JSON).

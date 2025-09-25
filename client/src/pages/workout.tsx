@@ -9,6 +9,7 @@ import { Play, Plus, Timer, Dumbbell, ChevronRight, Clock, Zap, CheckCircle, Act
 import { useLocation, Link } from "wouter"
 import { useAppStore } from "@/store/useAppStore"
 import { Category } from "../types"
+import { ROUTES } from "@/lib/routes"
 import { format } from "date-fns"
 
 // Category icon mapping
@@ -40,11 +41,11 @@ export default function Workout() {
   const { addWorkout, workouts } = useAppStore()
 
   const handleCreateWorkout = () => {
-    setLocation('/workout/generate')
+    setLocation(ROUTES.WORKOUT_GENERATE)
   }
 
   const handleLogWorkout = () => {
-    setLocation('/workout/log')
+    setLocation(ROUTES.WORKOUT_LOG)
   }
 
   const handleStartTemplate = () => {
@@ -112,7 +113,7 @@ export default function Workout() {
           <Button 
             variant="secondary" 
             size="sm"
-            onClick={() => setLocation('/history')}
+            onClick={() => setLocation(ROUTES.HISTORY)}
             data-testid="see-all-history"
           >
             See All
