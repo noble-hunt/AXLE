@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # Install root deps (server + shared)
+      - name: Install root deps
+        run: npm ci
+
+      # Install client deps
+      - name: Install client deps
+        run: npm --prefix client ci
+
+      # Typecheck server (tsconfig at repo root)
+      - name: Typecheck server
+        run: npx tsc -p . --noEmit
+
+      # Lint all (server + client)
+      - name: Lint
+        run: npx eslint . --ext .ts,.tsx --max-warnings=0
+
+      # Build client (supports either "build" in client or root script alias)
+      - name: Build client
+        run: |
+          if npm run -s -w client build; then
+            echo "Built client via workspace"
+          else
+            npm run -s build:client
+          fi
+
+      # Upload client build as artifact (handy for debugging)
+      - name: Upload built client
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist
+
+      # OPTIONAL: publish a Sentry release & upload source maps
+      - name: Create Sentry release (web)
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' && github.ref == 'refs/heads/main' }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WEB }}
+          RELEASE: ${{ github.sha }}
+        run: |
+          npx @sentry/cli releases new "$RELEASE"
+          npx @sentry/cli releases set-commits "$RELEASE" --auto
+          npx @sentry/cli releases files "$RELEASE" upload-sourcemaps client/dist --url-prefix '~/'
+          npx @sentry/cli releases finalize "$RELEASE"
+
+  e2e-ping:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping healthz
+        env:
+          PROD_SITE_URL: ${{ secrets.PROD_SITE_URL }}
+        run: |
+          set -euo pipefail
+          curl -fsSL "$PROD_SITE_URL/api/healthz"
+          echo "OK"
