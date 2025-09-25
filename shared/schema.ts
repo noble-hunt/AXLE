@@ -290,6 +290,17 @@ export const workoutEvents = pgTable("workout_events", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// WORKOUTS HISTORY - Workout progression tracking and analysis
+export const workoutsHistory = pgTable("workouts_history", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  workoutId: uuid("workout_id").notNull(), // References workouts.id
+  progressionState: jsonb("progression_state"), // JSONB nullable - tracks progression metrics
+  performanceMetrics: jsonb("performance_metrics"), // RPE, completion %, etc.
+  adaptations: jsonb("adaptations"), // Block modifications, intensity adjustments
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertProfileSchema = createInsertSchema(profiles).omit({
   createdAt: true,
@@ -329,6 +340,11 @@ export const insertSuggestedWorkoutSchema = createInsertSchema(suggestedWorkouts
 });
 
 export const insertWorkoutEventSchema = createInsertSchema(workoutEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertWorkoutsHistorySchema = createInsertSchema(workoutsHistory).omit({
   id: true,
   createdAt: true,
 });
@@ -388,6 +404,9 @@ export type SuggestedWorkout = typeof suggestedWorkouts.$inferSelect;
 
 export type InsertWorkoutEvent = z.infer<typeof insertWorkoutEventSchema>;
 export type WorkoutEvent = typeof workoutEvents.$inferSelect;
+
+export type InsertWorkoutsHistory = z.infer<typeof insertWorkoutsHistorySchema>;
+export type WorkoutsHistory = typeof workoutsHistory.$inferSelect;
 
 export type InsertNotificationPrefs = z.infer<typeof insertNotificationPrefsSchema>;
 export type NotificationPrefs = typeof notificationPrefs.$inferSelect;
