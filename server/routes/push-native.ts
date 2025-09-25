@@ -220,6 +220,62 @@ router.get('/devices', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/push/unregister-device - Remove device token by token value
+router.post('/unregister-device', requireAuth, async (req, res) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.id;
+    
+    const bodySchema = z.object({
+      token: z.string().min(1),
+    });
+    
+    const { token } = bodySchema.parse(req.body);
+    
+    console.log(`[PUSH_NATIVE] Unregistering device token for user ${userId}`);
+    
+    const result = await db
+      .delete(deviceTokens)
+      .where(
+        and(
+          eq(deviceTokens.userId, userId),
+          eq(deviceTokens.token, token)
+        )
+      );
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Device token not found',
+      });
+    }
+    
+    console.log(`[PUSH_NATIVE] Device token unregistered successfully for user ${userId}`);
+    
+    res.json({
+      success: true,
+      message: 'Device token unregistered successfully',
+    });
+    
+  } catch (error) {
+    console.error('[PUSH_NATIVE] Error unregistering device token:', error);
+    
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request body',
+        errors: error.issues,
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to unregister device token',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // DELETE /api/push/devices/:deviceId - Remove a device token
 router.delete('/devices/:deviceId', requireAuth, async (req, res) => {
   try {

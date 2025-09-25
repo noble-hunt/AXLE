@@ -1,0 +1,187 @@
+Notifications plumbing (idempotent, unregister, topics) + Weekly Health Report cron/email
+
+Goal
+
+Make /register-device & Web Push /subscribe idempotent + add /unregister.
+
+Add per-user topics (workout-reminder, weekly-report, etc.) with subscribe/unsubscribe APIs.
+
+Add weekly health report generator + email delivery (via Resend).
+
+Steps
+
+SQL: topics & device/web subscriptions
+
+-- Topic preferences per user
+create table if not exists public.notification_topics (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  topic text not null,                               -- e.g., 'weekly-report'
+  enabled boolean not null default true,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, topic)
+);
+alter table public.notification_topics enable row level security;
+create policy if not exists "own topics"
+  on public.notification_topics for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Harden uniqueness that we already implied in prior tables:
+-- push_subscriptions: unique(user_id, endpoint) already present
+-- device_tokens: unique(user_id, token) already present
+
+
+Server: topic routes & unregisters (server/routes/notifications-topics.ts)
+
+import { Router } from "express";
+import { requireAuth } from "../util/auth";
+import { supabaseAdmin } from "../supabaseAdmin";
+
+const r = Router();
+
+r.post("/api/notifications/topics/enable", requireAuth, async (req, res) => {
+  const { topic, enabled } = req.body ?? {};
+  if (!topic || typeof enabled !== "boolean") return res.status(400).json({ error: "bad_request" });
+  const { error } = await supabaseAdmin.from("notification_topics").upsert({
+    user_id: req.user.id, topic, enabled, updated_at: new Date().toISOString()
+  });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+r.get("/api/notifications/topics", requireAuth, async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from("notification_topics").select("*").eq("user_id", req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ topics: data ?? [] });
+});
+
+export default r;
+
+
+Server: idempotent register/unregister
+
+Web Push (server/routes/push.ts): ensure .upsert(...) by (user_id, endpoint), add /unsubscribe to delete by endpoint.
+
+Native (APNs) (server/routes/push-native.ts): ensure .upsert(...) by (user_id, token), add /unregister-device to delete by token.
+
+// add to push.ts
+pushRouter.post('/unsubscribe', requireAuth, async (req, res) => {
+  const { endpoint } = req.body || {};
+  if (!endpoint) return res.status(400).json({ error: 'missing endpoint' });
+  await supabaseAdmin.from('push_subscriptions').delete().eq('user_id', req.user.id).eq('endpoint', endpoint);
+  res.json({ ok: true });
+});
+
+// add to push-native.ts
+router.post('/unregister-device', requireAuth, async (req, res) => {
+  const { token } = req.body || {};
+  if (!token) return res.status(400).json({ error: 'missing token' });
+  await supabaseAdmin.from('device_tokens').delete().eq('user_id', req.user.id).eq('token', token);
+  res.json({ ok: true });
+});
+
+
+Server: weekly report cron + email
+
+Add Resend: npm i resend
+
+ENV: RESEND_API_KEY
+
+server/services/email.ts
+
+import { Resend } from "resend";
+const resend = new Resend(process.env.RESEND_API_KEY!);
+
+export async function sendEmail(to: string, subject: string, html: string) {
+  if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY missing");
+  const r = await resend.emails.send({ from: "AXLE <no-reply@axle.app>", to, subject, html });
+  return r;
+}
+
+
+server/services/weeklyReport.ts
+
+import { supabaseAdmin } from "../supabaseAdmin";
+import { sendEmail } from "./email";
+
+export async function buildWeeklyReportHtml(userId: string) {
+  // last 7 days health_reports
+  const { data: rows } = await supabaseAdmin
+    .from("health_reports")
+    .select("date, metrics")
+    .eq("user_id", userId)
+    .gte("date", new Date(Date.now()-7*864e5).toISOString().slice(0,10))
+    .order("date", { ascending: true });
+
+  const pts = rows ?? [];
+  const avg = (k: string) => {
+    const arr = pts.map(p => p.metrics?.axle?.[k] ?? null).filter((v)=> v != null);
+    if (arr.length === 0) return null;
+    return Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
+  };
+
+  const axle = avg("axle_health_score");
+  const vit  = avg("vitality_score");
+  const perf = avg("performance_potential");
+  const circ = avg("circadian_alignment");
+  const ener = avg("energy_systems_balance");
+
+  // tiny HTML (can replace with MJML later)
+  return `
+  <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:16px auto;padding:16px;border:1px solid #eee;border-radius:12px">
+    <h2 style="margin:0 0 12px">Your AXLE Weekly Report</h2>
+    <p style="color:#444">Here’s your average for the past 7 days:</p>
+    <ul style="line-height:1.8;color:#222">
+      <li><b>AXLE Health Score:</b> ${axle ?? "--"}</li>
+      <li><b>Vitality:</b> ${vit ?? "--"} &middot; <b>Performance:</b> ${perf ?? "--"}</li>
+      <li><b>Circadian Alignment:</b> ${circ ?? "--"} &middot; <b>Energy Systems:</b> ${ener ?? "--"}</li>
+    </ul>
+    <p style="color:#666">Tip: If Performance is high but Energy Systems is low, mix in an under-trained zone this week.</p>
+  </div>`;
+}
+
+export async function sendWeeklyReport(userId: string, email: string) {
+  const html = await buildWeeklyReportHtml(userId);
+  await sendEmail(email, "Your AXLE Weekly Report", html);
+}
+
+
+server/routes/cron-weekly.ts
+
+import { Router } from "express";
+import { supabaseAdmin } from "../supabaseAdmin";
+import { sendWeeklyReport } from "../services/weeklyReport";
+
+const r = Router();
+
+// POST /api/cron/weekly-reports-run
+r.post("/api/cron/weekly-reports-run", async (_req, res) => {
+  // fetch users opted in to topic 'weekly-report' (default true if not present)
+  const { data: users } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 10000 }); // simple MVP
+  let sent = 0;
+
+  for (const u of users?.users ?? []) {
+    const email = u.email;
+    if (!email) continue;
+    // check topic 'weekly-report'
+    const { data: t } = await supabaseAdmin
+      .from("notification_topics")
+      .select("enabled").eq("user_id", u.id).eq("topic", "weekly-report").maybeSingle();
+    if (t && !t.enabled) continue;
+    try { await sendWeeklyReport(u.id, email); sent++; } catch {}
+  }
+  res.json({ sent });
+});
+
+export default r;
+
+
+Vercel Cron: add a Monday 14:00 UTC job hitting /api/cron/weekly-reports-run.
+
+Acceptance
+
+/api/notifications/topics returns/updates topics.
+
+/api/push/unsubscribe & /api/push-native/unregister-device remove rows.
+
+Cron route returns { sent: N } and you receive an email at your account address.

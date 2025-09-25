@@ -226,6 +226,29 @@ export const notificationPrefs = pgTable("notification_prefs", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// NOTIFICATION TOPICS - Per-user topic preferences
+export const notificationTopics = pgTable("notification_topics", {
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  topic: text("topic").notNull(), // e.g., 'weekly-report', 'workout-reminder'
+  enabled: boolean("enabled").notNull().default(true),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  pk: { primaryKey: [table.userId, table.topic] }
+}));
+
+// WEB PUSH SUBSCRIPTIONS - Web Push subscription storage
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUsed: timestamp("last_used").defaultNow(),
+}, (table) => ({
+  uniqueUserEndpoint: uniqueIndex("unique_user_endpoint").on(table.userId, table.endpoint),
+}));
+
 // NOTIFICATIONS QUEUE - Push notification queue with channel support
 export const notifications = pgTable("notifications", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -304,6 +327,16 @@ export const insertNotificationPrefsSchema = createInsertSchema(notificationPref
   updatedAt: true,
 });
 
+export const insertNotificationTopicSchema = createInsertSchema(notificationTopics).omit({
+  updatedAt: true,
+});
+
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  lastUsed: true,
+});
+
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
   createdAt: true,
@@ -337,6 +370,12 @@ export type SuggestedWorkout = typeof suggestedWorkouts.$inferSelect;
 
 export type InsertNotificationPrefs = z.infer<typeof insertNotificationPrefsSchema>;
 export type NotificationPrefs = typeof notificationPrefs.$inferSelect;
+
+export type InsertNotificationTopic = z.infer<typeof insertNotificationTopicSchema>;
+export type NotificationTopic = typeof notificationTopics.$inferSelect;
+
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 
 
 // Workout generation schemas
