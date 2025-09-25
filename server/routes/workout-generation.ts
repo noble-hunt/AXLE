@@ -88,6 +88,20 @@ async function composeUserContext(userId: string): Promise<WorkoutGenerationRequ
       }
     });
     
+    // Extract health modifiers for v0.3 generator
+    let healthModifiers = undefined;
+    if (latestHealth?.metrics) {
+      const metrics = latestHealth.metrics as any;
+      const axleScores = metrics.axle || {};
+      
+      healthModifiers = {
+        axleScore: axleScores.axle_score || undefined,
+        vitality: axleScores.vitality_score || undefined,
+        performancePotential: axleScores.performance_potential || undefined,
+        circadian: axleScores.circadian || undefined
+      };
+    }
+
     return {
       yesterday: yesterdayWorkout ? {
         category: (yesterdayWorkout.request as any)?.category || 'Unknown',
@@ -102,79 +116,133 @@ async function composeUserContext(userId: string): Promise<WorkoutGenerationRequ
       } : undefined,
       equipment: ['barbell', 'kettlebell', 'pull_up_bar', 'box', 'floor'], // Default equipment
       constraints: [],
-      goals: ['general_fitness']
+      goals: ['general_fitness'],
+      healthModifiers // New format for v0.3 generator
     };
   } catch (error) {
     console.warn('Failed to compose user context:', error);
     return {
       equipment: ['barbell', 'kettlebell', 'pull_up_bar', 'box', 'floor'],
       constraints: [],
-      goals: ['general_fitness']
+      goals: ['general_fitness'],
+      healthModifiers: undefined
     };
   }
 }
 
 /**
- * Generate and persist workout with critic scoring and seed storage
+ * Generate and persist workout using new deterministic generator
  */
 async function generateAndPersistWorkout(
   userId: string,
   category: 'CrossFit/HIIT' | 'Olympic',
   request: WorkoutGenerationRequest
 ) {
-  // Import seed generation utilities
+  // Import new generator
+  const { generateDeterministicWorkout } = await import("../lib/generator/generateWorkout");
   const { generateWorkoutSeed, convertLegacyRequestToInputs } = await import("../utils/seed-generator");
+  const { render } = await import("../ai/generateWorkout");
   
   // Convert request to GeneratorInputs format
   const inputs = convertLegacyRequestToInputs(request);
   
+  // Get user context
+  const context = await composeUserContext(userId);
+  
   // Generate seed for deterministic reproduction
   const seed = generateWorkoutSeed(inputs, userId);
   
-  // Generate workout
-  const generator = category === 'CrossFit/HIIT' ? generateCrossFitWorkout : generateOlympicWorkout;
-  const workout = await generator(request);
+  // Get user's workout history for progression
+  const { listWorkouts } = await import("../dal/workouts");
+  const recentWorkouts = await listWorkouts(userId, { days: 28 });
   
-  // Add title if not present
-  if (!workout.name || workout.name === 'CrossFit Workout' || workout.name === 'Olympic Training') {
-    workout.name = generateWorkoutTitle(workout, category);
+  try {
+    // Generate workout using new deterministic system
+    const result = await generateDeterministicWorkout(
+      inputs,
+      { ...context, dateISO: new Date().toISOString(), userId },
+      seed.rngSeed,
+      recentWorkouts
+    );
+    
+    // Render workout for display
+    const renderedWorkout = render(result.workout);
+    
+    // Persist to database with seed data
+    const { db } = await import("../db");
+    const { workouts } = await import("../../shared/schema");
+    const [savedWorkout] = await db.insert(workouts).values({
+      userId,
+      title: result.workout.name,
+      request: request as any,
+      sets: result.workout.blocks?.map(block => ({
+        id: `block-${Math.random().toString(36).substr(2, 9)}`,
+        exercise: block.name || `${block.type} block`,
+        notes: block.notes || ''
+      })) as any || [],
+      notes: result.workout.coaching_notes || '',
+      completed: false,
+      genSeed: { ...seed, choices: result.choices },
+      generatorVersion: '0.3.0'
+    }).returning();
+    
+    return {
+      workout: savedWorkout,
+      rendered: renderedWorkout,
+      score: 85, // Default score for new generator
+      issues: [],
+      wasPatched: false,
+      seed: { ...seed, choices: result.choices }
+    };
+    
+  } catch (error) {
+    console.warn('New generator failed, falling back to legacy system:', error);
+    
+    // Fallback to legacy system
+    const { generateCrossFitWorkout, generateOlympicWorkout } = await import("../ai/generators/crossfit");
+    const { generateWorkoutTitle } = await import("../ai/title");
+    const { critiqueAndRepair } = await import("../ai/critic");
+    
+    const generator = category === 'CrossFit/HIIT' ? generateCrossFitWorkout : generateOlympicWorkout;
+    const workout = await generator(request);
+    
+    if (!workout.name || workout.name === 'CrossFit Workout' || workout.name === 'Olympic Training') {
+      workout.name = generateWorkoutTitle(workout, category);
+    }
+    
+    const critique = await critiqueAndRepair(workout, {
+      request,
+      originalWorkout: workout
+    });
+    
+    const renderedWorkout = render(critique.workout);
+    
+    const { db } = await import("../db");
+    const { workouts } = await import("../../shared/schema");
+    const [savedWorkout] = await db.insert(workouts).values({
+      userId,
+      title: critique.workout.name,
+      request: request as any,
+      sets: critique.workout.blocks.map(block => ({
+        id: `block-${Math.random().toString(36).substr(2, 9)}`,
+        exercise: block.name || `${block.type} block`,
+        notes: ''
+      })) as any,
+      notes: critique.workout.coaching_notes || '',
+      completed: false,
+      genSeed: seed,
+      generatorVersion: seed.generatorVersion
+    }).returning();
+    
+    return {
+      workout: savedWorkout,
+      rendered: renderedWorkout,
+      score: critique.score,
+      issues: critique.issues,
+      wasPatched: critique.wasPatched,
+      seed: seed
+    };
   }
-  
-  // Critique and repair
-  const critique = await critiqueAndRepair(workout, {
-    request,
-    originalWorkout: workout
-  });
-  
-  // Render workout for display
-  const renderedWorkout = render(critique.workout);
-  
-  // Persist to database with seed data
-  const { db } = await import("../db");
-  const { workouts } = await import("../../shared/schema");
-  const [savedWorkout] = await db.insert(workouts).values({
-    userId,
-    title: critique.workout.name,
-    request: request as any,
-    sets: critique.workout.blocks.map(block => ({
-      id: `block-${Math.random().toString(36).substr(2, 9)}`,
-      exercise: block.name || `${block.type} block`,
-      notes: ''
-    })) as any,
-    notes: critique.workout.coaching_notes || '',
-    completed: false,
-    genSeed: seed,
-    generatorVersion: seed.generatorVersion
-  }).returning();
-  
-  return {
-    workout: savedWorkout,
-    rendered: renderedWorkout,
-    score: critique.score,
-    issues: critique.issues,
-    wasPatched: critique.wasPatched,
-    seed: seed
-  };
 }
 
 /**
