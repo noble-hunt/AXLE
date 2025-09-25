@@ -22,6 +22,7 @@ import {
   unsubscribeFromWebPush,
   isWebPushSupported
 } from "@/lib/webpush"
+import { enableNotificationTopic, sendTestPushNotification } from '@/lib/pushNotifications'
 import { isNative, isWeb, getPlatform, logEnvironment } from "@/lib/env"
 import { authFetch } from "@/lib/authFetch"
 import { 
@@ -261,19 +262,41 @@ function NotificationModal() {
             return
           }
 
-          // TODO: Get VAPID public key from server
-          // const vapidKey = await fetchVapidKey()
-          // const subscription = await subscribeToWebPush(vapidKey)
-          // await registerWebPushSubscription(subscription)
+          // Get VAPID public key and subscribe to web push
+          const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+          if (!vapidKey) {
+            toast({
+              title: "Configuration error",
+              description: "Web Push is not properly configured.",
+              variant: "destructive",
+            })
+            setIsLoading(false)
+            return
+          }
+
+          const subscription = await subscribeToWebPush(vapidKey)
+          if (!subscription) {
+            toast({
+              title: "Subscription failed",
+              description: "Failed to subscribe to web push notifications.",
+              variant: "destructive",
+            })
+            setIsLoading(false)
+            return
+          }
           
           toast({
             title: "Notifications enabled",
-            description: "You'll receive workout reminders via Web Push (coming soon).",
+            description: "You'll receive workout reminders via Web Push.",
           })
         }
         
         // Save preferences to server for both paths
         await saveNotificationPreferences(enabled, dailyReminderTime, platform)
+        
+        // Enable weekly-report topic by default on first enable
+        await enableNotificationTopic('weekly-report', true)
+        
         setNotificationsEnabled(true)
       } else {
         // Disable notifications for both paths
@@ -370,10 +393,88 @@ function NotificationModal() {
           {isNative ? (
             <>✅ Running in native app - APNs and local notifications available</>
           ) : (
-            <>🌐 Running in web browser - Web Push notifications available (coming soon)</>
+            <>🌐 Running in web browser - Web Push notifications available</>
           )}
         </p>
       </div>
+
+      {/* Test and Unregister buttons */}
+      {notificationsEnabled && (
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                setIsLoading(true)
+                try {
+                  const success = await sendTestPushNotification()
+                  if (success) {
+                    toast({
+                      title: "Test sent",
+                      description: "Check for a test notification!",
+                    })
+                  } else {
+                    toast({
+                      title: "Test failed",
+                      description: "Failed to send test notification.",
+                      variant: "destructive",
+                    })
+                  }
+                } catch (error) {
+                  console.error('Error sending test notification:', error)
+                  toast({
+                    title: "Error",
+                    description: "Failed to send test notification.",
+                    variant: "destructive",
+                  })
+                } finally {
+                  setIsLoading(false)
+                }
+              }}
+              disabled={isLoading}
+              data-testid="button-test-notification"
+            >
+              Send Test
+            </Button>
+            
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                setIsLoading(true)
+                try {
+                  if (isNative) {
+                    // For native, we need to handle unregistering device token
+                    await cancelAllLocalNotifications()
+                  } else {
+                    await unsubscribeFromWebPush()
+                  }
+                  
+                  await saveNotificationPreferences(false, dailyReminderTime, platform)
+                  setNotificationsEnabled(false)
+                  
+                  toast({
+                    title: "Unregistered",
+                    description: "Push notifications have been disabled and unregistered.",
+                  })
+                } catch (error) {
+                  console.error('Error unregistering notifications:', error)
+                  toast({
+                    title: "Error",
+                    description: "Failed to unregister notifications.",
+                    variant: "destructive",
+                  })
+                } finally {
+                  setIsLoading(false)
+                }
+              }}
+              disabled={isLoading}
+              data-testid="button-unregister-notification"
+            >
+              Unregister
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

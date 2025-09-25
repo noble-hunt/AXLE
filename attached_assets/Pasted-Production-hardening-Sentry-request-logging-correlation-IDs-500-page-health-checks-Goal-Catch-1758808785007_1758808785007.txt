@@ -1,0 +1,112 @@
+Production hardening (Sentry, request logging/correlation IDs, 500 page, health checks)
+
+Goal
+
+Catch crashes (Sentry), structured logs (pino) with correlation IDs, a user-friendly 500 page, and /api/healthz.
+
+Steps
+
+Sentry
+
+Create Sentry project, grab DSNs.
+
+ENV:
+
+SENTRY_DSN_CLIENT
+
+SENTRY_DSN_SERVER
+
+SENTRY_ENV (dev|staging|prod)
+
+Client: client/src/main.tsx
+
+import * as Sentry from "@sentry/browser";
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN_CLIENT,
+  environment: import.meta.env.VITE_SENTRY_ENV || 'dev',
+  integrations: [new Sentry.BrowserTracing(), new Sentry.Replay()],
+  tracesSampleRate: 0.2,
+  replaysSessionSampleRate: 0.1,
+});
+
+
+Server: server/sentry.ts
+
+import * as Sentry from "@sentry/node";
+export function initSentry() {
+  if (!process.env.SENTRY_DSN_SERVER) return;
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN_SERVER,
+    environment: process.env.SENTRY_ENV || "dev",
+    tracesSampleRate: 0.2,
+  });
+}
+export { Sentry };
+
+
+In server/index.ts:
+
+import { initSentry, Sentry } from "./sentry";
+initSentry();
+app.use(Sentry.Handlers.requestHandler());
+// ...routes...
+app.use(Sentry.Handlers.errorHandler());
+
+
+Structured logging + correlation IDs
+
+npm i pino-http uuid
+
+server/middleware/logging.ts
+
+import pinoHttp from "pino-http";
+import { randomUUID } from "node:crypto";
+
+export const logging = pinoHttp({
+  genReqId: (req) => req.headers["x-request-id"] as string || randomUUID(),
+  customSuccessMessage: function (req, res) { return `${req.method} ${req.url} -> ${res.statusCode}`; },
+  serializers: { req(req) { return { id: req.id, method: req.method, url: req.url }; } }
+});
+
+
+In server/index.ts:
+
+import { logging } from "./middleware/logging";
+app.use(logging);
+app.use((req, _res, next) => { req.headers["x-request-id"] ||= (req as any).id; next(); });
+
+
+500 fallback page
+
+client/public/500.html with a simple friendly message + retry link.
+
+In server error fallback, if not an API route, serve 500.html on uncaught exceptions.
+
+Health checks
+
+server/routes/healthz.ts
+
+import { Router } from "express";
+import { supabaseAdmin } from "../supabaseAdmin";
+const r = Router();
+r.get("/api/healthz", async (_req,res) => {
+  try {
+    const { error } = await supabaseAdmin.from("profiles").select("user_id").limit(1);
+    if (error) throw error;
+    return res.json({ ok: true, ts: Date.now() });
+  } catch (e:any) {
+    return res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+export default r;
+
+
+Acceptance
+
+Errors show in Sentry with request context.
+
+Logs include id (correlation) and route info.
+
+/api/healthz returns 200 in healthy state.
+
+Crashing a route yields 500.html for SPA paths, JSON for /api/*.

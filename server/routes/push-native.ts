@@ -67,8 +67,8 @@ router.post('/register-device', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/push/test-native - Send test push notification to user's devices
-router.post('/test-native', requireAuth, async (req, res) => {
+// POST /api/push/test - Unified test endpoint for both native and web push
+router.post('/test', requireAuth, async (req, res) => {
   try {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user.id;
@@ -119,16 +119,47 @@ router.post('/test-native', requireAuth, async (req, res) => {
             timestamp: new Date().toISOString(),
           });
         } else if (deviceToken.platform === 'web') {
-          // TODO: Implement web push later
-          console.log(`[PUSH_NATIVE] Web push not implemented yet for device: ${deviceToken.token.substring(0, 10)}...`);
+          // Web push - send via web push
+          console.log(`[PUSH_NATIVE] Sending web push notification to: ${deviceToken.token.substring(0, 10)}...`);
           
-          results.push({
-            platform: deviceToken.platform,
-            tokenPreview: deviceToken.token.substring(0, 10) + '...',
-            status: 'skipped',
-            error: 'Web push not implemented yet',
-            timestamp: new Date().toISOString(),
-          });
+          try {
+            // Import web-push library
+            const webpush = await import('web-push');
+            
+            // Configure VAPID keys
+            webpush.setVapidDetails(
+              process.env.VAPID_SUBJECT || 'mailto:admin@axle.app',
+              process.env.VAPID_PUBLIC_KEY!,
+              process.env.VAPID_PRIVATE_KEY!
+            );
+            
+            // Parse the stored web push subscription
+            const subscription = JSON.parse(deviceToken.token);
+            
+            // Send web push notification
+            await webpush.sendNotification(subscription, JSON.stringify({
+              title,
+              body,
+              data,
+              icon: '/icon-192x192.png',
+            }));
+            
+            results.push({
+              platform: deviceToken.platform,
+              tokenPreview: deviceToken.token.substring(0, 10) + '...',
+              status: 'sent',
+              timestamp: new Date().toISOString(),
+            });
+          } catch (webPushError) {
+            console.error(`[PUSH_NATIVE] Web push error:`, webPushError);
+            results.push({
+              platform: deviceToken.platform,
+              tokenPreview: deviceToken.token.substring(0, 10) + '...',
+              status: 'failed',
+              error: webPushError instanceof Error ? webPushError.message : 'Web push failed',
+              timestamp: new Date().toISOString(),
+            });
+          }
         } else {
           // APNs not configured or unknown platform
           console.log(`[PUSH_NATIVE] APNs not configured or unknown platform ${deviceToken.platform}: ${deviceToken.token.substring(0, 10)}...`);

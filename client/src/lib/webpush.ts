@@ -37,7 +37,7 @@ export async function requestWebPushPermissions(): Promise<boolean> {
 }
 
 /**
- * Subscribe to web push notifications
+ * Subscribe to web push notifications and register with server
  * @param vapidPublicKey - VAPID public key from server
  * @returns Promise<WebPushSubscription | null>
  */
@@ -64,13 +64,33 @@ export async function subscribeToWebPush(vapidPublicKey: string): Promise<WebPus
 
     const subscriptionJson = subscription.toJSON();
     
-    return {
+    const webPushSub = {
       endpoint: subscriptionJson.endpoint!,
       keys: {
         p256dh: subscriptionJson.keys!.p256dh!,
         auth: subscriptionJson.keys!.auth!,
       },
     };
+
+    // Register subscription with server
+    const response = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('supabase-auth-token')}`,
+      },
+      body: JSON.stringify({
+        endpoint: webPushSub.endpoint,
+        p256dh: webPushSub.keys.p256dh,
+        auth: webPushSub.keys.auth,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to register web push subscription with server');
+    }
+    
+    return webPushSub;
   } catch (error) {
     console.error('Error subscribing to web push:', error);
     return null;
@@ -78,7 +98,7 @@ export async function subscribeToWebPush(vapidPublicKey: string): Promise<WebPus
 }
 
 /**
- * Unsubscribe from web push notifications
+ * Unsubscribe from web push notifications and unregister from server
  */
 export async function unsubscribeFromWebPush(): Promise<boolean> {
   if (!isWebPushSupported()) {
@@ -93,6 +113,30 @@ export async function unsubscribeFromWebPush(): Promise<boolean> {
 
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
+      // Unregister from server first
+      const subscriptionJson = subscription.toJSON();
+      if (subscriptionJson.endpoint) {
+        try {
+          const response = await fetch('/api/push/unsubscribe', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('supabase-auth-token')}`,
+            },
+            body: JSON.stringify({
+              endpoint: subscriptionJson.endpoint,
+            }),
+          });
+
+          if (!response.ok) {
+            console.warn('Failed to unregister web push subscription from server');
+          }
+        } catch (error) {
+          console.warn('Error unregistering from server:', error);
+        }
+      }
+
+      // Then unsubscribe from browser
       await subscription.unsubscribe();
       console.log('Unsubscribed from web push');
     }
