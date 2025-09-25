@@ -4,5 +4,5 @@ export function getSiteUrl() {
   const env = import.meta.env.VITE_SITE_URL?.trim();
   if (env) return env.replace(/\/+$/, '');
   if (typeof window !== 'undefined') return window.location.origin;
-  return 'http://localhost:5000';
+  return window.location.origin;
 }

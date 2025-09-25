@@ -3,8 +3,9 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 export async function httpJSON(input: RequestInfo, init?: RequestInit) {
   // If input is a relative path starting with /api, prefix with base URL
   let url = input;
-  if (typeof input === 'string' && input.startsWith('/api') && API_BASE) {
-    url = API_BASE + input;
+  if (typeof input === 'string' && input.startsWith('/api')) {
+    // In development, let relative URLs go through Vite proxy to Express
+    url = API_BASE ? API_BASE + input : input;
   }
   
   const res = await fetch(url, init);
