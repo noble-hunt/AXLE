@@ -1,5 +1,7 @@
 // client/src/features/groups/api.ts
 import { supabase } from '@/lib/supabase';
+import { httpJSON } from '@/lib/http';
+import { toast } from '@/hooks/use-toast';
 
 export type GroupPost = {
   id: number;
@@ -11,17 +13,21 @@ export type GroupPost = {
 };
 
 export async function fetchGroupPosts(groupId: string, since?: string): Promise<GroupPost[]> {
-  const token = (await supabase.auth.getSession()).data.session?.access_token;
-  const qs = since ? `?since=${encodeURIComponent(since)}` : '';
-  const res = await fetch(`/api/groups/${groupId}/posts${qs}`, {
-    headers: { Authorization: `Bearer ${token ?? ''}` },
-  });
-  if (!res.ok) {
-    console.error('[groups/posts] load failed', res.status, await res.text());
-    throw new Error('Unable to fetch group feed');
+  try {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const qs = since ? `?since=${encodeURIComponent(since)}` : '';
+    const data = await httpJSON(`/api/groups/${groupId}/posts${qs}`, {
+      headers: { Authorization: `Bearer ${token ?? ''}` },
+    });
+    return data.posts as GroupPost[];
+  } catch (error: any) {
+    toast({
+      title: "Group Feed Load Failed",
+      description: error.message || "Unable to load group posts. Please try again.",
+      variant: "destructive"
+    });
+    throw error;
   }
-  const { posts } = await res.json();
-  return posts as GroupPost[];
 }
 
 export async function sendPost(groupId: string, text: string) {

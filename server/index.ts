@@ -145,12 +145,15 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     
-    // Add request ID to response headers
-    res.setHeader('x-request-id', (req as any).id);
+    // Add request ID to response headers (only if it exists)
+    const requestId = (req as any).id;
+    if (requestId) {
+      res.setHeader('x-request-id', requestId);
+    }
     
-    // Add request ID to Sentry context
-    if (typeof Sentry?.setTag === 'function') {
-      Sentry.setTag('request_id', (req as any).id);
+    // Add request ID to Sentry context (only if it exists)
+    if (typeof Sentry?.setTag === 'function' && requestId) {
+      Sentry.setTag('request_id', requestId);
     }
     
     // For non-API routes that error, serve 500.html
