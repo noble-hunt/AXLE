@@ -277,6 +277,19 @@ export const suggestedWorkouts = pgTable("suggested_workouts", {
   userDateIdx: uniqueIndex('suggested_workouts_user_date_idx').on(table.userId, table.date),
 }));
 
+// WORKOUT EVENTS - Telemetry for workout generation and feedback for RL training
+export const workoutEvents = pgTable("workout_events", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  event: text("event").notNull(), // 'generate' | 'feedback'
+  workoutId: uuid("workout_id"), // References workouts.id if applicable
+  generationId: uuid("generation_id"), // Links feedback to specific generation
+  requestHash: text("request_hash"), // Hash of generation request for deduplication
+  payload: jsonb("payload").notNull(), // Event-specific data (generation details or feedback)
+  responseTimeMs: integer("response_time_ms"), // Generation response time in milliseconds
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertProfileSchema = createInsertSchema(profiles).omit({
   createdAt: true,
@@ -311,6 +324,11 @@ export const insertHealthReportSchema = createInsertSchema(healthReports).omit({
 });
 
 export const insertSuggestedWorkoutSchema = createInsertSchema(suggestedWorkouts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertWorkoutEventSchema = createInsertSchema(workoutEvents).omit({
   id: true,
   createdAt: true,
 });
@@ -367,6 +385,9 @@ export type HealthReport = typeof healthReports.$inferSelect;
 
 export type InsertSuggestedWorkout = z.infer<typeof insertSuggestedWorkoutSchema>;
 export type SuggestedWorkout = typeof suggestedWorkouts.$inferSelect;
+
+export type InsertWorkoutEvent = z.infer<typeof insertWorkoutEventSchema>;
+export type WorkoutEvent = typeof workoutEvents.$inferSelect;
 
 export type InsertNotificationPrefs = z.infer<typeof insertNotificationPrefsSchema>;
 export type NotificationPrefs = typeof notificationPrefs.$inferSelect;
