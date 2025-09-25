@@ -1,0 +1,86 @@
+[
+  {
+    "id": "finisher-bw-burnout",
+    "type": "finisher",
+    "durationMin": 5,
+    "minEquipment": [],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "core",
+      "push"
+    ],
+    "progressionKey": "bw-burnout",
+    "variants": [
+      {
+        "name": "Bodyweight Burnout",
+        "movements": [
+          "max push-ups",
+          "max squats",
+          "plank hold",
+          "wall sit",
+          "max burpees"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "finisher-bw-abs",
+    "type": "finisher",
+    "durationMin": 8,
+    "minEquipment": [],
+    "contraindications": [],
+    "experience": "beginner",
+    "energySystems": [
+      "phosphocreatine"
+    ],
+    "movementPatterns": [
+      "core"
+    ],
+    "progressionKey": "bw-abs",
+    "variants": [
+      {
+        "name": "Ab Finisher",
+        "movements": [
+          "crunches",
+          "leg raises",
+          "bicycle crunches",
+          "russian twists",
+          "flutter kicks"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "finisher-db-death",
+    "type": "finisher",
+    "durationMin": 6,
+    "minEquipment": [
+      "dumbbells"
+    ],
+    "contraindications": [],
+    "experience": "advanced",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "push",
+      "squat"
+    ],
+    "progressionKey": "db-death",
+    "variants": [
+      {
+        "name": "DB Death Set",
+        "movements": [
+          "db thrusters",
+          "db man makers",
+          "db devils press",
+          "db burpee deadlifts"
+        ]
+      }
+    ]
+  }
+]

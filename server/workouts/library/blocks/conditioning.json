@@ -1,101 +1,376 @@
 [
   {
-    "id": "zone2-aerobic-base",
+    "id": "conditioning-bw-hiit",
     "type": "conditioning",
-    "durationMin": 30,
+    "durationMin": 15,
     "minEquipment": [],
     "contraindications": [],
-    "experience": "beginner",
-    "energySystems": ["aerobicZ2"],
-    "movementPatterns": ["locomotion"],
-    "progressionKey": "aerobic-base",
+    "experience": "intermediate",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "push",
+      "locomotion"
+    ],
+    "progressionKey": "bw-hiit",
     "variants": [
       {
-        "name": "Easy Run",
-        "movements": ["30min easy pace run @ 65-75% HRmax"]
-      },
-      {
-        "name": "Bike Steady State",
-        "movements": ["30min bike @ Zone 2 power"]
-      },
-      {
-        "name": "Incline Walk",
-        "movements": ["30min incline walk @ 3-5% grade"]
+        "name": "Bodyweight HIIT",
+        "movements": [
+          "burpees",
+          "mountain climbers",
+          "jump squats",
+          "high knees",
+          "jumping jacks",
+          "plank jacks"
+        ]
       }
     ]
   },
   {
-    "id": "interval-vo2max",
+    "id": "conditioning-bw-tabata",
+    "type": "conditioning",
+    "durationMin": 12,
+    "minEquipment": [],
+    "contraindications": [],
+    "experience": "advanced",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "push",
+      "core"
+    ],
+    "progressionKey": "bw-tabata",
+    "variants": [
+      {
+        "name": "Bodyweight Tabata",
+        "movements": [
+          "squat jumps",
+          "push-ups",
+          "sit-ups",
+          "lunges",
+          "bear crawls",
+          "star jumps"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "conditioning-bw-circuit",
     "type": "conditioning",
     "durationMin": 20,
     "minEquipment": [],
-    "contraindications": ["heart_condition", "high_blood_pressure"],
-    "experience": "intermediate",
-    "energySystems": ["aerobicZ3", "glycolytic"],
-    "movementPatterns": ["locomotion"],
-    "progressionKey": "vo2max-intervals",
+    "contraindications": [],
+    "experience": "beginner",
+    "energySystems": [
+      "aerobicZ2"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "push",
+      "pull"
+    ],
+    "progressionKey": "bw-circuit",
     "variants": [
       {
-        "name": "5x3min @ VO2max",
-        "movements": ["5x3min @ 90-95% HRmax with 90s recovery"]
-      },
-      {
-        "name": "8x30s All-Out",
-        "movements": ["8x30s sprints with 2min recovery"]
-      },
-      {
-        "name": "Tempo Intervals",
-        "movements": ["4x6min @ 85-90% HRmax with 2min recovery"]
+        "name": "Bodyweight Circuit",
+        "movements": [
+          "squats",
+          "push-ups",
+          "lunges",
+          "planks",
+          "jumping jacks",
+          "crunches"
+        ]
       }
     ]
   },
   {
-    "id": "metcon-emom",
+    "id": "conditioning-db-complex",
+    "type": "conditioning",
+    "durationMin": 18,
+    "minEquipment": [
+      "dumbbells"
+    ],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "push",
+      "pull"
+    ],
+    "progressionKey": "db-complex",
+    "variants": [
+      {
+        "name": "DB Complex Training",
+        "movements": [
+          "db thrusters",
+          "db renegade rows",
+          "db burpees",
+          "db man makers",
+          "db swings"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "conditioning-db-emom",
+    "type": "conditioning",
+    "durationMin": 15,
+    "minEquipment": [
+      "dumbbells"
+    ],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "push",
+      "pull"
+    ],
+    "progressionKey": "db-emom",
+    "variants": [
+      {
+        "name": "DB EMOM",
+        "movements": [
+          "db thrusters",
+          "db rows",
+          "db overhead press",
+          "db goblet squats",
+          "db deadlifts"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "conditioning-kb-swings",
     "type": "conditioning",
     "durationMin": 16,
-    "minEquipment": ["kettlebell", "pull_up_bar"],
-    "contraindications": ["shoulder_injury", "lower_back_injury"],
+    "minEquipment": [
+      "kettlebells"
+    ],
+    "contraindications": [],
     "experience": "intermediate",
-    "energySystems": ["glycolytic", "phosphocreatine"],
-    "movementPatterns": ["hinge", "pull", "squat"],
-    "progressionKey": "metcon-power",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "hinge",
+      "power"
+    ],
+    "progressionKey": "kb-swings",
     "variants": [
       {
-        "name": "KB + Pull-ups EMOM",
-        "movements": ["EMOM 16min: 10 KB swings + 5 pull-ups"]
-      },
-      {
-        "name": "Bodyweight EMOM",
-        "movements": ["EMOM 15min: 10 burpees + 15 air squats"]
-      },
-      {
-        "name": "Mixed Modal EMOM",
-        "movements": ["EMOM 20min: 200m run + 10 push-ups + 15 air squats"]
+        "name": "KB Swing Intervals",
+        "movements": [
+          "kb swings",
+          "kb cleans",
+          "kb snatches",
+          "kb goblet squats",
+          "kb high pulls"
+        ]
       }
     ]
   },
   {
-    "id": "lactate-threshold",
+    "id": "conditioning-kb-complex",
+    "type": "conditioning",
+    "durationMin": 20,
+    "minEquipment": [
+      "kettlebells"
+    ],
+    "contraindications": [],
+    "experience": "advanced",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "hinge",
+      "squat",
+      "push",
+      "pull"
+    ],
+    "progressionKey": "kb-complex",
+    "variants": [
+      {
+        "name": "KB Complex Flow",
+        "movements": [
+          "kb swings",
+          "kb clean & press",
+          "kb goblet squats",
+          "kb rows",
+          "kb Turkish get-ups"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "conditioning-rower-intervals",
+    "type": "conditioning",
+    "durationMin": 20,
+    "minEquipment": [
+      "rowing machine"
+    ],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "glycolytic",
+      "aerobicZ2"
+    ],
+    "movementPatterns": [
+      "pull",
+      "hinge"
+    ],
+    "progressionKey": "row-conditioning",
+    "variants": [
+      {
+        "name": "Rowing Intervals",
+        "movements": [
+          "250m intervals",
+          "500m intervals",
+          "pyramid intervals",
+          "stroke rate intervals",
+          "distance rows"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "conditioning-bike-intervals",
+    "type": "conditioning",
+    "durationMin": 18,
+    "minEquipment": [
+      "bike"
+    ],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "glycolytic",
+      "aerobicZ2"
+    ],
+    "movementPatterns": [
+      "locomotion"
+    ],
+    "progressionKey": "bike-conditioning",
+    "variants": [
+      {
+        "name": "Bike Intervals",
+        "movements": [
+          "sprint intervals",
+          "hill climbs",
+          "tempo intervals",
+          "cadence drills",
+          "power intervals"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "conditioning-run-intervals",
     "type": "conditioning",
     "durationMin": 25,
     "minEquipment": [],
-    "contraindications": ["heart_condition"],
+    "contraindications": [
+      "knee injury"
+    ],
     "experience": "intermediate",
-    "energySystems": ["glycolytic", "aerobicZ3"],
-    "movementPatterns": ["locomotion"],
-    "progressionKey": "lactate-power",
+    "energySystems": [
+      "glycolytic",
+      "aerobicZ2"
+    ],
+    "movementPatterns": [
+      "locomotion"
+    ],
+    "progressionKey": "run-conditioning",
     "variants": [
       {
-        "name": "Tempo Run",
-        "movements": ["20min @ lactate threshold pace (80-85% HRmax)"]
-      },
+        "name": "Running Intervals",
+        "movements": [
+          "400m repeats",
+          "800m intervals",
+          "fartlek runs",
+          "hill sprints",
+          "tempo runs"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "conditioning-crossfit-light",
+    "type": "conditioning",
+    "durationMin": 15,
+    "minEquipment": [
+      "dumbbells"
+    ],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "push",
+      "pull"
+    ],
+    "progressionKey": "crossfit-light",
+    "variants": [
       {
-        "name": "Cruise Intervals",
-        "movements": ["4x6min @ threshold with 1min recovery"]
-      },
+        "name": "Light CrossFit WOD",
+        "movements": [
+          "air squats",
+          "push-ups",
+          "db thrusters",
+          "db rows",
+          "sit-ups",
+          "burpees"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "conditioning-crossfit-heavy",
+    "type": "conditioning",
+    "durationMin": 20,
+    "minEquipment": [
+      "barbell",
+      "dumbbells"
+    ],
+    "contraindications": [],
+    "experience": "advanced",
+    "energySystems": [
+      "glycolytic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "push",
+      "pull"
+    ],
+    "progressionKey": "crossfit-heavy",
+    "variants": [
       {
-        "name": "Progressive Build",
-        "movements": ["5min easy + 15min building to threshold + 5min easy"]
+        "name": "Heavy CrossFit WOD",
+        "movements": [
+          "deadlifts",
+          "thrusters",
+          "pull-ups",
+          "box jumps",
+          "kettlebell swings",
+          "wall balls"
+        ]
       }
     ]
   }
