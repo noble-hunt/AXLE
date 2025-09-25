@@ -1,18 +1,16 @@
 import { Router } from 'express';
-import os from 'os';
-import pkg from '../../package.json' assert { type: 'json' };
+import os from 'node:os';
 
-const r = Router();
-r.get('/', (req, res) => {
-  res.json({
+export const router = Router();
+
+router.get('/', (_req, res) => {
+  res.type('application/json').status(200).send({
     ok: true,
     service: 'axle-api',
-    version: pkg.version ?? '0.0.0',
-    env: process.env.NODE_ENV || 'unknown',
-    uptime_s: Math.round(process.uptime()),
-    hostname: os.hostname(),
-    time: new Date().toISOString()
+    node: process.version,
+    uptime: process.uptime(),
+    host: os.hostname(),
+    env: process.env.NODE_ENV || 'dev',
+    timestamp: new Date().toISOString(),
   });
 });
-
-export default r;
