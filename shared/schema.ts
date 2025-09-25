@@ -294,6 +294,16 @@ export const workoutEvents = pgTable("workout_events", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// WORKOUT FEEDBACK - User feedback for progressive overload and ML training
+export const workoutFeedback = pgTable("workout_feedback", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  workoutId: uuid("workout_id").notNull(), // References workouts.id
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  perceivedIntensity: smallint("perceived_intensity").notNull(), // RPE 1-10
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // WORKOUTS HISTORY - Workout progression tracking and analysis
 export const workoutsHistory = pgTable("workouts_history", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -344,6 +354,11 @@ export const insertSuggestedWorkoutSchema = createInsertSchema(suggestedWorkouts
 });
 
 export const insertWorkoutEventSchema = createInsertSchema(workoutEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertWorkoutFeedbackSchema = createInsertSchema(workoutFeedback).omit({
   id: true,
   createdAt: true,
 });
@@ -409,6 +424,9 @@ export type SuggestedWorkout = typeof suggestedWorkouts.$inferSelect;
 export type InsertWorkoutEvent = z.infer<typeof insertWorkoutEventSchema>;
 export type WorkoutEvent = typeof workoutEvents.$inferSelect;
 
+export type InsertWorkoutFeedback = z.infer<typeof insertWorkoutFeedbackSchema>;
+export type WorkoutFeedback = typeof workoutFeedback.$inferSelect;
+
 export type InsertWorkoutsHistory = z.infer<typeof insertWorkoutsHistorySchema>;
 export type WorkoutsHistory = typeof workoutsHistory.$inferSelect;
 
@@ -459,8 +477,8 @@ export const generatedWorkoutSchema = z.object({
   seed: z.string().optional()
 });
 
-// Workout feedback schema
-export const workoutFeedbackSchema = z.object({
+// Legacy workout completion feedback schema (for existing completion flow)
+export const legacyWorkoutFeedbackSchema = z.object({
   difficulty: z.number().min(1).max(10),
   satisfaction: z.number().min(1).max(10),
   completedAt: z.date()
@@ -469,7 +487,7 @@ export const workoutFeedbackSchema = z.object({
 export type WorkoutRequest = z.infer<typeof workoutRequestSchema>;
 export type WorkoutSet = z.infer<typeof workoutSetSchema>;
 export type GeneratedWorkout = z.infer<typeof generatedWorkoutSchema>;
-export type WorkoutFeedback = z.infer<typeof workoutFeedbackSchema>;
+export type LegacyWorkoutFeedback = z.infer<typeof legacyWorkoutFeedbackSchema>;
 
 // Suggestion system types
 export type SuggestionRationale = {
