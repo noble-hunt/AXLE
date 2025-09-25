@@ -30,6 +30,7 @@ export const workouts = pgTable("workouts", {
   sets: jsonb("sets").notNull(),
   completed: boolean("completed").default(false),
   feedback: jsonb("feedback"),
+  seed: text("seed"), // Seed for deterministic workout generation
   // AI-generated workout fields
   rationale: text("rationale"), // AI rationale for the workout design
   criticScore: integer("critic_score"), // 0-100 critic score
@@ -451,7 +452,8 @@ export const generatedWorkoutSchema = z.object({
   description: z.string(),
   duration: z.number(),
   intensity: z.number(),
-  sets: z.array(workoutSetSchema)
+  sets: z.array(workoutSetSchema),
+  seed: z.string().optional()
 });
 
 // Workout feedback schema

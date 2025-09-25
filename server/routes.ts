@@ -307,15 +307,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { openai } = await import('./lib/openai');
+      const { generateSeed } = await import('./lib/seededRandom');
       const equipmentList = equipment ? (equipment as string).split(',') : ['bodyweight'];
-      const workoutSeed = seed || Date.now().toString();
+      const workoutSeed = seed as string || generateSeed();
       
-      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}`;
-      const user = `Goal: ${goal}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}`;
+      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}. Use the provided seed for any random selections to ensure deterministic results.`;
+      const user = `Goal: ${goal}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}\n\nIMPORTANT: Use this seed value (${workoutSeed}) consistently for any random choices in exercise selection, order, or variations to ensure reproducible results.`;
       
       const r = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        temperature: 0.4,
+        temperature: 0.1, // Lower temperature for more deterministic results
         response_format: { type: 'json_object' },
         messages: [{ role: 'system', content: sys }, { role: 'user', content: user }]
       });
@@ -361,15 +362,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { openai } = await import('./lib/openai');
+      const { generateSeed } = await import('./lib/seededRandom');
       const equipmentList = equipment || ['bodyweight'];
-      const workoutSeed = seed || Date.now().toString();
+      const workoutSeed = seed || generateSeed();
       
-      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}`;
-      const user = `Goal: ${goal}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}`;
+      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}. Use the provided seed for any random selections to ensure deterministic results.`;
+      const user = `Goal: ${goal}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}\n\nIMPORTANT: Use this seed value (${workoutSeed}) consistently for any random choices in exercise selection, order, or variations to ensure reproducible results.`;
       
       const r = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        temperature: 0.4,
+        temperature: 0.1, // Lower temperature for more deterministic results
         response_format: { type: 'json_object' },
         messages: [{ role: 'system', content: sys }, { role: 'user', content: user }]
       });

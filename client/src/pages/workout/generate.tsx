@@ -187,7 +187,8 @@ export default function WorkoutGenerateWizard() {
         })),
         date: new Date(),
         completed: false,
-        notes: `Generated with: ${wizardState.equipment.join(", ")}`
+        notes: `Generated with: ${wizardState.equipment.join(", ")}`,
+        seed: generatedWorkout.seed // Include seed for deterministic regeneration
       };
 
       const response = await httpJSON('/api/workouts', {
@@ -280,6 +281,11 @@ export default function WorkoutGenerateWizard() {
                   <p className="text-sm text-muted-foreground">
                     {wizardState.goal} • {generatedWorkout.est_duration_min} min • Intensity {generatedWorkout.intensity}/10
                   </p>
+                  {generatedWorkout.seed && (
+                    <p className="text-xs text-muted-foreground/60 font-mono">
+                      Seed: {generatedWorkout.seed}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
