@@ -64,10 +64,14 @@ export default function WorkoutDetail() {
   useEffect(() => {
     if (!id || !isValidUuid) {
       console.log('Invalid or missing workout ID, redirecting to generator')
+      toast({
+        title: "Let's create a workout!",
+        description: "We couldn't find that workout, so let's generate a new one instead.",
+      })
       setLocation('/workout/generate', { replace: true })
       return
     }
-  }, [id, isValidUuid, setLocation])
+  }, [id, isValidUuid, setLocation, toast])
   
   // First try local store, then API if not found
   const localWorkout = getWorkout(id as string)
