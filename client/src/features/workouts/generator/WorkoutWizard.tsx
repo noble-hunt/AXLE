@@ -75,7 +75,7 @@ const STEP_TITLES = [
   "Preview & Generate"
 ];
 
-export default function WorkoutWizard() {
+export function WorkoutWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [wizardState, setWizardState] = useState<WizardState>({
     archetype: 'mixed',
