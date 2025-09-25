@@ -30,7 +30,10 @@ export const workouts = pgTable("workouts", {
   sets: jsonb("sets").notNull(),
   completed: boolean("completed").default(false),
   feedback: jsonb("feedback"),
-  seed: text("seed"), // Seed for deterministic workout generation
+  seed: text("seed"), // Legacy seed for deterministic workout generation
+  // Deterministic generation fields
+  genSeed: jsonb("gen_seed").notNull().default(sql`'{}'`), // Comprehensive seed object
+  generatorVersion: text("generator_version").notNull().default('v0.3.0'), // Generator version
   // AI-generated workout fields
   rationale: text("rationale"), // AI rationale for the workout design
   criticScore: integer("critic_score"), // 0-100 critic score
