@@ -3,6 +3,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startSuggestionsCron } from "./jobs/suggestions-cron";
+import { initSentry, Sentry } from "./sentry";
+import { logging } from "./middleware/logging";
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -65,12 +67,28 @@ const waitForPidExit = (pid: number, maxWait: number = 2000) => {
   }
 })();
 
+// Initialize Sentry error tracking
+initSentry();
+
 // Server startup guard - ensure required environment variables are present
 ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].forEach((k) => {
   if (!process.env[k]) throw new Error(`Missing required server env: ${k}`);
 });
 
 const app = express();
+
+// Sentry request handler (must be first middleware)
+if (Sentry.Handlers) {
+  app.use(Sentry.Handlers.requestHandler());
+}
+
+// Structured logging with correlation IDs
+app.use(logging);
+app.use((req, _res, next) => { 
+  req.headers["x-request-id"] ||= (req as any).id; 
+  next(); 
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -103,9 +121,20 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // Sentry error handler (must be before other error handlers)
+  if (Sentry.Handlers) {
+    app.use(Sentry.Handlers.errorHandler());
+  }
+
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+    
+    // For non-API routes that error, serve 500.html
+    if (status === 500 && !req.path.startsWith('/api')) {
+      return res.status(500).sendFile('500.html', { root: 'client/public' });
+    }
+    
     res.status(status).json({ message });
     throw err;
   });

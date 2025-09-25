@@ -29,6 +29,7 @@ import notificationPrefsRouter from "./routes/notification-prefs";
 import notificationTopicsRouter from "./routes/notifications-topics";
 import cronWeeklyRouter from "./routes/cron-weekly";
 import storageRouter from "./routes/storage";
+import healthzRouter from "./routes/healthz";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Workout generation route (no auth required, handle 405 explicitly) - must be first to avoid conflicts
@@ -101,6 +102,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register storage routes
   app.use("/api/storage", storageRouter);
+  
+  // Register health check routes
+  app.use("/api/healthz", healthzRouter);
   
   // Authenticated data fetching routes
   app.get("/api/user/data", requireAuth, async (req, res) => {
