@@ -292,21 +292,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Workout generation route (no auth required, handle 405 explicitly) - must be first to avoid conflicts
-  app.all("/api/workouts/generate", async (req, res) => {
-    if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Method Not Allowed' });
-    }
-    
-    const { category, durationMin, intensity, equipment, goal } = req.body ?? {};
-    if (!category || !durationMin || !intensity) {
-      return res.status(400).json({ error: 'Missing fields' });
-    }
+  // GET /api/workouts/simulate - Simulate workout generation (no auth required)
+  app.get("/api/workouts/simulate", async (req, res) => {
+    res.type('application/json');
     
     try {
+      const { goal, durationMin, intensity, equipment, seed } = req.query;
+      
+      if (!goal || !durationMin || !intensity) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: { code: 'BAD_INPUT', message: 'Missing required fields: goal, durationMin, intensity' } 
+        });
+      }
+      
       const { openai } = await import('./lib/openai');
+      const equipmentList = equipment ? (equipment as string).split(',') : ['bodyweight'];
+      const workoutSeed = seed || Date.now().toString();
+      
       const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}`;
-      const user = `Category: ${category}\nDuration: ${durationMin}\nIntensity: ${intensity}\nEquipment: ${equipment?.join(',') || 'bodyweight'}\nGoal: ${goal || 'general fitness'}`;
+      const user = `Goal: ${goal}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}`;
       
       const r = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -316,11 +321,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const raw = r.choices?.[0]?.message?.content ?? '{}';
-      const workout = JSON.parse(raw);
-      res.json({ workout });
+      const workoutData = JSON.parse(raw);
+      
+      const workout = {
+        id: null, // Preview mode, no ID
+        blocks: workoutData.exercises || [],
+        estTimeMin: workoutData.est_duration_min || parseInt(durationMin as string),
+        intensity: workoutData.intensity || parseInt(intensity as string),
+        seed: workoutSeed,
+        meta: {
+          title: workoutData.title || `${goal} Workout`,
+          goal,
+          equipment: equipmentList
+        }
+      };
+      
+      res.json({ ok: true, workout });
     } catch (e: any) {
-      console.error('[dev/generate] err', e);
-      res.status(500).json({ error: e?.message || 'generation failed' });
+      console.error('[simulate] err', e);
+      res.status(500).json({ 
+        ok: false, 
+        error: { code: 'INTERNAL', message: e?.message || 'Simulation failed' } 
+      });
+    }
+  });
+
+  // POST /api/workouts/generate - Generate workout (no auth required)
+  app.post("/api/workouts/generate", async (req, res) => {
+    res.type('application/json');
+    
+    try {
+      const { goal, durationMin, intensity, equipment, seed } = req.body ?? {};
+      
+      if (!goal || !durationMin || !intensity) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: { code: 'BAD_INPUT', message: 'Missing required fields: goal, durationMin, intensity' } 
+        });
+      }
+      
+      const { openai } = await import('./lib/openai');
+      const equipmentList = equipment || ['bodyweight'];
+      const workoutSeed = seed || Date.now().toString();
+      
+      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}`;
+      const user = `Goal: ${goal}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}`;
+      
+      const r = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.4,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }]
+      });
+      
+      const raw = r.choices?.[0]?.message?.content ?? '{}';
+      const workoutData = JSON.parse(raw);
+      
+      const workout = {
+        id: `preview-${workoutSeed}`, // Preview ID for generated workout
+        blocks: workoutData.exercises || [],
+        estTimeMin: workoutData.est_duration_min || durationMin,
+        intensity: workoutData.intensity || intensity,
+        seed: workoutSeed,
+        meta: {
+          title: workoutData.title || `${goal} Workout`,
+          goal,
+          equipment: equipmentList
+        }
+      };
+      
+      res.json({ ok: true, workout });
+    } catch (e: any) {
+      console.error('[generate] err', e);
+      res.status(500).json({ 
+        ok: false, 
+        error: { code: 'INTERNAL', message: e?.message || 'Generation failed' } 
+      });
     }
   });
 
@@ -1751,6 +1827,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("DAL function test error:", error);
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // API 404 handler - must be after all API routes but before SPA fallback
+  app.use('/api/*', (req, res) => {
+    res.type('application/json');
+    res.status(404).json({ 
+      ok: false, 
+      error: { code: 'NOT_FOUND', message: `API endpoint ${req.path} not found` } 
+    });
   });
 
   const httpServer = createServer(app);
