@@ -1500,7 +1500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: authReq.user.id
       };
       
-      await updateWorkout(workoutId, { feedback: feedbackData });
+      await updateWorkout(authReq.user.id, workoutId, { feedback: feedbackData });
 
       // Log telemetry for RL training data collection
       try {
