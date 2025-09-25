@@ -6,7 +6,9 @@ import {
   type PersonalRecord,
   type InsertPersonalRecord,
   type Achievement,
-  type InsertAchievement
+  type InsertAchievement,
+  type WorkoutEvent,
+  type InsertWorkoutEvent
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -33,6 +35,16 @@ export interface IStorage {
   // Achievement methods
   getAchievements(userId: string): Promise<Achievement[]>;
   createAchievement(achievement: InsertAchievement): Promise<Achievement>;
+
+  // Workout Event methods (for telemetry)
+  getWorkoutEvents(userId?: string): Promise<WorkoutEvent[]>;
+  createWorkoutEvent(event: InsertWorkoutEvent): Promise<WorkoutEvent>;
+  getWorkoutEventStats(userId?: string): Promise<{
+    totalGenerationEvents: number;
+    totalFeedbackEvents: number;
+    recentGenerations: number;
+    recentFeedback: number;
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -40,12 +52,14 @@ export class MemStorage implements IStorage {
   private workouts: Map<string, Workout>;
   private personalRecords: Map<string, PersonalRecord>;
   private achievements: Map<string, Achievement>;
+  private workoutEvents: Map<string, WorkoutEvent>;
 
   constructor() {
     this.users = new Map();
     this.workouts = new Map();
     this.personalRecords = new Map();
     this.achievements = new Map();
+    this.workoutEvents = new Map();
   }
 
   // User methods
@@ -159,6 +173,49 @@ export class MemStorage implements IStorage {
     };
     this.achievements.set(id, achievement);
     return achievement;
+  }
+
+  // Workout Event methods (for telemetry)
+  async getWorkoutEvents(userId?: string): Promise<WorkoutEvent[]> {
+    const events = Array.from(this.workoutEvents.values());
+    if (userId) {
+      return events.filter(event => event.userId === userId);
+    }
+    return events;
+  }
+
+  async createWorkoutEvent(insertEvent: InsertWorkoutEvent): Promise<WorkoutEvent> {
+    const id = randomUUID();
+    const event: WorkoutEvent = {
+      ...insertEvent,
+      id,
+      createdAt: new Date()
+    };
+    this.workoutEvents.set(id, event);
+    return event;
+  }
+
+  async getWorkoutEventStats(userId?: string): Promise<{
+    totalGenerationEvents: number;
+    totalFeedbackEvents: number;
+    recentGenerations: number;
+    recentFeedback: number;
+  }> {
+    const events = await this.getWorkoutEvents(userId);
+    const generationEvents = events.filter(e => e.event === 'generate');
+    const feedbackEvents = events.filter(e => e.event === 'feedback');
+    
+    // Recent events from last 24 hours
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentGenerations = generationEvents.filter(e => e.createdAt && e.createdAt > yesterday).length;
+    const recentFeedback = feedbackEvents.filter(e => e.createdAt && e.createdAt > yesterday).length;
+
+    return {
+      totalGenerationEvents: generationEvents.length,
+      totalFeedbackEvents: feedbackEvents.length,
+      recentGenerations,
+      recentFeedback
+    };
   }
 }
 
