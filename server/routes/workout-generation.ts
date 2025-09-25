@@ -21,9 +21,21 @@ import { generateWorkoutTitle } from "../ai/title";
 import { render } from "../../client/src/ai/render";
 import type { WorkoutGenerationRequest } from "../ai/generateWorkout";
 // V2 Generator Types and Configuration
-import type { WorkoutRequest, WorkoutPlan } from "../workouts/types";
-import { isWorkoutV2Enabled, useMLPolicy } from "../config/flags";
+import type { WorkoutRequest, WorkoutPlan, MetricsSnapshot } from "../workouts/types";
+import { isWorkoutV2Enabled, useMLPolicy, shouldShowMetricsDebug } from "../config/flags";
 import { generateWorkoutPlan } from "../workouts/engine";
+
+// Metrics snapshot schema for validation
+const metricsSnapshotSchema = z.object({
+  vitality: z.number().min(0).max(100).optional(),
+  performancePotential: z.number().min(0).max(100).optional(),
+  circadianAlignment: z.number().min(0).max(100).optional(),
+  energySystemsBalance: z.number().min(0).max(100).optional(),
+  fatigueScore: z.number().min(0).max(100).optional(),
+  hrv: z.number().min(0).optional(),
+  rhr: z.number().min(30).max(200).optional(),
+  sleepScore: z.number().min(0).max(100).optional()
+}).optional();
 
 // Request schema for workout generation
 const generateWorkoutSchema = z.object({
@@ -31,7 +43,8 @@ const generateWorkoutSchema = z.object({
   intensity: z.number().min(1).max(10),
   equipment: z.array(z.string()).optional(),
   constraints: z.array(z.string()).optional(),
-  goals: z.array(z.string()).optional()
+  goals: z.array(z.string()).optional(),
+  metricsSnapshot: metricsSnapshotSchema
 });
 
 /**
@@ -151,16 +164,151 @@ async function generateAndPersistWorkout(
 }
 
 /**
+ * Hydrate metrics from latest health report if not provided in request
+ */
+async function hydrateMetricsFromHealthReport(userId: string, requestMetrics?: any) {
+  try {
+    // Get latest health report if metrics not provided
+    if (requestMetrics) {
+      return requestMetrics; // Use provided metrics
+    }
+
+    const { listReports } = await import("../dal/reports");
+    const reports = await listReports(userId, { days: 1 });
+    const latestReport = reports[0];
+    
+    if (!latestReport?.metrics) {
+      console.warn(`No health report found for user ${userId}, using defaults`);
+      return null;
+    }
+
+    const metrics = latestReport.metrics as any;
+    const axleScores = metrics.axle || {};
+    const providerMetrics = metrics.provider || {};
+
+    return {
+      vitality: axleScores.vitality_score || 65,
+      performancePotential: axleScores.performance_potential || 70,
+      circadianAlignment: axleScores.circadian_alignment || 75,
+      energySystemsBalance: axleScores.energy_systems_balance || 70,
+      sleepScore: providerMetrics.sleep_score || 70,
+      hrv: providerMetrics.hrv,
+      rhr: providerMetrics.resting_hr,
+      fatigueScore: providerMetrics.fatigue_score || 30,
+    };
+  } catch (error) {
+    console.warn('Failed to hydrate metrics from health report:', error);
+    return null;
+  }
+}
+
+/**
+ * Get energy systems distribution from last 7 days of health reports
+ */
+async function getEnergySystemsHistory(userId: string) {
+  try {
+    const { listReports } = await import("../dal/reports");
+    const reports = await listReports(userId, { days: 7 });
+    
+    const energySystems = {
+      alactic: 0,
+      phosphocreatine: 0,
+      glycolytic: 0,
+      aerobicZ1: 0,
+      aerobicZ2: 0,
+      aerobicZ3: 0
+    };
+
+    reports.forEach(report => {
+      const metrics = report.metrics as any;
+      if (metrics?.energy?.systems) {
+        Object.entries(metrics.energy.systems).forEach(([system, count]) => {
+          if (system in energySystems) {
+            energySystems[system as keyof typeof energySystems] += (count as number) || 0;
+          }
+        });
+      }
+    });
+
+    return energySystems;
+  } catch (error) {
+    console.warn('Failed to get energy systems history:', error);
+    return null;
+  }
+}
+
+/**
+ * Apply circadian alignment adjustments to workout request
+ */
+function applyCircadianAdjustments(request: any, circadianAlignment: number) {
+  const currentHour = new Date().getHours();
+  const isEarlyMorning = currentHour >= 5 && currentHour <= 8;
+  
+  if (circadianAlignment < 50 && isEarlyMorning) {
+    // Reduce high-intensity intervals, extend warmup
+    request.circadianAdjustments = {
+      shortenHIIT: true,
+      extendWarmup: true,
+      reason: `Low circadian alignment (${circadianAlignment}) in early AM`
+    };
+  }
+  
+  return request;
+}
+
+/**
  * Convert user context to biometrics and history for V2 engine
  */
-function convertToV2Format(userId: string, context: any, request: any) {
-  // Convert context to engine format
+async function convertToV2Format(userId: string, context: any, request: any) {
+  let metrics: any;
+  let metricsSource = 'defaults';
+  
+  // Check if metricsSnapshot is provided in request (takes priority)
+  if (request.metricsSnapshot) {
+    metrics = {
+      vitality: request.metricsSnapshot.vitality || 65,
+      performancePotential: request.metricsSnapshot.performancePotential || 70,
+      circadianAlignment: request.metricsSnapshot.circadianAlignment || 75,
+      energySystemsBalance: request.metricsSnapshot.energySystemsBalance || 70,
+      sleepScore: request.metricsSnapshot.sleepScore || 70,
+      hrv: request.metricsSnapshot.hrv,
+      rhr: request.metricsSnapshot.rhr,
+      fatigueScore: request.metricsSnapshot.fatigueScore || 30
+    };
+    metricsSource = 'request_provided';
+  } else {
+    // Try to hydrate from health reports if no metricsSnapshot provided
+    const hydratedMetrics = await hydrateMetricsFromHealthReport(userId, null);
+    
+    if (hydratedMetrics) {
+      metrics = hydratedMetrics;
+      metricsSource = 'health_report';
+    } else {
+      // Use defaults as last resort
+      metrics = {
+        vitality: 65,
+        performancePotential: 70,
+        circadianAlignment: 75,
+        energySystemsBalance: 70,
+        sleepScore: context?.health_snapshot?.sleep_score || 70,
+        hrv: context?.health_snapshot?.hrv,
+        rhr: context?.health_snapshot?.resting_hr,
+        fatigueScore: 30
+      };
+      metricsSource = 'defaults';
+    }
+  }
+
+  // Get energy systems history for balancing
+  const energySystemsHistory = await getEnergySystemsHistory(userId);
+  
+  // Build biometrics for engine
   const biometrics = {
-    performancePotential: 70, // Default value
-    vitality: 65, // Default value  
-    sleepScore: context?.health_snapshot?.sleep_score || 70,
-    hrv: context?.health_snapshot?.hrv || undefined,
-    restingHR: context?.health_snapshot?.resting_hr || undefined
+    performancePotential: metrics.performancePotential,
+    vitality: metrics.vitality,
+    sleepScore: metrics.sleepScore,
+    hrv: metrics.hrv,
+    restingHR: metrics.rhr
   };
 
   // Build history from yesterday's workout if available
@@ -172,30 +320,48 @@ function convertToV2Format(userId: string, context: any, request: any) {
     intensityRating: context.yesterday.intensity
   }] : [];
 
+  // Apply circadian adjustments
+  const adjustedRequest = applyCircadianAdjustments({ ...request }, metrics.circadianAlignment);
+
   // Build V2 WorkoutRequest
   const workoutRequest: WorkoutRequest = {
     date: new Date().toISOString(),
     userId: userId,
     goal: 'general_fitness',
-    availableMinutes: request.duration || 45,
+    availableMinutes: adjustedRequest.duration || 45,
     equipment: context?.equipment || ['barbell', 'kettlebell'],
     experienceLevel: 'intermediate' as const,
     injuries: context?.constraints || [],
     preferredDays: [],
     recentHistory: [],
     metricsSnapshot: {
-      vitality: biometrics.vitality,
-      performancePotential: biometrics.performancePotential,
-      circadianAlignment: 75,
-      fatigueScore: 30,
-      hrv: biometrics.hrv,
-      rhr: biometrics.restingHR,
-      sleepScore: biometrics.sleepScore
+      vitality: metrics.vitality,
+      performancePotential: metrics.performancePotential,
+      circadianAlignment: metrics.circadianAlignment,
+      fatigueScore: metrics.fatigueScore,
+      hrv: metrics.hrv,
+      rhr: metrics.rhr,
+      sleepScore: metrics.sleepScore
     },
     intensityFeedback: []
   };
 
-  return { workoutRequest, biometrics, history };
+  return { 
+    workoutRequest, 
+    biometrics, 
+    history,
+    debugInfo: {
+      metricsSource,
+      axleScores: {
+        vitality: metrics.vitality,
+        performancePotential: metrics.performancePotential,
+        circadianAlignment: metrics.circadianAlignment,
+        energySystemsBalance: metrics.energySystemsBalance
+      },
+      energySystemsHistory,
+      circadianAdjustments: adjustedRequest.circadianAdjustments
+    }
+  };
 }
 
 /**
@@ -222,14 +388,15 @@ export function registerWorkoutGenerationRoutes(app: Express) {
       const context = await composeUserContext(userId);
       
       // Convert to V2 format
-      const { workoutRequest, biometrics, history } = convertToV2Format(userId, context, validatedData);
+      const { workoutRequest, biometrics, history, debugInfo } = await convertToV2Format(userId, context, validatedData);
       
       // Generate workout using V2 engine
       const workoutPlan = generateWorkoutPlan(
         workoutRequest,
         history,
         [], // No progression states yet - could be loaded from database
-        biometrics
+        biometrics,
+        debugInfo.energySystemsHistory || undefined
       );
       
       // For development, log the generation process
@@ -237,15 +404,23 @@ export function registerWorkoutGenerationRoutes(app: Express) {
         focus: workoutPlan.focus,
         intensity: workoutPlan.targetIntensity,
         blocks: workoutPlan.blocks.length,
-        estimatedTSS: workoutPlan.estimatedTSS
+        estimatedTSS: workoutPlan.estimatedTSS,
+        metricsSource: debugInfo.metricsSource
       });
       
-      res.json({
+      const response: any = {
         success: true,
         plan: workoutPlan,
         generatedAt: new Date().toISOString(),
         version: 'v2'
-      });
+      };
+
+      // Add debug info if flag is enabled
+      if (shouldShowMetricsDebug()) {
+        response.debug = debugInfo;
+      }
+
+      res.json(response);
       
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -262,6 +437,63 @@ export function registerWorkoutGenerationRoutes(app: Express) {
       });
     }
   });
+
+  // Development testing endpoint for V2 metrics (bypasses auth)
+  if (process.env.NODE_ENV !== 'production') {
+    app.post("/api/dev/generate/v2", async (req, res) => {
+      try {
+        // Validate request
+        const validatedData = generateWorkoutSchema.parse(req.body);
+        
+        // Use a test user ID
+        const userId = 'test-user-123';
+        
+        // Convert to V2 format with provided metrics
+        const { workoutRequest, biometrics, history, debugInfo } = await convertToV2Format(userId, {}, validatedData);
+        
+        // Generate workout using V2 engine
+        const workoutPlan = generateWorkoutPlan(
+          workoutRequest,
+          history,
+          [], // No progression states
+          biometrics,
+          debugInfo.energySystemsHistory || undefined
+        );
+        
+        console.log('🧪 DEV V2 Workout Generated:', {
+          focus: workoutPlan.focus,
+          intensity: workoutPlan.targetIntensity,
+          blocks: workoutPlan.blocks.length,
+          metricsSource: debugInfo.metricsSource
+        });
+        
+        const response: any = {
+          success: true,
+          plan: workoutPlan,
+          generatedAt: new Date().toISOString(),
+          version: 'v2-dev',
+          debug: debugInfo
+        };
+
+        res.json(response);
+        
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ 
+            message: "Invalid request data", 
+            errors: error.issues 
+          });
+        }
+        
+        console.error("DEV V2 generation failed:", error);
+        res.status(500).json({ 
+          message: "Failed to generate DEV V2 workout",
+          error: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+    });
+  }
+
   // CrossFit workout generation
   app.post("/api/generate/crossfit", requireAuth, async (req, res) => {
     try {

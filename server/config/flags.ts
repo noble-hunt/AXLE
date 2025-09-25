@@ -9,6 +9,7 @@ export interface FeatureFlags {
     v2: {
       enabled: boolean;
       useMLPolicy: boolean;
+      debugMetrics: boolean;
     };
   };
 }
@@ -18,6 +19,7 @@ export const featureFlags: FeatureFlags = {
     v2: {
       enabled: true,
       useMLPolicy: false, // Future ML policy integration
+      debugMetrics: true, // Show metrics debug info in response
     },
   },
 };
@@ -52,4 +54,11 @@ export function isWorkoutV2Enabled(): boolean {
  */
 export function useMLPolicy(): boolean {
   return getFlag('workouts.v2.useMLPolicy');
+}
+
+/**
+ * Check if metrics debug info should be included in workout generation response
+ */
+export function shouldShowMetricsDebug(): boolean {
+  return getFlag('workouts.v2.debugMetrics');
 }

@@ -74,12 +74,13 @@ export function generateWorkoutPlan(
   request: WorkoutRequest,
   history: WorkoutHistory[] = [],
   progressionStates: ProgressionState[] = [],
-  biometrics: BiometricInputs = {}
+  biometrics: BiometricInputs = {},
+  energySystemsHistory?: Record<string, number>
 ): WorkoutPlan {
   const rationale: SelectionRationale[] = [];
   
-  // 1. Determine workout focus
-  const focus = determineFocus(request, history, biometrics, rationale);
+  // 1. Determine workout focus (with energy systems balancing)
+  const focus = determineFocus(request, history, biometrics, rationale, energySystemsHistory);
   
   // 2. Calculate target intensity
   const targetIntensity = calculateTargetIntensity(biometrics, history, rationale);
@@ -89,7 +90,7 @@ export function generateWorkoutPlan(
   const adjustedFocus = safetyAdjustments.focus || focus;
   const adjustedIntensity = safetyAdjustments.intensity || targetIntensity;
   
-  // 4. Compose workout blocks
+  // 4. Compose workout blocks (with circadian adjustments)
   const selectedBlocks = composeWorkout(
     adjustedFocus,
     adjustedIntensity,
@@ -131,7 +132,8 @@ function determineFocus(
   request: WorkoutRequest,
   history: WorkoutHistory[],
   biometrics: BiometricInputs,
-  rationale: SelectionRationale[]
+  rationale: SelectionRationale[],
+  energySystemsHistory?: Record<string, number>
 ): InternalWorkoutFocus {
   const factors: string[] = [];
   let primary: InternalWorkoutFocus['primary'] = 'conditioning';
@@ -191,12 +193,21 @@ function determineFocus(
   }
   
   // Energy system balance over 7 days
-  const energySystemCounts = recentHistory.reduce((acc, h) => {
-    h.energySystems.forEach(es => {
-      acc[es] = (acc[es] || 0) + 1;
-    });
-    return acc;
-  }, {} as Record<string, number>);
+  let energySystemCounts: Record<string, number>;
+  
+  // Use external AXLE energy systems history if available, otherwise fall back to workout history
+  if (energySystemsHistory && Object.keys(energySystemsHistory).length > 0) {
+    energySystemCounts = { ...energySystemsHistory };
+    factors.push('Using AXLE energy systems history for balance');
+  } else {
+    energySystemCounts = recentHistory.reduce((acc, h) => {
+      h.energySystems.forEach(es => {
+        acc[es] = (acc[es] || 0) + 1;
+      });
+      return acc;
+    }, {} as Record<string, number>);
+    factors.push('Using workout history for energy system balance');
+  }
   
   // Adjust energy system for balance
   const allEnergySystems: InternalWorkoutFocus['energySystem'][] = [
@@ -208,7 +219,7 @@ function determineFocus(
   
   if (primary !== 'recovery') {
     energySystem = leastUsedEnergySystem.es;
-    factors.push(`Energy system balance: ${energySystem} least used`);
+    factors.push(`Energy system balance: ${energySystem} least used (count: ${leastUsedEnergySystem.count})`);
   }
   
   rationale.push({
@@ -336,11 +347,26 @@ function composeWorkout(
   const factors: string[] = [];
   let remainingMinutes = request.availableMinutes || 45;
   
-  // 1. Warm-up (6-10 min)
+  // Check for circadian adjustments
+  const circadianAdjustments = (request as any).circadianAdjustments;
+  const shouldExtendWarmup = circadianAdjustments?.extendWarmup;
+  const shouldShortenHIIT = circadianAdjustments?.shortenHIIT;
+  
+  if (circadianAdjustments) {
+    factors.push(`Circadian adjustments: ${circadianAdjustments.reason}`);
+  }
+  
+  // 1. Warm-up (6-10 min, extended if needed for circadian alignment)
+  let warmupDuration = Math.min(10, remainingMinutes * 0.2);
+  if (shouldExtendWarmup) {
+    warmupDuration = Math.min(15, remainingMinutes * 0.3); // Extend warmup to 15min max
+    factors.push('Extended warmup for circadian alignment');
+  }
+  
   const warmupBlocks = getBlocks({
     type: 'warmup',
     movementPattern: focus.movementPattern,
-    maxDuration: Math.min(10, remainingMinutes * 0.2)
+    maxDuration: warmupDuration
   });
   
   if (warmupBlocks.length > 0) {
@@ -384,14 +410,22 @@ function composeWorkout(
     }
   }
   
-  // 4. Conditioning/Finisher
+  // 4. Conditioning/Finisher (shortened if needed for circadian alignment)
   if (remainingMinutes > 8 && focus.primary !== 'recovery') {
+    let conditioningDuration = remainingMinutes - 5; // Save time for cooldown
+    
+    // Shorten high-intensity intervals for poor circadian alignment
+    if (shouldShortenHIIT && (focus.energySystem === 'phosphocreatine' || focus.energySystem === 'glycolytic')) {
+      conditioningDuration = Math.min(conditioningDuration, 8); // Cap at 8min for HIIT
+      factors.push('Shortened HIIT for circadian alignment');
+    }
+    
     const conditioningBlocks = getBlocks({
       type: intensity >= 7 ? 'conditioning' : 'finisher',
       energySystem: focus.energySystem,
       equipment: request.equipment,
       contraindications: request.contraindications,
-      maxDuration: remainingMinutes - 5 // Save time for cooldown
+      maxDuration: conditioningDuration
     });
     
     if (conditioningBlocks.length > 0) {
