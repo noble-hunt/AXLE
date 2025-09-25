@@ -1,0 +1,77 @@
+[
+  {
+    "id": "single-leg-strength",
+    "type": "accessory",
+    "durationMin": 10,
+    "minEquipment": [],
+    "contraindications": ["knee_injury", "ankle_injury"],
+    "experience": "beginner",
+    "energySystems": ["phosphocreatine"],
+    "movementPatterns": ["squat", "hinge"],
+    "progressionKey": "unilateral-strength",
+    "variants": [
+      {
+        "name": "Bodyweight Unilateral",
+        "movements": ["single leg squats", "reverse lunges", "step-ups", "single leg RDL"]
+      },
+      {
+        "name": "Weighted Progression",
+        "movements": ["goblet reverse lunges", "dumbbell step-ups", "weighted single leg RDL"]
+      },
+      {
+        "name": "Balance Challenge",
+        "movements": ["pistol squat progression", "single leg deadlift holds", "lateral lunges"]
+      }
+    ]
+  },
+  {
+    "id": "core-stability",
+    "type": "accessory",
+    "durationMin": 8,
+    "minEquipment": [],
+    "contraindications": ["lower_back_injury", "hernia"],
+    "experience": "beginner",
+    "energySystems": ["phosphocreatine"],
+    "movementPatterns": ["core"],
+    "progressionKey": "core-stability",
+    "variants": [
+      {
+        "name": "Static Holds",
+        "movements": ["plank", "side plank", "dead bug", "bird dog"]
+      },
+      {
+        "name": "Dynamic Core",
+        "movements": ["mountain climbers", "bicycle crunches", "Russian twists", "leg raises"]
+      },
+      {
+        "name": "Anti-Movement",
+        "movements": ["pallof press", "farmer's walks", "suitcase carries", "front-loaded carries"]
+      }
+    ]
+  },
+  {
+    "id": "posterior-chain",
+    "type": "accessory",
+    "durationMin": 12,
+    "minEquipment": ["resistance_band"],
+    "contraindications": ["hamstring_injury", "lower_back_injury"],
+    "experience": "beginner",
+    "energySystems": ["phosphocreatine"],
+    "movementPatterns": ["hinge", "pull"],
+    "progressionKey": "posterior-strength",
+    "variants": [
+      {
+        "name": "Glute Activation",
+        "movements": ["glute bridges", "clamshells", "monster walks", "fire hydrants"]
+      },
+      {
+        "name": "Hamstring Focus",
+        "movements": ["Nordic curls", "single leg RDL", "good mornings", "hamstring slides"]
+      },
+      {
+        "name": "Upper Back",
+        "movements": ["band pull-aparts", "face pulls", "prone Y-T-W", "reverse flies"]
+      }
+    ]
+  }
+]

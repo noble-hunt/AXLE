@@ -21,6 +21,7 @@ import workoutFreeformRouter from "./routes/workout-freeform";
 import whisperRouter from "./routes/whisper-transcription";
 import { registerGroupRoutes } from "./routes/groups";
 import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
+import { initializeBlockLibrary, getBlocks } from "./workouts/library/index";
 import healthRoutes from "./routes/health";
 import healthMetricsRouter from "./routes/health-metrics";
 import pushNativeRouter from "./routes/push-native";
@@ -32,6 +33,29 @@ import storageRouter from "./routes/storage";
 import { router as healthzRouter } from "./routes/healthz";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize workout block library
+  initializeBlockLibrary();
+  
+  // Dev route for testing workout library
+  app.get("/api/dev/workouts/library", (req, res) => {
+    try {
+      const { type, energySystem, movementPattern, experience, maxDuration } = req.query;
+      
+      const filter: any = {};
+      if (type) filter.type = type;
+      if (energySystem) filter.energySystem = energySystem;
+      if (movementPattern) filter.movementPattern = movementPattern;
+      if (experience) filter.experience = experience;
+      if (maxDuration) filter.maxDuration = Number(maxDuration);
+      
+      const blocks = getBlocks(Object.keys(filter).length > 0 ? filter : undefined);
+      res.json({ blocks, count: blocks.length });
+    } catch (error) {
+      console.error("Failed to get workout blocks:", error);
+      res.status(500).json({ error: "Failed to get workout blocks" });
+    }
+  });
+  
   // Workout generation route (no auth required, handle 405 explicitly) - must be first to avoid conflicts
   app.all("/api/workouts/generate", async (req, res) => {
     if (req.method !== 'POST') {

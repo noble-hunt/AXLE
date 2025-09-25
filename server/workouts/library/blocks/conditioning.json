@@ -1,0 +1,102 @@
+[
+  {
+    "id": "zone2-aerobic-base",
+    "type": "conditioning",
+    "durationMin": 30,
+    "minEquipment": [],
+    "contraindications": [],
+    "experience": "beginner",
+    "energySystems": ["aerobicZ2"],
+    "movementPatterns": ["locomotion"],
+    "progressionKey": "aerobic-base",
+    "variants": [
+      {
+        "name": "Easy Run",
+        "movements": ["30min easy pace run @ 65-75% HRmax"]
+      },
+      {
+        "name": "Bike Steady State",
+        "movements": ["30min bike @ Zone 2 power"]
+      },
+      {
+        "name": "Incline Walk",
+        "movements": ["30min incline walk @ 3-5% grade"]
+      }
+    ]
+  },
+  {
+    "id": "interval-vo2max",
+    "type": "conditioning",
+    "durationMin": 20,
+    "minEquipment": [],
+    "contraindications": ["heart_condition", "high_blood_pressure"],
+    "experience": "intermediate",
+    "energySystems": ["aerobicZ3", "glycolytic"],
+    "movementPatterns": ["locomotion"],
+    "progressionKey": "vo2max-intervals",
+    "variants": [
+      {
+        "name": "5x3min @ VO2max",
+        "movements": ["5x3min @ 90-95% HRmax with 90s recovery"]
+      },
+      {
+        "name": "8x30s All-Out",
+        "movements": ["8x30s sprints with 2min recovery"]
+      },
+      {
+        "name": "Tempo Intervals",
+        "movements": ["4x6min @ 85-90% HRmax with 2min recovery"]
+      }
+    ]
+  },
+  {
+    "id": "metcon-emom",
+    "type": "conditioning",
+    "durationMin": 16,
+    "minEquipment": ["kettlebell", "pull_up_bar"],
+    "contraindications": ["shoulder_injury", "lower_back_injury"],
+    "experience": "intermediate",
+    "energySystems": ["glycolytic", "phosphocreatine"],
+    "movementPatterns": ["hinge", "pull", "squat"],
+    "progressionKey": "metcon-power",
+    "variants": [
+      {
+        "name": "KB + Pull-ups EMOM",
+        "movements": ["EMOM 16min: 10 KB swings + 5 pull-ups"]
+      },
+      {
+        "name": "Bodyweight EMOM",
+        "movements": ["EMOM 15min: 10 burpees + 15 air squats"]
+      },
+      {
+        "name": "Mixed Modal EMOM",
+        "movements": ["EMOM 20min: 200m run + 10 push-ups + 15 air squats"]
+      }
+    ]
+  },
+  {
+    "id": "lactate-threshold",
+    "type": "conditioning",
+    "durationMin": 25,
+    "minEquipment": [],
+    "contraindications": ["heart_condition"],
+    "experience": "intermediate",
+    "energySystems": ["glycolytic", "aerobicZ3"],
+    "movementPatterns": ["locomotion"],
+    "progressionKey": "lactate-power",
+    "variants": [
+      {
+        "name": "Tempo Run",
+        "movements": ["20min @ lactate threshold pace (80-85% HRmax)"]
+      },
+      {
+        "name": "Cruise Intervals",
+        "movements": ["4x6min @ threshold with 1min recovery"]
+      },
+      {
+        "name": "Progressive Build",
+        "movements": ["5min easy + 15min building to threshold + 5min easy"]
+      }
+    ]
+  }
+]

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "barbell-back-squat",
+    "type": "primary",
+    "durationMin": 20,
+    "minEquipment": ["barbell", "squat_rack"],
+    "contraindications": ["knee_injury", "lower_back_injury"],
+    "experience": "intermediate",
+    "energySystems": ["phosphocreatine"],
+    "movementPatterns": ["squat"],
+    "progressionKey": "back-squat-5x5",
+    "variants": [
+      {
+        "name": "Strength Focus 5x5",
+        "movements": ["back squat 5x5 @ 80-85%"]
+      },
+      {
+        "name": "Hypertrophy 4x8-10",
+        "movements": ["back squat 4x8-10 @ 70-75%"]
+      },
+      {
+        "name": "Power 5x3",
+        "movements": ["back squat 5x3 @ 85-90%"]
+      }
+    ]
+  },
+  {
+    "id": "deadlift-conventional",
+    "type": "primary",
+    "durationMin": 25,
+    "minEquipment": ["barbell", "plates"],
+    "contraindications": ["lower_back_injury", "hamstring_injury"],
+    "experience": "intermediate",
+    "energySystems": ["phosphocreatine"],
+    "movementPatterns": ["hinge"],
+    "progressionKey": "deadlift-5x3",
+    "variants": [
+      {
+        "name": "Heavy Singles",
+        "movements": ["deadlift 5x1 @ 90-95%"]
+      },
+      {
+        "name": "Volume Build",
+        "movements": ["deadlift 4x5 @ 75-80%"]
+      },
+      {
+        "name": "Speed Pulls",
+        "movements": ["deadlift 8x2 @ 60-70%"]
+      }
+    ]
+  },
+  {
+    "id": "push-up-progression",
+    "type": "primary",
+    "durationMin": 12,
+    "minEquipment": [],
+    "contraindications": ["wrist_injury", "shoulder_impingement"],
+    "experience": "beginner",
+    "energySystems": ["phosphocreatine", "glycolytic"],
+    "movementPatterns": ["push"],
+    "progressionKey": "pushup-progression",
+    "variants": [
+      {
+        "name": "Beginner Progression",
+        "movements": ["wall push-ups", "incline push-ups", "knee push-ups", "full push-ups"]
+      },
+      {
+        "name": "Advanced Variations",
+        "movements": ["diamond push-ups", "archer push-ups", "one-arm push-ups", "handstand push-ups"]
+      },
+      {
+        "name": "Volume Challenge",
+        "movements": ["push-up ladder", "EMOM push-ups", "max reps test"]
+      }
+    ]
+  },
+  {
+    "id": "kettlebell-swing",
+    "type": "primary",
+    "durationMin": 15,
+    "minEquipment": ["kettlebell"],
+    "contraindications": ["lower_back_injury", "shoulder_injury"],
+    "experience": "beginner",
+    "energySystems": ["phosphocreatine", "glycolytic"],
+    "movementPatterns": ["hinge", "power"],
+    "progressionKey": "kb-swing-power",
+    "variants": [
+      {
+        "name": "Two-Hand Swing",
+        "movements": ["kettlebell swing 10x10 with 30s rest"]
+      },
+      {
+        "name": "Single Arm Swing",
+        "movements": ["single arm KB swing 5x10 each arm"]
+      },
+      {
+        "name": "American Swing",
+        "movements": ["overhead KB swing 8x15"]
+      }
+    ]
+  }
+]
