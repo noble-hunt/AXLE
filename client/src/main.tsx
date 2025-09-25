@@ -1,21 +1,12 @@
 import { createRoot } from "react-dom/client";
+import { StrictMode } from "react";
 import App from "./App";
 import "./index.css";
-import * as Sentry from "@sentry/browser";
+import { initSentry } from './sentry';
+import { RootErrorBoundary } from './components/RootErrorBoundary';
 
 // Initialize Sentry for error tracking
-if (import.meta.env.VITE_SENTRY_DSN_CLIENT) {
-  Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN_CLIENT,
-    environment: import.meta.env.VITE_SENTRY_ENV || 'dev',
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration()
-    ],
-    tracesSampleRate: 0.2,
-    replaysSessionSampleRate: 0.1,
-  });
-}
+initSentry();
 
 // Client bootstrap guard - check for required environment variables
 const ok = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -34,4 +25,10 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <RootErrorBoundary>
+      <App />
+    </RootErrorBoundary>
+  </StrictMode>
+);

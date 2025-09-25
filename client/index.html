@@ -45,5 +45,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.addEventListener('error', (e) => {
+        if (!document.getElementById('boot-fatal')) {
+          const d = document.createElement('div');
+          d.id = 'boot-fatal';
+          d.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0f1a;color:#fff;z-index:999999';
+          d.innerHTML = '<div style="max-width:640px;padding:24px;border-radius:16px;background:#111827;border:1px solid #374151;font:16px system-ui"><h2 style="margin:0 0 8px">App failed to start</h2><div>Check the browser console for details.</div></div>';
+          document.body.appendChild(d);
+        }
+      }, { once: true });
+    </script>
   </body>
 </html>
