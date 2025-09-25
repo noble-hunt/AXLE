@@ -97,6 +97,9 @@ app.use((req, res, next) => {
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
+  // Add request ID to response headers
+  res.setHeader('x-request-id', (req as any).id);
+
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
@@ -106,7 +109,7 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms [${(req as any).id}]`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -130,13 +133,24 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     
+    // Add request ID to response headers
+    res.setHeader('x-request-id', (req as any).id);
+    
+    // Add request ID to Sentry context
+    if (typeof Sentry?.setTag === 'function') {
+      Sentry.setTag('request_id', (req as any).id);
+    }
+    
     // For non-API routes that error, serve 500.html
     if (status === 500 && !req.path.startsWith('/api')) {
       return res.status(500).sendFile('500.html', { root: 'client/public' });
     }
     
+    // For API routes, return JSON error
     res.status(status).json({ message });
-    throw err;
+    
+    // Log the error (don't rethrow to avoid process crashes)
+    console.error(`Error ${status} on ${req.method} ${req.path}:`, err);
   });
 
   // Dev uses Vite middleware (with real config). Prod serves static build.
