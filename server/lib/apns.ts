@@ -29,10 +29,12 @@ function getAPNsConfig(): APNsConfig | null {
       hasKeyId: !!keyId,
       hasTeamId: !!teamId,
       hasKey: !!key,
+      hasBundleId: !!bundleId,
     });
     return null;
   }
 
+  console.log(`[APNS] Configuration loaded for bundle: ${bundleId}`);
   return { keyId, teamId, bundleId, key };
 }
 
@@ -95,14 +97,14 @@ export async function sendAPNs(
     };
 
     // APNs endpoint (use sandbox for development)
-    const isProduction = process.env.NODE_ENV === 'production';
-    const apnsUrl = isProduction 
-      ? 'https://api.push.apple.com'
-      : 'https://api.sandbox.push.apple.com';
+    const useSandbox = process.env.NODE_ENV !== 'production';
+    const host = useSandbox 
+      ? 'https://api.sandbox.push.apple.com'
+      : 'https://api.push.apple.com';
     
-    const url = `${apnsUrl}/3/device/${deviceToken}`;
+    const url = `${host}/3/device/${deviceToken}`;
     
-    console.log(`[APNS] Sending notification to ${deviceToken.substring(0, 10)}... via ${isProduction ? 'production' : 'sandbox'}`);
+    console.log(`[APNS] Sending notification to ${deviceToken.substring(0, 10)}... via ${useSandbox ? 'sandbox' : 'production'} (${host})`);
     
     const response = await fetch(url, {
       method: 'POST',

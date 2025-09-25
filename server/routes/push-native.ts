@@ -260,4 +260,66 @@ router.delete('/devices/:deviceId', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/push/debug/devices - Debug route to list user's device tokens (development only)
+router.get('/debug/devices', requireAuth, async (req, res) => {
+  try {
+    // Restrict debug route to non-production environments
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({
+        success: false,
+        message: 'Debug endpoints are not available in production',
+      });
+    }
+
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.id;
+    
+    console.log(`[PUSH_NATIVE] Debug: listing device tokens for user ${userId}`);
+    
+    const devices = await db
+      .select({
+        id: deviceTokens.id,
+        platform: deviceTokens.platform,
+        token: deviceTokens.token,
+        createdAt: deviceTokens.createdAt,
+        lastSeen: deviceTokens.lastSeen,
+      })
+      .from(deviceTokens)
+      .where(eq(deviceTokens.userId, userId))
+      .orderBy(deviceTokens.lastSeen);
+    
+    console.log(`[PUSH_NATIVE] Debug: found ${devices.length} device tokens for user ${userId}`);
+    
+    // Show token previews and metadata for debugging
+    const debugDevices = devices.map(device => ({
+      id: device.id,
+      platform: device.platform,
+      tokenPreview: device.token.substring(0, 10) + '...',
+      tokenLength: device.token.length,
+      createdAt: device.createdAt,
+      lastSeen: device.lastSeen,
+    }));
+    
+    res.json({
+      success: true,
+      userId,
+      deviceCount: devices.length,
+      devices: debugDevices,
+      environment: process.env.NODE_ENV || 'development',
+      apnsHost: process.env.NODE_ENV === 'production' 
+        ? 'https://api.push.apple.com'
+        : 'https://api.sandbox.push.apple.com',
+      warning: 'This debug endpoint is only available in development environments',
+    });
+    
+  } catch (error) {
+    console.error('[PUSH_NATIVE] Error in debug devices route:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to list debug devices',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 export default router;
