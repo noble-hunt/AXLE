@@ -22,7 +22,7 @@ import Profile from "@/pages/profile";
 import EditProfile from "@/pages/EditProfile";
 import Connect from "@/pages/connect";
 import Reports from "@/pages/reports";
-import WorkoutGenerate from "@/pages/workout-generate";
+import WorkoutGenerate from "@/pages/workout/generate";
 import LogFreeform from "@/pages/workout/LogFreeform";
 import DevEnv from "@/pages/dev-env";
 import Debug from "@/pages/dev/Debug";
