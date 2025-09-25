@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
 import type { WorkoutFeedback } from "../types"
-import type { Workout } from "@shared/schema"
+import type { Workout, LegacyWorkoutFeedback } from "@shared/schema"
 import { ROUTES } from "@/lib/routes"
 
 // Union type for workouts from local store vs API
@@ -46,8 +46,8 @@ import { format } from "date-fns"
 import confetti from "canvas-confetti"
 
 const feedbackSchema = z.object({
-  difficulty: z.number().min(1).max(10),
-  satisfaction: z.number().min(1).max(10),
+  perceivedIntensity: z.number().min(1).max(10),
+  notes: z.string().optional(),
 })
 
 export default function WorkoutDetail() {
@@ -110,13 +110,13 @@ export default function WorkoutDetail() {
   const form = useForm<z.infer<typeof feedbackSchema>>({
     resolver: zodResolver(feedbackSchema),
     defaultValues: {
-      difficulty: 5,
-      satisfaction: 5,
+      perceivedIntensity: 5,
+      notes: "",
     },
   })
 
-  const difficulty = form.watch("difficulty")
-  const satisfaction = form.watch("satisfaction")
+  const perceivedIntensity = form.watch("perceivedIntensity")
+  const notes = form.watch("notes")
 
   // Trigger confetti effect
   const triggerConfetti = () => {
@@ -136,13 +136,21 @@ export default function WorkoutDetail() {
     setIsSubmitting(true)
     
     try {
-      const feedback: WorkoutFeedback = {
-        difficulty: data.difficulty,
-        satisfaction: data.satisfaction,
+      // Save workout feedback to new table
+      const { apiRequest } = await import('@/lib/queryClient');
+      await apiRequest('POST', `/api/workouts/${id}/feedback`, {
+        perceivedIntensity: data.perceivedIntensity,
+        notes: data.notes || ""
+      });
+
+      // Also mark workout as completed (legacy flow)
+      const legacyFeedback: LegacyWorkoutFeedback = {
+        difficulty: data.perceivedIntensity, // Map RPE to difficulty for compatibility
+        satisfaction: 8, // Default to high satisfaction
         completedAt: new Date(),
       }
 
-      await completeWorkout(id as string, feedback)
+      await completeWorkout(id as string, legacyFeedback)
 
       setShowCompletionSheet(false)
       setShowSuccessState(true)
@@ -194,12 +202,8 @@ export default function WorkoutDetail() {
         <Card className="p-6 w-full max-w-sm">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-body text-muted-foreground">Difficulty</span>
-              <span className="text-subheading font-bold text-foreground">{workout.feedback?.difficulty}/10</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-body text-muted-foreground">Satisfaction</span>
-              <span className="text-subheading font-bold text-foreground">{workout.feedback?.satisfaction}/10</span>
+              <span className="text-body text-muted-foreground">Perceived Intensity (RPE)</span>
+              <span className="text-subheading font-bold text-foreground">{workout.feedback?.difficulty || 'N/A'}/10</span>
             </div>
           </div>
         </Card>
@@ -430,56 +434,54 @@ Intensity {(workout as any)?.intensity}/10
 
           <form onSubmit={form.handleSubmit(handleCompleteWorkout)} className="space-y-6">
             
-            {/* Difficulty Slider */}
+            {/* RPE Selection */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="text-center space-y-2">
                 <label className="text-body font-medium text-foreground">
-                  How hard was that?
+                  How intense was this workout?
                 </label>
-                <span className="text-subheading font-bold text-primary">{difficulty}/10</span>
+                <p className="text-caption text-muted-foreground">Rate of Perceived Exertion (RPE)</p>
               </div>
               
-              <input
-                type="range"
-                min="1"
-                max="10"
-                step="1"
-                value={difficulty}
-                onChange={(e) => form.setValue("difficulty", parseInt(e.target.value))}
-                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer slider"
-                data-testid="difficulty-slider"
-              />
+              {/* Quick tap grid for RPE 1-10 */}
+              <div className="grid grid-cols-5 gap-3">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((rpe) => (
+                  <button
+                    key={rpe}
+                    type="button"
+                    onClick={() => form.setValue("perceivedIntensity", rpe)}
+                    className={`
+                      h-12 rounded-lg border-2 font-semibold transition-all
+                      ${perceivedIntensity === rpe 
+                        ? 'border-primary bg-primary text-primary-foreground' 
+                        : 'border-muted bg-background text-foreground hover:border-primary/50'
+                      }
+                    `}
+                    data-testid={`rpe-${rpe}`}
+                  >
+                    {rpe}
+                  </button>
+                ))}
+              </div>
               
               <div className="flex justify-between text-caption text-muted-foreground">
                 <span>Very Easy</span>
-                <span>Very Hard</span>
+                <span>Maximum</span>
               </div>
             </div>
 
-            {/* Satisfaction Slider */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-body font-medium text-foreground">
-                  Was this what you were looking for?
-                </label>
-                <span className="text-subheading font-bold text-primary">{satisfaction}/10</span>
-              </div>
-              
-              <input
-                type="range"
-                min="1"
-                max="10"
-                step="1"
-                value={satisfaction}
-                onChange={(e) => form.setValue("satisfaction", parseInt(e.target.value))}
-                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer slider"
-                data-testid="satisfaction-slider"
+            {/* Optional Notes */}
+            <div className="space-y-2">
+              <label className="text-body font-medium text-foreground">
+                Notes (optional)
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => form.setValue("notes", e.target.value)}
+                placeholder="How did it feel? Any observations?"
+                className="w-full h-20 p-3 border border-muted rounded-lg resize-none text-body"
+                data-testid="workout-notes"
               />
-              
-              <div className="flex justify-between text-caption text-muted-foreground">
-                <span>Not at all</span>
-                <span>Perfect!</span>
-              </div>
             </div>
 
             {/* Action Buttons */}
