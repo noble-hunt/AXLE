@@ -2,6 +2,13 @@
  * AI Workout Generation Routes
  * 
  * Handles /api/generate/crossfit and /api/generate/olympic endpoints
+ * 
+ * V2 GENERATOR CONTRACT:
+ * Future stable interface will accept WorkoutRequest and return WorkoutPlan
+ * - POST /api/generate/v2 - WorkoutRequest -> WorkoutPlan
+ * - Unified endpoint supporting all workout types through focus parameter
+ * - ML policy integration when workouts.v2.useMLPolicy flag is enabled
+ * - Backward compatibility maintained for existing v1 endpoints
  */
 
 import type { Express } from "express";
@@ -13,6 +20,9 @@ import { critiqueAndRepair } from "../ai/critic";
 import { generateWorkoutTitle } from "../ai/title";
 import { render } from "../../client/src/ai/render";
 import type { WorkoutGenerationRequest } from "../ai/generateWorkout";
+// V2 Generator Types and Configuration
+import type { WorkoutRequest, WorkoutPlan } from "../workouts/types";
+import { isWorkoutV2Enabled, useMLPolicy } from "../config/flags";
 
 // Request schema for workout generation
 const generateWorkoutSchema = z.object({
