@@ -24,6 +24,7 @@ import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
 import healthRoutes from "./routes/health";
 import healthMetricsRouter from "./routes/health-metrics";
 import pushNativeRouter from "./routes/push-native";
+import notificationPrefsRouter from "./routes/notification-prefs";
 import storageRouter from "./routes/storage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -76,6 +77,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register native push notification routes
   app.use("/api/push", pushNativeRouter);
+  
+  // Register notification preferences routes
+  app.use("/api/notification-prefs", notificationPrefsRouter);
   
   // Register group routes
   registerGroupRoutes(app);

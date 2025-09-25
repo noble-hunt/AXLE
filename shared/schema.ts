@@ -214,6 +214,18 @@ export const deviceTokens = pgTable("device_tokens", {
   uniqueUserToken: uniqueIndex("unique_user_token").on(table.userId, table.token),
 }));
 
+// NOTIFICATION PREFERENCES - User notification settings
+export const notificationPrefs = pgTable("notification_prefs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().unique(), // References auth.users(id) in Supabase
+  enabled: boolean("enabled").notNull().default(false),
+  dailyReminders: boolean("daily_reminders").notNull().default(false),
+  reminderTime: text("reminder_time").default('09:00'), // HH:mm format
+  platform: text("platform").notNull().default('auto'), // 'auto' | 'native' | 'web'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // NOTIFICATIONS QUEUE - Push notification queue with channel support
 export const notifications = pgTable("notifications", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -286,6 +298,12 @@ export const insertDeviceTokenSchema = createInsertSchema(deviceTokens).omit({
   lastSeen: true,
 });
 
+export const insertNotificationPrefsSchema = createInsertSchema(notificationPrefs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
   createdAt: true,
@@ -316,6 +334,10 @@ export type HealthReport = typeof healthReports.$inferSelect;
 
 export type InsertSuggestedWorkout = z.infer<typeof insertSuggestedWorkoutSchema>;
 export type SuggestedWorkout = typeof suggestedWorkouts.$inferSelect;
+
+export type InsertNotificationPrefs = z.infer<typeof insertNotificationPrefsSchema>;
+export type NotificationPrefs = typeof notificationPrefs.$inferSelect;
+
 
 // Workout generation schemas
 export enum Category {

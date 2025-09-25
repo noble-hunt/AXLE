@@ -1,4 +1,4 @@
-import { sign } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 export interface APNsPayload {
   title: string;
@@ -52,7 +52,7 @@ function generateJWT(config: APNsConfig): string {
     kid: config.keyId,
   };
 
-  return sign(payload, config.key, {
+  return jwt.sign(payload, config.key, {
     algorithm: 'ES256',
     header,
   });

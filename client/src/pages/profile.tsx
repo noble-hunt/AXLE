@@ -16,6 +16,13 @@ import {
   cancelAllLocalNotifications,
   isNativeEnvironment 
 } from "@/lib/nativeNotifications"
+import { 
+  requestWebPushPermissions,
+  subscribeToWebPush,
+  unsubscribeFromWebPush,
+  isWebPushSupported
+} from "@/lib/webpush"
+import { isNative, isWeb, getPlatform, logEnvironment } from "@/lib/env"
 import { authFetch } from "@/lib/authFetch"
 import { 
   User, 
@@ -146,6 +153,36 @@ function NotificationModal() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [dailyReminderTime, setDailyReminderTime] = useState("09:00")
   const [isLoading, setIsLoading] = useState(false)
+  const platform = getPlatform()
+  
+  // Log environment on component mount for debugging
+  useState(() => {
+    logEnvironment()
+  })
+
+  // Save notification preferences to server
+  const saveNotificationPreferences = async (enabled: boolean, reminderTime: string, platform: string) => {
+    try {
+      const response = await authFetch('/api/notification-prefs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          enabled,
+          dailyReminders: enabled,
+          reminderTime,
+          platform,
+        }),
+      })
+
+      if (!response.ok) {
+        console.error('Failed to save notification preferences')
+      }
+    } catch (error) {
+      console.error('Error saving notification preferences:', error)
+    }
+  }
 
   // Register device token with backend
   const registerDeviceToken = async (token: string) => {
@@ -153,67 +190,100 @@ function NotificationModal() {
       const response = await authFetch('/api/push/register-device', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, platform: 'ios' })
+        body: JSON.stringify({ 
+          token, 
+          platform: isNative ? 'ios' : 'web' 
+        })
       })
       
       if (response.ok) {
         console.log('Device token registered successfully')
-        toast({
-          title: "Notifications enabled",
-          description: "You'll receive workout reminders and updates.",
-        })
       } else {
         throw new Error('Failed to register device token')
       }
     } catch (error) {
       console.error('Error registering device token:', error)
-      toast({
-        title: "Registration failed",
-        description: "Could not enable push notifications.",
-        variant: "destructive",
-      })
+      throw error
     }
   }
 
   const handleNotificationToggle = async (enabled: boolean) => {
-    if (!isNativeEnvironment() && enabled) {
-      toast({
-        title: "Not available",
-        description: "Native notifications are only available in the mobile app.",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsLoading(true)
     
     try {
       if (enabled) {
-        // Request permissions and register
-        const hasPermissions = await requestPushPermissions()
-        if (!hasPermissions) {
-          toast({
-            title: "Permission denied",
-            description: "Please enable notifications in your device settings.",
-            variant: "destructive",
-          })
-          setIsLoading(false)
-          return
-        }
+        if (isNative) {
+          // Native path: Use APNs and local notifications
+          const hasPermissions = await requestPushPermissions()
+          if (!hasPermissions) {
+            toast({
+              title: "Permission denied",
+              description: "Please enable notifications in your device settings.",
+              variant: "destructive",
+            })
+            setIsLoading(false)
+            return
+          }
 
-        // Register for push notifications
-        await registerPushToken(registerDeviceToken)
-        
-        // Schedule daily reminder if time is set
-        if (dailyReminderTime) {
-          const [hours, minutes] = dailyReminderTime.split(':').map(Number)
-          await scheduleDailyWorkoutReminder(hours, minutes)
+          // Register for APNs push notifications
+          await registerPushToken(registerDeviceToken)
+          
+          // Schedule local daily reminder if time is set
+          if (dailyReminderTime) {
+            const [hours, minutes] = dailyReminderTime.split(':').map(Number)
+            await scheduleDailyWorkoutReminder(hours, minutes)
+          }
+          
+          toast({
+            title: "Notifications enabled",
+            description: "You'll receive workout reminders and updates via APNs.",
+          })
+        } else {
+          // Web path: Use Web Push
+          if (!isWebPushSupported()) {
+            toast({
+              title: "Not supported",
+              description: "Web Push notifications are not supported in this browser.",
+              variant: "destructive",
+            })
+            setIsLoading(false)
+            return
+          }
+
+          const hasPermissions = await requestWebPushPermissions()
+          if (!hasPermissions) {
+            toast({
+              title: "Permission denied", 
+              description: "Please enable notifications in your browser settings.",
+              variant: "destructive",
+            })
+            setIsLoading(false)
+            return
+          }
+
+          // TODO: Get VAPID public key from server
+          // const vapidKey = await fetchVapidKey()
+          // const subscription = await subscribeToWebPush(vapidKey)
+          // await registerWebPushSubscription(subscription)
+          
+          toast({
+            title: "Notifications enabled",
+            description: "You'll receive workout reminders via Web Push (coming soon).",
+          })
         }
         
+        // Save preferences to server for both paths
+        await saveNotificationPreferences(enabled, dailyReminderTime, platform)
         setNotificationsEnabled(true)
       } else {
-        // Disable notifications
-        await cancelAllLocalNotifications()
+        // Disable notifications for both paths
+        if (isNative) {
+          await cancelAllLocalNotifications()
+        } else {
+          await unsubscribeFromWebPush()
+        }
+        
+        await saveNotificationPreferences(false, dailyReminderTime, platform)
         setNotificationsEnabled(false)
         toast({
           title: "Notifications disabled",
@@ -294,14 +364,16 @@ function NotificationModal() {
         />
       </div>
 
-      {!isNativeEnvironment() && (
-        <div className="rounded-lg bg-muted p-4">
-          <p className="text-caption text-muted-foreground">
-            ℹ️ Native push notifications are only available in the mobile app. 
-            Use the iOS or Android app to enable workout reminders.
-          </p>
-        </div>
-      )}
+      {/* Platform-specific information */}
+      <div className="rounded-lg bg-muted p-4">
+        <p className="text-caption text-muted-foreground">
+          {isNative ? (
+            <>✅ Running in native app - APNs and local notifications available</>
+          ) : (
+            <>🌐 Running in web browser - Web Push notifications available (coming soon)</>
+          )}
+        </p>
+      </div>
     </div>
   )
 }
