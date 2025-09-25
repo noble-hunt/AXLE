@@ -39,7 +39,10 @@ export interface GeneratorSeed {
 export const generatorInputsSchema = z.object({
   archetype: z.enum(['strength', 'conditioning', 'mixed', 'endurance']),
   minutes: z.number().min(5).max(120),
-  targetIntensity: z.number().min(1).max(10),
+  targetIntensity: z.union([
+    z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5),
+    z.literal(6), z.literal(7), z.literal(8), z.literal(9), z.literal(10)
+  ]),
   equipment: z.array(z.string()),
   constraints: z.array(z.string()).optional(),
   location: z.enum(['home', 'gym', 'outside']).optional(),

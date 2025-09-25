@@ -115,13 +115,22 @@ async function composeUserContext(userId: string): Promise<WorkoutGenerationRequ
 }
 
 /**
- * Generate and persist workout with critic scoring
+ * Generate and persist workout with critic scoring and seed storage
  */
 async function generateAndPersistWorkout(
   userId: string,
   category: 'CrossFit/HIIT' | 'Olympic',
   request: WorkoutGenerationRequest
 ) {
+  // Import seed generation utilities
+  const { generateWorkoutSeed, convertLegacyRequestToInputs } = await import("../utils/seed-generator");
+  
+  // Convert request to GeneratorInputs format
+  const inputs = convertLegacyRequestToInputs(request);
+  
+  // Generate seed for deterministic reproduction
+  const seed = generateWorkoutSeed(inputs, userId);
+  
   // Generate workout
   const generator = category === 'CrossFit/HIIT' ? generateCrossFitWorkout : generateOlympicWorkout;
   const workout = await generator(request);
@@ -140,29 +149,31 @@ async function generateAndPersistWorkout(
   // Render workout for display
   const renderedWorkout = render(critique.workout);
   
-  // Persist to database
-  const { insertWorkout } = await import("../dal/workouts");
-  const savedWorkout = await insertWorkout({
+  // Persist to database with seed data
+  const { db } = await import("../db");
+  const { workouts } = await import("../../shared/schema");
+  const [savedWorkout] = await db.insert(workouts).values({
     userId,
-    workout: {
-      title: critique.workout.name,
-      request: request as any,
-      sets: critique.workout.blocks.map(block => ({
-        id: `block-${Math.random().toString(36).substr(2, 9)}`,
-        exercise: block.name || `${block.type} block`,
-        notes: ''
-      })) as any,
-      notes: critique.workout.coaching_notes || '',
-      completed: false
-    }
-  });
+    title: critique.workout.name,
+    request: request as any,
+    sets: critique.workout.blocks.map(block => ({
+      id: `block-${Math.random().toString(36).substr(2, 9)}`,
+      exercise: block.name || `${block.type} block`,
+      notes: ''
+    })) as any,
+    notes: critique.workout.coaching_notes || '',
+    completed: false,
+    genSeed: seed,
+    generatorVersion: seed.generatorVersion
+  }).returning();
   
   return {
     workout: savedWorkout,
     rendered: renderedWorkout,
     score: critique.score,
     issues: critique.issues,
-    wasPatched: critique.wasPatched
+    wasPatched: critique.wasPatched,
+    seed: seed
   };
 }
 
@@ -570,7 +581,8 @@ export function registerWorkoutGenerationRoutes(app: Express) {
         issues: result.issues,
         wasPatched: result.wasPatched,
         duration: validatedData.duration,
-        intensity: validatedData.intensity
+        intensity: validatedData.intensity,
+        seed: result.seed
       });
       
     } catch (error) {
@@ -629,7 +641,8 @@ export function registerWorkoutGenerationRoutes(app: Express) {
         issues: result.issues,
         wasPatched: result.wasPatched,
         duration: validatedData.duration,
-        intensity: validatedData.intensity
+        intensity: validatedData.intensity,
+        seed: result.seed
       });
       
     } catch (error) {

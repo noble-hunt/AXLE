@@ -41,7 +41,7 @@ import { Sheet } from "@/components/swift/sheet"
 import { Field } from "@/components/swift/field"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
-import { Calendar, Clock, Dumbbell, Target, CheckCircle2, Activity, Star, Award, Sparkles, Trophy, PartyPopper, Brain, AlertTriangle, ThumbsUp } from "lucide-react"
+import { Calendar, Clock, Dumbbell, Target, CheckCircle2, Activity, Star, Award, Sparkles, Trophy, PartyPopper, Brain, AlertTriangle, ThumbsUp, Hash, RotateCcw, Shuffle, Copy } from "lucide-react"
 import { format } from "date-fns"
 import confetti from "canvas-confetti"
 
@@ -265,6 +265,25 @@ export default function WorkoutDetail() {
             <Target className="w-3 h-3 mr-1" />
 Intensity {(workout as any)?.intensity}/10
           </Chip>
+          {(workout as any)?.genSeed?.rngSeed && (
+            <Chip 
+              variant="secondary" 
+              className="cursor-pointer hover:bg-muted/80 transition-colors"
+              onClick={() => {
+                if (navigator.clipboard) {
+                  navigator.clipboard.writeText(JSON.stringify((workout as any).genSeed, null, 2));
+                  toast({
+                    title: "Seed Copied!",
+                    description: "Generator seed has been copied to clipboard.",
+                  });
+                }
+              }}
+              data-testid="seed-chip"
+            >
+              <Hash className="w-3 h-3 mr-1" />
+              Seed: {(workout as any).genSeed.rngSeed.slice(0, 8)}...
+            </Chip>
+          )}
         </div>
 
         {/* Description */}
