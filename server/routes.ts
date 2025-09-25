@@ -55,6 +55,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to get workout blocks" });
     }
   });
+
+  // Dev route for testing V2 workout generation (no auth required)
+  app.post("/api/dev/workouts/generate", async (req, res) => {
+    // Only available in development environment
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    
+    try {
+      const { generateWorkoutPlan } = await import("./workouts/engine");
+      
+      // Parse request parameters
+      const { duration = 45, intensity = 6, equipment = [], vitality = 65, performancePotential = 70 } = req.body;
+      
+      // Build mock request
+      const mockUserId = "dev-user-test";
+      const workoutRequest = {
+        date: new Date().toISOString(),
+        userId: mockUserId,
+        goal: 'general_fitness',
+        availableMinutes: duration,
+        equipment: equipment.length > 0 ? equipment : ['barbell', 'kettlebell'],
+        experienceLevel: 'intermediate' as const,
+        injuries: [],
+        preferredDays: [],
+        recentHistory: [],
+        metricsSnapshot: {
+          vitality: vitality,
+          performancePotential: performancePotential,
+          circadianAlignment: 75,
+          fatigueScore: 30,
+          sleepScore: 70
+        },
+        intensityFeedback: []
+      };
+      
+      // Mock biometrics and history
+      const biometrics = {
+        performancePotential,
+        vitality,
+        sleepScore: 70
+      };
+      
+      const history: any[] = []; // Empty history for dev testing
+      const progressionStates: any[] = []; // No progression tracking for dev
+      
+      // Generate workout plan
+      const workoutPlan = generateWorkoutPlan(
+        workoutRequest,
+        history,
+        progressionStates,
+        biometrics
+      );
+      
+      console.log('🏋️ Dev V2 Workout Generated:', {
+        focus: workoutPlan.focus,
+        intensity: workoutPlan.targetIntensity,
+        blocks: workoutPlan.blocks.length,
+        estimatedTSS: workoutPlan.estimatedTSS
+      });
+      
+      res.json({
+        success: true,
+        plan: workoutPlan,
+        generatedAt: new Date().toISOString(),
+        version: 'v2-dev',
+        request: { duration, intensity, equipment, vitality, performancePotential }
+      });
+      
+    } catch (error) {
+      console.error("Dev V2 generation failed:", error);
+      res.status(500).json({ 
+        error: "Failed to generate dev V2 workout",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
   
   // Workout generation route (no auth required, handle 405 explicitly) - must be first to avoid conflicts
   app.all("/api/workouts/generate", async (req, res) => {

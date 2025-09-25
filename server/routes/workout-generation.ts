@@ -23,6 +23,7 @@ import type { WorkoutGenerationRequest } from "../ai/generateWorkout";
 // V2 Generator Types and Configuration
 import type { WorkoutRequest, WorkoutPlan } from "../workouts/types";
 import { isWorkoutV2Enabled, useMLPolicy } from "../config/flags";
+import { generateWorkoutPlan } from "../workouts/engine";
 
 // Request schema for workout generation
 const generateWorkoutSchema = z.object({
@@ -150,9 +151,117 @@ async function generateAndPersistWorkout(
 }
 
 /**
+ * Convert user context to biometrics and history for V2 engine
+ */
+function convertToV2Format(userId: string, context: any, request: any) {
+  // Convert context to engine format
+  const biometrics = {
+    performancePotential: 70, // Default value
+    vitality: 65, // Default value  
+    sleepScore: context?.health_snapshot?.sleep_score || 70,
+    hrv: context?.health_snapshot?.hrv || undefined,
+    restingHR: context?.health_snapshot?.resting_hr || undefined
+  };
+
+  // Build history from yesterday's workout if available
+  const history = context?.yesterday ? [{
+    date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    primaryPattern: 'squat' as const, // Simplified mapping
+    energySystems: ['glycolytic' as const],
+    estimatedTSS: context.yesterday.intensity * 10,
+    intensityRating: context.yesterday.intensity
+  }] : [];
+
+  // Build V2 WorkoutRequest
+  const workoutRequest: WorkoutRequest = {
+    date: new Date().toISOString(),
+    userId: userId,
+    goal: 'general_fitness',
+    availableMinutes: request.duration || 45,
+    equipment: context?.equipment || ['barbell', 'kettlebell'],
+    experienceLevel: 'intermediate' as const,
+    injuries: context?.constraints || [],
+    preferredDays: [],
+    recentHistory: [],
+    metricsSnapshot: {
+      vitality: biometrics.vitality,
+      performancePotential: biometrics.performancePotential,
+      circadianAlignment: 75,
+      fatigueScore: 30,
+      hrv: biometrics.hrv,
+      rhr: biometrics.restingHR,
+      sleepScore: biometrics.sleepScore
+    },
+    intensityFeedback: []
+  };
+
+  return { workoutRequest, biometrics, history };
+}
+
+/**
  * Register workout generation routes
  */
 export function registerWorkoutGenerationRoutes(app: Express) {
+  // V2 Unified Workout Generation Endpoint
+  app.post("/api/generate/v2", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      
+      // Check if V2 is enabled
+      if (!isWorkoutV2Enabled()) {
+        return res.status(403).json({ 
+          message: "V2 workout generation is not enabled" 
+        });
+      }
+      
+      // Validate request
+      const validatedData = generateWorkoutSchema.parse(req.body);
+      
+      // Compose user context (reuse existing function)
+      const context = await composeUserContext(userId);
+      
+      // Convert to V2 format
+      const { workoutRequest, biometrics, history } = convertToV2Format(userId, context, validatedData);
+      
+      // Generate workout using V2 engine
+      const workoutPlan = generateWorkoutPlan(
+        workoutRequest,
+        history,
+        [], // No progression states yet - could be loaded from database
+        biometrics
+      );
+      
+      // For development, log the generation process
+      console.log('🏋️ V2 Workout Generated:', {
+        focus: workoutPlan.focus,
+        intensity: workoutPlan.targetIntensity,
+        blocks: workoutPlan.blocks.length,
+        estimatedTSS: workoutPlan.estimatedTSS
+      });
+      
+      res.json({
+        success: true,
+        plan: workoutPlan,
+        generatedAt: new Date().toISOString(),
+        version: 'v2'
+      });
+      
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: error.issues 
+        });
+      }
+      
+      console.error("V2 generation failed:", error);
+      res.status(500).json({ 
+        message: "Failed to generate V2 workout",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
   // CrossFit workout generation
   app.post("/api/generate/crossfit", requireAuth, async (req, res) => {
     try {
