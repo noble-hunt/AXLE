@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { httpJSON } from "@/lib/http"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -82,10 +83,9 @@ export default function Connect() {
     setLoading(true)
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
-      const r = await fetch('/api/connect/providers', {
+      const data = await httpJSON('api/connect/providers', {
         headers: { Authorization: `Bearer ${token ?? ''}` }
       })
-      const data = await r.json()
       setProviders(data || [])
     } catch (error) {
       console.error('Failed to load providers:', error)
@@ -178,7 +178,7 @@ export default function Connect() {
     setBusy(providerId)
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
-      const r = await fetch(`/api/connect/${providerId}/start`, {
+      const r = await httpJSON(`api/connect/${providerId}/start`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token ?? ''}` }
       })
@@ -210,7 +210,7 @@ export default function Connect() {
     setBusy(providerId)
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
-      const r = await fetch(`/api/connect/${providerId}/disconnect`, {
+      const r = await httpJSON(`api/connect/${providerId}/disconnect`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token ?? ''}` }
       })
@@ -243,7 +243,7 @@ export default function Connect() {
       } : undefined
       
       const token = (await supabase.auth.getSession()).data.session?.access_token
-      const r = await fetch('/api/health/sync', {
+      const r = await httpJSON('api/health/sync', {
         method: 'POST',
         headers: { 
           'content-type': 'application/json', 
@@ -425,7 +425,7 @@ export default function Connect() {
                   setBusy(provider.id)
                   try {
                     const token = (await supabase.auth.getSession()).data.session?.access_token
-                    const r = await fetch(`/api/connect/${provider.id}/start`, {
+                    const r = await httpJSON(`api/connect/${provider.id}/start`, {
                       method: 'POST',
                       headers: { Authorization: `Bearer ${token ?? ''}` }
                     })
@@ -478,7 +478,7 @@ export default function Connect() {
                   setBusy(provider.id)
                   try {
                     const token = (await supabase.auth.getSession()).data.session?.access_token
-                    const r = await fetch(`/api/connect/${provider.id}/disconnect`, {
+                    const r = await httpJSON(`api/connect/${provider.id}/disconnect`, {
                       method: 'POST',
                       headers: { Authorization: `Bearer ${token ?? ''}` }
                     })

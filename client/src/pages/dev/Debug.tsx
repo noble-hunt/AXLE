@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { authFetch } from "@/lib/authFetch";
+import { httpJSON } from "@/lib/http";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import { Loader2, Database, User as UserIcon, Zap, Mail, Sparkles, RotateCcw } from "lucide-react";
@@ -174,7 +175,7 @@ export default function Debug() {
   const fetchEmailStatus = async () => {
     setIsLoadingEmail(true);
     try {
-      const response = await fetch("/api/dev/debug/email");
+      const response = await httpJSON("/api/dev/debug/email");
       if (response.ok) {
         const data = await response.json();
         setEmailStatus(data);

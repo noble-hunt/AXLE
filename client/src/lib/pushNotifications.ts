@@ -5,6 +5,7 @@
 import { isNativeEnvironment } from './nativeNotifications';
 import { registerPushToken, requestPushPermissions } from './nativeNotifications';
 import { subscribeToWebPush, unsubscribeFromWebPush, requestWebPushPermissions, getWebPushSubscription } from './webpush';
+import { httpJSON } from './http';
 
 /**
  * Enable push notifications (unified for native and web)
@@ -98,7 +99,7 @@ export async function isPushNotificationsEnabled(): Promise<boolean> {
  */
 export async function sendTestPushNotification(): Promise<boolean> {
   try {
-    const response = await fetch('/api/push/test', {
+    const result = await httpJSON('api/push/test', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -110,8 +111,6 @@ export async function sendTestPushNotification(): Promise<boolean> {
         data: { test: true },
       }),
     });
-
-    const result = await response.json();
     return result.success || false;
   } catch (error) {
     console.error('Error sending test push notification:', error);
@@ -124,7 +123,7 @@ export async function sendTestPushNotification(): Promise<boolean> {
  */
 export async function enableNotificationTopic(topic: string, enabled: boolean = true): Promise<boolean> {
   try {
-    const response = await fetch('/api/notifications/topics/enable', {
+    const result = await httpJSON('api/notifications/topics/enable', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -135,8 +134,6 @@ export async function enableNotificationTopic(topic: string, enabled: boolean = 
         enabled,
       }),
     });
-
-    const result = await response.json();
     return result.ok || false;
   } catch (error) {
     console.error('Error updating notification topic:', error);

@@ -32,6 +32,7 @@ import {
   Trash
 } from "lucide-react";
 import { authFetch } from "@/lib/authFetch";
+import { httpJSON } from "@/lib/http";
 import { useToast } from "@/hooks/use-toast";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useGroupRealtime } from "@/hooks/useGroupRealtime";
@@ -51,13 +52,11 @@ import { supabase } from "@/lib/supabase";
 
 // Signed upload helper function
 async function getSignedUpload(groupId: string, filename: string) {
-  const res = await fetch('/api/storage/group-photos/signed-upload', {
+  return await httpJSON('api/storage/group-photos/signed-upload', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ groupId, filename }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return (await res.json()) as { path: string; token: string; signedUrl?: string };
+  }) as { path: string; token: string; signedUrl?: string };
 }
 
 // PhotoPicker component
