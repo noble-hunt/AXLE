@@ -132,6 +132,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Dev route for simulating week workout plans
+  app.get("/api/dev/workouts/simulate", async (req, res) => {
+    // Only available in development environment
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    
+    try {
+      const { generateWorkoutPlan } = await import("./workouts/engine");
+      
+      // Parse query parameters
+      const { 
+        days = 7, 
+        profile = 'intermediate',
+        equipment = ''
+      } = req.query;
+
+      const numDays = Math.min(parseInt(days as string) || 7, 14); // Cap at 14 days
+      const profileLevel = profile as string;
+      
+      // Parse equipment from comma-separated string
+      const availableEquipment = equipment ? 
+        (equipment as string).split(',').map(e => e.trim()) : 
+        ['dumbbells', 'kettlebells'];
+
+      // Define profile archetypes
+      const profiles = {
+        newbie: {
+          experienceLevel: 'beginner' as const,
+          vitality: 60,
+          performancePotential: 40,
+          avgIntensity: 4,
+          maxDuration: 30
+        },
+        intermediate: {
+          experienceLevel: 'intermediate' as const,
+          vitality: 75,
+          performancePotential: 70,
+          avgIntensity: 6,
+          maxDuration: 45
+        },
+        experienced: {
+          experienceLevel: 'advanced' as const,
+          vitality: 85,
+          performancePotential: 90,
+          avgIntensity: 8,
+          maxDuration: 60
+        }
+      };
+
+      const currentProfile = profiles[profileLevel as keyof typeof profiles] || profiles.intermediate;
+
+      // Generate workout plans for each day
+      const weekPlan = [];
+      const workoutHistory: any[] = [];
+
+      for (let day = 0; day < numDays; day++) {
+        const dayDate = new Date();
+        dayDate.setDate(dayDate.getDate() + day);
+
+        // Add some variability to metrics over the week
+        const vitalityVariation = (Math.random() - 0.5) * 20; // ±10 points
+        const intensityVariation = Math.random() > 0.7 ? 1 : 0; // Occasionally higher intensity
+        
+        const workoutRequest = {
+          date: dayDate.toISOString(),
+          userId: `sim-user-${profileLevel}`,
+          goal: 'general fitness',
+          availableMinutes: currentProfile.maxDuration - (Math.random() * 15), // Some time variation
+          equipment: availableEquipment,
+          experienceLevel: currentProfile.experienceLevel,
+          injuries: [],
+          preferredDays: [],
+          recentHistory: [],
+          metricsSnapshot: {
+            vitality: Math.max(30, Math.min(100, currentProfile.vitality + vitalityVariation)),
+            performancePotential: currentProfile.performancePotential,
+            circadianAlignment: 70 + (Math.random() * 20), // 70-90
+            fatigueScore: 0.2 + (Math.random() * 0.3), // 0.2-0.5
+            sleepScore: 60 + (Math.random() * 30) // 60-90
+          },
+          intensityFeedback: []
+        };
+
+        const biometrics = {
+          performancePotential: currentProfile.performancePotential,
+          vitality: workoutRequest.metricsSnapshot.vitality,
+          sleepScore: workoutRequest.metricsSnapshot.sleepScore
+        };
+
+        // Generate workout plan
+        const workoutPlan = generateWorkoutPlan(
+          workoutRequest,
+          workoutHistory.slice(-7), // Last 7 workouts for context
+          [], // No progression states for simulation
+          biometrics
+        );
+
+        // Add to history for next iterations
+        if (workoutHistory.length >= 7) {
+          workoutHistory.shift(); // Remove oldest
+        }
+        workoutHistory.push({
+          date: dayDate.toISOString(),
+          primaryPattern: 'squat', // Simplified for simulation
+          energySystems: ['phosphocreatine'],
+          estimatedTSS: workoutPlan.estimatedTSS,
+          intensityRating: currentProfile.avgIntensity + intensityVariation
+        });
+
+        weekPlan.push({
+          day: day + 1,
+          date: dayDate.toISOString().split('T')[0],
+          dayOfWeek: dayDate.toLocaleDateString('en-US', { weekday: 'long' }),
+          plan: workoutPlan,
+          metrics: workoutRequest.metricsSnapshot
+        });
+      }
+
+      // Calculate summary stats
+      const totalTSS = weekPlan.reduce((sum, day) => sum + day.plan.estimatedTSS, 0);
+      const avgIntensity = weekPlan.reduce((sum, day) => sum + day.plan.targetIntensity, 0) / weekPlan.length;
+      const totalCalories = weekPlan.reduce((sum, day) => sum + day.plan.estimatedCalories, 0);
+      
+      const focusDistribution = weekPlan.reduce((acc, day) => {
+        acc[day.plan.focus] = (acc[day.plan.focus] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      console.log(`🗓️ Simulated ${numDays}-day plan for ${profileLevel}:`, {
+        totalTSS,
+        avgIntensity: avgIntensity.toFixed(1),
+        focusDistribution
+      });
+
+      res.json({
+        success: true,
+        summary: {
+          profile: profileLevel,
+          equipment: availableEquipment,
+          totalDays: numDays,
+          totalTSS,
+          avgIntensity: Math.round(avgIntensity * 10) / 10,
+          totalCalories,
+          focusDistribution
+        },
+        weekPlan,
+        generatedAt: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error("Week simulation failed:", error);
+      res.status(500).json({ 
+        error: "Failed to simulate week plan",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
   
   // Workout generation route (no auth required, handle 405 explicitly) - must be first to avoid conflicts
   app.all("/api/workouts/generate", async (req, res) => {
