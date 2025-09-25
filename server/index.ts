@@ -84,14 +84,21 @@ if (Sentry.Handlers) {
 }
 
 // CORS configuration
-const allowed = [/\.vercel\.app$/, 'https://axle-ebon.vercel.app'];
-app.use(cors({ 
-  origin: (o, cb) => {
-    if (!o) return cb(null, true);
-    if (allowed.some(a => (a instanceof RegExp ? a.test(o) : a === o))) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
-  }, 
-  credentials: true 
+const allowed = [
+  /^https?:\/\/.*\.replit\.dev$/,   // Replit preview tabs
+  "http://localhost:5173",          // local Vite
+  "https://axle-ebon.vercel.app"    // production web (adjust if different)
+];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowed.some((a) => a instanceof RegExp ? a.test(origin) : a === origin)) {
+      return cb(null, true);
+    }
+    cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
 }));
 
 // Structured logging with correlation IDs
