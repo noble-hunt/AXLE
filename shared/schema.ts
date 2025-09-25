@@ -202,6 +202,33 @@ export const healthReports = pgTable("health_reports", {
   fatigueScore: real("fatigue_score"), // 0.0-1.0 fatigue score based on health metrics
 });
 
+// DEVICE TOKENS - Push notification device tokens
+export const deviceTokens = pgTable("device_tokens", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  platform: text("platform").notNull().default('ios'), // 'ios' | 'web'
+  token: text("token").notNull(), // APNs device token or web push subscription
+  createdAt: timestamp("created_at").defaultNow(),
+  lastSeen: timestamp("last_seen").defaultNow(),
+}, (table) => ({
+  uniqueUserToken: uniqueIndex("unique_user_token").on(table.userId, table.token),
+}));
+
+// NOTIFICATIONS QUEUE - Push notification queue with channel support
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  data: jsonb("data"), // Additional payload data
+  channel: text("channel").notNull().default('auto'), // 'auto' | 'apns' | 'webpush'
+  scheduled_for: timestamp("scheduled_for").notNull(),
+  status: text("status").notNull().default('pending'), // 'pending' | 'sent' | 'failed'
+  sent_at: timestamp("sent_at"),
+  error: text("error"), // Error message if failed
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // SUGGESTED WORKOUTS - Daily workout suggestions per user
 export const suggestedWorkouts = pgTable("suggested_workouts", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -251,6 +278,18 @@ export const insertHealthReportSchema = createInsertSchema(healthReports).omit({
 export const insertSuggestedWorkoutSchema = createInsertSchema(suggestedWorkouts).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertDeviceTokenSchema = createInsertSchema(deviceTokens).omit({
+  id: true,
+  createdAt: true,
+  lastSeen: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+  sent_at: true,
 });
 
 // Types
@@ -417,6 +456,12 @@ export type Referral = typeof referrals.$inferSelect;
 export type InsertReferral = z.infer<typeof insertReferralSchema>;
 export type GroupAchievement = typeof groupAchievements.$inferSelect;
 export type InsertGroupAchievement = z.infer<typeof insertGroupAchievementSchema>;
+
+// TYPES FOR DEVICE TOKENS & NOTIFICATIONS
+export type DeviceToken = typeof deviceTokens.$inferSelect;
+export type InsertDeviceToken = z.infer<typeof insertDeviceTokenSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 // Legacy aliases for backward compatibility
 export const users = profiles; // Alias for compatibility

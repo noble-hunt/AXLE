@@ -1,5 +1,5 @@
 import { useLocation } from "wouter"
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { useAppStore } from "@/store/useAppStore"
 import { supabase } from "@/lib/supabase"
 import { Card } from "@/components/swift/card"
@@ -7,6 +7,16 @@ import { Button } from "@/components/swift/button"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { 
+  requestPushPermissions, 
+  registerPushToken, 
+  scheduleDailyWorkoutReminder, 
+  cancelAllLocalNotifications,
+  isNativeEnvironment 
+} from "@/lib/nativeNotifications"
+import { authFetch } from "@/lib/authFetch"
 import { 
   User, 
   Trophy,
@@ -131,6 +141,171 @@ function YourStats() {
 }
 
 // Modal content components
+function NotificationModal() {
+  const { toast } = useToast()
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [dailyReminderTime, setDailyReminderTime] = useState("09:00")
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Register device token with backend
+  const registerDeviceToken = async (token: string) => {
+    try {
+      const response = await authFetch('/api/push/register-device', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, platform: 'ios' })
+      })
+      
+      if (response.ok) {
+        console.log('Device token registered successfully')
+        toast({
+          title: "Notifications enabled",
+          description: "You'll receive workout reminders and updates.",
+        })
+      } else {
+        throw new Error('Failed to register device token')
+      }
+    } catch (error) {
+      console.error('Error registering device token:', error)
+      toast({
+        title: "Registration failed",
+        description: "Could not enable push notifications.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleNotificationToggle = async (enabled: boolean) => {
+    if (!isNativeEnvironment() && enabled) {
+      toast({
+        title: "Not available",
+        description: "Native notifications are only available in the mobile app.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLoading(true)
+    
+    try {
+      if (enabled) {
+        // Request permissions and register
+        const hasPermissions = await requestPushPermissions()
+        if (!hasPermissions) {
+          toast({
+            title: "Permission denied",
+            description: "Please enable notifications in your device settings.",
+            variant: "destructive",
+          })
+          setIsLoading(false)
+          return
+        }
+
+        // Register for push notifications
+        await registerPushToken(registerDeviceToken)
+        
+        // Schedule daily reminder if time is set
+        if (dailyReminderTime) {
+          const [hours, minutes] = dailyReminderTime.split(':').map(Number)
+          await scheduleDailyWorkoutReminder(hours, minutes)
+        }
+        
+        setNotificationsEnabled(true)
+      } else {
+        // Disable notifications
+        await cancelAllLocalNotifications()
+        setNotificationsEnabled(false)
+        toast({
+          title: "Notifications disabled",
+          description: "You won't receive workout reminders.",
+        })
+      }
+    } catch (error) {
+      console.error('Error handling notification toggle:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update notification settings.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleTimeChange = async (time: string) => {
+    setDailyReminderTime(time)
+    
+    if (notificationsEnabled && time) {
+      const [hours, minutes] = time.split(':').map(Number)
+      await scheduleDailyWorkoutReminder(hours, minutes)
+      toast({
+        title: "Reminder updated",
+        description: `Daily workout reminder set for ${time}`,
+      })
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-subheading font-semibold text-foreground mb-2">Notification Settings</h3>
+        <p className="text-caption text-muted-foreground">
+          Manage your workout reminders and push notifications.
+        </p>
+      </div>
+
+      {/* Enable Notifications Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <Label htmlFor="notifications-toggle" className="text-body font-medium text-foreground">
+            Enable Notifications
+          </Label>
+          <p className="text-caption text-muted-foreground">
+            Receive workout reminders and updates
+          </p>
+        </div>
+        <Switch
+          id="notifications-toggle"
+          checked={notificationsEnabled}
+          onCheckedChange={handleNotificationToggle}
+          disabled={isLoading}
+          data-testid="switch-notifications"
+        />
+      </div>
+
+      {/* Daily Reminder Time */}
+      <div className="space-y-3">
+        <div>
+          <Label htmlFor="reminder-time" className="text-body font-medium text-foreground">
+            Daily Workout Reminder
+          </Label>
+          <p className="text-caption text-muted-foreground">
+            Set a time for your daily workout reminder
+          </p>
+        </div>
+        <input
+          id="reminder-time"
+          type="time"
+          value={dailyReminderTime}
+          onChange={(e) => handleTimeChange(e.target.value)}
+          disabled={!notificationsEnabled || isLoading}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          data-testid="input-reminder-time"
+        />
+      </div>
+
+      {!isNativeEnvironment() && (
+        <div className="rounded-lg bg-muted p-4">
+          <p className="text-caption text-muted-foreground">
+            ℹ️ Native push notifications are only available in the mobile app. 
+            Use the iOS or Android app to enable workout reminders.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AboutModal() {
   return (
     <div className="space-y-4">
@@ -417,7 +592,7 @@ function SettingsSection() {
     { icon: Settings, label: "Edit Profile", path: "/profile/edit", color: "text-primary", type: "navigate" },
     { icon: Trophy, label: "Personal Records", path: "/prs", color: "text-accent", type: "navigate" },
     { icon: Award, label: "Achievements", path: "/achievements", color: "text-accent", type: "navigate" },
-    { icon: Bell, label: "Notifications", path: "/notifications", type: "navigate" },
+    { icon: Bell, label: "Notifications", type: "modal" },
     { icon: Shield, label: "Privacy", type: "modal" },
     { icon: Info, label: "About", type: "modal" },
     { icon: FileText, label: "Terms of Use", type: "modal" },
@@ -426,6 +601,8 @@ function SettingsSection() {
   
   const getModalContent = (label: string) => {
     switch (label) {
+      case "Notifications":
+        return <NotificationModal />
       case "About":
         return <AboutModal />
       case "Privacy":
@@ -559,7 +736,7 @@ export default function Profile() {
         const base64String = e.target?.result as string
         
         // Update profile with new avatar (safely handle null profile)
-        setProfile(prev => prev ? { 
+        setProfile((prev: any) => prev ? { 
           ...prev, 
           avatarUrl: base64String 
         } : { 
