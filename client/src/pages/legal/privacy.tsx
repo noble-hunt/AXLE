@@ -1,5 +1,5 @@
-import { Section } from "@/components/layout/Section";
-import { Heading } from "@/components/typography/Heading";
+import Section from "@/components/layout/Section";
+import { PageTitle } from "@/components/typography/Heading";
 import { BackButton } from "@/components/ui/back-button";
 
 export default function PrivacyPolicy() {
@@ -9,7 +9,7 @@ export default function PrivacyPolicy() {
         <BackButton />
         
         <Section>
-          <Heading level={1} className="mb-8">Privacy Policy</Heading>
+          <PageTitle>Privacy Policy</PageTitle>
           
           <div className="prose prose-gray dark:prose-invert max-w-none">
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
