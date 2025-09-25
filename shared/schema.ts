@@ -34,12 +34,26 @@ export const workouts = pgTable("workouts", {
   // Deterministic generation fields
   genSeed: jsonb("gen_seed").notNull().default(sql`'{}'`), // Comprehensive seed object
   generatorVersion: text("generator_version").notNull().default('v0.3.0'), // Generator version
+  generationId: text("generation_id"), // For telemetry tracking
   // AI-generated workout fields
   rationale: text("rationale"), // AI rationale for the workout design
   criticScore: integer("critic_score"), // 0-100 critic score
   criticIssues: text("critic_issues").array(), // Array of identified issues
   rawWorkoutJson: jsonb("raw_workout_json"), // Full AI-generated workout JSON for debugging
 });
+
+// WORKOUT FEEDBACK - RPE and satisfaction feedback from users
+export const workoutFeedback = pgTable("workout_feedback", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  workoutId: uuid("workout_id").notNull(), // FK to workouts(id)
+  userId: uuid("user_id").notNull(), // FK to auth.users(id) in Supabase
+  perceivedIntensity: smallint("perceived_intensity").notNull(), // 1-10 RPE scale
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Unique constraint - one feedback per user per workout
+  uniqueUserWorkout: uniqueIndex("workout_feedback_user_workout_unique").on(table.userId, table.workoutId),
+}));
 
 // PRS (Personal Records)
 export const prs = pgTable("prs", {
@@ -291,16 +305,6 @@ export const workoutEvents = pgTable("workout_events", {
   requestHash: text("request_hash"), // Hash of generation request for deduplication
   payload: jsonb("payload").notNull(), // Event-specific data (generation details or feedback)
   responseTimeMs: integer("response_time_ms"), // Generation response time in milliseconds
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// WORKOUT FEEDBACK - User feedback for progressive overload and ML training
-export const workoutFeedback = pgTable("workout_feedback", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  workoutId: uuid("workout_id").notNull(), // References workouts.id
-  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
-  perceivedIntensity: smallint("perceived_intensity").notNull(), // RPE 1-10
-  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

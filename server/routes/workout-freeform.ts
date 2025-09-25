@@ -159,12 +159,23 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
     const userId = authReq.user.id;
     const workoutId = req.params.id;
     
-    // Validate request body
-    const { perceivedIntensity, notes } = req.body;
+    // Validate request body with Zod schema
+    const { insertWorkoutFeedbackSchema } = await import('../../shared/schema');
+    const validationResult = insertWorkoutFeedbackSchema.safeParse({
+      workoutId,
+      userId,
+      perceivedIntensity: req.body.perceivedIntensity,
+      notes: req.body.notes
+    });
     
-    if (!perceivedIntensity || perceivedIntensity < 1 || perceivedIntensity > 10) {
-      return res.status(400).json({ error: 'perceivedIntensity must be between 1 and 10' });
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Invalid feedback data',
+        details: validationResult.error.issues
+      });
     }
+    
+    const { perceivedIntensity, notes } = validationResult.data;
     
     // Verify workout exists and belongs to user
     const { getWorkout, insertWorkoutFeedback } = await import('../dal/workouts');
@@ -174,13 +185,41 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Workout not found' });
     }
     
-    // Insert feedback
-    const feedback = await insertWorkoutFeedback({
-      workoutId,
-      userId,
-      perceivedIntensity: parseInt(perceivedIntensity),
-      notes: notes || ''
-    });
+    // Insert feedback (with duplicate handling)
+    let feedback;
+    try {
+      feedback = await insertWorkoutFeedback({
+        workoutId,
+        userId,
+        perceivedIntensity,
+        notes: notes || ''
+      });
+    } catch (error: any) {
+      // Handle duplicate feedback submission
+      if (error.message.includes('Feedback already submitted for this workout')) {
+        return res.status(409).json({ 
+          error: 'Feedback already submitted for this workout' 
+        });
+      }
+      throw error; // Re-throw other errors
+    }
+    
+    // Log telemetry for ML training data
+    try {
+      const { logFeedbackEvent } = await import('../workouts/telemetry');
+      
+      // Get generation ID from workout if available
+      const generationId = workout.generationId || 'unknown';
+      
+      await logFeedbackEvent(userId, workoutId, generationId, {
+        feedbackType: 'rpe',
+        rpe: perceivedIntensity,
+        comments: notes || undefined
+      });
+    } catch (telemetryError) {
+      console.warn('Failed to log telemetry for feedback:', telemetryError);
+      // Don't fail the request if telemetry fails
+    }
     
     res.json({ success: true, feedback });
   } catch (error: any) {

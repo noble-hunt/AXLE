@@ -328,6 +328,10 @@ export async function insertWorkoutFeedback({ workoutId, userId, perceivedIntens
     .single();
 
   if (error) {
+    // Improve error handling for duplicates
+    if (error.code === '23505') { // PostgreSQL unique violation
+      throw new Error('Feedback already submitted for this workout');
+    }
     throw new Error(`Failed to insert workout feedback: ${error.message}`);
   }
 
@@ -340,7 +344,7 @@ export async function insertWorkoutFeedback({ workoutId, userId, perceivedIntens
 export async function getRecentRPEs(userId: string, limit: number = 10) {
   const { data, error } = await supabaseAdmin
     .from('workout_feedback')
-    .select('perceived_intensity, created_at, workout_id')
+    .select('workout_id, perceived_intensity, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);

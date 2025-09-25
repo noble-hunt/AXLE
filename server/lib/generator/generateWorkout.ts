@@ -114,7 +114,7 @@ export async function generateWorkout(
   const intensityCapped = cappedIntensity !== originalIntensity;
   
   // Get progression directives
-  const progressionDirectives = generateProgressionDirectives(workoutHistory, seed.inputs.archetype);
+  const progressionDirectives = await generateProgressionDirectives(seed.context.userId, workoutHistory, seed.inputs.archetype);
   choices.schemeId = progressionDirectives.progressionType;
   
   // Adjust target intensity based on progression

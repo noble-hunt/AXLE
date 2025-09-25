@@ -41,6 +41,34 @@ export interface ProgressionContext {
 }
 
 /**
+ * Enrich workout history with RPE data from workout_feedback table
+ */
+export async function enrichWorkoutHistoryWithRPE(
+  userId: string, 
+  workouts: WorkoutHistory[]
+): Promise<WorkoutHistory[]> {
+  try {
+    const { getRecentRPEs } = await import('../../dal/workouts');
+    const rpeData = await getRecentRPEs(userId, 20); // Get more than we need
+    
+    // Create lookup map for RPE by workout ID
+    const rpeMap = new Map();
+    rpeData.forEach(rpe => {
+      rpeMap.set(rpe.workout_id, rpe.perceived_intensity);
+    });
+    
+    // Enrich workouts with RPE data
+    return workouts.map(workout => ({
+      ...workout,
+      rpe: rpeMap.get(workout.id) || workout.rpe
+    }));
+  } catch (error) {
+    console.warn('Failed to enrich workout history with RPE data:', error);
+    return workouts; // Return original workouts if enrichment fails
+  }
+}
+
+/**
  * Analyze recent workout history for progression patterns
  */
 export function analyzeWorkoutHistory(
@@ -293,12 +321,16 @@ function generateEnduranceProgression(
 /**
  * Main function to generate progression directives
  */
-export function generateProgressionDirectives(
+export async function generateProgressionDirectives(
+  userId: string,
   workoutHistory: WorkoutHistory[],
   targetArchetype: WorkoutArchetype
-): ProgressionDirectives {
+): Promise<ProgressionDirectives> {
   
-  const context = analyzeWorkoutHistory(workoutHistory, targetArchetype);
+  // Enrich workout history with RPE data from feedback table
+  const enrichedHistory = await enrichWorkoutHistoryWithRPE(userId, workoutHistory);
+  
+  const context = analyzeWorkoutHistory(enrichedHistory, targetArchetype);
   
   switch (targetArchetype) {
     case 'strength':
