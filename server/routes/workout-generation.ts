@@ -24,6 +24,9 @@ import type { WorkoutGenerationRequest } from "../ai/generateWorkout";
 import type { WorkoutRequest, WorkoutPlan, MetricsSnapshot } from "../workouts/types";
 import { isWorkoutV2Enabled, useMLPolicy, shouldShowMetricsDebug } from "../config/flags";
 import { generateWorkoutPlan } from "../workouts/engine";
+// Telemetry for RL training data collection
+import { logGenerationEvent, extractMetricsSnapshot, createRequestHash } from "../workouts/telemetry.js";
+import { randomUUID } from "crypto";
 
 // Metrics snapshot schema for validation
 const metricsSnapshotSchema = z.object({
@@ -370,6 +373,9 @@ async function convertToV2Format(userId: string, context: any, request: any) {
 export function registerWorkoutGenerationRoutes(app: Express) {
   // V2 Unified Workout Generation Endpoint
   app.post("/api/generate/v2", requireAuth, async (req, res) => {
+    const startTime = Date.now();
+    const generationId = randomUUID();
+    
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
@@ -399,18 +405,48 @@ export function registerWorkoutGenerationRoutes(app: Express) {
         debugInfo.energySystemsHistory || undefined
       );
       
+      // Calculate response time for telemetry
+      const responseTimeMs = Date.now() - startTime;
+      
+      // Log telemetry for RL training data collection
+      try {
+        const metricsSnapshot = extractMetricsSnapshot(debugInfo.axleScores);
+        const generationEventData = {
+          selectedFocus: workoutPlan.focus,
+          targetIntensity: workoutPlan.targetIntensity,
+          blockIds: workoutPlan.blocks.map(block => block.id),
+          estimatedTSS: workoutPlan.estimatedTSS || 0,
+          metricsSnapshot,
+          workoutRequest: {
+            category: 'CrossFit', // Default category for V2
+            duration: validatedData.duration,
+            intensity: validatedData.intensity,
+            equipment: validatedData.equipment || []
+          },
+          v2Request: validatedData // Store full V2 request for analysis
+        };
+        
+        await logGenerationEvent(userId, generationEventData, responseTimeMs, generationId);
+      } catch (telemetryError) {
+        // Don't fail the request if telemetry fails
+        console.error('❌ [TELEMETRY] Failed to log generation event:', telemetryError);
+      }
+      
       // For development, log the generation process
       console.log('🏋️ V2 Workout Generated:', {
+        generationId,
         focus: workoutPlan.focus,
         intensity: workoutPlan.targetIntensity,
         blocks: workoutPlan.blocks.length,
         estimatedTSS: workoutPlan.estimatedTSS,
-        metricsSource: debugInfo.metricsSource
+        metricsSource: debugInfo.metricsSource,
+        responseTimeMs
       });
       
       const response: any = {
         success: true,
         plan: workoutPlan,
+        generationId, // Include generation ID for feedback linking
         generatedAt: new Date().toISOString(),
         version: 'v2'
       };
