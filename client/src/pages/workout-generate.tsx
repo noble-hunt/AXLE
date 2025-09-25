@@ -231,8 +231,6 @@ export default function WorkoutGenerate() {
     mutationFn: async () => {
       if (!generatedWorkout) throw new Error("No workout to save");
       
-      const { createWorkout } = await import('@/lib/workoutAPI');
-      
       const workoutData = {
         title: generatedWorkout.plan?.focus || 'AI Generated Workout',
         notes: generatedWorkout.plan?.rationale?.join('\n') || 'AI Generated Workout',
@@ -250,7 +248,14 @@ export default function WorkoutGenerate() {
         }
       };
       
-      const workoutId = await createWorkout(workoutData);
+      // Use httpJSON to create workout directly
+      const response = await httpJSON('/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(workoutData)
+      });
+      
+      const workoutId = response.id;
       
       // Also add to local store for immediate UI updates
       addWorkout({
@@ -264,6 +269,9 @@ export default function WorkoutGenerate() {
         completed: false,
         notes: generatedWorkout.plan?.rationale?.join('\n') || '',
       });
+      
+      // Store the workoutId in the generated workout for feedback
+      setGeneratedWorkout(prev => prev ? { ...prev, savedWorkoutId: workoutId } : prev);
       
       return { workoutId, workout: generatedWorkout };
     },
@@ -308,10 +316,17 @@ export default function WorkoutGenerate() {
   }
 
   const handleFeedback = (type: 'easy' | 'hard') => {
-    // For demo purposes, we'll use a mock workout ID
-    // In a real app, this would be the actual saved workout ID
-    const mockWorkoutId = 'demo-workout-id';
-    feedbackMutation.mutate({ type, workoutId: mockWorkoutId });
+    // Only allow feedback if workout has been saved
+    if (!generatedWorkout?.savedWorkoutId) {
+      toast({
+        title: "Save First",
+        description: "Please save the workout before providing feedback.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    feedbackMutation.mutate({ type, workoutId: generatedWorkout.savedWorkoutId });
   }
 
   if (generatedWorkout) {
