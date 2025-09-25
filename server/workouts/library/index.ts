@@ -55,7 +55,7 @@ export function loadBlocks(): { blocks: WorkoutBlock[]; errors: string[] } {
   const errors: string[] = [];
   const allBlocks: WorkoutBlock[] = [];
   
-  const blockCategories = ['warmups', 'primaries', 'accessories', 'conditioning', 'finishers'];
+  const blockCategories = ['warmup', 'primary', 'accessory', 'conditioning', 'finisher'];
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
   const libraryPath = join(__dirname, 'blocks');
