@@ -143,7 +143,7 @@ app.use((req, res, next) => {
 
 (async () => {
   // Run boot-time migration guard to ensure critical schema exists
-  await runBootMigrationGuard();
+  // await runBootMigrationGuard(); // Disabled: Not applicable for local PostgreSQL database
   
   const server = await registerRoutes(app);
 

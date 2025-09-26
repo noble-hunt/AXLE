@@ -1,10 +1,24 @@
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
 export async function httpJSON<T>(path: string, init?: RequestInit): Promise<{ ok: true; } & T> {
   const base = import.meta.env.VITE_API_BASE_URL || '';
   const url = `${base}${path.startsWith('/') ? path : '/' + path}`;
+  
+  // Get the current session token for authenticated requests
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: Record<string, string> = { 
+    'content-type': 'application/json', 
+    ...(init?.headers || {}) 
+  };
+  
+  // Add Authorization header if we have a session
+  if (session?.access_token) {
+    headers['authorization'] = `Bearer ${session.access_token}`;
+  }
+  
   const res = await fetch(url, {
-    headers: { 'content-type': 'application/json', ...(init?.headers || {}) },
+    headers,
     credentials: 'include',
     ...init,
   });
