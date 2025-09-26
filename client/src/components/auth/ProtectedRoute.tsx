@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabase';
+import { LoadingState } from '@/components/ui/loading-state';
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
@@ -26,6 +27,6 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     }
   }, [loading, authed, setLocation]);
 
-  if (loading) return null; // or a spinner
+  if (loading) return <LoadingState message="Authenticating..." />;
   return authed ? <>{children}</> : null;
 }
