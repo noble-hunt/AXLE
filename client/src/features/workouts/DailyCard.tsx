@@ -1,40 +1,70 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { Link } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Activity, Target, Play } from 'lucide-react';
+import { Clock, Activity, Target, Play, LogIn } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { fetchDailySuggestion, type DailySuggestionResponse } from './api';
+import { useAppStore } from '@/store/useAppStore';
+import { fetchTodaySuggestion, type TodaySuggestionResponse } from './suggest/api';
 import { DailySuggestedCard } from './suggest/DailySuggestedCard';
 
 export function DailyCard() {
+  const { isAuthenticated } = useAppStore();
+  
   // Check for QA toggle in URL
   const showSeed = new URLSearchParams(window.location.search).get('showSeed') === '1';
 
   const {
     data,
-    isLoading
+    isLoading,
+    error
   } = useQuery({
-    queryKey: ['/api/suggestions/today'],
-    queryFn: fetchDailySuggestion,
+    queryKey: ['/api/workouts/suggest/today'],
+    queryFn: fetchTodaySuggestion,
+    enabled: isAuthenticated, // Only fetch when authenticated
     retry: 1,
     staleTime: 2 * 60 * 1000 // 2 minutes
   });
 
   // Show toast for server errors (only once)
   useEffect(() => {
-    if (data && data.suggestion === null && 'reason' in data && data.reason === 'server-error') {
-      const errorData = data as { suggestion: null; reason: 'server-error'; error: string; requestId?: string };
+    if (error) {
       toast({
         title: "Couldn't load today's suggestion",
-        description: `${errorData.error}${errorData.requestId ? ` (requestId: ${errorData.requestId})` : ''}`,
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
         variant: "destructive"
       });
     }
-  }, [data]);
+  }, [error]);
 
-  // Loading state
+  // Show sign-in state for unauthenticated users
+  if (!isAuthenticated) {
+    return (
+      <Card data-testid="daily-card-cta" className="w-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Today's Suggestion
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground">
+            Sign in to get personalized daily workout suggestions based on your fitness history.
+          </p>
+          <Button data-testid="button-sign-in" className="w-full" asChild>
+            <Link href="/auth/login">
+              <LogIn className="h-4 w-4 mr-2" />
+              Sign In
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Loading state for authenticated users
   if (isLoading) {
     return (
       <Card data-testid="daily-card-loading" className="w-full">
@@ -55,12 +85,10 @@ export function DailyCard() {
     );
   }
 
-  // Handle all null suggestion cases (unauth, insufficient-context, server-error)
-  if (!data || data.suggestion === null) {
-    const reason = data?.suggestion === null ? (data as any).reason : undefined;
-    
+  // Error state for authenticated users
+  if (error) {
     return (
-      <Card data-testid="daily-card-cta" className="w-full">
+      <Card data-testid="daily-card-error" className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
@@ -68,49 +96,47 @@ export function DailyCard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {reason === 'unauthenticated' ? (
-            <>
-              <p className="text-muted-foreground">
-                Sign in to get personalized daily workout suggestions based on your fitness history.
-              </p>
-              <Button data-testid="button-sign-in" className="w-full">
-                Sign In
-              </Button>
-            </>
-          ) : reason === 'insufficient-context' ? (
-            <>
-              <p className="text-muted-foreground">
-                Complete your profile and log a few workouts to get personalized suggestions.
-              </p>
-              <Button data-testid="button-configure-profile" className="w-full">
-                Configure Profile
-              </Button>
-            </>
-          ) : (
-            <>
-              <p className="text-muted-foreground">
-                Unable to load your daily suggestion right now. You can still generate a custom workout.
-              </p>
-              <Button data-testid="button-generate-workout" className="w-full">
-                Generate Workout
-              </Button>
-            </>
-          )}
+          <p className="text-muted-foreground">
+            Unable to load your daily suggestion right now. You can still generate a custom workout.
+          </p>
+          <Button data-testid="button-generate-workout" className="w-full" asChild>
+            <Link href="/suggest">Generate Workout</Link>
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
-  // Valid suggestion - extract data and use new component
-  const { suggestion } = data;
-  const seed = (data as any).seed;
-  const request = suggestion.request || {};
+  // Handle missing data
+  if (!data) {
+    return (
+      <Card data-testid="daily-card-no-data" className="w-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Today's Suggestion
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground">
+            Complete your profile and log a few workouts to get personalized suggestions.
+          </p>
+          <Button data-testid="button-configure-profile" className="w-full" asChild>
+            <Link href="/profile">Configure Profile</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Valid suggestion - extract data and transform for DailySuggestedCard
+  const { config, seed } = data;
   
   // Transform data for the new component
   const suggestionData = {
-    focus: request.category || 'Mixed Training',
-    minutes: request.duration || 30,
-    intensity: request.intensity || 5,
+    focus: config.focus || 'Mixed Training',
+    minutes: config.duration || 30,
+    intensity: config.intensity || 5,
     seed: seed || {},
     generatorVersion: seed?.generatorVersion || 'v0.3.0'
   };

@@ -24,13 +24,13 @@ export type TodaySuggestionResponse = {
 };
 
 export async function fetchTodaySuggestion(): Promise<TodaySuggestionResponse> {
-  return await httpJSON('/api/workouts/suggest/today');
+  return await httpJSON('workouts/suggest/today');
 }
 
 export async function startSuggestedWorkout(s: Suggestion) {
   // Try the new endpoint first
   try {
-    const res = await httpJSON<{ workoutId: string }>('/api/workouts/suggest/today/start', {
+    const res = await httpJSON<{ workoutId: string }>('workouts/suggest/today/start', {
       method: 'POST',
     });
     
