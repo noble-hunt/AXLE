@@ -1,5 +1,12 @@
 import { httpJSON } from '@/lib/http';
 
+export async function startSuggestion(): Promise<string> {
+  const response = await httpJSON<{ workoutId: string }>('/api/suggest/start', { 
+    method: 'POST' 
+  });
+  return response.workoutId;
+}
+
 
 export type Suggestion = {
   focus: string;
