@@ -100,7 +100,7 @@ export function DailyCard() {
             Unable to load your daily suggestion right now. You can still generate a custom workout.
           </p>
           <Button data-testid="button-generate-workout" className="w-full" asChild>
-            <Link href="/suggest">Generate Workout</Link>
+            <Link href="/workout/generate">Generate Workout</Link>
           </Button>
         </CardContent>
       </Card>
