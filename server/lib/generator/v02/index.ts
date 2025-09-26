@@ -1,0 +1,1 @@
+export { generateWorkout } from './generateWorkout';
