@@ -83,7 +83,7 @@ export default function Connect() {
     setLoading(true)
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
-      const data = await httpJSON('api/connect/providers', {
+      const data = await httpJSON('connect/providers', {
         headers: { Authorization: `Bearer ${token ?? ''}` }
       })
       setProviders(data || [])

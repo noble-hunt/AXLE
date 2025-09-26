@@ -291,13 +291,13 @@ router.post('/health/sync', requireAuth, async (req, res) => {
     let weatherData = undefined;
     try {
       const profileResult = await db.execute(sql`
-        SELECT location_opt_in, last_lat, last_lon 
+        SELECT last_lat, last_lon 
         FROM profiles 
         WHERE user_id = ${userId}
       `);
       const profile = profileResult.rows;
       
-      if (profile[0]?.location_opt_in && profile[0]?.last_lat && profile[0]?.last_lon) {
+      if (false && profile[0]?.last_lat && profile[0]?.last_lon) { // Temporarily disabled until schema is updated
         console.log(`🌍 [SYNC] Fetching environmental data for user ${userId}`);
         const lat = Number(profile[0].last_lat);
         const lon = Number(profile[0].last_lon);

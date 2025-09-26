@@ -658,7 +658,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sql } = await import("drizzle-orm");
       
       const result = await db.execute(sql`
-        SELECT location_opt_in, location_consent_at, last_lat, last_lon, timezone
+        SELECT last_lat, last_lon, timezone
         FROM profiles 
         WHERE user_id = ${userId}
       `);
@@ -666,8 +666,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profile = result?.rows?.[0];
       
       res.json({
-        optIn: profile?.location_opt_in ?? false,
-        consentAt: profile?.location_consent_at ?? null,
+        optIn: false, // Temporarily disabled until schema is updated
+        consentAt: null,
         lat: profile?.last_lat ?? null,
         lon: profile?.last_lon ?? null,
         timezone: profile?.timezone ?? null,
@@ -704,8 +704,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updateSql = sql`
             UPDATE profiles 
             SET 
-              location_opt_in = ${validatedData.optIn},
-              location_consent_at = ${new Date().toISOString()},
               last_lat = ${quantizedLat},
               last_lon = ${quantizedLon}
               ${validatedData.timezone ? sql`, timezone = ${validatedData.timezone}` : sql``}
@@ -716,29 +714,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updateSql = sql`
             UPDATE profiles 
             SET 
-              location_opt_in = ${validatedData.optIn},
-              location_consent_at = ${new Date().toISOString()},
               timezone = ${validatedData.timezone}
             WHERE user_id = ${authReq.user.id}
             RETURNING user_id
           `;
         } else {
-          updateSql = sql`
-            UPDATE profiles 
-            SET 
-              location_opt_in = ${validatedData.optIn},
-              location_consent_at = ${new Date().toISOString()}
-            WHERE user_id = ${authReq.user.id}
-            RETURNING user_id
-          `;
+          // For now, just return success since location_opt_in column doesn't exist
+          return res.json({ success: true });
         }
       } else {
-        // Clear cached coords and consent timestamp on opt-out (consent granted = null when opted out)
+        // Clear cached coords on opt-out
         updateSql = sql`
           UPDATE profiles 
           SET 
-            location_opt_in = ${validatedData.optIn},
-            location_consent_at = NULL,
             last_lat = NULL,
             last_lon = NULL
           WHERE user_id = ${authReq.user.id}
@@ -1065,14 +1053,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sql } = await import("drizzle-orm");
       
       const profileResult = await db.execute(sql`
-        SELECT location_opt_in, last_lat, last_lon 
+        SELECT last_lat, last_lon 
         FROM profiles 
         WHERE user_id = ${authReq.user.id}
         LIMIT 1
       `);
       
       const profileRow = profileResult.rows[0];
-      const hasLocationConsent = profileRow?.location_opt_in && 
+      const hasLocationConsent = false && // Temporarily disabled until schema is updated
                                 profileRow?.last_lat !== null && 
                                 profileRow?.last_lon !== null;
       

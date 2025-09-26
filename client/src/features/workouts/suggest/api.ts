@@ -30,7 +30,7 @@ export async function fetchTodaySuggestion(): Promise<TodaySuggestionResponse> {
 
 export async function rotateSuggestion(): Promise<TodaySuggestionResponse> {
   try {
-    const res = await httpJSON<{ suggestion: TodaySuggestionResponse }>('workouts/suggest/rotate', {
+    const res = await httpJSON<{ suggestion: TodaySuggestionResponse }>('/api/workouts/suggest/rotate', {
       method: 'POST',
     });
     return res.suggestion;
