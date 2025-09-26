@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card } from '@/components/swift/card';
+import { Button } from '@/components/swift/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Clock, Activity, Target, LogIn, RotateCcw, Info, Zap } from 'lucide-react';
@@ -24,15 +24,13 @@ export function DailySuggestionCard() {
   // Show sign-in state for unauthenticated users
   if (!isAuthenticated) {
     return (
-      <Card data-testid="daily-suggestion-card-cta" className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Daily Suggested Workout
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground">
+      <Card data-testid="daily-suggestion-card-cta" className="w-full p-4">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <h3 className="text-body font-medium text-foreground">Daily Suggested Workout</h3>
+          </div>
+          <p className="text-caption text-muted-foreground">
             Sign in to get personalized daily workout suggestions based on your fitness history.
           </p>
           <Button data-testid="button-sign-in" className="w-full" asChild>
@@ -41,7 +39,7 @@ export function DailySuggestionCard() {
               Sign In
             </Link>
           </Button>
-        </CardContent>
+        </div>
       </Card>
     );
   }
@@ -49,20 +47,22 @@ export function DailySuggestionCard() {
   // Loading state for authenticated users
   if (isLoading) {
     return (
-      <Card data-testid="daily-suggestion-card-loading" className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Daily Suggested Workout
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-10 bg-gray-200 rounded"></div>
+      <Card data-testid="daily-suggestion-card-loading" className="w-full p-4">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <h3 className="text-body font-medium text-foreground">Daily Suggested Workout</h3>
           </div>
-        </CardContent>
+          <div className="animate-pulse space-y-3">
+            <div className="h-4 bg-muted rounded w-3/4"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
+            <div className="flex gap-2">
+              <div className="h-6 bg-muted rounded-full w-16"></div>
+              <div className="h-6 bg-muted rounded-full w-12"></div>
+            </div>
+            <div className="h-10 bg-muted rounded"></div>
+          </div>
+        </div>
       </Card>
     );
   }
@@ -70,21 +70,19 @@ export function DailySuggestionCard() {
   // Error state for authenticated users
   if (error) {
     return (
-      <Card data-testid="daily-suggestion-card-error" className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Daily Suggested Workout
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground">
+      <Card data-testid="daily-suggestion-card-error" className="w-full p-4">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <h3 className="text-body font-medium text-foreground">Daily Suggested Workout</h3>
+          </div>
+          <p className="text-caption text-muted-foreground">
             Unable to load your daily suggestion right now. You can still generate a custom workout.
           </p>
           <Button data-testid="button-generate-workout" className="w-full" asChild>
             <Link href="/workout/generate">Generate Workout</Link>
           </Button>
-        </CardContent>
+        </div>
       </Card>
     );
   }
@@ -92,21 +90,19 @@ export function DailySuggestionCard() {
   // Handle missing data
   if (!data) {
     return (
-      <Card data-testid="daily-suggestion-card-no-data" className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Daily Suggested Workout
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground">
+      <Card data-testid="daily-suggestion-card-no-data" className="w-full p-4">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <h3 className="text-body font-medium text-foreground">Daily Suggested Workout</h3>
+          </div>
+          <p className="text-caption text-muted-foreground">
             Complete your profile and log a few workouts to get personalized suggestions.
           </p>
           <Button data-testid="button-configure-profile" className="w-full" asChild>
             <Link href="/profile">Configure Profile</Link>
           </Button>
-        </CardContent>
+        </div>
       </Card>
     );
   }
@@ -123,22 +119,19 @@ export function DailySuggestionCard() {
 
   return (
     <>
-      <Card data-testid="daily-suggestion-card" className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Daily Suggested Workout
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground text-sm">Personalized for today</p>
+      <Card data-testid="daily-suggestion-card" className="w-full p-4">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <h3 className="text-body font-medium text-foreground">Daily Suggested Workout</h3>
+          </div>
+          
+          <p className="text-caption text-muted-foreground">Personalized for today</p>
           
           {/* Workout details */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-lg font-semibold" data-testid="text-focus">
-                {config.focus || 'Mixed Training'}
-              </div>
+            <div className="text-subheading font-bold text-foreground" data-testid="text-focus">
+              {config.focus || 'Mixed Training'}
             </div>
             
             {/* Pills for duration, intensity, equipment */}
@@ -194,7 +187,7 @@ export function DailySuggestionCard() {
               </Button>
             </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Rationale Dialog */}
