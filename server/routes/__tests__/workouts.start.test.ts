@@ -294,6 +294,46 @@ describe('/api/workouts/start endpoint', () => {
         })
       );
     });
+
+    it('should return 400 when minutes is not an integer', async () => {
+      // Arrange
+      mockReq.body = {
+        focus: 'Strength',
+        minutes: 30.5, // decimal fails .int()
+        intensity: 7
+      };
+
+      // Act
+      await startSuggestedWorkout(mockReq as Request, mockRes as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: 'validation-failed'
+        })
+      );
+    });
+
+    it('should return 400 when intensity is not an integer', async () => {
+      // Arrange
+      mockReq.body = {
+        focus: 'Strength',
+        minutes: 30,
+        intensity: 7.8 // decimal fails .int()
+      };
+
+      // Act
+      await startSuggestedWorkout(mockReq as Request, mockRes as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: 'validation-failed'
+        })
+      );
+    });
   });
 
   describe('Service Layer Errors', () => {
