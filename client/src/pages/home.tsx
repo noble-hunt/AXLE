@@ -4,7 +4,7 @@ import { useAppStore } from "@/store/useAppStore"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Sheet } from "@/components/swift/sheet"
-import { DailyCard } from "@/features/workouts/DailyCard"
+import { DailySuggestionCard } from "@/components/workouts/DailySuggestionCard"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
 import { 
@@ -208,7 +208,7 @@ export default function Home() {
 
         {/* Daily Suggested Workout */}
         <motion.div variants={slideUp}>
-          <DailyCard />
+          <DailySuggestionCard />
         </motion.div>
 
         {/* Health Insights */}

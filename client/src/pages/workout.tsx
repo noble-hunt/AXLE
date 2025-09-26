@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card"
 import { Card as SwiftCard } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
-import { SuggestionCard } from "@/components/SuggestionCard"
+import { DailySuggestionCard } from "@/components/workouts/DailySuggestionCard"
 import { Play, Plus, Timer, Dumbbell, ChevronRight, Clock, Zap, CheckCircle, Activity, Heart, Move, Weight, Lightbulb, Edit3 } from "lucide-react"
 import { useLocation, Link } from "wouter"
 import { useAppStore } from "@/store/useAppStore"
@@ -85,7 +85,7 @@ export default function Workout() {
       <SectionTitle title="Workouts" />
 
       {/* Suggested Workout */}
-      <SuggestionCard variant="workout" />
+      <DailySuggestionCard />
 
       {/* Log Your Own Workout */}
       <Button 
