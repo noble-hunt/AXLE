@@ -5,13 +5,49 @@ export function adaptToPlanV1(raw: any): any {
   // add conservative defaults if missing
   
   try {
-    // If raw data is missing required fields, add defaults
-    const adapted = {
-      ...raw,
-      version: 1,
-      
-      // Ensure blocks exist and have items
-      blocks: (raw.blocks || []).map((block: any) => ({
+    const rawBlocks = raw.blocks || [];
+    
+    // Handle missing/empty blocks by creating minimal valid structure
+    let adaptedBlocks;
+    if (rawBlocks.length === 0) {
+      // Create conservative minimal 2-block plan (warmup + main)
+      const durationMin = raw.durationMin || 30;
+      const focus = raw.focus || "mixed";
+      adaptedBlocks = [
+        {
+          key: "warmup",
+          title: `${focus} warmup`,
+          targetSeconds: 300, // 5 minutes
+          items: [{
+            movementId: "warmup_default",
+            name: "Dynamic warmup",
+            prescription: {
+              type: "time" as const,
+              sets: 1,
+              seconds: 300,
+              restSec: 0,
+            }
+          }]
+        },
+        {
+          key: "main", 
+          title: "Main workout",
+          targetSeconds: (durationMin - 5) * 60,
+          items: [{
+            movementId: "main_default",
+            name: `${focus} training`,
+            prescription: {
+              type: "time" as const,
+              sets: 1,
+              seconds: (durationMin - 5) * 60,
+              restSec: 0,
+            }
+          }]
+        }
+      ];
+    } else {
+      // Adapt existing blocks, ensure each has items
+      adaptedBlocks = rawBlocks.map((block: any) => ({
         ...block,
         key: block.key || block.type || "main",
         title: block.title || block.notes || `${block.type || "main"} block`,
@@ -28,7 +64,33 @@ export function adaptToPlanV1(raw: any): any {
             }
           }
         ]
-      })),
+      }));
+    }
+
+    // If we still don't have at least 2 blocks, add a minimal second block
+    if (adaptedBlocks.length < 2) {
+      adaptedBlocks.push({
+        key: "cooldown",
+        title: "Cool down", 
+        targetSeconds: 180, // 3 minutes
+        items: [{
+          movementId: "cooldown_default",
+          name: "Recovery",
+          prescription: {
+            type: "time" as const,
+            sets: 1,
+            seconds: 180,
+            restSec: 0,
+          }
+        }]
+      });
+    }
+    
+    // If raw data is missing required fields, add defaults
+    const adapted = {
+      ...raw,
+      version: 1,
+      blocks: adaptedBlocks,
       
       // Ensure required top-level fields
       seed: raw.seed || crypto.randomUUID(),

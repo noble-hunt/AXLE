@@ -6,9 +6,9 @@ export const workouts = Router();
 
 const PreviewSchema = z.object({
   focus: z.enum(["strength","conditioning","mixed","endurance"]),
-  durationMin: z.number().int().min(5).max(180),
+  durationMin: z.coerce.number().int().min(10).max(120), // Align with WorkoutPlanZ
   equipment: z.array(z.string()).default([]),
-  intensity: z.number().min(1).max(10),
+  intensity: z.coerce.number().int().min(1).max(10), // Align with WorkoutPlanZ - must be integer
   seed: z.string().optional()
 });
 
@@ -120,7 +120,8 @@ workouts.post("/preview", async (req, res) => {
   }
 });
 
-// Back-compat aliases so any old callers still work
-workouts.post("/generate/preview", (req,res,next) => {
-  (workouts as any).handle({ ...req, url: "/preview" }, res, next);
+// Back-compat alias - use safer path registration approach
+workouts.post("/generate/preview", async (req, res) => {
+  // Redirect to the canonical endpoint to avoid handler duplication
+  return res.redirect(307, "/api/workouts/preview");
 });
