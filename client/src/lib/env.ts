@@ -33,3 +33,11 @@ export const logEnvironment = () => {
     isNativePlatform: (window as any).Capacitor?.isNativePlatform?.(),
   });
 };
+
+/**
+ * API base URL configuration
+ */
+export const API_BASE =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) && import.meta.env.VITE_API_BASE_URL.trim() !== ""
+    ? import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "")
+    : ""; // same-origin relative

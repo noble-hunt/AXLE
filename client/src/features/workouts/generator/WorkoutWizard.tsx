@@ -2,7 +2,8 @@ import { useState, useEffect } from "react"
 import { useLocation, useSearch } from "wouter"
 import { useMutation } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
-import { httpJSON } from "@/lib/http"
+import { fetchPreview } from "./api"
+import { HttpError } from "@/lib/http"
 import { useAppStore } from "@/store/useAppStore"
 import { SectionTitle } from "@/components/ui/section-title"
 import { Card } from "@/components/swift/card"
@@ -10,7 +11,7 @@ import { Button } from "@/components/swift/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Progress } from "@/components/ui/progress"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { createGenerationSeed } from "@shared/types/workouts"
+// Removed dependency on shared types - using simpler local generation
 
 // Import step components
 import { ArchetypeStep } from "./steps/ArchetypeStep"
@@ -181,57 +182,45 @@ export function WorkoutWizard() {
     setIsSimulating(true);
     
     try {
-      // Create or use provided seed for deterministic generation
-      let generationSeed = undefined;
-      if (customSeed) {
-        try {
-          generationSeed = JSON.parse(customSeed);
-        } catch {
-          // If not JSON, treat as simple string seed (legacy)
-          generationSeed = { algo: 'v1' as const, userHash: customSeed, day: new Date().toISOString().split('T')[0] };
-        }
-      } else if (profile?.id) {
-        // Create deterministic seed for preview using proper hash
-        generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
-        setPreviewSeed(generationSeed);
+      // Create simple seed for preview
+      let seedValue = customSeed;
+      if (!seedValue && profile?.id) {
+        // Create simple deterministic seed for preview
+        seedValue = `${profile.id}-${wizardState.archetype}-${new Date().toISOString().split('T')[0]}`;
+        setPreviewSeed(seedValue);
       }
       
-      // Use POST /api/workouts/simulate for preview (no persistence)
-      const requestBody = {
-        archetype: wizardState.archetype,
-        minutes: wizardState.minutes,
-        intensity: wizardState.intensity,
+      // Remove old requestBody - now using fetchPreview directly
+
+      // Transform wizard state to fetchPreview format
+      const previewInput = {
+        focus: wizardState.archetype,
+        durationMin: wizardState.minutes,
         equipment: wizardState.equipment,
-        ...(generationSeed && { seed: generationSeed })
+        intensity: wizardState.intensity,
+        ...(seedValue && { seed: seedValue })
       };
 
-      const response = await httpJSON<SimulateWorkoutResponse>(`/api/workouts/simulate`, {
-        method: 'POST',
-        body: JSON.stringify(requestBody),
-      });
+      const response = await fetchPreview(previewInput);
 
-      if (!response.ok) {
-        throw new Error((response as any).error?.message || "Failed to generate workout preview");
-      }
-
-      // Transform response to match preview data structure
+      // Transform response from new preview endpoint format
       const previewData: WorkoutPreviewData = {
         workout: {
-          id: response.workout.id, // Will be null for simulation
-          name: response.workout.meta?.title || "Generated Workout",
+          id: null, // Preview doesn't persist to database
+          name: "Generated Workout",
           description: `${wizardState.archetype} workout for ${wizardState.minutes} minutes`,
-          totalMinutes: response.workout.estTimeMin,
-          estimatedIntensity: response.workout.intensity,
-          blocks: response.workout.blocks?.map((exercise: any, index: number) => ({
+          totalMinutes: wizardState.minutes,
+          estimatedIntensity: wizardState.intensity,
+          blocks: response.preview.blocks?.map((block: any, index: number) => ({
             id: `block-${index}`,
-            name: exercise.name || `Exercise ${index + 1}`,
-            type: "main",
+            name: block.type || `Block ${index + 1}`,
+            type: block.type || "main",
             exercises: [{
               id: `ex-${index}`,
-              name: exercise.name || "Exercise",
-              sets: exercise.sets || 1,
-              reps: exercise.reps || "10",
-              notes: exercise.notes
+              name: block.notes || `${block.type} block`,
+              sets: 1,
+              reps: `${block.minutes} min`,
+              notes: block.notes
             }]
           })) || [],
           coaching_notes: "Generated workout based on your preferences",
@@ -247,16 +236,13 @@ export function WorkoutWizard() {
           movementPoolIds: wizardState.equipment,
           schemeId: "standard"
         },
-        seed: generationSeed ? JSON.stringify(generationSeed) : ""
+        seed: response.seed || ""
       };
 
       setPreviewData(previewData);
-    } catch (error: any) {
-      toast({
-        title: "Preview Failed",
-        description: error.message || "Failed to generate workout preview.",
-        variant: "destructive",
-      });
+    } catch (e: any) {
+      const msg = e?.message ?? (e?.status ? `HTTP ${e.status}` : "Preview failed");
+      toast({ title: "Preview Failed", description: msg, variant: "destructive" });
     } finally {
       setIsSimulating(false);
     }
@@ -265,23 +251,11 @@ export function WorkoutWizard() {
   // Generate and save workout
   const generateMutation = useMutation({
     mutationFn: async (customSeed?: string) => {
-      // Create or use provided seed for deterministic generation
-      let generationSeed = undefined;
-      if (customSeed) {
-        try {
-          generationSeed = JSON.parse(customSeed);
-        } catch {
-          // If not JSON, treat as simple string seed (legacy)
-          generationSeed = { algo: 'v1' as const, userHash: customSeed, day: new Date().toISOString().split('T')[0] };
-        }
-      } else if (profile?.id) {
-        // Use the same seed as preview for consistent results
-        if (previewSeed) {
-          generationSeed = previewSeed;
-        } else {
-          // Fallback to creating new seed
-          generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
-        }
+      // Create or use provided seed for generation 
+      let seedValue = customSeed || previewSeed;
+      if (!seedValue && profile?.id) {
+        // Create simple deterministic seed
+        seedValue = `${profile.id}-${wizardState.archetype}-${new Date().toISOString().split('T')[0]}`;
       }
 
       // Transform wizard state to server format
@@ -290,10 +264,12 @@ export function WorkoutWizard() {
         minutes: wizardState.minutes,
         intensity: wizardState.intensity,
         equipment: wizardState.equipment,
-        ...(generationSeed && { seed: generationSeed })
+        ...(seedValue && { seed: seedValue })
       };
 
-      const response = await httpJSON<GenerateWorkoutResponse>('/api/workouts/generate', {
+      // Use httpJSON directly for generation endpoint (keeping existing logic)
+      const { httpJSON } = await import('@/lib/http');
+      const response = await httpJSON('/api/workouts/generate', {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData)

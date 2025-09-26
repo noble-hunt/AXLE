@@ -1,66 +1,35 @@
-import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { API_BASE } from './env';
 
-export async function httpJSON<T>(path: string, init?: RequestInit): Promise<{ ok: true; } & T> {
-  const base = import.meta.env.VITE_API_BASE_URL || '';
-  const url = `${base}${path.startsWith('/') ? path : '/' + path}`;
-  
-  // Get the current session token for authenticated requests
-  const { data: { session } } = await supabase.auth.getSession();
-  const headers: Record<string, string> = { 
-    'content-type': 'application/json', 
-    ...(init?.headers || {}) 
-  };
-  
-  // Add Authorization header if we have a session
-  if (session?.access_token) {
-    headers['authorization'] = `Bearer ${session.access_token}`;
+export class HttpError extends Error {
+  status: number;
+  body?: any;
+  constructor(message: string, status: number, body?: any) { 
+    super(message); 
+    this.status = status; 
+    this.body = body; 
   }
-  
-  const res = await fetch(url, {
-    headers,
-    credentials: 'include',
-    ...init,
-  });
+}
 
-  const ct = res.headers.get('content-type') || '';
-  const isJson = ct.includes('application/json');
+function joinApi(path: string) {
+  if (!path || path === "/" || typeof path !== "string") {
+    throw new HttpError("Invalid API path (empty)", 0);
+  }
+  if (!path.startsWith("/")) path = `/${path}`;
+  return `${API_BASE}${path}`;
+}
+
+export async function httpJSON(path: string, init?: RequestInit) {
+  const url = joinApi(path);
+  const res = await fetch(url, { headers: { "Content-Type": "application/json", ...init?.headers }, ...init });
+  const ct = res.headers.get("content-type") || "";
+  const isJson = ct.includes("application/json");
+  const data = isJson ? await res.json().catch(() => undefined) : await res.text();
+
   if (!res.ok) {
-    let detail: any = undefined;
-    if (isJson) {
-      try { detail = await res.json(); } catch {}
-    }
-    
-    // Extract error message properly
-    let errorMessage: string;
-    if (detail?.error?.message) {
-      errorMessage = detail.error.message;
-    } else if (detail?.message) {
-      errorMessage = detail.message;
-    } else if (detail?.error && typeof detail.error === 'string') {
-      errorMessage = detail.error;
-    } else if (detail && typeof detail === 'string') {
-      errorMessage = detail;
-    } else {
-      errorMessage = `${res.status} ${res.statusText}`;
-    }
-    
-    // helpful toast for common cases
-    if (res.status === 404) {
-      toast({ title: 'Not found', description: 'That endpoint was not found (404). We\'ll open the generator instead.', variant: 'destructive' });
-    }
-    
-    // Return a structured error object instead of throwing
-    return {
-      ok: false,
-      error: {
-        message: errorMessage,
-        statusCode: res.status,
-        detail
-      }
-    } as any;
+    const msg = isJson && data?.error
+      ? data.error
+      : typeof data === "string" && data ? data.slice(0, 200) : `HTTP ${res.status}`;
+    throw new HttpError(msg, res.status, data);
   }
-  
-  const responseData = isJson ? await res.json() : await res.text();
-  return { ok: true, ...responseData };
+  return data;
 }
