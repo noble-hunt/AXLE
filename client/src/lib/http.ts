@@ -1,30 +1,27 @@
-const isBrowser = typeof window !== "undefined";
+import { toast } from '@/hooks/use-toast';
 
-// Prefer relative /api in the browser so Vite (dev) and Vercel (prod) proxies can work.
-// Fall back to localhost only for non-browser contexts.
-const FALLBACK_BASE = isBrowser ? "/api" : "http://localhost:5000";
-
-const BASE =
-  (import.meta.env.VITE_API_BASE_URL?.trim() || FALLBACK_BASE).replace(/\/$/, "");
-
-export async function httpJSON(path: string, init?: RequestInit) {
-  const url =
-    /^https?:\/\//i.test(path)
-      ? path
-      : `${BASE}/${path.replace(/^\//, "")}`;
-
+export async function httpJSON<T>(path: string, init?: RequestInit): Promise<T> {
+  const base = import.meta.env.VITE_API_BASE_URL || '';
+  const url = `${base}${path}`;
   const res = await fetch(url, {
-    // keep existing options you used (headers, credentials, etc.)
+    headers: { 'content-type': 'application/json', ...(init?.headers || {}) },
+    credentials: 'include',
     ...init,
   });
 
-  const ct = res.headers.get("content-type") || "";
+  const ct = res.headers.get('content-type') || '';
+  const isJson = ct.includes('application/json');
   if (!res.ok) {
-    const body = ct.includes("application/json") ? await res.json().catch(() => ({})) : await res.text().catch(() => "");
-    const err: any = new Error((body && (body.message || body.error)) || `HTTP ${res.status}`);
-    err.status = res.status;
-    err.body = body;
-    throw err;
+    let detail: any = undefined;
+    if (isJson) {
+      try { detail = await res.json(); } catch {}
+    }
+    // helpful toast for common cases
+    const msg = detail?.error || `${res.status} ${res.statusText}`;
+    if (res.status === 404) {
+      toast({ title: 'Not found', description: 'That endpoint was not found (404). We\'ll open the generator instead.', variant: 'destructive' });
+    }
+    throw Object.assign(new Error(msg), { statusCode: res.status, detail });
   }
-  return ct.includes("application/json") ? res.json() : res.text();
+  return (isJson ? res.json() : (await res.text())) as T;
 }
