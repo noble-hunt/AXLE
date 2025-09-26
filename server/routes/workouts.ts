@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { WorkoutPlanZ } from "../../shared/workoutSchema";
 import { adaptToPlanV1 } from "../workouts/adapter";
+import { generatePlan } from "../workouts/generate";
 export const workouts = Router();
 
 const PreviewSchema = z.object({
@@ -21,88 +22,18 @@ workouts.post("/preview", async (req, res) => {
 
   try {
     const { focus, durationMin, equipment, intensity, seed } = parsed.data;
-    const workoutSeed = seed ?? crypto.randomUUID();
+    const workoutSeed = seed ?? Math.random().toString(16).slice(2).toUpperCase();
     
-    // Generate a proper WorkoutPlan that matches the new schema
-    const warmupMin = Math.max(5, Math.round(durationMin/6));
-    const mainMin = Math.round(durationMin*0.7);
-    const cooldownMin = Math.max(3, Math.round(durationMin/10));
-    
-    const rawWorkoutPlan = {
-      seed: workoutSeed,
+    // Use the new generator to create actual workouts with real movements
+    const generatedPlan = generatePlan({
       focus,
       durationMin,
       intensity,
       equipment,
-      blocks: [
-        {
-          key: "warmup",
-          title: `${focus} warmup`,
-          targetSeconds: warmupMin * 60,
-          items: [
-            {
-              movementId: "warmup_movement",
-              name: "Dynamic warmup",
-              prescription: {
-                type: "time" as const,
-                sets: 1,
-                seconds: warmupMin * 60,
-                restSec: 0,
-                notes: `${focus} preparation`
-              }
-            }
-          ]
-        },
-        {
-          key: "main",
-          title: "Main workout",
-          targetSeconds: mainMin * 60,
-          items: [
-            {
-              movementId: "main_movement",
-              name: `${focus} training`,
-              prescription: {
-                type: "time" as const,
-                sets: 1,
-                seconds: mainMin * 60,
-                restSec: 0,
-                notes: `intensity ${intensity}/10`,
-                load: equipment.length > 0 ? equipment.join(", ") : "bodyweight"
-              }
-            }
-          ]
-        },
-        {
-          key: "cooldown",
-          title: "Cool down",
-          targetSeconds: cooldownMin * 60,
-          items: [
-            {
-              movementId: "cooldown_movement",
-              name: "Recovery",
-              prescription: {
-                type: "time" as const,
-                sets: 1,
-                seconds: cooldownMin * 60,
-                restSec: 0,
-                notes: "breathing / mobility"
-              }
-            }
-          ]
-        }
-      ],
-      totalSeconds: durationMin * 60,
-      summary: `${durationMin}-minute ${focus} workout at intensity ${intensity}/10`,
-      version: 1 as const
-    };
-
-    // Use adapter and validate before responding - fail fast if invalid
-    const validatedPlan = adaptToPlanV1(rawWorkoutPlan);
+      seed: workoutSeed
+    });
     
-    // Double-check with strict validation
-    const finalPlan = WorkoutPlanZ.parse(validatedPlan);
-    
-    return res.json({ ok: true, preview: finalPlan, seed: finalPlan.seed });
+    return res.json({ ok: true, preview: generatedPlan, seed: generatedPlan.seed });
   } catch (err: any) {
     req.log?.error({ err }, "preview failed");
     
