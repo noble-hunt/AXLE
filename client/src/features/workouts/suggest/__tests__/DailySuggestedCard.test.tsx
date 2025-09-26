@@ -160,7 +160,7 @@ describe('DailySuggestedCard - Start Now Flow', () => {
       });
     });
 
-    it('should navigate with undefined id when API response is malformed', async () => {
+    it('should show error toast and navigate to generator on malformed API response', async () => {
       // Arrange
       const { httpJSON } = await import('@/lib/http');
       vi.mocked(httpJSON).mockResolvedValue({ /* missing id field */ });
@@ -172,13 +172,14 @@ describe('DailySuggestedCard - Start Now Flow', () => {
 
       // Assert
       await waitFor(() => {
-        // Since the API function returns undefined for missing id, 
-        // navigation will happen with undefined
-        expect(mockSetLocation).toHaveBeenCalledWith('/workout/undefined');
+        // API function now validates response and throws error for missing id
+        expect(mockToast).toHaveBeenCalledWith({
+          title: 'Could not start workout',
+          description: "We'll open the generator so you can build one quickly.",
+          variant: 'destructive'
+        });
+        expect(mockSetLocation).toHaveBeenCalledWith('/workout-generate');
       });
-      
-      // No toast should be called since there was no error thrown
-      expect(mockToast).not.toHaveBeenCalled();
     });
   });
 
