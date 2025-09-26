@@ -10,7 +10,7 @@ import { generateWorkout } from "./workoutGenerator";
 import { workoutRequestSchema, WorkoutRequest } from "../shared/schema";
 import { z } from "zod";
 import { requireAuth, AuthenticatedRequest } from "./middleware/auth";
-import { listWorkouts, getWorkout, insertWorkout, updateWorkout, getRecentRPE, getZoneMinutes14d, getStrain } from "./dal/workouts";
+import { listWorkouts, getWorkout, insertWorkout, updateWorkout, startWorkoutAtomic, getRecentRPE, getZoneMinutes14d, getStrain } from "./dal/workouts";
 import { listPRs } from "./dal/prs";
 import { list as listAchievements } from "./dal/achievements";
 import { listReports } from "./dal/reports";
@@ -893,28 +893,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
       
-      // Get the workout to ensure it exists and belongs to the user
-      const workout = await getWorkout(authReq.user.id, id);
-      if (!workout) {
+      // Atomically start the workout - prevents race conditions
+      const result = await startWorkoutAtomic(authReq.user.id, id);
+      
+      if (!result) {
         return res.status(404).json({ message: "Workout not found" });
       }
       
-      // Idempotency check: if workout is already started, don't set again
-      if (workout.started_at) {
-        return res.status(200).json({ id: workout.id, message: "Workout already started" });
+      if (result.wasAlreadyStarted) {
+        // Idempotent response - workout was already started
+        return res.status(200).json({ 
+          id: result.workout.id, 
+          message: "Workout already started",
+          started_at: result.workout.started_at
+        });
       }
       
-      // Update the workout to mark it as started
-      const updatedWorkout = await updateWorkout(authReq.user.id, id, {
-        started_at: new Date().toISOString(),
-        completed: false
+      // Successfully started
+      res.status(200).json({ 
+        id: result.workout.id,
+        started_at: result.workout.started_at
       });
-      
-      if (!updatedWorkout) {
-        return res.status(404).json({ message: "Workout not found" });
-      }
-      
-      res.status(200).json({ id: updatedWorkout.id });
     } catch (error) {
       console.error("Failed to start workout:", error);
       res.status(500).json({ message: "Failed to start workout" });

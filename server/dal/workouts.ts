@@ -102,6 +102,56 @@ export async function updateWorkout(userId: string, id: string, patch: UpdateWor
 }
 
 /**
+ * Atomically start a workout by setting started_at only if it's currently null
+ * This prevents race conditions when multiple requests try to start the same workout
+ * @param userId - User ID that owns the workout
+ * @param id - Workout ID to start
+ * @returns Object with workout data and whether it was actually started (vs already started)
+ */
+export async function startWorkoutAtomic(userId: string, id: string): Promise<{
+  workout: any;
+  wasAlreadyStarted: boolean;
+} | null> {
+  const startedAt = new Date().toISOString();
+  
+  // Atomic conditional update: only update if started_at is null
+  const { data, error } = await supabaseAdmin
+    .from('workouts')
+    .update({ 
+      started_at: startedAt,
+      completed: false
+    })
+    .eq('user_id', userId)
+    .eq('id', id)
+    .is('started_at', null) // Only update if started_at is currently null
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // No rows were updated - either workout doesn't exist or already started
+      // Check if workout exists
+      const existing = await getWorkout(userId, id);
+      if (!existing) {
+        return null; // Workout doesn't exist
+      }
+      // Workout exists but already started
+      return {
+        workout: existing,
+        wasAlreadyStarted: true
+      };
+    }
+    throw new Error(`Failed to start workout: ${error.message}`);
+  }
+
+  // Successfully started
+  return {
+    workout: data,
+    wasAlreadyStarted: false
+  };
+}
+
+/**
  * Get average RPE (perceived intensity) from recent completed workouts
  * @param userId - User ID to query workouts for
  * @param hours - Number of hours to look back (default: 24)
