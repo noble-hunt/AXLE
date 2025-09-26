@@ -20,5 +20,11 @@ export async function startSuggestedWorkout(s: Suggestion) {
       source: 'daily-suggestion',
     }),
   });
+  
+  // Validate the response has a valid id
+  if (!res || typeof res !== 'object' || !('id' in res) || typeof (res as any).id !== 'string' || !(res as any).id.trim()) {
+    throw new Error('Invalid response: missing or invalid workout id');
+  }
+  
   return (res as { id: string }).id;
 }
