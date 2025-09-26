@@ -24,6 +24,7 @@ export const workouts = pgTable("workouts", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
   createdAt: timestamp("created_at").defaultNow(),
+  startedAt: timestamp("started_at"), // When the workout was started (for active workout tracking)
   request: jsonb("request").notNull(),
   title: text("title").notNull(),
   notes: text("notes"),
@@ -327,6 +328,7 @@ export const insertProfileSchema = createInsertSchema(profiles).omit({
 export const insertWorkoutSchema = createInsertSchema(workouts).omit({
   id: true,
   createdAt: true,
+  startedAt: true, // Set via API route when workout is started
 });
 
 export const insertPRSchema = createInsertSchema(prs).omit({
