@@ -6,6 +6,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { startSuggestionsCron } from "./jobs/suggestions-cron";
 import { initSentry, Sentry } from "./sentry";
 import { logging } from "./middleware/logging";
+import { runBootMigrationGuard } from "./migrations/boot-guard";
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -141,6 +142,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Run boot-time migration guard to ensure critical schema exists
+  await runBootMigrationGuard();
+  
   const server = await registerRoutes(app);
 
   // Sentry error handler (must be before other error handlers)
