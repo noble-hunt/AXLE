@@ -1,7 +1,6 @@
 import { SectionTitle } from "@/components/ui/section-title"
 import { PrimaryButton } from "@/components/ui/primary-button"
-import { Card } from "@/components/ui/card"
-import { Card as SwiftCard } from "@/components/swift/card"
+import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
 import { DailySuggestionCard } from "@/components/workouts/DailySuggestionCard"
@@ -121,7 +120,7 @@ export default function Workout() {
         </div>
         
         {recentCompletedWorkouts.length === 0 ? (
-          <Card className="p-6 card-shadow border border-border text-center" data-testid="no-history-card">
+          <Card className="p-4 text-center" data-testid="no-history-card">
             <div className="space-y-2">
               <Dumbbell className="w-8 h-8 text-muted-foreground mx-auto" />
               <h4 className="font-semibold text-foreground">No completed workouts yet</h4>
@@ -136,7 +135,7 @@ export default function Workout() {
               
               return (
                 <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
-                  <SwiftCard className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
+                  <Card className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex-1 space-y-3">
                         {/* Header Row */}
@@ -176,7 +175,7 @@ export default function Workout() {
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     </div>
-                  </SwiftCard>
+                  </Card>
                 </Link>
               )
             })}
