@@ -1,5 +1,5 @@
-import type { GenerationSeed } from "../../../shared/types/workouts";
-import { createUserHash } from "../../../shared/types/workouts";
+import type { GenerationSeed } from "@shared/types/workouts";
+import { createUserHash } from "@shared/types/workouts";
 
 /**
  * Client-side utilities for workout generation seeding

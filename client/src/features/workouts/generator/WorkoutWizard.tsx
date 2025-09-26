@@ -149,7 +149,7 @@ export function WorkoutWizard() {
         seedParam = customSeed;
       } else if (profile?.id) {
         // Create deterministic seed for preview using proper hash
-        const { createGenerationSeed } = await import("../../../shared/types/workouts");
+        const { createGenerationSeed } = await import("@shared/types/workouts");
         const generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
         setPreviewSeed(generationSeed);
         seedParam = JSON.stringify(generationSeed);
@@ -239,7 +239,7 @@ export function WorkoutWizard() {
           generationSeed = previewSeed;
         } else {
           // Fallback to creating new seed
-          const { createGenerationSeed } = await import("../../../shared/types/workouts");
+          const { createGenerationSeed } = await import("@shared/types/workouts");
           generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
         }
       }
