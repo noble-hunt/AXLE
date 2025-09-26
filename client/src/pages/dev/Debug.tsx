@@ -175,7 +175,7 @@ export default function Debug() {
   const fetchEmailStatus = async () => {
     setIsLoadingEmail(true);
     try {
-      const response = await httpJSON("/api/dev/debug/email");
+      const response = await httpJSON("/dev/debug/email");
       if (response.ok) {
         const data = await response.json();
         setEmailStatus(data);

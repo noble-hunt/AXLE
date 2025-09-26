@@ -3,7 +3,7 @@ import { toast } from '@/hooks/use-toast';
 
 export async function parseFreeform(text: string) {
   try {
-    const data = await httpJSON('/api/workouts/parse-freeform', {
+    const data = await httpJSON('/workouts/parse-freeform', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -21,7 +21,7 @@ export async function parseFreeform(text: string) {
 
 export async function logFreeform(parsed: any, title?: string) {
   try {
-    const data = await httpJSON('/api/workouts/log-freeform', {
+    const data = await httpJSON('/workouts/log-freeform', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ parsed, title }),

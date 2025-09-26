@@ -5,7 +5,7 @@ export async function transcribeAudio(blob: Blob) {
   try {
     // Prefer JSON base64 (works in prod serverless reliably)
     const audioBase64 = await blobToBase64(blob);
-    const data = await httpJSON('/api/stt/whisper', {
+    const data = await httpJSON('/stt/whisper', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ audioBase64, mimeType: blob.type }),

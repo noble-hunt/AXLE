@@ -284,7 +284,7 @@ export function WorkoutWizard() {
 
       // Use httpJSON directly for generation endpoint (keeping existing logic)
       const { httpJSON } = await import('@/lib/http');
-      const response = await httpJSON('/api/workouts/generate', {
+      const response = await httpJSON('/workouts/generate', {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData)
