@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
 import { startSuggestion } from "../services/suggestions";
 
 export const suggest = Router();
 
 suggest.post("/start", requireAuth, async (req, res) => {
-  const userId = req.user!.id;
+  const authReq = req as AuthenticatedRequest;
+  const userId = authReq.user.id;
   
   try {
     const result = await startSuggestion(userId);

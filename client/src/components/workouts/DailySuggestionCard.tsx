@@ -4,9 +4,10 @@ import { Card } from '@/components/swift/card';
 import { Button } from '@/components/swift/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Clock, Activity, Target, LogIn, RotateCcw, Info, Zap } from 'lucide-react';
+import { Clock, Activity, LogIn, RotateCcw, Info, Zap } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useDailySuggestion } from '@/features/workouts/useDailySuggestion';
+import { StartNowButton } from '@/features/workouts/suggest/StartNowButton';
 
 export function DailySuggestionCard() {
   const { isAuthenticated } = useAppStore();
@@ -15,9 +16,7 @@ export function DailySuggestionCard() {
     data,
     isLoading,
     error,
-    isStarting,
     isRotating,
-    startNow,
     tryDifferentFocus
   } = useDailySuggestion();
 
@@ -154,15 +153,7 @@ export function DailySuggestionCard() {
 
           {/* Action buttons */}
           <div className="space-y-3">
-            <Button
-              data-testid="button-start-now"
-              onClick={startNow}
-              disabled={isStarting}
-              className="w-full"
-            >
-              <Target className="w-4 h-4 mr-2" />
-              {isStarting ? 'Starting...' : 'Start Now'}
-            </Button>
+            <StartNowButton />
             
             <div className="flex gap-2">
               <Button

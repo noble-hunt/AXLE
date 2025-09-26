@@ -1,7 +1,7 @@
 import { httpJSON } from '@/lib/http';
 
 export async function startSuggestion(): Promise<string> {
-  const response = await httpJSON<{ workoutId: string }>('/api/suggest/start', { 
+  const response = await httpJSON<{ workoutId: string }>('api/suggest/start', { 
     method: 'POST' 
   });
   return response.workoutId;
@@ -37,7 +37,7 @@ export async function fetchTodaySuggestion(): Promise<TodaySuggestionResponse> {
 
 export async function rotateSuggestion(): Promise<TodaySuggestionResponse> {
   try {
-    const res = await httpJSON<{ suggestion: TodaySuggestionResponse }>('/api/workouts/suggest/rotate', {
+    const res = await httpJSON<{ suggestion: TodaySuggestionResponse }>('api/workouts/suggest/rotate', {
       method: 'POST',
     });
     return res.suggestion;
