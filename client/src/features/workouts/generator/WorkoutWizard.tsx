@@ -135,31 +135,66 @@ export function WorkoutWizard() {
     setWizardState(finalState);
   };
 
-  // Simulate workout generation for preview
+  // Generate workout preview for the final step
   const simulateWorkout = async (customSeed?: string) => {
     setIsSimulating(true);
     
     try {
       const requestData = {
-        inputs: {
-          archetype: wizardState.archetype,
-          minutes: wizardState.minutes,
-          targetIntensity: wizardState.intensity as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10,
-          equipment: wizardState.equipment,
-          constraints: [],
-          location: 'gym'
-        },
-        rngSeed: customSeed || `preview-${Date.now()}`,
-        generatorVersion: 'v0.3.0'
+        goal: wizardState.archetype,
+        durationMin: wizardState.minutes,
+        intensity: wizardState.intensity,
+        equipment: wizardState.equipment,
+        seed: customSeed || `preview-${Date.now()}`
       };
 
-      const response = await httpJSON('/api/workouts/simulate', {
+      const response = await httpJSON('/api/workouts/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData)
       });
 
-      setPreviewData(response);
+      if (!response.ok) {
+        throw new Error(response.error?.message || "Failed to generate workout preview");
+      }
+
+      // Transform response to match preview data structure
+      const previewData: WorkoutPreviewData = {
+        workout: {
+          id: response.workout.id,
+          name: response.workout.meta?.title || "Generated Workout",
+          description: `${wizardState.archetype} workout for ${wizardState.minutes} minutes`,
+          totalMinutes: response.workout.estTimeMin,
+          estimatedIntensity: response.workout.intensity,
+          blocks: response.workout.blocks?.map((exercise: any, index: number) => ({
+            id: `block-${index}`,
+            name: exercise.name || `Exercise ${index + 1}`,
+            type: "main",
+            exercises: [{
+              id: `ex-${index}`,
+              name: exercise.name || "Exercise",
+              sets: exercise.sets || 1,
+              reps: exercise.reps || "10",
+              notes: exercise.notes
+            }]
+          })) || [],
+          coaching_notes: "Generated workout based on your preferences",
+          metadata: {
+            template: wizardState.archetype,
+            patterns: [wizardState.archetype],
+            equipment: wizardState.equipment,
+            progression: "standard"
+          }
+        },
+        choices: {
+          templateId: wizardState.archetype,
+          movementPoolIds: wizardState.equipment,
+          schemeId: "standard"
+        },
+        seed: response.workout.seed || requestData.seed
+      };
+
+      setPreviewData(previewData);
     } catch (error: any) {
       toast({
         title: "Preview Failed",
@@ -173,13 +208,14 @@ export function WorkoutWizard() {
 
   // Generate and save workout
   const generateMutation = useMutation({
-    mutationFn: async () => {
-      if (!previewData) throw new Error("No preview data available");
-      
+    mutationFn: async (seed?: string) => {
+      // Transform wizard state to server format
       const requestData = {
-        inputs: previewData.choices,
-        rngSeed: previewData.seed,
-        generatorVersion: 'v0.3.0'
+        goal: wizardState.archetype,
+        durationMin: wizardState.minutes,
+        intensity: wizardState.intensity,
+        equipment: wizardState.equipment,
+        seed: seed || `wizard-${Date.now()}`
       };
 
       const response = await httpJSON('/api/workouts/generate', {
@@ -188,14 +224,18 @@ export function WorkoutWizard() {
         body: JSON.stringify(requestData)
       });
 
-      return response;
+      if (!response.ok) {
+        throw new Error(response.error?.message || "Failed to generate workout");
+      }
+
+      return response.workout;
     },
-    onSuccess: (response) => {
+    onSuccess: (workout) => {
       toast({
         title: "Workout Generated!",
         description: "Your workout has been saved and is ready to start.",
       });
-      setLocation(`/workout/${response.id}`);
+      setLocation(`/workout/${workout.id}`);
     },
     onError: (error: any) => {
       toast({
@@ -239,12 +279,26 @@ export function WorkoutWizard() {
     }
   };
 
+  const getValidationError = () => {
+    switch (currentStep) {
+      case 1: return !wizardState.archetype ? "Please select a workout focus" : null;
+      case 2: return wizardState.minutes < 10 || wizardState.minutes > 60 ? "Duration must be between 10-60 minutes" : null;
+      case 3: return wizardState.equipment.length === 0 ? "Please select at least one piece of equipment" : null;
+      case 4: return wizardState.intensity < 1 || wizardState.intensity > 10 ? "Intensity must be between 1-10" : null;
+      case 5: return !previewData ? "Please wait for workout preview to load" : null;
+      default: return null;
+    }
+  };
+
   const regeneratePreview = () => {
     simulateWorkout();
   };
 
   const useWorkout = () => {
-    generateMutation.mutate();
+    if (!previewData) return;
+    
+    // Use the same seed as the preview to ensure consistent generation
+    generateMutation.mutate(previewData.seed);
   };
 
   return (
@@ -317,25 +371,45 @@ export function WorkoutWizard() {
 
       {/* Navigation */}
       {currentStep < 5 && (
-        <div className="flex items-center justify-between gap-4">
-          <Button
-            variant="outline"
-            onClick={prevStep}
-            disabled={currentStep === 1}
-            data-testid="prev-step-button"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Previous
-          </Button>
+        <div className="space-y-4">
+          {/* Validation Error */}
+          {getValidationError() && (
+            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
+              {getValidationError()}
+            </div>
+          )}
           
-          <Button
-            onClick={nextStep}
-            disabled={!canProceed()}
-            data-testid="next-step-button"
-          >
-            {currentStep === 4 ? "Preview Workout" : "Next"}
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
+          <div className="flex items-center justify-between gap-4">
+            <Button
+              variant="outline"
+              onClick={prevStep}
+              disabled={currentStep === 1}
+              data-testid="button-prev-step"
+            >
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              Previous
+            </Button>
+            
+            <Button
+              onClick={nextStep}
+              disabled={!canProceed() || (currentStep === 4 && isSimulating)}
+              data-testid="button-next-step"
+            >
+              {currentStep === 4 ? (
+                isSimulating ? (
+                  <>
+                    <LoadingSpinner className="w-4 h-4 mr-2" />
+                    Generating Preview...
+                  </>
+                ) : (
+                  "Preview Workout"
+                )
+              ) : (
+                "Next"
+              )}
+              {!isSimulating && <ChevronRight className="w-4 h-4 ml-2" />}
+            </Button>
+          </div>
         </div>
       )}
     </div>
