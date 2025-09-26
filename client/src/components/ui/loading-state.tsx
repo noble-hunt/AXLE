@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react"
-import { Card } from "@/components/ui/card"
+import { Card } from "@/components/swift/card"
 
 interface LoadingStateProps {
   message?: string
@@ -28,7 +28,7 @@ export function LoadingState({
 
 export function LoadingCard({ message, className }: { message?: string, className?: string }) {
   return (
-    <Card className={`p-6 card-shadow border border-border ${className}`}>
+    <Card className={`p-4 ${className}`}>
       <LoadingState message={message} />
     </Card>
   )
