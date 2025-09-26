@@ -383,5 +383,30 @@ describe('/api/workouts/start endpoint', () => {
         detail: 'Workout generation failed'
       });
     });
+
+    it('should return 502 when service returns invalid workout id', async () => {
+      // Arrange
+      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed');
+      vi.mocked(createWorkoutFromSeed).mockResolvedValue({
+        id: '', // empty id fails validation
+        title: 'Test Workout'
+      } as any);
+
+      mockReq.body = {
+        focus: 'Strength',
+        minutes: 30,
+        intensity: 7
+      };
+
+      // Act
+      await startSuggestedWorkout(mockReq as Request, mockRes as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(502);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'start-failed',
+        detail: 'Service returned invalid workout id'
+      });
+    });
   });
 });

@@ -34,6 +34,11 @@ export async function startSuggestedWorkout(req: Request, res: Response) {
       source: input.source,
     });
 
+    // Guard: Ensure service returned valid id
+    if (!created || typeof created.id !== 'string' || !created.id.trim()) {
+      throw Object.assign(new Error('Service returned invalid workout id'), { statusCode: 502 });
+    }
+
     return res.status(201).json({ id: created.id });
   } catch (err: any) {
     Sentry.captureException(err, { tags: { route: 'POST /api/workouts/start' } });
