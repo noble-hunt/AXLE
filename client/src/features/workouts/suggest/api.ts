@@ -1,7 +1,7 @@
 import { httpJSON } from '@/lib/http';
 
 export async function startSuggestion(): Promise<string> {
-  const response = await httpJSON<{ workoutId: string }>('api/suggest/start', { 
+  const response = await httpJSON('suggest/start', { 
     method: 'POST' 
   });
   return response.workoutId;
@@ -37,7 +37,7 @@ export async function fetchTodaySuggestion(): Promise<TodaySuggestionResponse> {
 
 export async function rotateSuggestion(): Promise<TodaySuggestionResponse> {
   try {
-    const res = await httpJSON<{ suggestion: TodaySuggestionResponse }>('api/workouts/suggest/rotate', {
+    const res = await httpJSON('workouts/suggest/rotate', {
       method: 'POST',
     });
     return res.suggestion;
@@ -57,7 +57,7 @@ export async function rotateSuggestion(): Promise<TodaySuggestionResponse> {
 export async function startSuggestedWorkout(s: Suggestion) {
   // Try the new endpoint first
   try {
-    const res = await httpJSON<{ workoutId: string }>('workouts/suggest/today/start', {
+    const res = await httpJSON('workouts/suggest/today/start', {
       method: 'POST',
     });
     
@@ -99,7 +99,7 @@ export async function startSuggestedWorkout(s: Suggestion) {
 }
 
 export async function generateWorkout(cfg: { focus: string; duration: number; intensity: number; equipment?: string[] }) {
-  const res = await httpJSON<{ ok: boolean; workout: any }>('workouts/generate', {
+  const res = await httpJSON('workouts/generate', {
     method: 'POST',
     body: JSON.stringify({
       goal: cfg.focus,
@@ -121,7 +121,7 @@ export async function getWorkout(id: string) {
 }
 
 export async function startWorkout(id: string) {
-  const res = await httpJSON<{ id: string }>(`workouts/${id}/start`, {
+  const res = await httpJSON(`workouts/${id}/start`, {
     method: 'POST',
   });
   

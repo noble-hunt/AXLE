@@ -21,7 +21,7 @@ export interface CreateWorkoutPayload {
 export async function createWorkout(payload: CreateWorkoutPayload): Promise<string> {
   try {
     // Make authenticated request to create workout
-    const response = await authFetch("/api/workouts", {
+    const response = await authFetch("/workouts", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

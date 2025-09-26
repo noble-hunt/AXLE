@@ -35,9 +35,32 @@ export const logEnvironment = () => {
 };
 
 /**
- * API base URL configuration
+ * API configuration with proper normalization
  */
-export const API_BASE =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) && import.meta.env.VITE_API_BASE_URL.trim() !== ""
-    ? import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "")
-    : ""; // same-origin relative
+
+// Env normalization: origin ONLY (http(s)://host[:port]), never include /api
+const fromEnv = (import.meta.env.VITE_API_ORIGIN as string | undefined)?.trim() ?? "";
+
+// Strip any trailing slash or accidental /api suffix to guarantee "origin only"
+function normalizeOrigin(v: string) {
+  if (!v) return "";
+  let out = v.replace(/\/+$/, "");
+  // If someone set .../api or .../api/, strip it so we can add it centrally
+  out = out.replace(/\/api$/i, "");
+  return out;
+}
+
+export const API_ORIGIN = normalizeOrigin(fromEnv); // "" => same-origin in dev
+export const API_PREFIX = "/api"; // centralized, single source of truth
+export const isDev = import.meta.env.DEV;
+
+// Runtime checks to catch regressions
+if (isDev && API_ORIGIN) {
+  console.log(`[ENV] API_ORIGIN: "${API_ORIGIN}"`);
+  console.log(`[ENV] API_PREFIX: "${API_PREFIX}"`);
+  
+  // Validate origin format
+  if (API_ORIGIN && !API_ORIGIN.match(/^https?:\/\/[^/]+$/)) {
+    console.warn(`[ENV] WARNING: API_ORIGIN should be origin only (http(s)://host[:port]), got: "${API_ORIGIN}"`);
+  }
+}
