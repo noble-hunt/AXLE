@@ -62,12 +62,12 @@ export function DailySuggestedCard({ suggestion }: { suggestion: {
             {suggestion.minutes}m · {suggestion.intensity}/10
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Button
             data-testid="button-start-now"
             onClick={onStart}
             disabled={loading}
-            className="flex-1"
+            className="w-full sm:flex-1"
           >
             {loading ? 'Starting…' : 'Start Now'}
           </Button>
@@ -75,6 +75,7 @@ export function DailySuggestedCard({ suggestion }: { suggestion: {
             data-testid="button-try-different"
             onClick={() => setLocation('/workout-generate')}
             variant="outline"
+            className="w-full sm:w-auto"
           >
             Try Different Focus
           </Button>
