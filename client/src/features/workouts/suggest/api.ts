@@ -8,6 +8,25 @@ export type Suggestion = {
   generatorVersion?: string;
 };
 
+export type TodaySuggestionResponse = {
+  config: {
+    focus: string;
+    duration: number;
+    intensity: number;
+    equipment: string[];
+    constraints: string[];
+  };
+  rationale: string;
+  seed: {
+    rngSeed: string;
+    generatorVersion: string;
+  };
+};
+
+export async function fetchTodaySuggestion(): Promise<TodaySuggestionResponse> {
+  return await httpJSON('/api/workouts/suggest/today');
+}
+
 export async function startSuggestedWorkout(s: Suggestion) {
   // Try the new endpoint first
   try {
