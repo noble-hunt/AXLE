@@ -299,6 +299,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
 
+  // POST /api/workouts/preview - Generate workout preview (no auth required)
+  app.post("/api/workouts/preview", async (req, res) => {
+    res.type('application/json');
+    
+    try {
+      const { focus, durationMin, intensity, equipment } = req.body ?? {};
+      
+      if (!focus || !durationMin || !intensity) {
+        return res.status(400).json({ 
+          ok: false, 
+          error: { code: 'BAD_INPUT', message: 'Missing required fields: focus, durationMin, intensity' } 
+        });
+      }
+      
+      const { openai } = await import('./lib/openai');
+      const { generateSeed } = await import('./lib/seededRandom');
+      const equipmentList = equipment || [];
+      const workoutSeed = generateSeed();
+      
+      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}. Use the provided seed for any random selections to ensure deterministic results.`;
+      const user = `Focus: ${focus}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}\n\nIMPORTANT: Use this seed value (${workoutSeed}) consistently for any random choices in exercise selection, order, or variations to ensure reproducible results.`;
+      
+      const r = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0, // Set to 0 for maximum determinism
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }],
+        seed: parseInt(workoutSeed.slice(-8), 36) // Use seed as numeric seed for OpenAI
+      });
+      
+      const raw = r.choices?.[0]?.message?.content ?? '{}';
+      const workoutData = JSON.parse(raw);
+      
+      const preview = {
+        id: `preview-${workoutSeed}`,
+        title: workoutData.title || `${focus} Workout`,
+        exercises: workoutData.exercises || [],
+        estTimeMin: workoutData.est_duration_min || durationMin,
+        intensity: workoutData.intensity || intensity,
+        seed: workoutSeed,
+        focus,
+        equipment: equipmentList
+      };
+      
+      res.json({ ok: true, preview });
+    } catch (e: any) {
+      console.error('[preview] err', e);
+      res.status(500).json({ 
+        ok: false, 
+        error: { code: 'INTERNAL', message: e?.message || 'Preview generation failed' } 
+      });
+    }
+  });
+
   // POST /api/workouts/generate - Generate workout (no auth required)
   app.post("/api/workouts/generate", async (req, res) => {
     res.type('application/json');
