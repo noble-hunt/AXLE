@@ -316,9 +316,20 @@ export function registerSuggestionRoutes(app: Express) {
         } : undefined
       };
 
-      // Generate the actual workout using existing AI system
+      // Generate the actual workout using fallback system
       console.log(`🤖 Generating workout with AI for category: ${requestData.category}`);
-      const generatedWorkout = await generateWithFallback(inputs, { request: enhancedRequest });
+      
+      // Create inputs from the suggestion data for v0.3 compatibility
+      const workoutInputs = {
+        archetype: requestData.category,
+        minutes: requestData.duration,
+        targetIntensity: requestData.intensity,
+        equipment: requestData.equipment || [],
+        constraints: requestData.constraints || []
+      };
+      
+      const result = await generateWithFallback(workoutInputs, { request: enhancedRequest });
+      const generatedWorkout = result.workout || result;
 
       // Store the workout in the database
       const workoutData = {

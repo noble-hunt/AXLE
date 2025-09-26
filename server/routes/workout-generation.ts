@@ -185,7 +185,7 @@ async function generateAndPersistWorkout(
       notes: result.workout.coaching_notes || '',
       completed: false,
       genSeed: { ...seed, choices: result.choices },
-      generatorVersion: '0.3.0'
+      generatorVersion: result.meta?.usedVersion || 'v0.3.0'
     }).returning();
     
     return {
@@ -201,7 +201,8 @@ async function generateAndPersistWorkout(
     console.warn('New generator failed, falling back to legacy system:', error);
     
     // Fallback to legacy system
-    const { generateCrossFitWorkout, generateOlympicWorkout } = await import("../ai/generators/crossfit");
+    const { generateCrossFitWorkout } = await import("../ai/generators/crossfit");
+    const { generateOlympicWorkout } = await import("../ai/generators/olympic");
     const { generateWorkoutTitle } = await import("../ai/title");
     const { critiqueAndRepair } = await import("../ai/critic");
     
