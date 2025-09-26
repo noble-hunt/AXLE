@@ -187,10 +187,10 @@ describe('/api/workouts/start endpoint', () => {
       await startSuggestedWorkout(mockReq as Request, mockRes as Response);
 
       // Assert - Zod validation will throw, caught by error handler
-      expect(mockStatus).toHaveBeenCalledWith(500); // Zod errors default to 500
+      expect(mockStatus).toHaveBeenCalledWith(400); // Zod errors return 400
       expect(mockJson).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'start-failed'
+          error: 'validation-failed'
         })
       );
     });
@@ -207,10 +207,10 @@ describe('/api/workouts/start endpoint', () => {
       await startSuggestedWorkout(mockReq as Request, mockRes as Response);
 
       // Assert
-      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockStatus).toHaveBeenCalledWith(400);
       expect(mockJson).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'start-failed'
+          error: 'validation-failed'
         })
       );
     });
@@ -227,10 +227,10 @@ describe('/api/workouts/start endpoint', () => {
       await startSuggestedWorkout(mockReq as Request, mockRes as Response);
 
       // Assert
-      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockStatus).toHaveBeenCalledWith(400);
       expect(mockJson).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'start-failed'
+          error: 'validation-failed'
         })
       );
     });
@@ -247,10 +247,10 @@ describe('/api/workouts/start endpoint', () => {
       await startSuggestedWorkout(mockReq as Request, mockRes as Response);
 
       // Assert
-      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockStatus).toHaveBeenCalledWith(400);
       expect(mockJson).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'start-failed'
+          error: 'validation-failed'
         })
       );
     });
@@ -267,10 +267,10 @@ describe('/api/workouts/start endpoint', () => {
       await startSuggestedWorkout(mockReq as Request, mockRes as Response);
 
       // Assert
-      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockStatus).toHaveBeenCalledWith(400);
       expect(mockJson).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'start-failed'
+          error: 'validation-failed'
         })
       );
     });
@@ -287,10 +287,10 @@ describe('/api/workouts/start endpoint', () => {
       await startSuggestedWorkout(mockReq as Request, mockRes as Response);
 
       // Assert
-      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockStatus).toHaveBeenCalledWith(400);
       expect(mockJson).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'start-failed'
+          error: 'validation-failed'
         })
       );
     });
