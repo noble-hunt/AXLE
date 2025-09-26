@@ -71,7 +71,7 @@ export async function startSuggestedWorkout(s: Suggestion) {
   }
 
   // Fallback to old endpoint
-  const res = await httpJSON('/api/workouts/start', {
+  const res = await httpJSON('workouts/start', {
     method: 'POST',
     body: JSON.stringify({
       focus: s.focus,
@@ -92,7 +92,7 @@ export async function startSuggestedWorkout(s: Suggestion) {
 }
 
 export async function generateWorkout(cfg: { focus: string; duration: number; intensity: number; equipment?: string[] }) {
-  const res = await httpJSON<{ ok: boolean; workout: any }>('/api/workouts/generate', {
+  const res = await httpJSON<{ ok: boolean; workout: any }>('workouts/generate', {
     method: 'POST',
     body: JSON.stringify({
       goal: cfg.focus,
@@ -110,11 +110,11 @@ export async function generateWorkout(cfg: { focus: string; duration: number; in
 }
 
 export async function getWorkout(id: string) {
-  return await httpJSON(`/api/workouts/${id}`);
+  return await httpJSON(`workouts/${id}`);
 }
 
 export async function startWorkout(id: string) {
-  const res = await httpJSON<{ id: string }>(`/api/workouts/${id}/start`, {
+  const res = await httpJSON<{ id: string }>(`workouts/${id}/start`, {
     method: 'POST',
   });
   
