@@ -23,12 +23,24 @@ export function DailySuggestedCard({ suggestion }: { suggestion: {
       const id = await startSuggestedWorkout(suggestion);
       setLocation(`/workout/${id}`);
     } catch (e: any) {
-      toast({
-        title: 'Could not start workout',
-        description: "We'll open the generator so you can build one quickly.",
-        variant: 'destructive',
-      });
-      setLocation('/workout-generate');
+      const status = e?.status ?? 0;
+      const isAPIUnavailable = status === 404 || status === 405 || 
+        (e?.body && typeof e.body === 'string' && e.body.includes('<!DOCTYPE html'));
+      
+      if (isAPIUnavailable) {
+        toast({
+          variant: 'destructive',
+          title: 'Starting suggestion unavailable',
+          description: 'We\'ll generate a fresh workout instead.',
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Failed to start workout',
+          description: e?.message ?? 'Please try again.',
+        });
+      }
+      setLocation('/workout/generate');
     } finally {
       setLoading(false);
     }
