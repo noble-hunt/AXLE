@@ -1,0 +1,133 @@
+Fix generator preview: real endpoint + real errors
+
+Symptoms you saw
+
+“Failed to generate preview” with a toast showing [object Object].
+
+Often means: endpoint missing/mismatched → 404 (HTML), or thrown Error object passed directly to toast.
+
+Server: add a stable preview route + alias
+
+Add zod schema and route
+
+File: server/routes/workouts.ts (or create server/routes/workouts.preview.ts and mount)
+
+import { Router } from "express";
+import { z } from "zod";
+import { generator } from "../services/workouts/generator"; // existing service
+import { requireAuth } from "../middleware/auth";
+
+export const workouts = Router();
+
+const PreviewSchema = z.object({
+  focus: z.enum(["strength","conditioning","mixed","endurance"]),
+  durationMin: z.number().int().min(5).max(180),
+  equipment: z.array(z.string()).default([]),
+  intensity: z.number().min(1).max(10),
+  seed: z.string().optional()
+});
+
+workouts.post("/preview", requireAuth, async (req, res) => {
+  const parse = PreviewSchema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(400).json({ ok:false, error:"invalid_request", details: parse.error.flatten() });
+  }
+  try {
+    const { preview, seed } = await generator.preview(parse.data);
+    return res.json({ ok:true, preview, seed });
+  } catch (err:any) {
+    req.log?.error({ err }, "preview failed");
+    return res.status(500).json({ ok:false, error:"preview_failed" });
+  }
+});
+
+// Backwards-compat alias (covers earlier paths)
+workouts.post("/generate/preview", requireAuth, async (req,res,next) => {
+  (workouts as any).handle({ ...req, url: "/preview" }, res, next);
+});
+
+
+Mount (if not already)
+
+File: server/index.ts
+
+import { workouts } from "./routes/workouts";
+app.use("/api/workouts", workouts);
+
+
+Service contract
+
+File: server/services/workouts/generator.ts
+
+export async function preview(input: PreviewInput) {
+  const seed = input.seed ?? crypto.randomUUID();
+  const plan = await buildPlanFromRules(input, seed); // your existing rule engine
+  return { preview: plan, seed };
+}
+export const generator = { preview };
+
+
+Client: use the stable route & show real errors
+
+HTTP helper: stringify non-string errors
+
+File: client/src/lib/http.ts
+
+export class HttpError extends Error {
+  status: number;
+  body?: any;
+  constructor(message: string, status: number, body?: any) {
+    super(message); this.status = status; this.body = body;
+  }
+}
+
+export async function httpJSON(input: RequestInfo, init?: RequestInit) {
+  const res = await fetch(input, { headers: { "Content-Type":"application/json", ...init?.headers }, ...init });
+  const ct = res.headers.get("content-type") || "";
+  const isJson = ct.includes("application/json");
+  const data = isJson ? await res.json().catch(() => undefined) : await res.text();
+
+  if (!res.ok) {
+    const msg = isJson && data?.error ? String(data.error) :
+               typeof data === "string" && data ? data.slice(0,200) :
+               `HTTP ${res.status}`;
+    throw new HttpError(msg, res.status, data);
+  }
+  return data;
+}
+
+
+Generator API calls
+
+File: client/src/features/workouts/generator/api.ts
+
+import { httpJSON } from "@/lib/http";
+
+export async function fetchPreview(body: {
+  focus: string; durationMin: number; equipment: string[]; intensity: number; seed?: string;
+}) {
+  return httpJSON("/api/workouts/preview", { method:"POST", body: JSON.stringify(body) });
+}
+
+
+Preview step: handle and surface
+
+File: client/src/features/workouts/generator/steps/PreviewGenerate.tsx
+
+try {
+  const payload = { focus, durationMin, equipment, intensity, seed };
+  const { preview, seed: newSeed } = await fetchPreview(payload);
+  setPreview(preview); setSeed(newSeed);
+} catch (e:any) {
+  const msg = e?.message ?? "Failed to generate preview";
+  toast({ title: "Preview Failed", description: msg, variant: "destructive" });
+}
+
+
+Acceptance
+
+POST /api/workouts/preview returns { ok:true, preview, seed } and never HTML.
+
+UI no longer shows [object Object]; it shows a concise message (400 → “invalid_request”, 500 → “preview_failed”).
+
+The “Try Again” button succeeds after a small change (e.g., different focus).

@@ -1,0 +1,138 @@
+Generator Focus cards → horizontal, readable, responsive
+
+Goal: Replace the tall, cramped focus tiles with wide horizontal cards that fit copy on phones; keep the selected/hover state and accessibility.
+
+Make these changes:
+
+Create a reusable horizontal option card
+
+File: client/src/components/ui/option-card.tsx
+
+import { cn } from "@/lib/cn";
+import { forwardRef } from "react";
+
+type OptionCardProps = {
+  icon?: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  selected?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+  className?: string;
+  "aria-label"?: string;
+};
+
+export const OptionCard = forwardRef<HTMLButtonElement, OptionCardProps>(
+  ({ icon, title, subtitle, description, selected, disabled, onClick, className, ...rest }, ref) => {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-pressed={!!selected}
+        className={cn(
+          "w-full rounded-2xl border bg-card text-card-foreground shadow-sm",
+          "flex flex-row items-start gap-4 p-4 md:p-5",
+          "transition-[box-shadow,transform] hover:shadow-md active:scale-[0.995]",
+          selected ? "ring-2 ring-primary border-primary/30" : "border-border",
+          disabled && "opacity-60 pointer-events-none",
+          className
+        )}
+        {...rest}
+      >
+        {icon && <div className="shrink-0 h-10 w-10 md:h-12 md:w-12 grid place-items-center rounded-xl bg-muted/40">{icon}</div>}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base md:text-lg font-semibold truncate">{title}</h3>
+            {subtitle && <span className="text-xs md:text-sm text-muted-foreground truncate">{subtitle}</span>}
+          </div>
+          {description && (
+            <p className="mt-1 text-sm md:text-base leading-snug text-muted-foreground break-words hyphens-auto">
+              {description}
+            </p>
+          )}
+        </div>
+      </button>
+    );
+  }
+);
+OptionCard.displayName = "OptionCard";
+
+
+Use the horizontal card in the Focus step
+
+File: client/src/features/workouts/generator/steps/FocusStep.tsx (or similar: search for Choose Your Training Focus heading)
+
+Replace the vertical grid with:
+
+import { OptionCard } from "@/components/ui/option-card";
+import { Dumbbell, Activity, Waves, HeartPulse } from "lucide-react"; // or your icons
+
+const OPTIONS = [
+  {
+    key: "strength",
+    title: "Strength",
+    icon: <Dumbbell />,
+    description:
+      "Focus on progressive overload, lower reps, longer rest periods, and heavy compound movements.",
+  },
+  {
+    key: "conditioning",
+    title: "Conditioning",
+    icon: <Activity />,
+    description:
+      "High-intensity intervals, circuit pieces, and metabolic conditioning to improve work capacity.",
+  },
+  {
+    key: "mixed",
+    title: "Mixed",
+    icon: <Waves />,
+    description:
+      "Balanced blend of strength and conditioning for general physical preparedness.",
+  },
+  {
+    key: "endurance",
+    title: "Endurance",
+    icon: <HeartPulse />,
+    description:
+      "Longer efforts to build aerobic capacity and muscular endurance.",
+  },
+] as const;
+
+export function FocusStep() {
+  const [value, setValue] = useFocusStore(); // your existing hook/state
+
+  return (
+    <section aria-labelledby="focus-heading" className="space-y-4">
+      <h2 id="focus-heading" className="text-2xl font-bold">Choose Your Training Focus</h2>
+      <div className="grid grid-cols-1 gap-3">
+        {OPTIONS.map(o => (
+          <OptionCard
+            key={o.key}
+            icon={o.icon}
+            title={o.title}
+            description={o.description}
+            selected={value === o.key}
+            onClick={() => setValue(o.key)}
+            aria-label={o.title}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+
+Tighten spacing & wrapping
+
+Ensure headings use leading-tight and paragraphs use break-words hyphens-auto.
+
+If you have a global Card component you prefer, keep that, but retain the flex-row layout with min-w-0 and truncate/break-words to avoid overflow.
+
+Acceptance
+
+On a narrow mobile preview, each card is one row, copy wraps cleanly, no clipped text.
+
+Selected card shows a clear ring and survives theme changes.
