@@ -131,7 +131,7 @@ describe('DailySuggestedCard - Start Now Flow', () => {
           description: "We'll open the generator so you can build one quickly.",
           variant: 'destructive'
         });
-        expect(mockSetLocation).toHaveBeenCalledWith('/workout-generate');
+        expect(mockSetLocation).toHaveBeenCalledWith('/workout/generate');
       });
     });
 
@@ -156,7 +156,7 @@ describe('DailySuggestedCard - Start Now Flow', () => {
           description: "We'll open the generator so you can build one quickly.",
           variant: 'destructive'
         });
-        expect(mockSetLocation).toHaveBeenCalledWith('/workout-generate');
+        expect(mockSetLocation).toHaveBeenCalledWith('/workout/generate');
       });
     });
 
@@ -178,7 +178,7 @@ describe('DailySuggestedCard - Start Now Flow', () => {
           description: "We'll open the generator so you can build one quickly.",
           variant: 'destructive'
         });
-        expect(mockSetLocation).toHaveBeenCalledWith('/workout-generate');
+        expect(mockSetLocation).toHaveBeenCalledWith('/workout/generate');
       });
     });
   });
