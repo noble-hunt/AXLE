@@ -124,8 +124,7 @@ function OverlayWrapper() {
           return <Redirect to={`/workout/generate${search ? `?${search}` : ''}`} />;
         }} />
         <Route path="/suggest" component={() => {
-          const search = useSearch();
-          return <Redirect to={`/workout/generate${search ? `?${search}` : ''}`} />;
+          return <Redirect to="/workout" replace />;
         }} />
         <Route path="/groups" component={() => (
           <ProtectedRoute>
