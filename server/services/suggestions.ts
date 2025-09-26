@@ -18,7 +18,7 @@ export async function computeTodaySuggestion(userId: string) {
     const suggestionResult = await computeSuggestion(userId, new Date());
     
     const config = {
-      category: suggestionResult.request.category,
+      focus: suggestionResult.request.category,
       duration: suggestionResult.request.duration, 
       intensity: suggestionResult.request.intensity,
       equipment: [], // Default to bodyweight - can be enhanced later with user preferences
@@ -51,7 +51,7 @@ export async function startSuggestion(userId: string) {
     const { config, seed } = await computeTodaySuggestion(userId);
     
     // Map config to the format expected by createWorkoutFromSeed
-    const focus = mapCategoryToFocus(config.category);
+    const focus = mapCategoryToFocus(config.focus);
     
     // Create the workout using existing service
     const result = await createWorkoutFromSeed({
