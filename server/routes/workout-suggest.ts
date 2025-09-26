@@ -3,6 +3,7 @@ import type { Express } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { requireJSON } from '../middleware/accept-json';
 import { computeTodaySuggestion, startSuggestion } from '../services/suggestions';
+import { API_ENDPOINTS } from '@shared/endpoints';
 
 /**
  * Register workout suggestion routes as specified in the backend requirements
@@ -17,7 +18,7 @@ export function registerWorkoutSuggestionRoutes(app: Express) {
    * Returns JSON with suggestion config and rationale.
    * This is an alias/wrapper around the existing suggestion system.
    */
-  app.get('/api/workouts/suggest/today', requireJSON, requireAuth, async (req, res, next) => {
+  app.get(API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY, requireJSON, requireAuth, async (req, res, next) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
@@ -37,7 +38,7 @@ export function registerWorkoutSuggestionRoutes(app: Express) {
    * Returns JSON with the created workout ID.
    * Uses existing workout generation and persistence pipeline.
    */
-  app.post('/api/workouts/suggest/today/start', requireJSON, requireAuth, async (req, res, next) => {
+  app.post(API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY_START, requireJSON, requireAuth, async (req, res, next) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;

@@ -1,4 +1,11 @@
 import { httpJSON } from '@/lib/http';
+import { API_ENDPOINTS } from '@shared/endpoints';
+
+// Helper to convert server API paths to client httpJSON format
+function apiPath(endpoint: string): string {
+  // httpJSON expects paths relative to /api/ base
+  return endpoint.replace(/^\/api\//, '');
+}
 
 export type Suggestion = {
   focus: string;
@@ -24,13 +31,13 @@ export type TodaySuggestionResponse = {
 };
 
 export async function fetchTodaySuggestion(): Promise<TodaySuggestionResponse> {
-  return await httpJSON('workouts/suggest/today');
+  return await httpJSON(apiPath(API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY));
 }
 
 export async function startSuggestedWorkout(s: Suggestion) {
   // Try the new endpoint first
   try {
-    const res = await httpJSON<{ workoutId: string }>('workouts/suggest/today/start', {
+    const res = await httpJSON<{ workoutId: string }>(apiPath(API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY_START), {
       method: 'POST',
     });
     

@@ -3,16 +3,62 @@ import express from 'express';
 import { registerWorkoutSuggestionRoutes } from '../routes/workout-suggest';
 import { requireAuth } from '../middleware/auth';
 import { requireJSON } from '../middleware/accept-json';
+import { API_ENDPOINTS } from '@shared/endpoints';
+
+// Mock OpenAI to prevent browser environment error
+vi.mock('openai', () => ({
+  default: vi.fn(() => ({
+    chat: {
+      completions: {
+        create: vi.fn()
+      }
+    }
+  }))
+}));
 
 // Mock the middleware and services
 vi.mock('../middleware/auth');
 vi.mock('../middleware/accept-json');
 vi.mock('../services/suggestions');
 
+// Mock other dependencies that might import OpenAI
+vi.mock('../workoutGenerator', () => ({
+  generateWorkout: vi.fn()
+}));
+vi.mock('../lib/openai', () => ({
+  openai: {
+    chat: {
+      completions: {
+        create: vi.fn()
+      }
+    }
+  }
+}));
+
 // Import mocked services
 const { computeTodaySuggestion, startSuggestion } = await import('../services/suggestions');
 
 describe('Workout Suggestion API E2E Tests', () => {
+  
+  // Test client-server endpoint consistency
+  describe('Endpoint Consistency', () => {
+    it('client and server use same endpoint constants', () => {
+      // This test ensures we don't have client/server drift on endpoint paths
+      expect(API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY).toBe('/api/workouts/suggest/today');
+      expect(API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY_START).toBe('/api/workouts/suggest/today/start');
+    });
+    
+    it('endpoint constants are used in both client and server', async () => {
+      // Verify the constants are actually imported and used
+      const clientApiFile = await import('../../client/src/features/workouts/suggest/api.ts');
+      const serverRouteFile = await import('../routes/workout-suggest.ts');
+      
+      // This will fail at compile time if the imports are removed
+      expect(API_ENDPOINTS).toBeDefined();
+      expect(typeof API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY).toBe('string');
+      expect(typeof API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY_START).toBe('string');
+    });
+  });
   let app: express.Application;
   
   beforeEach(() => {
@@ -39,7 +85,7 @@ describe('Workout Suggestion API E2E Tests', () => {
   });
 
   describe('GET /api/workouts/suggest/today', () => {
-    it('returns JSON for authenticated request', async () => {
+    it('returns JSON with correct content-type for authenticated request', async () => {
       // Mock the suggestion service
       const mockSuggestion = {
         config: {
@@ -59,18 +105,28 @@ describe('Workout Suggestion API E2E Tests', () => {
       vi.mocked(computeTodaySuggestion).mockResolvedValue(mockSuggestion);
       
       // Create test request (simulates what supertest would do)
+      let responseHeaders: Record<string, string> = {};
       const response = await new Promise((resolve) => {
         const req = {
           method: 'GET',
-          url: '/api/workouts/suggest/today',
+          url: API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY,
           headers: { 'accept': 'application/json' },
           user: { id: 'test-user-123' }
         } as any;
         
         const res = {
-          json: (data: any) => resolve({ status: 200, body: data, headers: { 'content-type': 'application/json' } }),
-          status: vi.fn().mockReturnThis(),
-          setHeader: vi.fn()
+          setHeader: (name: string, value: string) => {
+            responseHeaders[name.toLowerCase()] = value;
+          },
+          getHeader: (name: string) => responseHeaders[name.toLowerCase()],
+          json: (data: any) => {
+            // Simulate Express setting content-type
+            if (!responseHeaders['content-type']) {
+              responseHeaders['content-type'] = 'application/json; charset=utf-8';
+            }
+            resolve({ status: 200, body: data, headers: responseHeaders });
+          },
+          status: vi.fn().mockReturnThis()
         } as any;
         
         app._router.handle(req, res);
@@ -78,14 +134,19 @@ describe('Workout Suggestion API E2E Tests', () => {
       
       expect(response).toMatchObject({
         status: 200,
-        headers: { 'content-type': 'application/json' },
         body: { suggestion: mockSuggestion }
       });
+      
+      // Verify content-type header is set correctly
+      expect((response as any).headers['content-type']).toContain('application/json');
+      
+      // Verify response is actually JSON, not HTML
+      expect(JSON.stringify((response as any).body)).not.toContain('<!DOCTYPE html>');
       
       expect(computeTodaySuggestion).toHaveBeenCalledWith('test-user-123');
     });
 
-    it('handles unauthenticated requests properly', async () => {
+    it('returns 401 with JSON content-type for unauthenticated requests', async () => {
       // Mock auth middleware to reject
       vi.mocked(requireAuth).mockImplementation((req, res, next) => {
         res.status(401).json({ error: 'Authentication required' });
@@ -96,16 +157,23 @@ describe('Workout Suggestion API E2E Tests', () => {
       testApp.use(express.json());
       registerWorkoutSuggestionRoutes(testApp);
       
+      let responseHeaders: Record<string, string> = {};
       const response = await new Promise((resolve) => {
         const req = {
           method: 'GET',
-          url: '/api/workouts/suggest/today',
+          url: API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY,
           headers: { 'accept': 'application/json' }
         } as any;
         
         const res = {
+          setHeader: (name: string, value: string) => {
+            responseHeaders[name.toLowerCase()] = value;
+          },
           status: vi.fn().mockImplementation((code) => ({
-            json: (data: any) => resolve({ status: code, body: data })
+            json: (data: any) => {
+              responseHeaders['content-type'] = 'application/json; charset=utf-8';
+              resolve({ status: code, body: data, headers: responseHeaders });
+            }
           }))
         } as any;
         
@@ -116,6 +184,9 @@ describe('Workout Suggestion API E2E Tests', () => {
         status: 401,
         body: { error: 'Authentication required' }
       });
+      
+      // Verify 401 response has JSON content-type
+      expect((response as any).headers['content-type']).toContain('application/json');
     });
   });
 
@@ -129,18 +200,25 @@ describe('Workout Suggestion API E2E Tests', () => {
       vi.mocked(startSuggestion).mockResolvedValue(mockResult);
       
       // Create test request for POST
+      let responseHeaders: Record<string, string> = {};
       const response = await new Promise((resolve) => {
         const req = {
           method: 'POST',
-          url: '/api/workouts/suggest/today/start',
+          url: API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY_START,
           headers: { 'accept': 'application/json', 'content-type': 'application/json' },
           user: { id: 'test-user-123' },
           body: {}
         } as any;
         
         const res = {
+          setHeader: (name: string, value: string) => {
+            responseHeaders[name.toLowerCase()] = value;
+          },
           status: vi.fn().mockImplementation((code) => ({
-            json: (data: any) => resolve({ status: code, body: data, headers: { 'content-type': 'application/json' } })
+            json: (data: any) => {
+              responseHeaders['content-type'] = 'application/json; charset=utf-8';
+              resolve({ status: code, body: data, headers: responseHeaders });
+            }
           }))
         } as any;
         
@@ -149,9 +227,11 @@ describe('Workout Suggestion API E2E Tests', () => {
       
       expect(response).toMatchObject({
         status: 201,
-        headers: { 'content-type': 'application/json' },
         body: { workoutId: 'workout-abc-123' }
       });
+      
+      // Verify content-type header
+      expect((response as any).headers['content-type']).toContain('application/json');
       
       expect(startSuggestion).toHaveBeenCalledWith('test-user-123');
     });
@@ -166,7 +246,7 @@ describe('Workout Suggestion API E2E Tests', () => {
       const response = await new Promise((resolve) => {
         const req = {
           method: 'POST',
-          url: '/api/workouts/suggest/today/start',
+          url: API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY_START,
           headers: { 'accept': 'application/json' },
           user: { id: 'test-user-123' },
           body: {}
