@@ -27,7 +27,16 @@ export function DailySuggestedCard({ suggestion }: { suggestion: {
       const isAPIUnavailable = status === 404 || status === 405 || 
         (e?.body && typeof e.body === 'string' && e.body.includes('<!DOCTYPE html'));
       
-      if (isAPIUnavailable) {
+      if (status === 401) {
+        // Authentication required - redirect to login
+        toast({
+          variant: 'destructive',
+          title: 'Sign in required',
+          description: 'Please sign in to start your suggested workout.',
+        });
+        setLocation('/auth/login');
+        return;
+      } else if (isAPIUnavailable) {
         toast({
           variant: 'destructive',
           title: 'Starting suggestion unavailable',
