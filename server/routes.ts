@@ -297,61 +297,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // GET /api/workouts/simulate - Simulate workout generation (no auth required)
-  app.get("/api/workouts/simulate", async (req, res) => {
-    res.type('application/json');
-    
-    try {
-      const { goal, durationMin, intensity, equipment, seed } = req.query;
-      
-      if (!goal || !durationMin || !intensity) {
-        return res.status(400).json({ 
-          ok: false, 
-          error: { code: 'BAD_INPUT', message: 'Missing required fields: goal, durationMin, intensity' } 
-        });
-      }
-      
-      const { openai } = await import('./lib/openai');
-      const { generateSeed } = await import('./lib/seededRandom');
-      const equipmentList = equipment ? (equipment as string).split(',') : ['bodyweight'];
-      const workoutSeed = seed as string || generateSeed();
-      
-      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}. Use the provided seed for any random selections to ensure deterministic results.`;
-      const user = `Goal: ${goal}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}\n\nIMPORTANT: Use this seed value (${workoutSeed}) consistently for any random choices in exercise selection, order, or variations to ensure reproducible results.`;
-      
-      const r = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0, // Set to 0 for maximum determinism
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }],
-        seed: parseInt(workoutSeed.slice(-8), 36) // Use seed as numeric seed for OpenAI
-      });
-      
-      const raw = r.choices?.[0]?.message?.content ?? '{}';
-      const workoutData = JSON.parse(raw);
-      
-      const workout = {
-        id: null, // Preview mode, no ID
-        blocks: workoutData.exercises || [],
-        estTimeMin: workoutData.est_duration_min || parseInt(durationMin as string),
-        intensity: workoutData.intensity || parseInt(intensity as string),
-        seed: workoutSeed,
-        meta: {
-          title: workoutData.title || `${goal} Workout`,
-          goal,
-          equipment: equipmentList
-        }
-      };
-      
-      res.json({ ok: true, workout });
-    } catch (e: any) {
-      console.error('[simulate] err', e);
-      res.status(500).json({ 
-        ok: false, 
-        error: { code: 'INTERNAL', message: e?.message || 'Simulation failed' } 
-      });
-    }
-  });
 
   // POST /api/workouts/generate - Generate workout (no auth required)
   app.post("/api/workouts/generate", async (req, res) => {
