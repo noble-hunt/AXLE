@@ -10,6 +10,7 @@ import { Button } from "@/components/swift/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Progress } from "@/components/ui/progress"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { createGenerationSeed } from "../../../shared/types/workouts"
 
 // Import step components
 import { ArchetypeStep } from "./steps/ArchetypeStep"
@@ -64,6 +65,45 @@ export interface WorkoutPreviewData {
     original: number;
     capped: number;
     reason: string;
+  };
+}
+
+// Types for API responses
+interface SimulateWorkoutResponse {
+  ok: true;
+  workout: {
+    id: string | null;
+    meta?: {
+      title?: string;
+    };
+    estTimeMin: number;
+    intensity: number;
+    blocks: Array<{
+      name: string;
+      sets: number;
+      reps: string;
+      notes?: string;
+    }>;
+    seed?: string;
+  };
+}
+
+interface GenerateWorkoutResponse {
+  ok: true;
+  workout: {
+    id: string;
+    meta?: {
+      title?: string;
+    };
+    estTimeMin: number;
+    intensity: number;
+    blocks: Array<{
+      name: string;
+      sets: number;
+      reps: string;
+      notes?: string;
+    }>;
+    seed?: string;
   };
 }
 
@@ -141,18 +181,19 @@ export function WorkoutWizard() {
     setIsSimulating(true);
     
     try {
-      const equipment = wizardState.equipment.join(',');
-      
       // Create or use provided seed for deterministic generation
-      let seedParam = undefined;
+      let generationSeed = undefined;
       if (customSeed) {
-        seedParam = customSeed;
+        try {
+          generationSeed = JSON.parse(customSeed);
+        } catch {
+          // If not JSON, treat as simple string seed (legacy)
+          generationSeed = { algo: 'v1' as const, userHash: customSeed, day: new Date().toISOString().split('T')[0] };
+        }
       } else if (profile?.id) {
         // Create deterministic seed for preview using proper hash
-        const { createGenerationSeed } = await import("@shared/types/workouts");
-        const generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
+        generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
         setPreviewSeed(generationSeed);
-        seedParam = JSON.stringify(generationSeed);
       }
       
       // Use POST /api/workouts/simulate for preview (no persistence)
@@ -161,16 +202,16 @@ export function WorkoutWizard() {
         minutes: wizardState.minutes,
         intensity: wizardState.intensity,
         equipment: wizardState.equipment,
-        ...(seedParam && { seed: JSON.parse(seedParam) })
+        ...(generationSeed && { seed: generationSeed })
       };
 
-      const response = await httpJSON(`/api/workouts/simulate`, {
+      const response = await httpJSON<SimulateWorkoutResponse>(`/api/workouts/simulate`, {
         method: 'POST',
         body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        throw new Error(response.error?.message || "Failed to generate workout preview");
+        throw new Error((response as any).error?.message || "Failed to generate workout preview");
       }
 
       // Transform response to match preview data structure
@@ -206,7 +247,7 @@ export function WorkoutWizard() {
           movementPoolIds: wizardState.equipment,
           schemeId: "standard"
         },
-        seed: previewSeed
+        seed: generationSeed ? JSON.stringify(generationSeed) : ""
       };
 
       setPreviewData(previewData);
@@ -239,7 +280,6 @@ export function WorkoutWizard() {
           generationSeed = previewSeed;
         } else {
           // Fallback to creating new seed
-          const { createGenerationSeed } = await import("@shared/types/workouts");
           generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
         }
       }
@@ -253,14 +293,14 @@ export function WorkoutWizard() {
         ...(generationSeed && { seed: generationSeed })
       };
 
-      const response = await httpJSON('/api/workouts/generate', {
+      const response = await httpJSON<GenerateWorkoutResponse>('/api/workouts/generate', {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData)
       });
 
       if (!response.ok) {
-        throw new Error(response.error?.message || "Failed to generate workout");
+        throw new Error((response as any).error?.message || "Failed to generate workout");
       }
 
       return response.workout;
