@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import * as Sentry from '@sentry/node';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { createWorkoutFromSeed } from '../services/workouts/createFromSeed';
 
@@ -37,6 +37,12 @@ export async function startSuggestedWorkout(req: Request, res: Response) {
     return res.status(201).json({ id: created.id });
   } catch (err: any) {
     Sentry.captureException(err, { tags: { route: 'POST /api/workouts/start' } });
+    
+    // Handle Zod validation errors as 400 Bad Request
+    if (err instanceof ZodError) {
+      return res.status(400).json({ error: 'validation-failed', detail: err.message });
+    }
+    
     const status = err.statusCode ?? 500;
     return res.status(status).json({ error: 'start-failed', detail: err?.message });
   }
