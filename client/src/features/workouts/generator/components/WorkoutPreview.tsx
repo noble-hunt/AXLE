@@ -8,7 +8,13 @@ import {
   Sparkles, Clock, Target, Dumbbell, ChevronDown, 
   RotateCcw, Play, BookOpen, Zap, Activity, AlertTriangle
 } from "lucide-react"
-import type { WizardState, WorkoutPreviewData } from "../WorkoutWizard"
+import type { WorkoutPlan, BlockItem } from "../../../../../shared/workoutSchema"
+import type { WizardState } from "../WorkoutWizard"
+
+export interface WorkoutPreviewData {
+  preview: WorkoutPlan;
+  seed: string;
+}
 
 export interface WorkoutPreviewProps {
   wizardState: WizardState;
@@ -67,7 +73,7 @@ export function WorkoutPreview({
     );
   }
 
-  const { workout } = previewData;
+  const { preview: workout } = previewData;
 
   const formatSeedCode = (seed: string) => {
     // Show a short version of the seed
@@ -85,6 +91,40 @@ export function WorkoutPreview({
 
   const ArchetypeIcon = getArchetypeIcon(wizardState.archetype);
 
+  // Helper to format prescription text
+  const formatPrescription = (item: BlockItem): string => {
+    const { prescription } = item;
+    const parts: string[] = [];
+    
+    // Sets
+    if (prescription.sets > 1) {
+      parts.push(`${prescription.sets} sets`);
+    } else {
+      parts.push(`${prescription.sets} set`);
+    }
+
+    // Reps/Time/Distance
+    if (prescription.type === "reps" && prescription.reps) {
+      parts.push(`x ${prescription.reps} reps`);
+    } else if (prescription.type === "time" && prescription.seconds) {
+      parts.push(`x ${prescription.seconds}s`);
+    } else if (prescription.type === "distance" && prescription.meters) {
+      parts.push(`x ${prescription.meters}m`);
+    }
+
+    // Load
+    if (prescription.load) {
+      parts.push(`@ ${prescription.load}`);
+    }
+
+    // Rest
+    if (prescription.restSec > 0) {
+      parts.push(`Rest ${prescription.restSec}s`);
+    }
+
+    return parts.join(", ");
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
@@ -94,22 +134,6 @@ export function WorkoutPreview({
         </p>
       </div>
 
-      {/* Health-Aware Intensity Capping */}
-      {previewData.cappedIntensity && (
-        <Card className="p-4 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                We capped today at {previewData.cappedIntensity.capped} based on recovery.
-              </p>
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                {previewData.cappedIntensity.reason} You can override this if you feel ready for more.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
 
       {/* Main Preview Card */}
       <Card className="p-6">
@@ -120,8 +144,8 @@ export function WorkoutPreview({
               <ArchetypeIcon className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-foreground">{workout.name}</h3>
-              <p className="text-sm text-muted-foreground">{workout.description}</p>
+              <h3 className="text-xl font-bold text-foreground">{workout.focus.charAt(0).toUpperCase() + workout.focus.slice(1)} Workout</h3>
+              <p className="text-sm text-muted-foreground">{workout.summary}</p>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="secondary" className="text-xs">
                   Seed: {formatSeedCode(previewData.seed)}
@@ -134,12 +158,12 @@ export function WorkoutPreview({
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
               <Clock className="w-5 h-5 text-primary mx-auto mb-1" />
-              <p className="text-lg font-bold text-foreground">{workout.totalMinutes}</p>
+              <p className="text-lg font-bold text-foreground">{workout.durationMin}</p>
               <p className="text-xs text-muted-foreground">minutes</p>
             </div>
             <div className="text-center">
               <Target className="w-5 h-5 text-chart-2 mx-auto mb-1" />
-              <p className="text-lg font-bold text-foreground">{workout.estimatedIntensity}</p>
+              <p className="text-lg font-bold text-foreground">{workout.intensity}</p>
               <p className="text-xs text-muted-foreground">intensity</p>
             </div>
             <div className="text-center">
@@ -149,70 +173,83 @@ export function WorkoutPreview({
             </div>
           </div>
 
-          {/* Quick Block Overview */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-foreground">Workout Structure</h4>
-            <div className="grid gap-2">
-              {workout.blocks.map((block, index) => (
-                <div key={block.id} className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg">
-                  <Badge variant="outline" className="text-xs min-w-[60px]">
-                    {block.type}
-                  </Badge>
-                  <span className="text-sm text-foreground font-medium">{block.name}</span>
-                  <span className="text-xs text-muted-foreground ml-auto">
-                    {block.exercises.length} exercises
-                  </span>
-                </div>
+          {/* Detailed Block Breakdown */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium text-foreground">Workout Details</h4>
+            <div className="space-y-4">
+              {workout.blocks.map((block, blockIndex) => (
+                <Card key={`${block.key}-${blockIndex}`} className="p-4">
+                  <div className="space-y-3">
+                    {/* Block Header */}
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {block.key}
+                      </Badge>
+                      <h5 className="text-sm font-medium text-foreground">{block.title}</h5>
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {Math.round(block.targetSeconds / 60)}min
+                      </span>
+                    </div>
+                    
+                    {/* Empty Block Error */}
+                    {block.items.length === 0 && (
+                      <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/20 rounded-lg">
+                        <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
+                        <p className="text-sm text-destructive font-medium">
+                          Generation returned an empty block. Please try again.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Block Items */}
+                    <div className="space-y-2">
+                      {block.items.map((item, itemIndex) => (
+                        <div key={`${item.movementId}-${itemIndex}`} className="flex items-start gap-3 p-2 bg-muted/20 rounded-lg">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatPrescription(item)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
               ))}
             </div>
           </div>
         </div>
       </Card>
 
-      {/* Explain This Workout Accordion */}
+      {/* Equipment Info */}
       <Card className="overflow-hidden">
         <Collapsible open={explanationOpen} onOpenChange={setExplanationOpen}>
           <CollapsibleTrigger className="w-full" data-testid="explain-workout-toggle">
             <div className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-primary" />
-                <span className="font-medium text-foreground">Explain this workout</span>
+                <span className="font-medium text-foreground">Equipment & Details</span>
               </div>
               <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${explanationOpen ? 'rotate-180' : ''}`} />
             </div>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="p-4 pt-0 space-y-4 border-t border-border">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h5 className="text-sm font-medium text-foreground mb-2">Template & Pattern</h5>
-                  <div className="space-y-1">
-                    <Badge variant="secondary">{workout.metadata.template}</Badge>
-                    <p className="text-xs text-muted-foreground">
-                      Movement patterns: {workout.metadata.patterns.join(', ')}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <h5 className="text-sm font-medium text-foreground mb-2">Equipment Used</h5>
-                  <div className="flex flex-wrap gap-1">
-                    {workout.metadata.equipment.map((eq) => (
-                      <Badge key={eq} variant="outline" className="text-xs">
-                        {eq}
-                      </Badge>
-                    ))}
-                  </div>
+              <div>
+                <h5 className="text-sm font-medium text-foreground mb-2">Equipment Used</h5>
+                <div className="flex flex-wrap gap-1">
+                  {workout.equipment.map((eq) => (
+                    <Badge key={eq} variant="outline" className="text-xs capitalize">
+                      {eq.replace('_', ' ')}
+                    </Badge>
+                  ))}
                 </div>
               </div>
               
               <div>
-                <h5 className="text-sm font-medium text-foreground mb-2">Progression Strategy</h5>
-                <p className="text-xs text-muted-foreground">{workout.metadata.progression}</p>
-              </div>
-
-              <div>
-                <h5 className="text-sm font-medium text-foreground mb-2">Coaching Notes</h5>
-                <p className="text-xs text-muted-foreground">{workout.coaching_notes}</p>
+                <h5 className="text-sm font-medium text-foreground mb-2">Focus</h5>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {workout.focus} training with intensity level {workout.intensity}/10
+                </p>
               </div>
             </div>
           </CollapsibleContent>
