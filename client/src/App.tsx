@@ -82,6 +82,8 @@ function OverlayWrapper() {
         {/* Main navigation routes - accessible to guests and authenticated users */}
         <Route path="/workout" component={Workout} />
         <Route path="/workout/log" component={LogFreeform} />
+        {/* Canonical generator path - must come before /workout/:id to avoid ID capture */}
+        <Route path="/workout/generate" component={WorkoutGenerate} />
         <Route path="/workout/:id" component={WorkoutDetail} />
         <Route path="/history" component={History} />
         <Route path="/health" component={Health} />
@@ -107,8 +109,6 @@ function OverlayWrapper() {
             <Reports />
           </ProtectedRoute>
         )} />
-        {/* Canonical generator path */}
-        <Route path="/workout/generate" component={WorkoutGenerate} />
         
         {/* Legacy aliases → redirect to canonical path with query params preserved */}
         <Route path="/generate-workout" component={() => {

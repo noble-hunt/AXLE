@@ -135,23 +135,25 @@ export function WorkoutWizard() {
     setWizardState(finalState);
   };
 
-  // Generate workout preview for the final step
+  // Generate workout preview for the final step (read-only simulation)
   const simulateWorkout = async (customSeed?: string) => {
     setIsSimulating(true);
     
     try {
-      const requestData = {
+      const seed = customSeed || `preview-${Date.now()}`;
+      const equipment = wizardState.equipment.join(',');
+      
+      // Use GET /api/workouts/simulate for preview (no persistence)
+      const params = new URLSearchParams({
         goal: wizardState.archetype,
-        durationMin: wizardState.minutes,
-        intensity: wizardState.intensity,
-        equipment: wizardState.equipment,
-        seed: customSeed || `preview-${Date.now()}`
-      };
+        durationMin: wizardState.minutes.toString(),
+        intensity: wizardState.intensity.toString(),
+        equipment: equipment,
+        seed: seed
+      });
 
-      const response = await httpJSON('/api/workouts/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData)
+      const response = await httpJSON(`/api/workouts/simulate?${params.toString()}`, {
+        method: 'GET',
       });
 
       if (!response.ok) {
@@ -161,7 +163,7 @@ export function WorkoutWizard() {
       // Transform response to match preview data structure
       const previewData: WorkoutPreviewData = {
         workout: {
-          id: response.workout.id,
+          id: response.workout.id, // Will be null for simulation
           name: response.workout.meta?.title || "Generated Workout",
           description: `${wizardState.archetype} workout for ${wizardState.minutes} minutes`,
           totalMinutes: response.workout.estTimeMin,
@@ -191,7 +193,7 @@ export function WorkoutWizard() {
           movementPoolIds: wizardState.equipment,
           schemeId: "standard"
         },
-        seed: response.workout.seed || requestData.seed
+        seed: response.workout.seed || seed
       };
 
       setPreviewData(previewData);
@@ -307,10 +309,10 @@ export function WorkoutWizard() {
       <div className="flex items-center justify-between">
         <SectionTitle 
           title="Workout Generator" 
-          subtitle="Create your perfect workout in 4 simple steps"
+          subtitle="Create your perfect workout in 5 simple steps"
         />
         <div className="text-sm text-muted-foreground">
-          Step {currentStep} of 4
+          Step {currentStep} of 5
         </div>
       </div>
 
