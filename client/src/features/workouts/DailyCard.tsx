@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, Activity, Target, Play } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { fetchDailySuggestion, type DailySuggestionResponse } from './api';
+import { DailySuggestedCard } from './suggest/DailySuggestedCard';
 
 export function DailyCard() {
   // Check for QA toggle in URL
@@ -100,69 +101,39 @@ export function DailyCard() {
     );
   }
 
-  // Valid suggestion - show preview  
+  // Valid suggestion - extract data and use new component
   const { suggestion } = data;
   const seed = (data as any).seed;
   const request = suggestion.request || {};
   
-  return (
-    <Card data-testid="daily-card-preview" className="w-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Today's Suggestion
-          </CardTitle>
-          {showSeed && seed && (
-            <Badge 
-              data-testid="seed-chip" 
-              variant="outline" 
-              className="text-xs cursor-pointer"
-              onClick={() => {
-                navigator.clipboard.writeText(`${seed.rngSeed}:${seed.generatorVersion}`);
-                toast({ description: "Seed copied to clipboard" });
-              }}
-            >
-              {seed.rngSeed?.slice(0, 8)}...
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Quick preview bullets */}
-        <div className="space-y-2">
-          {request.category && (
-            <div className="flex items-center gap-2 text-sm">
-              <Target className="h-4 w-4 text-muted-foreground" />
-              <span data-testid="text-archetype">{request.category}</span>
-            </div>
-          )}
-          {request.duration && (
-            <div className="flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span data-testid="text-duration">{request.duration} minutes</span>
-            </div>
-          )}
-          {request.intensity && (
-            <div className="flex items-center gap-2 text-sm">
-              <Activity className="h-4 w-4 text-muted-foreground" />
-              <span data-testid="text-intensity">Intensity {request.intensity}/10</span>
-            </div>
-          )}
-        </div>
-
-        {/* Main block preview (if available) */}
-        {suggestion.rationale?.mainFocus && (
-          <p className="text-sm text-muted-foreground" data-testid="text-main-focus">
-            {suggestion.rationale.mainFocus}
-          </p>
-        )}
-
-        <Button data-testid="button-start-workout" className="w-full">
-          <Play className="h-4 w-4 mr-2" />
-          Start This Workout
-        </Button>
-      </CardContent>
-    </Card>
-  );
+  // Transform data for the new component
+  const suggestionData = {
+    focus: request.category || 'Mixed Training',
+    minutes: request.duration || 30,
+    intensity: request.intensity || 5,
+    seed: seed || {},
+    generatorVersion: seed?.generatorVersion || 'v0.3.0'
+  };
+  
+  // Show seed debug info if enabled
+  if (showSeed && seed) {
+    return (
+      <div className="space-y-4">
+        <DailySuggestedCard suggestion={suggestionData} />
+        <Badge 
+          data-testid="seed-chip" 
+          variant="outline" 
+          className="text-xs cursor-pointer mx-auto block w-fit"
+          onClick={() => {
+            navigator.clipboard.writeText(`${seed.rngSeed}:${seed.generatorVersion}`);
+            toast({ description: "Seed copied to clipboard" });
+          }}
+        >
+          Debug: {seed.rngSeed?.slice(0, 8)}...
+        </Badge>
+      </div>
+    );
+  }
+  
+  return <DailySuggestedCard suggestion={suggestionData} />;
 }
