@@ -255,6 +255,26 @@ describe('/api/workouts/start endpoint', () => {
       );
     });
 
+    it('should return 400 when minutes is zero', async () => {
+      // Arrange
+      mockReq.body = {
+        focus: 'Strength',
+        minutes: 0, // zero fails .positive()
+        intensity: 7
+      };
+
+      // Act
+      await startSuggestedWorkout(mockReq as Request, mockRes as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: 'validation-failed'
+        })
+      );
+    });
+
     it('should return 400 when intensity is out of range', async () => {
       // Arrange
       mockReq.body = {
