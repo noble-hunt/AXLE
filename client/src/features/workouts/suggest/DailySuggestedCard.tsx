@@ -73,7 +73,7 @@ export function DailySuggestedCard({ suggestion }: { suggestion: {
           </Button>
           <Button
             data-testid="button-try-different"
-            onClick={() => setLocation('/workout-generate')}
+            onClick={() => setLocation('/workout/generate')}
             variant="outline"
             className="w-full sm:w-auto"
           >
