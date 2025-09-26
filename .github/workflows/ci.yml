@@ -37,6 +37,10 @@ jobs:
       - name: Lint
         run: npx eslint . --ext .ts,.tsx --max-warnings=0
 
+      # Run tests
+      - name: Run tests
+        run: npx vitest run
+
       # Build client (supports either "build" in client or root script alias)
       - name: Build client
         run: |
