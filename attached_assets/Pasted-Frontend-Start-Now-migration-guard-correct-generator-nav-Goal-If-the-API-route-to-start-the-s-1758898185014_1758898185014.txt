@@ -1,0 +1,78 @@
+Frontend “Start Now” migration-guard + correct generator nav
+
+Goal:
+
+If the API route to start the suggested workout isn’t available (404/405/HTML), gracefully fall back to the generator wizard instead of erroring.
+
+Make sure “Create New Workout” always opens the generator flow.
+
+Tighten the Suggested card UI spacing (same look you had before).
+
+Do:
+
+Edit client/src/features/workouts/suggested.ts (or wherever the suggested card actions live).
+
+Use our httpJSON() helper.
+
+On Start Now, first try POST /api/workouts/suggest/today/start.
+
+If you get 404/405 or non-JSON/HTML, fall back to router.push('/workout/generate') with a toast.
+
+Keep success path navigating to /workout/:id.
+
+// PSEUDO/DIFF – adjust to actual file path & imports in repo
+import { httpJSON } from '@/lib/http'
+import { useRouter } from 'react-router-dom' // or next/router if applicable
+import { toast } from '@/components/ui/use-toast'
+
+async function startSuggested(router: ReturnType<typeof useRouter>) {
+  try {
+    const { workoutId } = await httpJSON<{ workoutId: string }>('/api/workouts/suggest/today/start', {
+      method: 'POST'
+    })
+    router.push(`/workout/${workoutId}`)
+  } catch (err: any) {
+    const status = err?.status ?? 0
+    const isAPIUnavailable = status === 404 || status === 405 || (err?.body && typeof err.body === 'string' && err.body.includes('<!DOCTYPE html'))
+    if (isAPIUnavailable) {
+      toast({
+        variant: 'destructive',
+        title: 'Starting suggestion unavailable',
+        description: 'We’ll generate a fresh workout instead.',
+      })
+      router.push('/workout/generate')
+      return
+    }
+    toast({
+      variant: 'destructive',
+      title: 'Failed to start workout',
+      description: err?.message ?? 'Please try again.',
+    })
+  }
+}
+
+
+Edit the “Create New Workout” button component (likely client/src/pages/workout/index.tsx or client/src/features/workouts/entry.tsx):
+
+Ensure it always does router.push('/workout/generate') (not /workout or /workout/:id).
+
+<Button size="lg" onClick={() => router.push('/workout/generate')}>
+  + Create New Workout
+</Button>
+
+
+Polish the Suggested card layout (same file as the card component):
+
+Make the two secondary actions stack nicely on small screens.
+
+<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <Button variant="secondary" onClick={showRationale} className="w-full sm:w-auto">Show Rationale</Button>
+  <Button variant="ghost" onClick={tryDifferentFocus} className="w-full sm:w-auto">Try Different Focus</Button>
+</div>
+
+
+Verify:
+
+Click Create New Workout → you land on the generator wizard.
+
+Click Start Now → if API works, you land on /workout/:id. If not, you’re routed to the generator with a toast (no 404 in console).
