@@ -2,6 +2,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cors from 'cors';
 import { registerRoutes } from "./routes";
+import { workouts } from "./routes/workouts";
 import { setupVite, serveStatic, log } from "./vite";
 import { startSuggestionsCron } from "./jobs/suggestions-cron";
 import { initSentry, Sentry } from "./sentry";
@@ -139,6 +140,20 @@ app.use((req, res, next) => {
   });
 
   next();
+});
+
+// Mount the workouts router
+app.use("/api/workouts", workouts);
+
+// TEMP route index for debugging
+app.get("/api/_routes", (req, res) => {
+  res.json({
+    ok: true,
+    routes: [
+      "POST /api/workouts/preview",
+      "POST /api/workouts/generate/preview (alias)"
+    ]
+  });
 });
 
 (async () => {
