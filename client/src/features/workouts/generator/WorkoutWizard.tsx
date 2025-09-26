@@ -140,20 +140,31 @@ export function WorkoutWizard() {
     setIsSimulating(true);
     
     try {
-      const seed = customSeed || `preview-${Date.now()}`;
       const equipment = wizardState.equipment.join(',');
       
-      // Use GET /api/workouts/simulate for preview (no persistence)
-      const params = new URLSearchParams({
-        goal: wizardState.archetype,
-        durationMin: wizardState.minutes.toString(),
-        intensity: wizardState.intensity.toString(),
-        equipment: equipment,
-        seed: seed
-      });
+      // Create or use provided seed for deterministic generation
+      let seedParam = undefined;
+      if (customSeed) {
+        seedParam = customSeed;
+      } else if (profile?.id) {
+        // Create deterministic seed for preview
+        const { createGenerationSeed } = await import("../../../../shared/types/workouts");
+        const generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
+        seedParam = JSON.stringify(generationSeed);
+      }
+      
+      // Use POST /api/workouts/simulate for preview (no persistence)
+      const requestBody = {
+        archetype: wizardState.archetype,
+        minutes: wizardState.minutes,
+        intensity: wizardState.intensity,
+        equipment: wizardState.equipment,
+        ...(seedParam && { seed: JSON.parse(seedParam) })
+      };
 
-      const response = await httpJSON(`/api/workouts/simulate?${params.toString()}`, {
-        method: 'GET',
+      const response = await httpJSON(`/api/workouts/simulate`, {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -210,14 +221,29 @@ export function WorkoutWizard() {
 
   // Generate and save workout
   const generateMutation = useMutation({
-    mutationFn: async (seed?: string) => {
+    mutationFn: async (customSeed?: string) => {
+      // Create or use provided seed for deterministic generation
+      let generationSeed = undefined;
+      if (customSeed) {
+        try {
+          generationSeed = JSON.parse(customSeed);
+        } catch {
+          // If not JSON, treat as simple string seed (legacy)
+          generationSeed = { algo: 'v1' as const, userHash: customSeed, day: new Date().toISOString().split('T')[0] };
+        }
+      } else if (profile?.id) {
+        // Create deterministic seed for generation
+        const { createGenerationSeed } = await import("../../../../shared/types/workouts");
+        generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
+      }
+
       // Transform wizard state to server format
       const requestData = {
-        goal: wizardState.archetype,
-        durationMin: wizardState.minutes,
+        archetype: wizardState.archetype,
+        minutes: wizardState.minutes,
         intensity: wizardState.intensity,
         equipment: wizardState.equipment,
-        seed: seed || `wizard-${Date.now()}`
+        ...(generationSeed && { seed: generationSeed })
       };
 
       const response = await httpJSON('/api/workouts/generate', {
