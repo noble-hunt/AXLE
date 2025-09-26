@@ -899,12 +899,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Workout not found" });
       }
       
+      // Idempotency check: if workout is already started, don't set again
+      if (workout.started_at) {
+        return res.status(200).json({ id: workout.id, message: "Workout already started" });
+      }
+      
       // Update the workout to mark it as started
       const updatedWorkout = await updateWorkout(authReq.user.id, id, {
-        ...workout,
         started_at: new Date().toISOString(),
         completed: false
       });
+      
+      if (!updatedWorkout) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
       
       res.status(200).json({ id: updatedWorkout.id });
     } catch (error) {

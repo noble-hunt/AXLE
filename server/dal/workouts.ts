@@ -22,6 +22,7 @@ export interface UpdateWorkoutPatch {
   sets?: Record<string, any>;
   completed?: boolean;
   feedback?: Record<string, any>;
+  started_at?: string; // ISO timestamp when workout was started
 }
 
 export async function insertWorkout({ userId, workout }: InsertWorkoutParams) {
