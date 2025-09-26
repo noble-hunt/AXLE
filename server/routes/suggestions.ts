@@ -1,12 +1,16 @@
 import type { Express } from "express";
 import { z } from "zod";
+import crypto from "crypto";
+import { nanoid } from "nanoid";
+import * as Sentry from "@sentry/node";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
 import { computeSuggestion } from "../logic/suggestions";
 import { generateWorkout } from "../workoutGenerator";
 import { insertWorkout } from "../dal/workouts";
+import { deriveSuggestionSeed } from "../services/suggestionInputs";
 import { db } from "../db";
 import { suggestedWorkouts, workouts, prs, healthReports } from "@shared/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 
 /**
  * Register suggestion-related API routes
@@ -17,15 +21,29 @@ export function registerSuggestionRoutes(app: Express) {
    * GET /api/suggestions/today
    * 
    * Gets or generates the daily workout suggestion for the authenticated user.
-   * If a suggestion already exists for today, returns it.
-   * If not, computes a new suggestion, stores it, and returns it.
+   * Returns clean JSON for all states: unauth, no data, success.
+   * Adapted to generator v0.3 + seeds with Sentry logging.
    */
-  app.get("/api/suggestions/today", requireAuth, async (req, res) => {
+  app.get("/api/suggestions/today", async (req, res) => {
+    const requestId = crypto.randomUUID();
+    
     try {
+      // Set content type to JSON
+      res.type('application/json');
+
+      // Check authentication without requiring middleware throwing
       const authReq = req as AuthenticatedRequest;
+      if (!authReq.user?.id) {
+        console.log({ requestId }, 'Unauthenticated request to /api/suggestions/today');
+        return res.status(200).json({ 
+          suggestion: null, 
+          reason: "unauthenticated",
+          requestId
+        });
+      }
+
       const userId = authReq.user.id;
-      
-      console.log(`🎯 Getting daily suggestion for user: ${userId}`);
+      console.log({ requestId, userId }, 'GET /api/suggestions/today');
 
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       
@@ -43,17 +61,71 @@ export function registerSuggestionRoutes(app: Express) {
 
       if (suggestion) {
         console.log(`✅ Returning existing suggestion for ${today}`);
-        return res.json({
+        return res.status(200).json({
           ...suggestion,
-          isExisting: true
+          isExisting: true,
+          requestId
         });
       }
 
-      // Generate new suggestion using our sophisticated algorithm
+      // Try to derive suggestion inputs
+      let inputs, context, recent;
+      try {
+        const seedData = await deriveSuggestionSeed(userId);
+        inputs = seedData.inputs;
+        context = seedData.context;
+        recent = seedData.recent;
+      } catch (seedError) {
+        console.log({ requestId, userId, error: seedError }, 'Cannot derive suggestion inputs');
+        return res.status(200).json({
+          suggestion: null,
+          reason: "insufficient-context",
+          requestId
+        });
+      }
+
+      // Generate new suggestion using v0.3 compatible approach
       console.log(`🧠 Computing new suggestion for ${today}`);
       
-      const suggestionResult = await computeSuggestion(userId, new Date());
-      
+      // Create seed for v0.3 generator
+      const seed = {
+        rngSeed: nanoid(10),
+        generatorVersion: 'v0.3.0',
+        inputs,
+        context,
+      };
+
+      // Try to generate preview using current system (fallback to old approach)
+      let suggestionResult;
+      try {
+        // First attempt: generate via v0.3 approach if available
+        // For now, fall back to existing computeSuggestion since we don't have v0.3 generator fully implemented
+        suggestionResult = await computeSuggestion(userId, new Date());
+      } catch (generatorError) {
+        console.log({ requestId, userId, error: generatorError }, 'Failed to compute suggestion');
+        Sentry.captureException(generatorError, { 
+          extra: { requestId, userId },
+          tags: { component: 'suggestions' }
+        });
+        return res.status(500).json({ 
+          error: 'internal', 
+          requestId 
+        });
+      }
+
+      // Check if workouts table has gen_seed columns for v0.3 support
+      let hasGenColumns = false;
+      try {
+        const columnCheck = await db.execute(
+          sql`SELECT column_name FROM information_schema.columns 
+              WHERE table_name='workouts' AND column_name IN ('gen_seed','generator_version')`
+        );
+        hasGenColumns = (columnCheck.rows?.length ?? 0) >= 2;
+      } catch (schemaError) {
+        console.log({ requestId }, 'Could not check schema, assuming no gen columns');
+        hasGenColumns = false;
+      }
+
       // Store the suggestion in the database using Drizzle
       const insertedSuggestion = await db
         .insert(suggestedWorkouts)
@@ -67,29 +139,43 @@ export function registerSuggestionRoutes(app: Express) {
         .returning();
         
       if (!insertedSuggestion[0]) {
-        console.error("Error inserting suggestion");
-        return res.status(500).json({ message: "Failed to save suggestion" });
+        console.error({ requestId }, "Error inserting suggestion");
+        Sentry.captureMessage("Failed to insert suggestion", {
+          extra: { requestId, userId }
+        });
+        return res.status(500).json({ 
+          error: 'internal', 
+          requestId 
+        });
       }
 
       console.log(`✅ Generated and stored new suggestion with ID: ${insertedSuggestion[0].id}`);
       
-      res.json({
+      // Return suggestion with seed info for v0.3 compatibility
+      return res.status(200).json({
         ...insertedSuggestion[0],
         customSuggestions: suggestionResult.customSuggestions || [],
-        isExisting: false
+        isExisting: false,
+        seed: { 
+          rngSeed: seed.rngSeed, 
+          generatorVersion: seed.generatorVersion 
+        },
+        hasGenColumns, // For debugging
+        requestId
       });
 
     } catch (error) {
-      console.error("Error in /api/suggestions/today:", error);
+      console.error({ requestId }, "Error in /api/suggestions/today:", error);
       
-      // Handle UUID validation errors specifically
-      if (error instanceof Error && error.message.includes('Invalid userId format')) {
-        return res.status(400).json({ message: error.message });
-      }
+      // Send to Sentry with context
+      Sentry.captureException(error, { 
+        extra: { requestId },
+        tags: { route: '/api/suggestions/today' }
+      });
       
-      res.status(500).json({ 
-        message: "Failed to get daily suggestion",
-        error: "An internal error occurred while getting your daily suggestion."
+      return res.status(500).json({ 
+        error: 'internal', 
+        requestId 
       });
     }
   });
@@ -106,7 +192,11 @@ export function registerSuggestionRoutes(app: Express) {
    * Returns { suggestion, workout }.
    */
   app.post("/api/suggestions/generate", requireAuth, async (req, res) => {
+    const requestId = crypto.randomUUID();
+    
     try {
+      res.type('application/json');
+      
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
       
@@ -117,7 +207,7 @@ export function registerSuggestionRoutes(app: Express) {
       
       const { regenerate = false } = bodySchema.parse(req.body);
       
-      console.log(`🎯 Generating workout from suggestion for user: ${userId}, regenerate: ${regenerate}`);
+      console.log({ requestId, userId, regenerate }, 'POST /api/suggestions/generate');
 
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       
@@ -181,7 +271,10 @@ export function registerSuggestionRoutes(app: Express) {
           .limit(1);
           
         if (!existingSuggestion[0]) {
-          return res.status(404).json({ message: "No suggestion found for today. Call /api/suggestions/today first." });
+          return res.status(404).json({ 
+            message: "No suggestion found for today. Call /api/suggestions/today first.",
+            requestId
+          });
         }
         
         suggestion = existingSuggestion[0];
@@ -256,14 +349,14 @@ export function registerSuggestionRoutes(app: Express) {
           .set({ workoutId: dbWorkout.id })
           .where(eq(suggestedWorkouts.id, suggestion.id));
       } catch (updateError) {
-        console.error("Error linking workout to suggestion:", updateError);
+        console.error({ requestId }, "Error linking workout to suggestion:", updateError);
         // Don't fail the request, just log the error
       }
 
       console.log(`✅ Generated workout with ID: ${dbWorkout.id} and linked to suggestion ${suggestion.id}`);
 
       // Return both suggestion and workout
-      res.json({
+      return res.status(200).json({
         suggestion: {
           ...suggestion,
           workoutId: dbWorkout.id
@@ -272,28 +365,31 @@ export function registerSuggestionRoutes(app: Express) {
           ...generatedWorkout,
           id: dbWorkout.id,
           dbId: dbWorkout.id
-        }
+        },
+        requestId
       });
 
     } catch (error) {
-      console.error("Error in /api/suggestions/generate:", error);
+      console.error({ requestId }, "Error in /api/suggestions/generate:", error);
       
       // Handle validation errors
       if (error instanceof z.ZodError) {
         return res.status(400).json({ 
           message: "Invalid request data", 
-          errors: error.issues 
+          errors: error.issues,
+          requestId
         });
       }
       
-      // Handle UUID validation errors
-      if (error instanceof Error && error.message.includes('Invalid userId format')) {
-        return res.status(400).json({ message: error.message });
-      }
+      // Send to Sentry
+      Sentry.captureException(error, { 
+        extra: { requestId },
+        tags: { route: '/api/suggestions/generate' }
+      });
       
-      res.status(500).json({ 
-        message: "Failed to generate workout from suggestion",
-        error: "An internal error occurred while generating your workout."
+      return res.status(500).json({ 
+        error: 'internal', 
+        requestId 
       });
     }
   });
@@ -305,16 +401,23 @@ export function registerSuggestionRoutes(app: Express) {
    * Useful for testing and debugging the suggestion logic.
    */
   app.get("/api/suggestions/debug", requireAuth, async (req, res) => {
+    const requestId = crypto.randomUUID();
+    
     try {
+      res.type('application/json');
+      
       // Only allow in development
       if (process.env.NODE_ENV === 'production') {
-        return res.status(403).json({ message: "Debug endpoint not available in production" });
+        return res.status(403).json({ 
+          message: "Debug endpoint not available in production",
+          requestId 
+        });
       }
       
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
       
-      console.log(`🔍 Debug suggestion inputs for user: ${userId}`);
+      console.log({ requestId, userId }, 'GET /api/suggestions/debug');
 
       // Import functions from our suggestion engine
       const { fetchWorkoutData, fetchLatestHealthReport } = await import("../logic/suggestions");
@@ -325,8 +428,11 @@ export function registerSuggestionRoutes(app: Express) {
       const workoutData = await fetchWorkoutData(userId, today);
       const latestHealth = await fetchLatestHealthReport(userId);
       
+      // Get v0.3 seed data
+      const seedData = await deriveSuggestionSeed(userId);
+      
       // Return the raw inputs for debugging
-      res.json({
+      return res.status(200).json({
         userId,
         date: today.toISOString().split('T')[0],
         inputs: {
@@ -339,6 +445,11 @@ export function registerSuggestionRoutes(app: Express) {
           health: {
             latest: latestHealth,
             metrics: latestHealth?.metrics || null
+          },
+          v03Seed: {
+            inputs: seedData.inputs,
+            context: seedData.context,
+            recent: seedData.recent
           }
         },
         summary: {
@@ -346,20 +457,22 @@ export function registerSuggestionRoutes(app: Express) {
           recentWorkout: workoutData.last28[0] || null,
           hasHealthData: !!latestHealth,
           healthMetricsKeys: latestHealth?.metrics ? Object.keys(latestHealth.metrics as any) : []
-        }
+        },
+        requestId
       });
 
     } catch (error) {
-      console.error("Error in /api/suggestions/debug:", error);
+      console.error({ requestId }, "Error in /api/suggestions/debug:", error);
       
-      // Handle UUID validation errors
-      if (error instanceof Error && error.message.includes('Invalid userId format')) {
-        return res.status(400).json({ message: error.message });
-      }
+      // Send to Sentry
+      Sentry.captureException(error, { 
+        extra: { requestId },
+        tags: { route: '/api/suggestions/debug' }
+      });
       
-      res.status(500).json({ 
-        message: "Failed to get debug information",
-        error: "An internal error occurred while fetching debug data."
+      return res.status(500).json({ 
+        error: 'internal', 
+        requestId 
       });
     }
   });

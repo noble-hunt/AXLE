@@ -1,0 +1,136 @@
+Fix 500s on Daily Suggested Workout (server)
+
+Goal: Make /api/suggestions/today (or whatever the route is named in your code) return a clean JSON response for all states (unauth, no data yet, success), and adapt it to generator v0.3 + seeds. Add logs + Sentry.
+
+Do:
+
+Find the route & service
+
+Search the repo for any of: suggestion, daily, today, getDailySuggestedWorkout.
+
+Identify the HTTP path(s) used by the client. Common ones we’ve used:
+
+GET /api/suggestions/today
+
+GET /api/workouts/suggested
+
+Open the file(s) (e.g., server/routes/suggestions.ts or server/routes/workouts.ts) and the service that powers it (e.g., server/services/suggestions.ts).
+
+Harden handler signature + responses
+
+Wrap handler in try/catch.
+
+If user is not authed, return 200 { suggestion: null, reason: "unauthenticated" } (UI shows CTA) — do not throw.
+
+If inputs can’t be derived, return 200 { suggestion: null, reason: "insufficient-context" }.
+
+On real server error, 500 { error: "internal", requestId } and Sentry.captureException(err).
+
+Always res.type('application/json').
+
+Build safe defaults for v0.3 generator
+
+Create server/services/suggestionInputs.ts:
+
+import { type GeneratorInputs, type GeneratorContext } from '../../shared/types/generator';
+import { getLatestHealthReportForUser } from '../lib/healthReports';
+import { getUserProfile } from '../lib/profile';
+import { getRecentWorkouts } from '../lib/workouts';
+
+export async function deriveSuggestionSeed(userId: string) {
+  const profile = await getUserProfile(userId);           // may be null
+  const health  = await getLatestHealthReportForUser(userId).catch(() => null);
+  const recent  = await getRecentWorkouts(userId, { limit: 4 }).catch(() => []);
+
+  // SAFE DEFAULTS for MVP
+  const inputs: GeneratorInputs = {
+    archetype: profile?.default_archetype ?? 'mixed',
+    minutes:   profile?.default_minutes   ?? 30,
+    targetIntensity: profile?.default_intensity ?? 6,
+    equipment: profile?.equipment ?? ['dumbbells','bodyweight'],
+    constraints: profile?.constraints ?? [],
+    location: profile?.location ?? 'gym'
+  };
+
+  const context: GeneratorContext = {
+    dateISO: new Date().toISOString(),
+    userId,
+    healthModifiers: health ? {
+      axleScore: health.axle_score ?? undefined,
+      vitality:  health.vitality_score ?? undefined,
+      performancePotential: health.performance_potential ?? undefined,
+      circadian: health.circadian_alignment ?? undefined,
+    } : undefined,
+  };
+
+  return { inputs, context, recent };
+}
+
+
+Ensure minutes, archetype, equipment are never undefined.
+
+Call generator v0.3 with a seed
+
+In the suggestion route, compose a seed:
+
+import { nanoid } from 'nanoid';
+import { generateWorkout } from '../lib/generator/v03/generateWorkout';
+
+// inside handler:
+const { inputs, context } = await deriveSuggestionSeed(userId);
+const seed = {
+  rngSeed: nanoid(10),
+  generatorVersion: 'v0.3.0',
+  inputs,
+  context,
+};
+
+const preview = await generateWorkout(seed, { preview: true }); // do NOT save for daily card
+return res.status(200).json({ suggestion: preview, seed: { rngSeed: seed.rngSeed, generatorVersion: seed.generatorVersion } });
+
+
+Guard DB schema differences
+
+If suggestion route chooses to persist a suggestion as a real workout, ensure the workouts table has the columns we added earlier:
+
+gen_seed JSONB, generator_version TEXT.
+
+If columns are missing (older env), do not persist; still return preview.
+
+Add a lightweight runtime check:
+
+const hasGenColumns = await db.$queryRaw`SELECT column_name FROM information_schema.columns WHERE table_name='workouts' AND column_name IN ('gen_seed','generator_version')`;
+// branch save logic based on presence
+
+
+Add Sentry + logs
+
+At the top of the handler:
+
+const requestId = crypto.randomUUID();
+req.requestId = requestId; // if middleware available
+logger.info({ requestId, userId }, 'GET /api/suggestions/today');
+
+
+In catch:
+
+Sentry.captureException(err, { extra: { requestId }});
+logger.error({ err, requestId }, 'suggestion error');
+return res.status(500).json({ error: 'internal', requestId });
+
+
+Tiny endpoint smoke test (server)
+
+Add a vitest for the handler:
+
+unauth → 200 {suggestion:null}
+
+valid user with empty profile → 200 with preview JSON
+
+generator throws → 500 captured + message
+
+Acceptance:
+
+Visiting /workout or home with console open shows no red 500 logs; the daily card either renders a preview or a friendly CTA.
+
+curl -i http://localhost:5000/api/suggestions/today returns 200 JSON (or null reason), never HTML.
