@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { authFetch } from "@/lib/authFetch";
 import { useAppStore } from "@/store/useAppStore";
-import type { SuggestedWorkout } from "@shared/schema";
+import type { SuggestedWorkout } from "../../../shared/schema";
 
 export function useSuggestedWorkout() {
   const [suggestion, setSuggestion] = useState<SuggestedWorkout | null>(null);
