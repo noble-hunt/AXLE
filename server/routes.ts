@@ -891,6 +891,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Start a specific workout by ID
+  app.post("/api/workouts/:id/start", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id } = req.params;
+      
+      // Get the workout to ensure it exists and belongs to the user
+      const workout = await getWorkout(authReq.user.id, id);
+      if (!workout) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
+      
+      // Update the workout to mark it as started
+      const updatedWorkout = await updateWorkout(authReq.user.id, id, {
+        ...workout,
+        started_at: new Date().toISOString(),
+        completed: false
+      });
+      
+      res.status(200).json({ id: updatedWorkout.id });
+    } catch (error) {
+      console.error("Failed to start workout:", error);
+      res.status(500).json({ message: "Failed to start workout" });
+    }
+  });
+
   app.put("/api/workouts/:id", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;

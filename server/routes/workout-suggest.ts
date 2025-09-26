@@ -50,4 +50,24 @@ export function registerWorkoutSuggestionRoutes(app: Express) {
       next(error);
     }
   });
+
+  /**
+   * POST /api/workouts/suggest/rotate
+   * 
+   * Generates a new daily suggestion with a different focus.
+   * Returns JSON with new suggestion config and rationale.
+   */
+  app.post('/api/workouts/suggest/rotate', requireJSON, requireAuth, async (req, res, next) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      
+      // Generate a new suggestion (this will create a different focus)
+      const suggestion = await computeTodaySuggestion(userId);
+      
+      res.json({ suggestion });
+    } catch (error) {
+      next(error);
+    }
+  });
 }
