@@ -10,7 +10,7 @@ import { Button } from "@/components/swift/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Progress } from "@/components/ui/progress"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { createGenerationSeed } from "../../../shared/types/workouts"
+import { createGenerationSeed } from "@shared/types/workouts"
 
 // Import step components
 import { ArchetypeStep } from "./steps/ArchetypeStep"
