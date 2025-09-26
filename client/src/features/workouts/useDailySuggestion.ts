@@ -3,9 +3,8 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from '@/hooks/use-toast';
-import { fetchTodaySuggestion, startSuggestedWorkout, type TodaySuggestionResponse } from './suggest/api';
+import { fetchTodaySuggestion, startSuggestedWorkout } from './suggest/api';
 import { httpJSON } from '@/lib/http';
-import { API_ENDPOINTS } from '../../../../shared/endpoints';
 
 export function useDailySuggestion() {
   const { isAuthenticated } = useAppStore();
