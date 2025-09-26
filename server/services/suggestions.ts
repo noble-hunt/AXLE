@@ -18,9 +18,9 @@ export async function computeTodaySuggestion(userId: string) {
     const suggestionResult = await computeSuggestion(userId, new Date());
     
     const config = {
-      category: suggestionResult.category,
-      duration: suggestionResult.duration, 
-      intensity: suggestionResult.intensity,
+      category: suggestionResult.request.category,
+      duration: suggestionResult.request.duration, 
+      intensity: suggestionResult.request.intensity,
       equipment: [], // Default to bodyweight - can be enhanced later with user preferences
       constraints: [] // Default to no constraints - can be enhanced later with user preferences
     };

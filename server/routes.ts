@@ -23,6 +23,7 @@ import { registerGroupRoutes } from "./routes/groups";
 import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
 import { registerSeedRoutes } from "./routes/workout-seeds";
 import { startSuggestedWorkout } from "./routes/workouts.start";
+import { registerWorkoutSuggestionRoutes } from "./routes/workout-suggest";
 import { initializeBlockLibrary, getBlocks } from "./workouts/library/index";
 import healthRoutes from "./routes/health";
 import healthMetricsRouter from "./routes/health-metrics";
@@ -408,6 +409,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register suggestion routes
   registerSuggestionRoutes(app);
+  
+  // Register workout suggestion routes (JSON-only API endpoints)
+  registerWorkoutSuggestionRoutes(app);
   
   // Register seed routes
   registerSeedRoutes(app);
