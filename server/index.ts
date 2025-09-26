@@ -81,9 +81,10 @@ initSentry();
 const app = express();
 
 // Sentry request handler (must be first middleware)
-if (Sentry.Handlers) {
-  app.use(Sentry.Handlers.requestHandler());
-}
+// Note: Sentry Handlers may be version-specific, commenting out for now
+// if (Sentry.Handlers) {
+//   app.use(Sentry.Handlers.requestHandler());
+// }
 
 // CORS configuration
 const allowed = [
@@ -163,9 +164,10 @@ app.get("/api/_routes", (req, res) => {
   const server = await registerRoutes(app);
 
   // Sentry error handler (must be before other error handlers)
-  if (Sentry.Handlers) {
-    app.use(Sentry.Handlers.errorHandler());
-  }
+  // Note: Sentry Handlers may be version-specific, commenting out for now
+  // if (Sentry.Handlers) {
+  //   app.use(Sentry.Handlers.errorHandler());
+  // }
 
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

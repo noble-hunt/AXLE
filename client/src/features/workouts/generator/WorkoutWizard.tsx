@@ -241,8 +241,23 @@ export function WorkoutWizard() {
 
       setPreviewData(previewData);
     } catch (e: any) {
-      const msg = e?.message ?? (e?.status ? `HTTP ${e.status}` : "Preview failed");
-      toast({ title: "Preview Failed", description: msg, variant: "destructive" });
+      console.error('Preview generation error:', e);
+      
+      // Improved error message extraction
+      let msg = "Preview failed";
+      if (e instanceof Error) {
+        msg = e.message;
+      } else if (e?.message) {
+        msg = e.message;
+      } else if (e?.status) {
+        msg = `HTTP ${e.status}: ${e?.statusText || 'Request failed'}`;
+      }
+      
+      toast({ 
+        title: "Preview Failed", 
+        description: msg, 
+        variant: "destructive" 
+      });
     } finally {
       setIsSimulating(false);
     }
