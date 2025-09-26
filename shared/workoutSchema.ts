@@ -48,4 +48,7 @@ export const WorkoutPlanZ = z.object({
 });
 
 export type Movement = z.infer<typeof MovementZ>;
+export type Prescription = z.infer<typeof PrescriptionZ>;
+export type BlockItem = z.infer<typeof BlockItemZ>;
+export type Block = z.infer<typeof BlockZ>;
 export type WorkoutPlan = z.infer<typeof WorkoutPlanZ>;

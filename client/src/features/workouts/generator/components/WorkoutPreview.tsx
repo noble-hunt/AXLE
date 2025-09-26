@@ -8,7 +8,7 @@ import {
   Sparkles, Clock, Target, Dumbbell, ChevronDown, 
   RotateCcw, Play, BookOpen, Zap, Activity, AlertTriangle
 } from "lucide-react"
-import type { WorkoutPlan, BlockItem } from "../../../../../shared/workoutSchema"
+import type { WorkoutPlan, BlockItem, Block } from "@shared/workoutSchema"
 import type { WizardState } from "../WorkoutWizard"
 
 export interface WorkoutPreviewData {
@@ -177,7 +177,7 @@ export function WorkoutPreview({
           <div className="space-y-4">
             <h4 className="text-sm font-medium text-foreground">Workout Details</h4>
             <div className="space-y-4">
-              {workout.blocks.map((block, blockIndex) => (
+              {workout.blocks.map((block: Block, blockIndex: number) => (
                 <Card key={`${block.key}-${blockIndex}`} className="p-4">
                   <div className="space-y-3">
                     {/* Block Header */}
@@ -203,7 +203,7 @@ export function WorkoutPreview({
                     
                     {/* Block Items */}
                     <div className="space-y-2">
-                      {block.items.map((item, itemIndex) => (
+                      {block.items.map((item: BlockItem, itemIndex: number) => (
                         <div key={`${item.movementId}-${itemIndex}`} className="flex items-start gap-3 p-2 bg-muted/20 rounded-lg">
                           <div className="flex-1">
                             <p className="text-sm font-medium text-foreground">{item.name}</p>
@@ -237,7 +237,7 @@ export function WorkoutPreview({
               <div>
                 <h5 className="text-sm font-medium text-foreground mb-2">Equipment Used</h5>
                 <div className="flex flex-wrap gap-1">
-                  {workout.equipment.map((eq) => (
+                  {workout.equipment.map((eq: string) => (
                     <Badge key={eq} variant="outline" className="text-xs capitalize">
                       {eq.replace('_', ' ')}
                     </Badge>
