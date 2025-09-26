@@ -26,7 +26,7 @@ export interface WizardState {
 }
 
 export interface GeneratedWorkout {
-  id: string;
+  id: string | null;
   name: string;
   description: string;
   totalMinutes: number;
@@ -84,6 +84,7 @@ export function WorkoutWizard() {
     intensity: 6,
   });
   const [previewData, setPreviewData] = useState<WorkoutPreviewData | null>(null);
+  const [previewSeed, setPreviewSeed] = useState<any>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   
   const [, setLocation] = useLocation();
@@ -147,9 +148,10 @@ export function WorkoutWizard() {
       if (customSeed) {
         seedParam = customSeed;
       } else if (profile?.id) {
-        // Create deterministic seed for preview
-        const { createGenerationSeed } = await import("../../../../shared/types/workouts");
+        // Create deterministic seed for preview using proper hash
+        const { createGenerationSeed } = await import("../../../shared/types/workouts");
         const generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
+        setPreviewSeed(generationSeed);
         seedParam = JSON.stringify(generationSeed);
       }
       
@@ -204,7 +206,7 @@ export function WorkoutWizard() {
           movementPoolIds: wizardState.equipment,
           schemeId: "standard"
         },
-        seed: response.workout.seed || seed
+        seed: previewSeed
       };
 
       setPreviewData(previewData);
@@ -232,9 +234,14 @@ export function WorkoutWizard() {
           generationSeed = { algo: 'v1' as const, userHash: customSeed, day: new Date().toISOString().split('T')[0] };
         }
       } else if (profile?.id) {
-        // Create deterministic seed for generation
-        const { createGenerationSeed } = await import("../../../../shared/types/workouts");
-        generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
+        // Use the same seed as preview for consistent results
+        if (previewSeed) {
+          generationSeed = previewSeed;
+        } else {
+          // Fallback to creating new seed
+          const { createGenerationSeed } = await import("../../../shared/types/workouts");
+          generationSeed = createGenerationSeed(profile.id, wizardState.archetype);
+        }
       }
 
       // Transform wizard state to server format
@@ -279,6 +286,7 @@ export function WorkoutWizard() {
     // Clear preview when state changes
     if (previewData) {
       setPreviewData(null);
+      setPreviewSeed(null);
     }
   };
 
@@ -323,10 +331,10 @@ export function WorkoutWizard() {
   };
 
   const useWorkout = () => {
-    if (!previewData) return;
+    if (!previewData || !previewSeed) return;
     
     // Use the same seed as the preview to ensure consistent generation
-    generateMutation.mutate(previewData.seed);
+    generateMutation.mutate(JSON.stringify(previewSeed));
   };
 
   return (

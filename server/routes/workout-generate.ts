@@ -44,18 +44,18 @@ export function registerGenerateRoutes(app: Express) {
       
       // Save to database
       const { insertWorkout } = await import("../dal/workouts");
-      const workoutToInsert = {
+      const workoutParams = {
         userId,
-        name: generatedWorkout.meta?.title || "Generated Workout",
-        description: `${validatedData.archetype} workout for ${validatedData.minutes} minutes`,
-        exercises: JSON.stringify(generatedWorkout.blocks || []),
-        totalMinutes: generatedWorkout.estTimeMin || validatedData.minutes,
-        estimatedIntensity: generatedWorkout.intensity || validatedData.intensity,
-        request: validatedData,
-        genSeed: validatedData.seed || null
+        workout: {
+          title: generatedWorkout.meta?.title || "Generated Workout",
+          request: validatedData,
+          sets: generatedWorkout.blocks || [],
+          notes: `${validatedData.archetype} workout for ${validatedData.minutes} minutes`,
+          completed: false
+        }
       };
       
-      const savedWorkout = await insertWorkout(workoutToInsert);
+      const savedWorkout = await insertWorkout(workoutParams);
       
       res.json({
         ok: true,
