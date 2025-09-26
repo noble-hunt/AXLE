@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import * as Sentry from "@sentry/node";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
 import { computeSuggestion } from "../logic/suggestions";
-import { generateWorkout } from "../workoutGenerator";
+import { generateWithFallback } from "../lib/generator/generate";
 import { insertWorkout } from "../dal/workouts";
 import { deriveSuggestionSeed } from "../services/suggestionInputs";
 import { db } from "../db";
@@ -318,7 +318,7 @@ export function registerSuggestionRoutes(app: Express) {
 
       // Generate the actual workout using existing AI system
       console.log(`🤖 Generating workout with AI for category: ${requestData.category}`);
-      const generatedWorkout = await generateWorkout(enhancedRequest);
+      const generatedWorkout = await generateWithFallback(inputs, { request: enhancedRequest });
 
       // Store the workout in the database
       const workoutData = {

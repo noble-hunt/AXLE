@@ -139,7 +139,7 @@ async function generateAndPersistWorkout(
   request: WorkoutGenerationRequest
 ) {
   // Import new generator
-  const { generateDeterministicWorkout } = await import("../lib/generator/generateWorkout");
+  const { generateWithFallback } = await import("../lib/generator/generate");
   const { generateWorkoutSeed, convertLegacyRequestToInputs } = await import("../utils/seed-generator");
   const { render } = await import("../ai/generateWorkout");
   
@@ -157,12 +157,14 @@ async function generateAndPersistWorkout(
   const recentWorkouts = await listWorkouts(userId, { days: 28 });
   
   try {
-    // Generate workout using new deterministic system
-    const result = await generateDeterministicWorkout(
+    // Generate workout using new fallback system
+    const result = await generateWithFallback(
       inputs,
-      { ...context, dateISO: new Date().toISOString(), userId },
-      seed.rngSeed,
-      recentWorkouts
+      { 
+        context: { ...context, dateISO: new Date().toISOString(), userId },
+        seed: seed.rngSeed,
+        recentWorkouts
+      }
     );
     
     // Render workout for display
