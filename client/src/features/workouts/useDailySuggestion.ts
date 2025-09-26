@@ -3,8 +3,7 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from '@/hooks/use-toast';
-import { fetchTodaySuggestion, startSuggestedWorkout } from './suggest/api';
-import { httpJSON } from '@/lib/http';
+import { fetchTodaySuggestion, startSuggestedWorkout, rotateSuggestion } from './suggest/api';
 
 export function useDailySuggestion() {
   const { isAuthenticated } = useAppStore();
@@ -69,24 +68,13 @@ export function useDailySuggestion() {
   const tryDifferentFocus = async () => {
     setIsRotating(true);
     try {
-      // First try the rotate endpoint
-      try {
-        await httpJSON('/api/workouts/suggest/rotate', {
-          method: 'POST',
-        });
-      } catch (err: any) {
-        // If rotate endpoint doesn't exist, fall back to regular refresh
-        if (err?.status === 404 || err?.status === 405) {
-          // Just refresh with a cache bust
-          await queryClient.invalidateQueries({ 
-            queryKey: ['/api/workouts/suggest/today'] 
-          });
-        } else {
-          throw err;
-        }
-      }
+      // Use the rotateSuggestion function which handles fallback automatically
+      await rotateSuggestion();
       
-      // Refresh the suggestion
+      // Invalidate the cache and refetch
+      await queryClient.invalidateQueries({ 
+        queryKey: ['/api/workouts/suggest/today'] 
+      });
       await refetch();
       
       toast({

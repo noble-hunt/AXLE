@@ -1,11 +1,5 @@
 import { httpJSON } from '@/lib/http';
-import { API_ENDPOINTS } from '@shared/endpoints';
 
-// Helper to convert server API paths to client httpJSON format
-function apiPath(endpoint: string): string {
-  // httpJSON expects paths relative to /api/ base
-  return endpoint.replace(/^\/api\//, '');
-}
 
 export type Suggestion = {
   focus: string;
@@ -31,13 +25,32 @@ export type TodaySuggestionResponse = {
 };
 
 export async function fetchTodaySuggestion(): Promise<TodaySuggestionResponse> {
-  return await httpJSON(apiPath(API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY));
+  return await httpJSON('workouts/suggest/today');
+}
+
+export async function rotateSuggestion(): Promise<TodaySuggestionResponse> {
+  try {
+    const res = await httpJSON<{ suggestion: TodaySuggestionResponse }>('workouts/suggest/rotate', {
+      method: 'POST',
+    });
+    return res.suggestion;
+  } catch (err: any) {
+    const status = err?.status ?? 0;
+    const isAPIUnavailable = status === 404 || status === 405;
+    
+    if (isAPIUnavailable) {
+      // If rotate endpoint doesn't exist, fall back to fetching a new suggestion
+      return await fetchTodaySuggestion();
+    }
+    
+    throw err;
+  }
 }
 
 export async function startSuggestedWorkout(s: Suggestion) {
   // Try the new endpoint first
   try {
-    const res = await httpJSON<{ workoutId: string }>(apiPath(API_ENDPOINTS.WORKOUTS_SUGGEST_TODAY_START), {
+    const res = await httpJSON<{ workoutId: string }>('workouts/suggest/today/start', {
       method: 'POST',
     });
     
@@ -76,4 +89,38 @@ export async function startSuggestedWorkout(s: Suggestion) {
   }
   
   return (res as { id: string }).id;
+}
+
+export async function generateWorkout(cfg: { focus: string; duration: number; intensity: number; equipment?: string[] }) {
+  const res = await httpJSON<{ ok: boolean; workout: any }>('/api/workouts/generate', {
+    method: 'POST',
+    body: JSON.stringify({
+      goal: cfg.focus,
+      durationMin: cfg.duration,
+      intensity: cfg.intensity,
+      equipment: cfg.equipment || ['bodyweight'],
+    }),
+  });
+  
+  if (!res || !res.workout) {
+    throw new Error('Invalid response: missing workout data');
+  }
+  
+  return res.workout;
+}
+
+export async function getWorkout(id: string) {
+  return await httpJSON(`/api/workouts/${id}`);
+}
+
+export async function startWorkout(id: string) {
+  const res = await httpJSON<{ id: string }>(`/api/workouts/${id}/start`, {
+    method: 'POST',
+  });
+  
+  if (!res || !res.id) {
+    throw new Error('Invalid response: missing workout id');
+  }
+  
+  return res.id;
 }
