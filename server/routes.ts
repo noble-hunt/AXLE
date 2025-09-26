@@ -22,6 +22,7 @@ import whisperRouter from "./routes/whisper-transcription";
 import { registerGroupRoutes } from "./routes/groups";
 import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
 import { registerSeedRoutes } from "./routes/workout-seeds";
+import { startSuggestedWorkout } from "./routes/workouts.start";
 import { initializeBlockLibrary, getBlocks } from "./workouts/library/index";
 import healthRoutes from "./routes/health";
 import healthMetricsRouter from "./routes/health-metrics";
@@ -410,6 +411,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register seed routes
   registerSeedRoutes(app);
+  
+  // Register workout start route (materialize suggestion)
+  app.post('/api/workouts/start', requireAuth, startSuggestedWorkout);
   
   // Register workout freeform routes
   app.use("/api/workouts", workoutFreeformRouter);

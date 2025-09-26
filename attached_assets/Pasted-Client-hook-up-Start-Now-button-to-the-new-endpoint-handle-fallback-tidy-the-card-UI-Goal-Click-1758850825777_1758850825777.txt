@@ -1,0 +1,96 @@
+Client: hook up Start Now button to the new endpoint, handle fallback, tidy the card UI
+
+Goal: Click Start Now → POST /api/workouts/start with the suggestion payload → redirect to /workout/:id. If the call returns 404/400/500, show a toast and navigate to the generator wizard.
+
+Do:
+
+API helper client/src/features/workouts/suggest/api.ts:
+
+import { httpJSON } from '@/lib/http';
+
+export type Suggestion = {
+  focus: string;
+  minutes: number;
+  intensity: number;
+  seed?: Record<string, any>;
+  generatorVersion?: string;
+};
+
+export async function startSuggestedWorkout(s: Suggestion) {
+  const res = await httpJSON<{ id: string }>('/api/workouts/start', {
+    method: 'POST',
+    body: JSON.stringify({
+      focus: s.focus,
+      minutes: s.minutes,
+      intensity: s.intensity,
+      seed: s.seed || {},
+      generatorVersion: s.generatorVersion || 'v1',
+      source: 'daily-suggestion',
+    }),
+  });
+  return res.id;
+}
+
+
+Wire the card client/src/features/workouts/suggest/DailySuggestedCard.tsx:
+
+import { useState } from 'react';
+import { useToast } from '@/components/ui/use-toast';
+import { startSuggestedWorkout } from './api';
+import { useNavigate } from 'react-router-dom';
+
+export function DailySuggestedCard({ suggestion }: { suggestion: {
+  focus: string; minutes: number; intensity: number; seed?: Record<string, any>; generatorVersion?: string;
+}}) {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const nav = useNavigate();
+
+  const onStart = async () => {
+    setLoading(true);
+    try {
+      const id = await startSuggestedWorkout(suggestion);
+      nav(`/workout/${id}`);
+    } catch (e: any) {
+      toast({
+        title: 'Could not start workout',
+        description: 'We’ll open the generator so you can build one quickly.',
+        variant: 'destructive',
+      });
+      nav('/workout-generate');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-md rounded-2xl bg-card/70 p-5 shadow-md ring-1 ring-white/10">
+      <div className="text-muted-foreground text-sm">Personalized for today</div>
+      <div className="mt-3 flex items-center justify-between">
+        <div className="text-lg font-semibold">{suggestion.focus}</div>
+        <div className="text-sm opacity-80">{suggestion.minutes}m · {suggestion.intensity}/10</div>
+      </div>
+      <div className="mt-4 flex gap-3">
+        <button
+          onClick={onStart}
+          disabled={loading}
+          className="btn btn-primary flex-1"
+        >
+          {loading ? 'Starting…' : 'Start Now'}
+        </button>
+        <button
+          onClick={() => nav('/workout-generate')}
+          className="btn btn-secondary"
+        >
+          Try Different Focus
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+The wrapper classes (btn, bg-card) should map to your design system (shadcn/Tailwind). If not, swap for your buttons.
+
+Ensure the suggestion payload has what we need
+Wherever you fetch the daily suggestion (home/workout page), pass { focus, minutes, intensity, seed, generatorVersion } into <DailySuggestedCard suggestion={...} />.

@@ -1,0 +1,145 @@
+Server: add a “materialize suggestion” endpoint and register routes before SPA
+
+Goal: When the user taps Start Now, the API should take the current daily suggestion (focus, minutes, intensity, seed) and create a real workout record, returning a 201 { id }. Also guarantee API routes are mounted before the SPA fallback to avoid 404s.
+
+Do:
+
+Create server/routes/workouts.start.ts:
+
+// server/routes/workouts.start.ts
+import type { Request, Response } from 'express';
+import * as Sentry from '@sentry/node';
+import { z } from 'zod';
+import { createWorkoutFromSeed } from '../services/workouts/createFromSeed';
+
+const StartSchema = z.object({
+  // minimal set the client will send from the suggestion card
+  focus: z.string().min(1),
+  minutes: z.number().int().positive(),
+  intensity: z.number().int().min(1).max(10),
+  seed: z.record(z.any()).default({}),
+  generatorVersion: z.string().default('v1'),
+  source: z.string().default('daily-suggestion'),
+});
+
+export async function startSuggestedWorkout(req: Request, res: Response) {
+  try {
+    const userId = req.user?.id || req.headers['x-user-id']; // adapt to your auth
+    if (!userId) return res.status(401).json({ error: 'auth-required' });
+
+    const input = StartSchema.parse(req.body);
+    const created = await createWorkoutFromSeed({
+      userId,
+      focus: input.focus,
+      minutes: input.minutes,
+      intensity: input.intensity,
+      seed: input.seed,
+      generatorVersion: input.generatorVersion,
+      source: input.source,
+    });
+
+    return res.status(201).json({ id: created.id });
+  } catch (err: any) {
+    Sentry.captureException(err, { tags: { route: 'POST /api/workouts/start' } });
+    const status = err.statusCode ?? 500;
+    return res.status(status).json({ error: 'start-failed', detail: err?.message });
+  }
+}
+
+
+Create server/services/workouts/createFromSeed.ts:
+
+// server/services/workouts/createFromSeed.ts
+import { Pool } from 'pg';
+import { v4 as uuid } from 'uuid';
+import { generateWorkout } from './generator'; // your existing generator
+import * as Sentry from '@sentry/node';
+
+type Args = {
+  userId: string;
+  focus: string;
+  minutes: number;
+  intensity: number;
+  seed: Record<string, any>;
+  generatorVersion: string;
+  source: string;
+};
+
+export async function createWorkoutFromSeed(args: Args) {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  const client = await pool.connect();
+  try {
+    const plan = await generateWorkout({
+      userId: args.userId,
+      focus: args.focus,
+      minutes: args.minutes,
+      intensity: args.intensity,
+      seed: args.seed,
+    });
+
+    const id = uuid();
+    await client.query(
+      `
+      insert into public.workouts (
+        id, user_id, date, structure, minutes, intensity, focus,
+        generator_version, gen_seed, source, status, created_at
+      ) values (
+        $1, $2, now(), $3, $4, $5, $6,
+        $7, $8, $9, 'in_progress', now()
+      )
+      `,
+      [
+        id,
+        args.userId,
+        JSON.stringify(plan.structure),
+        args.minutes,
+        args.intensity,
+        args.focus,
+        args.generatorVersion,
+        JSON.stringify(args.seed || {}),
+        args.source,
+      ],
+    );
+
+    return { id };
+  } catch (e) {
+    Sentry.captureException(e, { tags: { svc: 'createWorkoutFromSeed' } });
+    throw e;
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+
+If your generator function lives elsewhere or has slightly different params, adapt the call to generateWorkout.
+
+Wire the route in your Express boot (and ensure order):
+
+// server/index.ts (or wherever you assemble routes)
+import express from 'express';
+import cors from 'cors';
+import { router as healthRouter } from './routes/healthz';
+import { startSuggestedWorkout } from './routes/workouts.start';
+// ... other imports
+
+const app = express();
+app.use(express.json());
+app.use(cors({ origin: [/\.vercel\.app$/, 'http://localhost:5173', 'https://replit.dev'], credentials: true }));
+
+// ✅ API ROUTES FIRST
+app.use(healthRouter);
+app.post('/api/workouts/start', startSuggestedWorkout);
+
+// ... any other /api routes go here
+
+// ❗ SPA fallback LAST:
+app.use(express.static('client/dist'));
+app.get('*', (_req, res) => {
+  res.sendFile('index.html', { root: 'client/dist' });
+});
+
+export default app;
+
+
+Server tests (smoke): create server/routes/__tests__/workouts.start.test.ts that posts a minimal body and expects 201 with { id }. (Optional but recommended.)

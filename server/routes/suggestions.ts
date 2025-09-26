@@ -345,7 +345,11 @@ export function registerSuggestionRoutes(app: Express) {
               rationale: suggestion.rationale
             }
           },
-          sets: generatedWorkout.sets || [],
+          sets: generatedWorkout.blocks?.map((block: any, index: number) => ({
+            id: `block-${index}`,
+            exercise: block.name || block.type || 'Exercise',
+            notes: block.notes || block.description || ''
+          })) || [],
           notes: generatedWorkout.description,
           completed: false
         }
