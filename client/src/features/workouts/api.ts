@@ -7,7 +7,7 @@ export type DailySuggestionResponse =
 
 export async function fetchDailySuggestion(): Promise<DailySuggestionResponse> {
   try {
-    const data = await httpJSON('api/suggestions/today');
+    const data = await httpJSON('suggestions/today');
     
     // If we get a valid response, return it
     if (data?.suggestion !== undefined) {
