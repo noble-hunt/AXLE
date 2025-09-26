@@ -169,7 +169,7 @@ export function DailySuggestionCard() {
                 data-testid="button-try-different"
                 onClick={tryDifferentFocus}
                 disabled={isRotating}
-                variant="outline"
+                variant="secondary"
                 className="flex-1"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
@@ -179,7 +179,7 @@ export function DailySuggestionCard() {
               <Button
                 data-testid="button-show-rationale"
                 onClick={() => setShowRationale(true)}
-                variant="outline"
+                variant="secondary"
                 className="flex-1"
               >
                 <Info className="w-4 h-4 mr-2" />

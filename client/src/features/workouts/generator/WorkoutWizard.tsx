@@ -5,8 +5,8 @@ import { useToast } from "@/hooks/use-toast"
 import { httpJSON } from "@/lib/http"
 import { useAppStore } from "@/store/useAppStore"
 import { SectionTitle } from "@/components/ui/section-title"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card } from "@/components/swift/card"
+import { Button } from "@/components/swift/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Progress } from "@/components/ui/progress"
 import { ChevronLeft, ChevronRight } from "lucide-react"
@@ -363,7 +363,7 @@ export function WorkoutWizard() {
       </div>
 
       {/* Step Content */}
-      <Card className="p-6">
+      <Card className="p-4">
         {currentStep === 1 && (
           <ArchetypeStep
             value={wizardState.archetype}
@@ -417,7 +417,7 @@ export function WorkoutWizard() {
           
           <div className="flex items-center justify-between gap-4">
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={prevStep}
               disabled={currentStep === 1}
               data-testid="button-prev-step"
