@@ -2,7 +2,7 @@ import { toast } from '@/hooks/use-toast';
 
 export async function httpJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const base = import.meta.env.VITE_API_BASE_URL || '';
-  const url = `${base}${path}`;
+  const url = `${base}${path.startsWith('/') ? path : '/' + path}`;
   const res = await fetch(url, {
     headers: { 'content-type': 'application/json', ...(init?.headers || {}) },
     credentials: 'include',
