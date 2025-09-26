@@ -36,6 +36,7 @@ import notificationTopicsRouter from "./routes/notifications-topics";
 import cronWeeklyRouter from "./routes/cron-weekly";
 import storageRouter from "./routes/storage";
 import { router as healthzRouter } from "./routes/healthz";
+import { suggest } from "./routes/suggest";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize workout block library
@@ -410,6 +411,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register health check routes
   app.use("/api/healthz", healthzRouter);
+  
+  // Register suggest routes
+  app.use("/api/suggest", suggest);
   
   // Authenticated data fetching routes
   app.get("/api/user/data", requireAuth, async (req, res) => {
