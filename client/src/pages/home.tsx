@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useLocation, Link } from "wouter"
 import { useAppStore } from "@/store/useAppStore"
+import { useQuery } from "@tanstack/react-query"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Sheet } from "@/components/swift/sheet"
@@ -97,13 +98,14 @@ function HealthInsights() {
 
 export default function Home() {
   const [showWorkoutGenerator, setShowWorkoutGenerator] = useState(false)
-  const { workouts, user, profile } = useAppStore()
+  const { user, profile } = useAppStore()
   const [, setLocation] = useLocation()
 
-  // Get recent workouts (last 3) - avoid mutating store array
-  const recentWorkouts = [...workouts]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 3)
+  // Fetch recent workouts from API instead of using seed data
+  const { data: recentWorkouts = [] } = useQuery<any[]>({
+    queryKey: ['/api/workouts/recent'],
+    enabled: !!user,
+  })
 
   const handleGenerateWorkout = () => {
     setShowWorkoutGenerator(true)
@@ -182,27 +184,35 @@ export default function Home() {
           </div>
           
           <div className="space-y-4">
-            {recentWorkouts.map((workout) => (
-              <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
-                <Card className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <Dumbbell className="w-5 h-5 text-primary" />
+            {recentWorkouts.length > 0 ? (
+              recentWorkouts.slice(0, 3).map((workout) => (
+                <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
+                  <Card className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <Dumbbell className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-body font-medium text-foreground">{workout.title}</p>
+                          <p className="text-caption text-muted-foreground">{workout.completed ? 'Completed' : 'In Progress'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-body font-medium text-foreground">{workout.name}</p>
-                        <p className="text-caption text-muted-foreground">{workout.category}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-caption text-muted-foreground">{formatTimeAgo(new Date(workout.createdAt))}</p>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-caption text-muted-foreground">{formatTimeAgo(new Date(workout.date))}</p>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
+                  </Card>
+                </Link>
+              ))
+            ) : (
+              <Card className="p-6 text-center">
+                <Dumbbell className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-body text-muted-foreground mb-2">No workouts yet</p>
+                <p className="text-caption text-muted-foreground">Start your fitness journey by generating your first workout!</p>
+              </Card>
+            )}
           </div>
         </motion.div>
 

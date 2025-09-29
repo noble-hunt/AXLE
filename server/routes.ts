@@ -839,6 +839,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/workouts/recent - Get recent workouts for home page
+  app.get("/api/workouts/recent", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const workouts = await listWorkouts(authReq.user.id, { limit: 3 });
+      res.json(workouts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch recent workouts" });
+    }
+  });
+
   app.get("/api/workouts/:id", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
