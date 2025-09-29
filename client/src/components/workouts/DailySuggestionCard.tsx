@@ -119,8 +119,8 @@ export function DailySuggestionCard() {
   return (
     <>
       <Card data-testid="daily-suggestion-card" className="w-full p-4">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
+        <div className="space-y-4 text-center">
+          <div className="flex items-center justify-center gap-2">
             <Activity className="h-5 w-5 text-primary" />
             <h3 className="text-body font-medium text-foreground">Daily Suggested Workout</h3>
           </div>
@@ -134,7 +134,7 @@ export function DailySuggestionCard() {
             </div>
             
             {/* Pills for duration, intensity, equipment */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 justify-center">
               <Badge variant="outline" data-testid="badge-duration">
                 <Clock className="w-3 h-3 mr-1" />
                 {config.duration || 30}min
@@ -155,15 +155,16 @@ export function DailySuggestionCard() {
           <div className="space-y-3">
             <StartNowButton />
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 px-4">
               <Button
                 data-testid="button-try-different"
                 onClick={tryDifferentFocus}
                 disabled={isRotating}
                 variant="secondary"
-                className="flex-1"
+                size="sm"
+                className="flex-1 text-xs"
               >
-                <RotateCcw className="w-4 h-4 mr-2" />
+                <RotateCcw className="w-3 h-3 mr-1" />
                 {isRotating ? 'Rotating...' : 'Try Different Focus'}
               </Button>
               
@@ -171,9 +172,10 @@ export function DailySuggestionCard() {
                 data-testid="button-show-rationale"
                 onClick={() => setShowRationale(true)}
                 variant="secondary"
-                className="flex-1"
+                size="sm"
+                className="flex-1 text-xs"
               >
-                <Info className="w-4 h-4 mr-2" />
+                <Info className="w-3 h-3 mr-1" />
                 Show Rationale
               </Button>
             </div>
