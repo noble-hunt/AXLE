@@ -299,12 +299,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
 
-  // POST /api/workouts/preview - Generate workout preview (no auth required)
+  // POST /api/workouts/preview - Generate workout preview using new engine (no auth required)
   app.post("/api/workouts/preview", async (req, res) => {
     res.type('application/json');
     
     try {
-      const { focus, durationMin, intensity, equipment } = req.body ?? {};
+      const { focus, durationMin, intensity, equipment, seed: providedSeed } = req.body ?? {};
       
       if (!focus || !durationMin || !intensity) {
         return res.status(400).json({ 
@@ -313,37 +313,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const { openai } = await import('./lib/openai');
+      // Import new workout generation engine
+      const { generateWorkoutPlan } = await import('./workouts/engine');
       const { generateSeed } = await import('./lib/seededRandom');
-      const equipmentList = equipment || [];
-      const workoutSeed = generateSeed();
       
-      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}. Use the provided seed for any random selections to ensure deterministic results.`;
-      const user = `Focus: ${focus}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}\n\nIMPORTANT: Use this seed value (${workoutSeed}) consistently for any random choices in exercise selection, order, or variations to ensure reproducible results.`;
+      const equipmentList = equipment || ['bodyweight'];
+      const workoutSeed = providedSeed || generateSeed();
       
-      const r = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0, // Set to 0 for maximum determinism
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }],
-        seed: parseInt(workoutSeed.slice(-8), 36) // Use seed as numeric seed for OpenAI
-      });
-      
-      const raw = r.choices?.[0]?.message?.content ?? '{}';
-      const workoutData = JSON.parse(raw);
-      
-      const preview = {
-        id: `preview-${workoutSeed}`,
-        title: workoutData.title || `${focus} Workout`,
-        exercises: workoutData.exercises || [],
-        estTimeMin: workoutData.est_duration_min || durationMin,
-        intensity: workoutData.intensity || intensity,
-        seed: workoutSeed,
-        focus,
-        equipment: equipmentList
+      // Build WorkoutRequest for the new engine
+      const workoutRequest: any = {
+        date: new Date().toISOString(),
+        userId: 'preview-user', // Preview mode - no user ID
+        goal: 'general_fitness',
+        availableMinutes: durationMin,
+        equipment: equipmentList,
+        experienceLevel: 'intermediate' as const,
+        injuries: [],
+        preferredDays: [],
+        recentHistory: [],
+        metricsSnapshot: {
+          vitality: 65,
+          performancePotential: 70,
+          circadianAlignment: 75,
+          fatigueScore: 30,
+          hrv: undefined,
+          rhr: undefined,
+          sleepScore: 70
+        },
+        intensityFeedback: []
       };
       
-      res.json({ ok: true, preview });
+      // Generate workout plan using the new deterministic engine
+      const workoutPlan = generateWorkoutPlan(
+        workoutRequest,
+        [], // No history for preview
+        [], // No progression states
+        {
+          performancePotential: 70,
+          vitality: 65,
+          sleepScore: 70,
+          hrv: undefined,
+          restingHR: undefined
+        },
+        undefined // No energy systems history
+      );
+      
+      // Return the WorkoutPlan directly with seed
+      res.json({ 
+        ok: true, 
+        preview: workoutPlan,
+        seed: workoutSeed
+      });
     } catch (e: any) {
       console.error('[preview] err', e);
       res.status(500).json({ 

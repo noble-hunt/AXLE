@@ -18,7 +18,7 @@ import { ArchetypeStep } from "./steps/ArchetypeStep"
 import { TimeStep } from "./steps/TimeStep"
 import { EquipmentStep } from "./steps/EquipmentStep"
 import { IntensityStep } from "./steps/IntensityStep"
-import { WorkoutPreview } from "./components/WorkoutPreview"
+import { WorkoutPreview, type WorkoutPreviewData } from "./components/WorkoutPreview"
 
 export interface WizardState {
   archetype: 'strength' | 'conditioning' | 'mixed' | 'endurance';
@@ -54,20 +54,6 @@ export interface GeneratedWorkout {
   };
 }
 
-export interface WorkoutPreviewData {
-  workout: GeneratedWorkout;
-  choices: {
-    templateId: string;
-    movementPoolIds: string[];
-    schemeId: string;
-  };
-  seed: string;
-  cappedIntensity?: {
-    original: number;
-    capped: number;
-    reason: string;
-  };
-}
 
 // Types for API responses
 interface SimulateWorkoutResponse {
@@ -203,43 +189,11 @@ export function WorkoutWizard() {
 
       const response = await fetchPreview(previewInput);
 
-      // Transform response from new preview endpoint format
-      const previewData: WorkoutPreviewData = {
-        workout: {
-          id: null, // Preview doesn't persist to database
-          name: "Generated Workout",
-          description: `${wizardState.archetype} workout for ${wizardState.minutes} minutes`,
-          totalMinutes: wizardState.minutes,
-          estimatedIntensity: wizardState.intensity,
-          blocks: response.preview.blocks?.map((block: any, index: number) => ({
-            id: `block-${index}`,
-            name: block.type || `Block ${index + 1}`,
-            type: block.type || "main",
-            exercises: [{
-              id: `ex-${index}`,
-              name: block.notes || `${block.type} block`,
-              sets: 1,
-              reps: `${block.minutes} min`,
-              notes: block.notes
-            }]
-          })) || [],
-          coaching_notes: "Generated workout based on your preferences",
-          metadata: {
-            template: wizardState.archetype,
-            patterns: [wizardState.archetype],
-            equipment: wizardState.equipment,
-            progression: "standard"
-          }
-        },
-        choices: {
-          templateId: wizardState.archetype,
-          movementPoolIds: wizardState.equipment,
-          schemeId: "standard"
-        },
+      // Response now contains a proper WorkoutPlan - pass it directly to preview component
+      setPreviewData({
+        preview: response.preview,
         seed: response.seed || ""
-      };
-
-      setPreviewData(previewData);
+      });
     } catch (e: any) {
       console.error('Preview generation error:', e);
       
