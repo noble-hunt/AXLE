@@ -10,6 +10,7 @@ import { useAppStore } from "@/store/useAppStore"
 import { Category } from "../types"
 import { ROUTES } from "@/lib/routes"
 import { format } from "date-fns"
+import { useQuery } from "@tanstack/react-query"
 
 // Category icon mapping
 const getCategoryIcon = (category: Category): React.ComponentType<React.SVGProps<SVGSVGElement>> => {
@@ -37,7 +38,13 @@ const getIntensityVariant = (intensity: number) => {
 
 export default function Workout() {
   const [, setLocation] = useLocation()
-  const { addWorkout, workouts } = useAppStore()
+  const { addWorkout, user } = useAppStore()
+
+  // Fetch recent workouts from API - same query as home page
+  const { data: recentCompletedWorkouts = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/workouts/recent'],
+    enabled: !!user,
+  })
 
   const handleCreateWorkout = () => {
     setLocation(ROUTES.WORKOUT_GENERATE)
@@ -69,16 +76,6 @@ export default function Workout() {
     })
     setLocation('/history')
   }
-
-  // Get recent completed workouts (last 5)
-  const recentCompletedWorkouts = workouts
-    .filter(workout => workout.completed)
-    .sort((a, b) => {
-      const dateA = a.date instanceof Date ? a.date : new Date(a.date)
-      const dateB = b.date instanceof Date ? b.date : new Date(b.date)
-      return dateB.getTime() - dateA.getTime()
-    })
-    .slice(0, 5)
   return (
     <>
       <SectionTitle title="Workouts" />
@@ -130,8 +127,12 @@ export default function Workout() {
         ) : (
           <div className="space-y-4">
             {recentCompletedWorkouts.map((workout) => {
-              const CategoryIcon = getCategoryIcon(workout.category)
-              const workoutDate = workout.date instanceof Date ? workout.date : new Date(workout.date)
+              const category = workout.request?.focus || workout.request?.category || workout.category || 'General'
+              const intensity = workout.request?.intensity || workout.intensity || 5
+              const duration = workout.request?.availableMinutes || workout.request?.duration || workout.duration || 30
+              const CategoryIcon = getCategoryIcon(category)
+              const workoutDate = new Date(workout.created_at || workout.createdAt)
+              const exerciseCount = Array.isArray(workout.sets) ? workout.sets.length : Object.keys(workout.sets || {}).length
               
               return (
                 <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
@@ -144,9 +145,9 @@ export default function Workout() {
                             <CategoryIcon className="w-4 h-4 text-primary" />
                           </div>
                           <div className="flex-1">
-                            <h4 className="text-sm font-semibold text-foreground">{workout.name}</h4>
+                            <h4 className="text-sm font-semibold text-foreground">{workout.title}</h4>
                             <p className="text-xs text-muted-foreground">
-                              {format(workoutDate, 'MMM d')} • {workout.sets.length} exercises
+                              {format(workoutDate, 'MMM d')} • {exerciseCount} exercises
                             </p>
                           </div>
                         </div>
@@ -154,18 +155,18 @@ export default function Workout() {
                         {/* Chips Row */}
                         <div className="flex items-center gap-2 flex-wrap">
                           <Chip variant="default" size="sm">
-                            {workout.category}
+                            {category}
                           </Chip>
                           <Chip 
-                            variant={getIntensityVariant(workout.intensity)} 
+                            variant={getIntensityVariant(intensity)} 
                             size="sm"
                           >
                             <Zap className="w-3 h-3 mr-1" />
-                            {workout.intensity}/10
+                            {intensity}/10
                           </Chip>
                           <Chip variant="default" size="sm">
                             <Clock className="w-3 h-3 mr-1" />
-                            {workout.duration}m
+                            {duration}m
                           </Chip>
                           <Chip variant="success" size="sm">
                             <CheckCircle className="w-3 h-3 mr-1" />
