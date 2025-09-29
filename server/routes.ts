@@ -10,7 +10,7 @@ import { generateWorkout } from "./workoutGenerator";
 import { workoutRequestSchema, WorkoutRequest } from "../shared/schema";
 import { z } from "zod";
 import { requireAuth, AuthenticatedRequest } from "./middleware/auth";
-import { listWorkouts, getWorkout, insertWorkout, updateWorkout, startWorkoutAtomic, getRecentRPE, getZoneMinutes14d, getStrain } from "./dal/workouts";
+import { listWorkouts, getWorkout, insertWorkout, updateWorkout, deleteWorkout, startWorkoutAtomic, getRecentRPE, getZoneMinutes14d, getStrain } from "./dal/workouts";
 import { listPRs } from "./dal/prs";
 import { list as listAchievements } from "./dal/achievements";
 import { listReports } from "./dal/reports";
@@ -952,7 +952,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/workouts/:id", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
-      res.status(501).json({ message: "Delete workout not implemented" });
+      await deleteWorkout(authReq.user.id, req.params.id);
+      res.json({ success: true });
     } catch (error) {
       console.error("Failed to delete workout:", error);
       res.status(500).json({ message: "Failed to delete workout" });

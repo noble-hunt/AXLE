@@ -4,13 +4,15 @@ import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
 import { DailySuggestionCard } from "@/components/workouts/DailySuggestionCard"
-import { Play, Plus, Timer, Dumbbell, ChevronRight, Clock, Zap, CheckCircle, Activity, Heart, Move, Weight, Lightbulb, Edit3 } from "lucide-react"
+import { Play, Plus, Timer, Dumbbell, ChevronRight, Clock, Zap, CheckCircle, Activity, Heart, Move, Weight, Lightbulb, Edit3, Trash2 } from "lucide-react"
 import { useLocation, Link } from "wouter"
 import { useAppStore } from "@/store/useAppStore"
 import { Category } from "../types"
 import { ROUTES } from "@/lib/routes"
 import { format } from "date-fns"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
+import { apiRequest, queryClient } from "@/lib/queryClient"
+import { useToast } from "@/hooks/use-toast"
 
 // Category icon mapping
 const getCategoryIcon = (category: Category): React.ComponentType<React.SVGProps<SVGSVGElement>> => {
@@ -39,12 +41,43 @@ const getIntensityVariant = (intensity: number) => {
 export default function Workout() {
   const [, setLocation] = useLocation()
   const { addWorkout, user } = useAppStore()
+  const { toast } = useToast()
 
   // Fetch recent workouts from API - same query as home page
   const { data: recentCompletedWorkouts = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/workouts/recent'],
     enabled: !!user,
   })
+
+  // Delete workout mutation
+  const deleteWorkoutMutation = useMutation({
+    mutationFn: async (workoutId: string) => {
+      return apiRequest('DELETE', `/api/workouts/${workoutId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/recent'] })
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts'] })
+      toast({
+        title: "Workout deleted",
+        description: "The workout has been removed from your history.",
+      })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete workout. Please try again.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  const handleDeleteWorkout = (e: React.MouseEvent, workoutId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (confirm('Are you sure you want to delete this workout?')) {
+      deleteWorkoutMutation.mutate(workoutId)
+    }
+  }
 
   const handleCreateWorkout = () => {
     setLocation(ROUTES.WORKOUT_GENERATE)
@@ -135,9 +168,9 @@ export default function Workout() {
               const exerciseCount = Array.isArray(workout.sets) ? workout.sets.length : Object.keys(workout.sets || {}).length
               
               return (
-                <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
-                  <Card className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
-                    <div className="flex items-center justify-between">
+                <Card key={workout.id} className="p-4" data-testid={`recent-workout-${workout.id}`}>
+                  <Link href={`/workout/${workout.id}`} className="block">
+                    <div className="flex items-center justify-between active:scale-98 transition-transform">
                       <div className="flex-1 space-y-3">
                         {/* Header Row */}
                         <div className="flex items-center gap-3">
@@ -176,8 +209,23 @@ export default function Workout() {
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     </div>
-                  </Card>
-                </Link>
+                  </Link>
+                  
+                  {/* Delete Button */}
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => handleDeleteWorkout(e, workout.id)}
+                      disabled={deleteWorkoutMutation.isPending}
+                      data-testid={`delete-workout-${workout.id}`}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      {deleteWorkoutMutation.isPending ? 'Deleting...' : 'Delete Workout'}
+                    </Button>
+                  </div>
+                </Card>
               )
             })}
           </div>

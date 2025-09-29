@@ -101,6 +101,20 @@ export async function updateWorkout(userId: string, id: string, patch: UpdateWor
   return data;
 }
 
+export async function deleteWorkout(userId: string, id: string) {
+  const { error } = await supabaseAdmin
+    .from('workouts')
+    .delete()
+    .eq('user_id', userId)
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Failed to delete workout: ${error.message}`);
+  }
+
+  return { success: true };
+}
+
 /**
  * Atomically start a workout by setting started_at only if it's currently null
  * This prevents race conditions when multiple requests try to start the same workout

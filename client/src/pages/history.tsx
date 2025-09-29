@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
+import { apiRequest, queryClient } from "@/lib/queryClient"
 import { Link } from "wouter"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { fadeIn } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
-import { ChevronRight, Calendar, Clock, Dumbbell, Zap, Timer, Weight, Activity, Heart, Move, CheckCircle, XCircle, Filter, Search, RefreshCw, Info, TrendingUp, Sparkles } from "lucide-react"
+import { ChevronRight, Calendar, Clock, Dumbbell, Zap, Timer, Weight, Activity, Heart, Move, CheckCircle, XCircle, Filter, Search, RefreshCw, Info, TrendingUp, Sparkles, Trash2 } from "lucide-react"
 import { Category } from "../types"
 import { format } from "date-fns"
 
@@ -70,6 +71,36 @@ export default function History() {
     queryKey: ['/api/workouts'],
     enabled: !!user,
   })
+
+  // Delete workout mutation
+  const deleteWorkoutMutation = useMutation({
+    mutationFn: async (workoutId: string) => {
+      return apiRequest('DELETE', `/api/workouts/${workoutId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts'] })
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/recent'] })
+      toast({
+        title: "Workout deleted",
+        description: "The workout has been removed from your history.",
+      })
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete workout. Please try again.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  const handleDeleteWorkout = (e: React.MouseEvent, workoutId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (confirm('Are you sure you want to delete this workout?')) {
+      deleteWorkoutMutation.mutate(workoutId)
+    }
+  }
 
   // Helper function to determine if a workout is suggested
   const isSuggestedWorkout = (workout: any) => {
@@ -311,9 +342,9 @@ export default function History() {
               const exerciseCount = Array.isArray(workout.sets) ? workout.sets.length : 
                                   (workout.request?.blocks?.reduce((sum: number, block: any) => sum + (block.items?.length || 0), 0) || 0)
               return (
-                <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
-                  <Card className="p-5 active:scale-98 transition-transform" data-testid={`history-workout-${workout.id}`}>
-                    <div className="flex items-center justify-between">
+                <Card key={workout.id} className="p-5" data-testid={`history-workout-${workout.id}`}>
+                  <Link href={`/workout/${workout.id}`} className="block">
+                    <div className="flex items-center justify-between active:scale-98 transition-transform">
                       <div className="flex-1 space-y-3">
                         {/* Header Row */}
                         <div className="flex items-center gap-3">
@@ -354,8 +385,23 @@ export default function History() {
                       </div>
                       <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                     </div>
-                  </Card>
-                </Link>
+                  </Link>
+                  
+                  {/* Delete Button */}
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => handleDeleteWorkout(e, workout.id)}
+                      disabled={deleteWorkoutMutation.isPending}
+                      data-testid={`delete-workout-${workout.id}`}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      {deleteWorkoutMutation.isPending ? 'Deleting...' : 'Delete Workout'}
+                    </Button>
+                  </div>
+                </Card>
               )
             })}
           </div>
