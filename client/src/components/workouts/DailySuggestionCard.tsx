@@ -194,8 +194,25 @@ export function DailySuggestionCard() {
           </DialogHeader>
           <div className="space-y-4 max-h-96 overflow-y-auto">
             <div className="text-sm text-muted-foreground">
-              {rationale || 'This workout was selected based on your fitness profile, recent activity, and recovery status.'}
+              {typeof rationale === 'string' 
+                ? rationale 
+                : rationale?.rulesApplied?.join('. ') || 'This workout was selected based on your fitness profile, recent activity, and recovery status.'}
             </div>
+            
+            {rationale && typeof rationale === 'object' && rationale.scores && (
+              <div>
+                <h4 className="font-medium mb-2">Health Metrics:</h4>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  {Object.entries(rationale.scores).map(([key, value]) => (
+                    <div key={key} className="flex justify-between">
+                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                      <span>{typeof value === 'number' ? Math.round(value) : value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {config.constraints && config.constraints.length > 0 && (
               <div>
                 <h4 className="font-medium mb-2">Considerations:</h4>
