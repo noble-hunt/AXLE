@@ -144,7 +144,7 @@ export function WorkoutPreview({
               <ArchetypeIcon className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-foreground">{workout.focus.charAt(0).toUpperCase() + workout.focus.slice(1)} Workout</h3>
+              <h3 className="text-xl font-bold text-foreground">{workout.focus ? workout.focus.charAt(0).toUpperCase() + workout.focus.slice(1) : 'Generated'} Workout</h3>
               <p className="text-sm text-muted-foreground">{workout.summary}</p>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="secondary" className="text-xs">
@@ -248,7 +248,7 @@ export function WorkoutPreview({
               <div>
                 <h5 className="text-sm font-medium text-foreground mb-2">Focus</h5>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {workout.focus} training with intensity level {workout.intensity}/10
+                  {workout.focus || 'Mixed'} training with intensity level {workout.intensity}/10
                 </p>
               </div>
             </div>
