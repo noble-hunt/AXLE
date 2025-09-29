@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "wouter"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
@@ -49,12 +50,17 @@ const sourceOptions = [
 ] as const
 
 export default function History() {
-  const { workouts, isAuthenticated, hydrateFromDb, user } = useAppStore()
+  const { user } = useAppStore()
   const { toast } = useToast()
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [completionFilter, setCompletionFilter] = useState<string>("all")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
-  const [isLoading, setIsLoading] = useState(true)
+  
+  // Fetch workouts from API
+  const { data: workouts = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/workouts'],
+    enabled: !!user,
+  })
 
   // Helper function to determine if a workout is suggested
   const isSuggestedWorkout = (workout: any) => {
@@ -72,10 +78,9 @@ export default function History() {
       }
     }
     
-    // Check for suggestion-related keywords in name, title or notes
+    // Check for suggestion-related keywords in title or notes
     const suggestionKeywords = ['suggested', 'daily suggestion', 'recommended', 'ai-generated', 'personalized', 'daily workout']
     const hasSuggestionKeywords = suggestionKeywords.some(keyword => 
-      workout.name?.toLowerCase().includes(keyword) || 
       workout.notes?.toLowerCase().includes(keyword) ||
       workout.title?.toLowerCase().includes(keyword)
     )
@@ -86,28 +91,24 @@ export default function History() {
       'endurance session', 'strength builder', 'cardio burn', 'hiit session'
     ]
     const hasAiPattern = aiGeneratedPatterns.some(pattern => 
-      workout.name?.toLowerCase().includes(pattern) || workout.title?.toLowerCase().includes(pattern)
+      workout.title?.toLowerCase().includes(pattern)
     )
     
     // If workout was created recently (last 30 days) and has AI patterns, likely suggested
-    const workoutDate = workout.date instanceof Date ? workout.date : new Date(workout.date)
+    const workoutDate = new Date(workout.created_at || workout.date)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const isRecent = workoutDate >= thirtyDaysAgo
     
     return hasSuggestionKeywords || (isRecent && hasAiPattern)
   }
-  
-  // Simulate loading state for better UX
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 300)
-    return () => clearTimeout(timer)
-  }, [])
 
   // Filter and sort workouts (most recent first)
   const filteredWorkouts = workouts
     .filter(workout => {
-      const matchesCategory = categoryFilter === "all" || workout.category === categoryFilter
+      // Get category from request.focus or request object
+      const workoutCategory = workout.request?.focus || workout.request?.category || workout.category
+      const matchesCategory = categoryFilter === "all" || workoutCategory === categoryFilter
       const matchesCompletion = completionFilter === "all" || 
         (completionFilter === "completed" && workout.completed) ||
         (completionFilter === "pending" && !workout.completed)
@@ -117,8 +118,8 @@ export default function History() {
       return matchesCategory && matchesCompletion && matchesSource
     })
     .sort((a, b) => {
-      const dateA = a.date instanceof Date ? a.date : new Date(a.date)
-      const dateB = b.date instanceof Date ? b.date : new Date(b.date)
+      const dateA = new Date(a.created_at || a.date)
+      const dateB = new Date(b.created_at || b.date)
       return dateB.getTime() - dateA.getTime()
     })
 
@@ -133,7 +134,7 @@ export default function History() {
 
   // Group workouts by date (ensure dates are Date objects)
   const groupedWorkouts = filteredWorkouts.reduce((acc, workout) => {
-    const workoutDate = workout.date instanceof Date ? workout.date : new Date(workout.date)
+    const workoutDate = new Date(workout.created_at || workout.date)
     const dateKey = format(workoutDate, 'yyyy-MM-dd')
     const dateLabel = format(workoutDate, 'MMM d, yyyy')
     if (!acc[dateKey]) {
@@ -147,7 +148,10 @@ export default function History() {
   }, {} as Record<string, { label: string; workouts: typeof filteredWorkouts }>)
 
   // Stats
-  const totalTime = filteredWorkouts.reduce((sum, w) => sum + w.duration, 0)
+  const totalTime = filteredWorkouts.reduce((sum, w) => {
+    const duration = w.request?.availableMinutes || w.request?.duration || w.duration || 0
+    return sum + duration
+  }, 0)
   const avgTime = filteredWorkouts.length > 0 ? Math.round(totalTime / filteredWorkouts.length) : 0
   const completedCount = filteredWorkouts.filter(w => w.completed).length
 
@@ -269,12 +273,15 @@ export default function History() {
 
       {/* Workout List */}
       <div className="space-y-8 pt-1">
-        {Object.entries(groupedWorkouts).map(([dateKey, dateGroup]) => (
+        {(Object.entries(groupedWorkouts) as [string, { label: string; workouts: any[] }][]).map(([dateKey, dateGroup]) => (
           <div key={dateKey} className="space-y-6">
             <h2 className="text-subheading font-semibold text-foreground mb-3">{dateGroup.label}</h2>
             
-            {dateGroup.workouts.map((workout) => {
-              const CategoryIcon = getCategoryIcon(workout.category)
+            {dateGroup.workouts.map((workout: any) => {
+              const workoutCategory = workout.request?.focus || workout.request?.category || workout.category
+              const CategoryIcon = getCategoryIcon(workoutCategory)
+              const exerciseCount = Array.isArray(workout.sets) ? workout.sets.length : 
+                                  (workout.request?.blocks?.reduce((sum: number, block: any) => sum + (block.items?.length || 0), 0) || 0)
               return (
                 <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
                   <Card className="p-5 active:scale-98 transition-transform" data-testid={`history-workout-${workout.id}`}>
@@ -286,16 +293,18 @@ export default function History() {
                             <CategoryIcon className="w-5 h-5 text-primary" />
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-body font-semibold text-foreground">{workout.name}</h3>
-                            <p className="text-caption text-muted-foreground">{workout.sets.length} exercises</p>
+                            <h3 className="text-body font-semibold text-foreground">{workout.title || workout.name || 'Untitled Workout'}</h3>
+                            <p className="text-caption text-muted-foreground">{exerciseCount} exercises</p>
                           </div>
                         </div>
                         
                         {/* Chips Row */}
                         <div className="flex items-center gap-4 flex-wrap">
-                          <Chip variant="default" size="sm">
-                            {workout.category}
-                          </Chip>
+                          {workoutCategory && (
+                            <Chip variant="default" size="sm">
+                              {workoutCategory}
+                            </Chip>
+                          )}
                           {isSuggestedWorkout(workout) && (
                             <Chip variant="accent" size="sm" data-testid="suggested-badge">
                               <Sparkles className="w-3 h-3 mr-1" />
