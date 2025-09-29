@@ -315,11 +315,71 @@ export function WorkoutWizard() {
     simulateWorkout();
   };
 
-  const useWorkout = () => {
-    if (!previewData || !previewSeed) return;
+  const useWorkout = async (feedback: { perceivedIntensity: number; notes?: string }) => {
+    // Validate preconditions
+    if (!previewData || !previewData.seed) {
+      throw new Error("Preview data not ready. Please try generating the preview again.");
+    }
     
-    // Use the same seed as the preview to ensure consistent generation
-    generateMutation.mutate(JSON.stringify(previewSeed));
+    try {
+      // First, generate and save the workout using seed from preview data
+      const requestData = {
+        archetype: wizardState.archetype,
+        minutes: wizardState.minutes,
+        intensity: wizardState.intensity,
+        equipment: wizardState.equipment,
+        seed: previewData.seed
+      };
+
+      const { httpJSON } = await import('@/lib/http');
+      const response = await httpJSON('/workouts/generate', {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        throw new Error((response as any).error?.message || "Failed to generate workout");
+      }
+
+      const workout = response.workout;
+      
+      // Save feedback to the generated workout
+      const { apiRequest, queryClient } = await import('@/lib/queryClient');
+      await apiRequest('POST', `/api/workouts/${workout.id}/feedback`, {
+        perceivedIntensity: feedback.perceivedIntensity,
+        notes: feedback.notes || ""
+      });
+
+      // Mark workout as completed
+      const { useAppStore } = await import('@/store/useAppStore');
+      const { completeWorkout } = useAppStore.getState();
+      await completeWorkout(workout.id, {
+        difficulty: feedback.perceivedIntensity,
+        satisfaction: 8, // Default to high satisfaction
+        completedAt: new Date(),
+      });
+
+      // Invalidate workout queries to refresh history
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/recent'] });
+
+      toast({
+        title: "Workout Completed! 🎉",
+        description: "Your workout has been saved to your history.",
+      });
+      
+      // Navigate to history page using constant
+      const { ROUTES } = await import('@/lib/routes');
+      setLocation(ROUTES.HISTORY);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save workout.",
+        variant: "destructive",
+      });
+      throw error; // Re-throw so WorkoutPreview can handle it
+    }
   };
 
   return (
@@ -385,7 +445,7 @@ export function WorkoutWizard() {
             isLoading={isSimulating}
             onRegenerate={regeneratePreview}
             onUse={useWorkout}
-            isGenerating={generateMutation.isPending}
+            isGenerating={isSimulating}
           />
         )}
       </Card>

@@ -4,9 +4,15 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Sheet } from "@/components/swift/sheet"
+import { Field } from "@/components/swift/field"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { useToast } from "@/hooks/use-toast"
 import { 
   Sparkles, Clock, Target, Dumbbell, ChevronDown, 
-  RotateCcw, Play, BookOpen, Zap, Activity, AlertTriangle
+  RotateCcw, Play, BookOpen, Zap, Activity, AlertTriangle, CheckCircle2, Star
 } from "lucide-react"
 import type { WorkoutPlan, BlockItem, Block } from "@shared/workoutSchema"
 import type { WizardState } from "../WorkoutWizard"
@@ -21,9 +27,14 @@ export interface WorkoutPreviewProps {
   previewData: WorkoutPreviewData | null;
   isLoading: boolean;
   onRegenerate: () => void;
-  onUse: () => void;
+  onUse: (feedback: { perceivedIntensity: number; notes?: string }) => void;
   isGenerating: boolean;
 }
+
+const feedbackSchema = z.object({
+  perceivedIntensity: z.number().min(1).max(10),
+  notes: z.string().optional(),
+})
 
 export function WorkoutPreview({ 
   wizardState, 
@@ -34,6 +45,60 @@ export function WorkoutPreview({
   isGenerating 
 }: WorkoutPreviewProps) {
   const [explanationOpen, setExplanationOpen] = useState(false);
+  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof feedbackSchema>>({
+    resolver: zodResolver(feedbackSchema),
+    defaultValues: {
+      perceivedIntensity: 5,
+      notes: "",
+    },
+  });
+
+  const perceivedIntensity = form.watch("perceivedIntensity");
+
+  const handleUseWorkout = () => {
+    // Clear any previous errors and open the feedback sheet
+    setSubmitError(null);
+    setShowFeedbackSheet(true);
+  };
+
+  const handleFeedbackSubmit = async (data: z.infer<typeof feedbackSchema>) => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    setSubmitError(null);
+    
+    try {
+      // Call the parent's onUse with feedback data
+      await onUse({
+        perceivedIntensity: data.perceivedIntensity,
+        notes: data.notes,
+      });
+      
+      // Mark as completed and close sheet
+      setIsCompleted(true);
+      setShowFeedbackSheet(false);
+      
+      // Reset form for potential future use
+      form.reset();
+    } catch (error: any) {
+      console.error('Error submitting feedback:', error);
+      const errorMessage = error?.message || "Failed to save workout. Please try again.";
+      setSubmitError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -259,13 +324,18 @@ export function WorkoutPreview({
       {/* Action Buttons */}
       <div className="space-y-3">
         <Button 
-          onClick={onUse}
-          disabled={isGenerating}
+          onClick={handleUseWorkout}
+          disabled={isGenerating || isCompleted}
           className="w-full"
           size="lg"
           data-testid="use-this-workout"
         >
-          {isGenerating ? (
+          {isCompleted ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Completed!
+            </>
+          ) : isGenerating ? (
             <>
               <LoadingSpinner size="sm" className="mr-2" />
               Saving Workout...
@@ -312,6 +382,116 @@ export function WorkoutPreview({
           </div>
         </div>
       </div>
+
+      {/* Feedback Sheet */}
+      <Sheet
+        open={showFeedbackSheet}
+        onOpenChange={setShowFeedbackSheet}
+        title="How was your workout?"
+      >
+        <form onSubmit={form.handleSubmit(handleFeedbackSubmit)} className="space-y-6">
+          {/* Error Message */}
+          {submitError && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive">{submitError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* RPE Scale */}
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Rate of Perceived Exertion (RPE)
+              </label>
+              <p className="text-xs text-muted-foreground mb-3">
+                How hard was this workout for you?
+              </p>
+            </div>
+
+            {/* RPE Slider */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Easy</span>
+                <span className="text-2xl font-bold text-primary">{perceivedIntensity}</span>
+                <span className="text-xs text-muted-foreground">Max Effort</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                value={perceivedIntensity}
+                onChange={(e) => form.setValue('perceivedIntensity', parseInt(e.target.value))}
+                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                data-testid="input-perceived-intensity"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  <span key={n} className={perceivedIntensity === n ? 'text-primary font-bold' : ''}>
+                    {n}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* RPE Description */}
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">
+                {perceivedIntensity <= 3 && "Very light effort - Could do this all day"}
+                {perceivedIntensity >= 4 && perceivedIntensity <= 6 && "Moderate effort - Challenging but sustainable"}
+                {perceivedIntensity >= 7 && perceivedIntensity <= 8 && "Hard effort - Tough but doable"}
+                {perceivedIntensity >= 9 && "Maximum effort - Couldn't do much more"}
+              </p>
+            </div>
+          </div>
+
+          {/* Optional Notes */}
+          <Field
+            label="Notes (Optional)"
+            name="notes"
+            type="textarea"
+            placeholder="Any thoughts on the workout?"
+            value={form.watch('notes') || ''}
+            onChange={(e) => form.setValue('notes', e.target.value)}
+            data-testid="input-notes"
+          />
+
+          {/* Submit Button */}
+          <div className="space-y-2">
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting}
+              data-testid="button-submit-feedback"
+            >
+              {isSubmitting ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Star className="w-4 h-4 mr-2" />
+                  Complete Workout
+                </>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={() => setShowFeedbackSheet(false)}
+              disabled={isSubmitting}
+              data-testid="button-cancel-feedback"
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </Sheet>
     </div>
   );
 }
