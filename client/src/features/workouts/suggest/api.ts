@@ -1,10 +1,18 @@
-import { httpJSON } from '@/lib/http';
+import { authFetch } from '@/lib/authFetch';
+import { API_ORIGIN, API_PREFIX } from '@/lib/env';
 
 export async function startSuggestion(): Promise<string> {
-  const response = await httpJSON('suggest/start', { 
+  const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/suggest/start`, { 
     method: 'POST' 
   });
-  return response.workoutId;
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || 'Failed to start suggestion');
+  }
+  
+  const data = await response.json();
+  return data.workoutId;
 }
 
 
@@ -32,14 +40,29 @@ export type TodaySuggestionResponse = {
 };
 
 export async function fetchTodaySuggestion(): Promise<TodaySuggestionResponse> {
-  return await httpJSON('workouts/suggest/today');
+  const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/workouts/suggest/today`);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || 'Failed to fetch daily suggestion');
+  }
+  
+  const data = await response.json();
+  return data.suggestion;
 }
 
 export async function rotateSuggestion(): Promise<TodaySuggestionResponse> {
   try {
-    const res = await httpJSON('workouts/suggest/rotate', {
+    const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/workouts/suggest/rotate`, {
       method: 'POST',
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || 'Failed to rotate suggestion');
+    }
+    
+    const res = await response.json();
     return res.suggestion;
   } catch (err: any) {
     const status = err?.status ?? 0;
@@ -57,29 +80,36 @@ export async function rotateSuggestion(): Promise<TodaySuggestionResponse> {
 export async function startSuggestedWorkout(s: Suggestion) {
   // Try the new endpoint first
   try {
-    const res = await httpJSON('workouts/suggest/today/start', {
+    const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/workouts/suggest/today/start`, {
       method: 'POST',
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || 'Failed to start suggested workout');
+    }
+    
+    const res = await response.json();
     
     if (res?.workoutId && typeof res.workoutId === 'string' && res.workoutId.trim()) {
       return res.workoutId;
     }
   } catch (err: any) {
     const status = err?.status ?? 0;
-    const isAPIUnavailable = status === 404 || status === 405 || 
-      (err?.body && typeof err.body === 'string' && err.body.includes('<!DOCTYPE html'));
+    const isAPIUnavailable = status === 404 || status === 405;
     
     if (!isAPIUnavailable) {
       // If it's not an availability issue, throw the error to be handled by the component
       throw err;
     }
     
-    // If API is unavailable (404/405/HTML), fall back to the old endpoint
+    // If API is unavailable (404/405), fall back to the old endpoint
   }
 
-  // Fallback to old endpoint
-  const res = await httpJSON('workouts/start', {
+  // Fallback to old endpoint (still using authFetch for consistency)
+  const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/workouts/start`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       focus: s.focus,
       minutes: s.minutes,
@@ -90,6 +120,13 @@ export async function startSuggestedWorkout(s: Suggestion) {
     }),
   });
   
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || 'Failed to start workout');
+  }
+  
+  const res = await response.json();
+  
   // Validate the response has a valid id
   if (!res || typeof res !== 'object' || !('id' in res) || typeof (res as any).id !== 'string' || !(res as any).id.trim()) {
     throw new Error('Invalid response: missing or invalid workout id');
@@ -99,8 +136,9 @@ export async function startSuggestedWorkout(s: Suggestion) {
 }
 
 export async function generateWorkout(cfg: { focus: string; duration: number; intensity: number; equipment?: string[] }) {
-  const res = await httpJSON('workouts/generate', {
+  const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/workouts/generate`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       goal: cfg.focus,
       durationMin: cfg.duration,
@@ -108,6 +146,13 @@ export async function generateWorkout(cfg: { focus: string; duration: number; in
       equipment: cfg.equipment || ['bodyweight'],
     }),
   });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || 'Failed to generate workout');
+  }
+  
+  const res = await response.json();
   
   if (!res || !res.workout) {
     throw new Error('Invalid response: missing workout data');
@@ -117,13 +162,27 @@ export async function generateWorkout(cfg: { focus: string; duration: number; in
 }
 
 export async function getWorkout(id: string) {
-  return await httpJSON(`workouts/${id}`);
+  const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/workouts/${id}`);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || 'Failed to get workout');
+  }
+  
+  return await response.json();
 }
 
 export async function startWorkout(id: string) {
-  const res = await httpJSON(`workouts/${id}/start`, {
+  const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/workouts/${id}/start`, {
     method: 'POST',
   });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || 'Failed to start workout');
+  }
+  
+  const res = await response.json();
   
   if (!res || !res.id) {
     throw new Error('Invalid response: missing workout id');
