@@ -51,6 +51,7 @@ const feedbackSchema = z.object({
 })
 
 export default function WorkoutDetail() {
+  // ALL HOOKS MUST BE AT THE TOP - Rules of Hooks
   const { id } = useParams()
   const [, setLocation] = useLocation()
   const { workouts, getWorkout, completeWorkout } = useAppStore()
@@ -62,6 +63,30 @@ export default function WorkoutDetail() {
   // Validate UUID and redirect if invalid
   const isValidUuid = id ? UUIDv4.test(id) : false
   
+  // First try local store, then API if not found
+  const localWorkout = id ? getWorkout(id as string) : null
+  
+  // Fetch from API if not in local store (only if UUID is valid)
+  // This hook MUST be called unconditionally at the top
+  const { data: apiWorkout, isLoading, error } = useQuery({
+    queryKey: ['/api/workouts', id],
+    enabled: !localWorkout && !!id && isValidUuid, // Only fetch if not in local store, ID exists, and is valid UUID
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+
+  // Form hook MUST be called unconditionally at the top
+  const form = useForm<z.infer<typeof feedbackSchema>>({
+    resolver: zodResolver(feedbackSchema),
+    defaultValues: {
+      perceivedIntensity: 5,
+      notes: "",
+    },
+  })
+
+  const perceivedIntensity = form.watch("perceivedIntensity")
+  const notes = form.watch("notes")
+  
+  // Handle redirects in useEffect, not with early returns
   useEffect(() => {
     if (!id || !isValidUuid) {
       console.log('Invalid or missing workout ID, redirecting to generator')
@@ -70,23 +95,13 @@ export default function WorkoutDetail() {
     }
   }, [id, isValidUuid, setLocation])
 
+  // NOW we can handle conditional rendering AFTER all hooks
+  const workout = localWorkout || apiWorkout as WorkoutUnion | undefined
+
   // Early return if redirecting due to invalid ID
   if (!id || !isValidUuid) {
     return null
   }
-  
-  // First try local store, then API if not found
-  const localWorkout = getWorkout(id as string)
-  
-  // Fetch from API if not in local store (only if UUID is valid)
-  const { data: apiWorkout, isLoading, error } = useQuery({
-    queryKey: ['/api/workouts', id],
-    enabled: !localWorkout && !!id && isValidUuid, // Only fetch if not in local store, ID exists, and is valid UUID
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  })
-
-  
-  const workout = localWorkout || apiWorkout as WorkoutUnion | undefined
 
   // Show loading while fetching from API
   if (!localWorkout && isLoading) {
@@ -106,17 +121,6 @@ export default function WorkoutDetail() {
     setLocation(`${ROUTES.WORKOUT_GENERATE}?reason=missing`, { replace: true })
     return null
   }
-
-  const form = useForm<z.infer<typeof feedbackSchema>>({
-    resolver: zodResolver(feedbackSchema),
-    defaultValues: {
-      perceivedIntensity: 5,
-      notes: "",
-    },
-  })
-
-  const perceivedIntensity = form.watch("perceivedIntensity")
-  const notes = form.watch("notes")
 
   // Trigger confetti effect
   const triggerConfetti = () => {
