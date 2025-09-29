@@ -8,6 +8,14 @@ import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
 import { SegmentedControl, Segment } from "@/components/swift/segmented-control"
 import { StatBadge } from "@/components/swift/stat-badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { fadeIn } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
 import { ChevronRight, Calendar, Clock, Dumbbell, Zap, Timer, Weight, Activity, Heart, Move, CheckCircle, XCircle, Filter, Search, RefreshCw, Info, TrendingUp, Sparkles } from "lucide-react"
@@ -55,6 +63,7 @@ export default function History() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [completionFilter, setCompletionFilter] = useState<string>("all")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false)
   
   // Fetch workouts from API
   const { data: workouts = [], isLoading } = useQuery<any[]>({
@@ -214,39 +223,58 @@ export default function History() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-body font-medium text-foreground">Status</label>
-          </div>
-          <div className="flex justify-end">
-            <SegmentedControl
-              value={completionFilter}
-              onValueChange={setCompletionFilter}
-              data-testid="completion-filter"
+        {/* More Filters Button */}
+        <Dialog open={moreFiltersOpen} onOpenChange={setMoreFiltersOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              variant="secondary" 
+              className="w-full h-12"
+              data-testid="more-filters-button"
             >
-            {completionOptions.map((option) => (
-              <Segment key={option.value} value={option.value}>
-                {option.label}
-              </Segment>
-            ))}
-            </SegmentedControl>
-          </div>
-        </div>
+              <Filter className="w-4 h-4 mr-2" />
+              More Filters
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>More Filters</DialogTitle>
+              <DialogDescription>
+                Refine your workout history with additional filters
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              <div className="space-y-2">
+                <label className="text-body font-medium text-foreground">Status</label>
+                <SegmentedControl
+                  value={completionFilter}
+                  onValueChange={setCompletionFilter}
+                  data-testid="completion-filter"
+                >
+                  {completionOptions.map((option) => (
+                    <Segment key={option.value} value={option.value}>
+                      {option.label}
+                    </Segment>
+                  ))}
+                </SegmentedControl>
+              </div>
 
-        <div className="space-y-2">
-          <label className="text-body font-medium text-foreground">Source</label>
-          <SegmentedControl
-            value={sourceFilter}
-            onValueChange={setSourceFilter}
-            data-testid="source-filter"
-          >
-            {sourceOptions.map((option) => (
-              <Segment key={option.value} value={option.value}>
-                {option.label}
-              </Segment>
-            ))}
-          </SegmentedControl>
-        </div>
+              <div className="space-y-2">
+                <label className="text-body font-medium text-foreground">Source</label>
+                <SegmentedControl
+                  value={sourceFilter}
+                  onValueChange={setSourceFilter}
+                  data-testid="source-filter"
+                >
+                  {sourceOptions.map((option) => (
+                    <Segment key={option.value} value={option.value}>
+                      {option.label}
+                    </Segment>
+                  ))}
+                </SegmentedControl>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats Cards */}
