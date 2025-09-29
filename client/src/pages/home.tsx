@@ -102,10 +102,11 @@ export default function Home() {
   const [, setLocation] = useLocation()
 
   // Fetch recent workouts from API instead of using seed data
-  const { data: recentWorkouts = [] } = useQuery<any[]>({
+  const { data: recentWorkouts = [], isLoading, error } = useQuery<any[]>({
     queryKey: ['/api/workouts/recent'],
     enabled: !!user,
   })
+
 
   const handleGenerateWorkout = () => {
     setShowWorkoutGenerator(true)
@@ -199,7 +200,7 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <p className="text-caption text-muted-foreground">{formatTimeAgo(new Date(workout.createdAt))}</p>
+                        <p className="text-caption text-muted-foreground">{formatTimeAgo(new Date(workout.created_at || workout.createdAt))}</p>
                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       </div>
                     </div>
