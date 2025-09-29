@@ -111,6 +111,10 @@ function OverlayWrapper() {
         )} />
         
         {/* Legacy aliases → redirect to canonical path with query params preserved */}
+        <Route path="/workouts/generate" component={() => {
+          const search = useSearch();
+          return <Redirect to={`/workout/generate${search ? `?${search}` : ''}`} />;
+        }} />
         <Route path="/generate-workout" component={() => {
           const search = useSearch();
           return <Redirect to={`/workout/generate${search ? `?${search}` : ''}`} />;
