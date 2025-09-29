@@ -3,7 +3,8 @@ import { useParams, useLocation } from "wouter"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
+import { apiRequest, queryClient } from "@/lib/queryClient"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
 import type { WorkoutFeedback } from "../types"
@@ -41,7 +42,7 @@ import { Sheet } from "@/components/swift/sheet"
 import { Field } from "@/components/swift/field"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
-import { Calendar, Clock, Dumbbell, Target, CheckCircle2, Activity, Star, Award, Sparkles, Trophy, PartyPopper, Brain, AlertTriangle, ThumbsUp, Hash, RotateCcw, Shuffle, Copy } from "lucide-react"
+import { Calendar, Clock, Dumbbell, Target, CheckCircle2, Activity, Star, Award, Sparkles, Trophy, PartyPopper, Brain, AlertTriangle, ThumbsUp, Hash, RotateCcw, Shuffle, Copy, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import confetti from "canvas-confetti"
 
@@ -85,6 +86,35 @@ export default function WorkoutDetail() {
 
   const perceivedIntensity = form.watch("perceivedIntensity")
   const notes = form.watch("notes")
+
+  // Delete workout mutation
+  const deleteWorkoutMutation = useMutation({
+    mutationFn: async (workoutId: string) => {
+      return apiRequest('DELETE', `/api/workouts/${workoutId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts'] })
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/recent'] })
+      toast({
+        title: "Workout deleted",
+        description: "The workout has been removed from your history.",
+      })
+      setLocation(ROUTES.HISTORY)
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete workout. Please try again.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  const handleDeleteWorkout = () => {
+    if (confirm('Are you sure you want to delete this workout? This action cannot be undone.')) {
+      deleteWorkoutMutation.mutate(id as string)
+    }
+  }
   
   // Handle redirects in useEffect, not with early returns
   useEffect(() => {
@@ -261,21 +291,21 @@ export default function WorkoutDetail() {
 
         {/* Request Meta Chips */}
         <div className="flex flex-wrap gap-2" data-testid="request-chips">
-          <Chip variant="secondary">
+          <Chip variant="default">
             <Activity className="w-3 h-3 mr-1" />
 {(workout as any)?.category}
           </Chip>
-          <Chip variant="secondary">
+          <Chip variant="default">
             <Clock className="w-3 h-3 mr-1" />
 {(workout as any)?.duration} min
           </Chip>
-          <Chip variant="secondary">
+          <Chip variant="default">
             <Target className="w-3 h-3 mr-1" />
 Intensity {(workout as any)?.intensity}/10
           </Chip>
           {(workout as any)?.genSeed?.rngSeed && (
             <Chip 
-              variant="secondary" 
+              variant="default" 
               className="cursor-pointer hover:bg-muted/80 transition-colors"
               onClick={() => {
                 if (navigator.clipboard) {
@@ -417,6 +447,16 @@ Intensity {(workout as any)?.intensity}/10
             data-testid="complete-workout-button"
           >
             Complete Workout
+          </Button>
+          <Button 
+            variant="ghost"
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={handleDeleteWorkout}
+            disabled={deleteWorkoutMutation.isPending}
+            data-testid="delete-workout-button"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            {deleteWorkoutMutation.isPending ? 'Deleting...' : 'Delete Workout'}
           </Button>
         </div>
       )}
