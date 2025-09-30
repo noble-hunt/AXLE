@@ -13,8 +13,9 @@ function mapProfileToFrontend(dbProfile: any) {
     dateOfBirth: dbProfile.date_of_birth,
     avatarUrl: dbProfile.avatar_url,
     providers: dbProfile.providers,
-    createdAt: dbProfile.created_at,
-    updatedAt: dbProfile.updated_at,
+    // Convert timestamp strings to Date objects for frontend
+    createdAt: dbProfile.created_at ? new Date(dbProfile.created_at) : undefined,
+    updatedAt: dbProfile.updated_at ? new Date(dbProfile.updated_at) : undefined,
     // Include any other fields that might exist
     lastLat: dbProfile.last_lat,
     lastLon: dbProfile.last_lon,
@@ -26,7 +27,7 @@ export async function updateProfileProviders(userId: string, provider: string) {
   // First, get the current profile to see existing providers
   const { data: currentProfile, error: fetchError } = await supabaseAdmin
     .from('profiles')
-    .select('providers')
+    .select('*')
     .eq('user_id', userId)
     .single();
 

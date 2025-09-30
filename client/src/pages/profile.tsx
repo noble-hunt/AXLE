@@ -863,12 +863,20 @@ export default function Profile() {
   const memberSince = profile?.createdAt || user?.created_at || new Date('2021-08-20')
   
   // Format member since date
-  const formatMemberSince = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    }).format(new Date(date))
+  const formatMemberSince = (date: Date | string) => {
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date
+      if (isNaN(dateObj.getTime())) {
+        return 'Jan 1, 2024' // Fallback for invalid dates
+      }
+      return new Intl.DateTimeFormat('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      }).format(dateObj)
+    } catch (error) {
+      return 'Jan 1, 2024' // Fallback for any errors
+    }
   }
 
   // Photo editing handlers
