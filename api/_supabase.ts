@@ -2,13 +2,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { VercelRequest } from '@vercel/node';
 
-// Environment validation
+// Environment validation - validates all required Supabase environment variables
 export function validateEnvForUser() {
-  if (!process.env.SUPABASE_URL) {
-    throw new Error('SUPABASE_URL is not set');
-  }
-  if (!process.env.SUPABASE_ANON_KEY) {
-    throw new Error('SUPABASE_ANON_KEY is not set');
+  const required = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 }
 
@@ -44,11 +44,11 @@ export function userClient(token: string) {
   );
 }
 
-// Extract Bearer token from request
+// Extract Bearer token from request - returns null if not found (caller should handle 401)
 export function bearer(req: VercelRequest): string {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('No Bearer token found in Authorization header');
+    return '';
   }
   return authHeader.substring(7); // Remove 'Bearer ' prefix
 }
