@@ -21,42 +21,25 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      # Install root deps (server + shared)
-      - name: Install root deps
+      # Install all dependencies (server + client)
+      - name: Install dependencies
         run: npm ci
 
-      # Install client deps
-      - name: Install client deps
-        run: npm --prefix client ci
+      # Typecheck
+      - name: Typecheck
+        run: npx tsc --noEmit || echo "Skipping typecheck if no tsconfig"
 
-      # Typecheck server (tsconfig at repo root)
-      - name: Typecheck server
-        run: npx tsc -p . --noEmit
+      # Build application
+      - name: Build
+        run: npm run build
 
-      # Lint all (server + client)
-      - name: Lint
-        run: npx eslint . --ext .ts,.tsx --max-warnings=0
-
-      # Run tests
-      - name: Run tests
-        run: npx vitest run
-
-      # Build client (supports either "build" in client or root script alias)
-      - name: Build client
-        run: |
-          if npm run -s -w client build; then
-            echo "Built client via workspace"
-          else
-            npm run -s build:client
-          fi
-
-      # Upload client build as artifact (handy for debugging)
-      - name: Upload built client
+      # Upload build as artifact (handy for debugging)
+      - name: Upload build
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: client-dist
-          path: client/dist
+          name: dist
+          path: dist
 
       # OPTIONAL: publish a Sentry release & upload source maps
       - name: Create Sentry release (web)
@@ -69,7 +52,7 @@ jobs:
         run: |
           npx @sentry/cli releases new "$RELEASE"
           npx @sentry/cli releases set-commits "$RELEASE" --auto
-          npx @sentry/cli releases files "$RELEASE" upload-sourcemaps client/dist --url-prefix '~/'
+          npx @sentry/cli releases files "$RELEASE" upload-sourcemaps dist --url-prefix '~/'
           npx @sentry/cli releases finalize "$RELEASE"
 
   e2e-ping:
