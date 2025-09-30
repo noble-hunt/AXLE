@@ -10,14 +10,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Profile Display Fix (September 30, 2025)
-- **Issue**: User names and profile pictures were not displaying correctly in the UI
-- **Root Cause**: Database stores fields in snake_case (`first_name`, `last_name`, `avatar_url`) but frontend expected camelCase
+### Production Data Display Fix (September 30, 2025)
+- **Issue**: Production app was not displaying user profiles or workout history correctly
+- **Root Cause**: 
+  - Database stores fields in snake_case (`first_name`, `user_id`, `started_at`) but frontend expected camelCase
+  - Production was running a stale build without the mapping fixes
 - **Solution**: 
   - Added `mapProfileToFrontend()` helper in `server/dal/profiles.ts` to convert DB fields to camelCase
-  - Updated frontend `upsertProfile()` in `client/src/store/useAppStore.ts` to read camelCase fields with snake_case fallbacks
-  - All profile data now properly displays throughout the application
-- **Files Modified**: `server/dal/profiles.ts`, `client/src/store/useAppStore.ts`
+  - Added `mapWorkoutToFrontend()` helper in `server/dal/workouts.ts` for workout data conversion
+  - Updated all workout DAL functions to use the mapping (listWorkouts, getWorkout, insertWorkout, updateWorkout, startWorkoutAtomic)
+  - Frontend `upsertProfile()` in `client/src/store/useAppStore.ts` reads camelCase fields with snake_case fallbacks
+  - Note: `getUserRecentWorkouts()` remains snake_case as it's only used internally by backend calculation modules
+- **Files Modified**: `server/dal/profiles.ts`, `server/dal/workouts.ts`, `client/src/store/useAppStore.ts`
+- **Deployment Status**: Changes ready for production deployment via Vercel
 
 ## System Architecture
 
