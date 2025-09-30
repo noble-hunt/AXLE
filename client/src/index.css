@@ -89,12 +89,12 @@
   --card-foreground: hsl(0, 0%, 85.1%);
   
   /* Primary tokens */
-  --primary: hsl(203.77, 87.6%, 52.55%);
+  --primary: hsl(203.77, 87.6%, 65%);
   --primary-foreground: hsl(0, 0%, 100%);
   
   /* Accent tokens */
-  --accent: hsl(205.71, 70%, 7.84%);
-  --accent-foreground: hsl(203.77, 87.6%, 52.55%);
+  --accent: hsl(205.71, 80%, 70%);
+  --accent-foreground: hsl(0, 0%, 0%);
   
   /* Muted tokens */
   --muted: hsl(0, 0%, 9.41%);
