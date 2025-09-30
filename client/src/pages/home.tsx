@@ -40,17 +40,17 @@ function QuickStats() {
   return (
     <div className="grid grid-cols-3 gap-3">
       <Card className="p-4 text-center">
-        <Activity className="w-6 h-6 text-primary mx-auto mb-2" />
+        <Activity className="w-6 h-6 text-info mx-auto mb-2" />
         <p className="text-heading font-bold text-foreground">{thisWeekWorkouts}</p>
         <p className="text-caption text-muted-foreground">Workouts This Week</p>
       </Card>
       <Card className="p-4 text-center">
-        <Trophy className="w-6 h-6 text-accent mx-auto mb-2" />
+        <Trophy className="w-6 h-6 text-warning mx-auto mb-2" />
         <p className="text-heading font-bold text-foreground">{totalPRs}</p>
         <p className="text-caption text-muted-foreground">Personal Records</p>
       </Card>
       <Card className="p-4 text-center">
-        <Flame className="w-6 h-6 text-warning mx-auto mb-2" />
+        <Flame className="w-6 h-6 text-accent mx-auto mb-2" />
         <p className="text-heading font-bold text-foreground">{currentStreak}</p>
         <p className="text-caption text-muted-foreground">Day<br />Streak</p>
       </Card>
@@ -65,30 +65,30 @@ function HealthInsights() {
       <Card className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
-              <Heart className="w-5 h-5 text-success" />
+            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+              <Heart className="w-5 h-5 text-accent" />
             </div>
             <div>
               <p className="text-body font-medium text-foreground">Resting Heart Rate</p>
               <p className="text-caption text-muted-foreground">↓ 3 bpm this week</p>
             </div>
           </div>
-          <p className="text-subheading font-bold text-success">62 bpm</p>
+          <p className="text-subheading font-bold text-accent">62 bpm</p>
         </div>
       </Card>
       
       <Card className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-info" />
             </div>
             <div>
               <p className="text-body font-medium text-foreground">Recovery Score</p>
               <p className="text-caption text-muted-foreground">Good recovery</p>
             </div>
           </div>
-          <p className="text-subheading font-bold text-primary">85%</p>
+          <p className="text-subheading font-bold text-info">85%</p>
         </div>
       </Card>
     </div>
@@ -140,7 +140,7 @@ export default function Home() {
       >
         {/* Welcome Banner */}
         <motion.div
-          className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-primary to-accent"
+          className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-primary via-accent to-info"
           variants={slideUp}
         >
           <div className="relative z-10 flex items-center justify-between text-white">
@@ -191,8 +191,8 @@ export default function Home() {
                   <Card className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <Dumbbell className="w-5 h-5 text-primary" />
+                        <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+                          <Dumbbell className="w-5 h-5 text-success" />
                         </div>
                         <div>
                           <p className="text-body font-medium text-foreground">{workout.title}</p>

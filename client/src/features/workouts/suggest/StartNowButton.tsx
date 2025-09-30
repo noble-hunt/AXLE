@@ -31,7 +31,7 @@ export function StartNowButton() {
       data-testid="button-start-now"
       onClick={handleClick}
       disabled={isStarting}
-      className="w-full"
+      className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
     >
       <Target className="w-4 h-4 mr-2" />
       {isStarting ? 'Starting...' : 'Start Now'}

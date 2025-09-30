@@ -76,7 +76,7 @@
 }
 
 .dark {
-  /* SwiftUI Design Tokens - Dark Mode */
+  /* Modern High-Energy Fitness Color Palette - 2025 */
   --background: hsl(0, 0%, 0%);
   --foreground: hsl(200, 6.67%, 91.18%);
   
@@ -88,13 +88,25 @@
   --card: hsl(228, 9.8%, 10%);
   --card-foreground: hsl(0, 0%, 85.1%);
   
-  /* Primary tokens */
-  --primary: hsl(203.77, 87.6%, 65%);
+  /* Primary tokens - Electric Purple (brand, navigation, primary actions) */
+  --primary: hsl(265, 85%, 65%);
   --primary-foreground: hsl(0, 0%, 100%);
   
-  /* Accent tokens */
-  --accent: hsl(205.71, 80%, 70%);
-  --accent-foreground: hsl(0, 0%, 0%);
+  /* Accent tokens - Coral/Orange (workout CTAs, intensity) */
+  --accent: hsl(14, 100%, 63%);
+  --accent-foreground: hsl(0, 0%, 100%);
+  
+  /* Success tokens - Lime Green (achievements, completed workouts) */
+  --success: hsl(84, 75%, 55%);
+  --success-foreground: hsl(0, 0%, 0%);
+  
+  /* Warning tokens - Amber (streaks, challenges, alerts) */
+  --warning: hsl(38, 92%, 58%);
+  --warning-foreground: hsl(0, 0%, 0%);
+  
+  /* Info tokens - Teal/Cyan (health metrics, progress) */
+  --info: hsl(180, 62%, 55%);
+  --info-foreground: hsl(0, 0%, 0%);
   
   /* Muted tokens */
   --muted: hsl(0, 0%, 9.41%);
@@ -106,8 +118,8 @@
   /* Legacy shadcn tokens for compatibility */
   --popover: hsl(0, 0%, 0%);
   --popover-foreground: hsl(200, 6.67%, 91.18%);
-  --secondary: hsl(195, 15.38%, 94.9%);
-  --secondary-foreground: hsl(210, 25%, 7.84%);
+  --secondary: hsl(240, 8%, 20%);
+  --secondary-foreground: hsl(0, 0%, 95%);
   --destructive: hsl(356.3, 90.56%, 54.31%);
   --destructive-foreground: hsl(0, 0%, 100%);
   --input: hsl(207.69, 27.66%, 18.43%);

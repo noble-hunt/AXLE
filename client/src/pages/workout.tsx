@@ -94,13 +94,14 @@ export default function Workout() {
       </Button>
 
       {/* Create New Workout */}
-      <PrimaryButton 
-        icon={<Plus className="w-5 h-5" />}
+      <Button 
+        className="w-full h-12 bg-success text-success-foreground hover:bg-success/90"
         onClick={handleCreateWorkout}
         data-testid="primary-button"
       >
+        <Plus className="w-5 h-5 mr-2" />
         Create New Workout
-      </PrimaryButton>
+      </Button>
 
       {/* Workout History */}
       <div className="space-y-4">
