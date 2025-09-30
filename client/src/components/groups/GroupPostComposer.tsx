@@ -88,7 +88,7 @@ export function GroupPostComposer({ groupId, className, onPostCreated, setPosts 
 
     const userId = (await supabase.auth.getUser()).data.user?.id!;
     const temp: GroupPost & { _status?: 'sending'|'failed' } = {
-      id: `-${Math.floor(Math.random() * 1e9)}`,
+      id: -Math.floor(Math.random() * 1e9),
       group_id: groupId,
       author_id: userId,
       body,
