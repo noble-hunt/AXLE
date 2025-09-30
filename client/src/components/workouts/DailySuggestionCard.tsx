@@ -199,11 +199,11 @@ export function DailySuggestionCard() {
                 : rationale?.rulesApplied?.join('. ') || 'This workout was selected based on your fitness profile, recent activity, and recovery status.'}
             </div>
             
-            {rationale && typeof rationale === 'object' && rationale.scores && (
+            {rationale && typeof rationale === 'object' && 'scores' in rationale && rationale.scores && (
               <div>
                 <h4 className="font-medium mb-2">Health Metrics:</h4>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  {Object.entries(rationale.scores).map(([key, value]) => (
+                  {Object.entries(rationale.scores as Record<string, any>).map(([key, value]) => (
                     <div key={key} className="flex justify-between">
                       <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
                       <span>{typeof value === 'number' ? Math.round(value) : value}</span>
