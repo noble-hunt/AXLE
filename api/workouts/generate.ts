@@ -1,7 +1,7 @@
 // api/workouts/generate.ts  (Vercel serverless, Node runtime)
 import { openai } from '../_openai';
 
-export const config = { runtime: 'nodejs18.x' };
+export const config = { runtime: 'nodejs' };
 
 type GenInput = {
   category: string;

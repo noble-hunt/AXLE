@@ -4,7 +4,7 @@
 import { supabaseAdmin } from '../_supabaseAdmin';
 import { getProviderRegistry } from '../../server/providers/health';
 
-export const config = { runtime: 'nodejs18.x' };
+export const config = { runtime: 'nodejs' };
 
 export default async function handler() {
   try {

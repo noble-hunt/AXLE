@@ -1,7 +1,7 @@
 import { openai } from '../_openai';
 import { supabaseFromReq } from '../_supabase';
 
-export const config = { runtime: 'nodejs18.x' };
+export const config = { runtime: 'nodejs' };
 
 // Simple rate limiting (in production, use Redis/Upstash)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();

@@ -1,7 +1,7 @@
 // api/storage/group-photos/signed-upload.ts
 import { supabaseFromReq } from '../../_supabase';
 import { supabaseAdmin } from '../../_supabaseAdmin';
-export const config = { runtime: 'nodejs18.x' };
+export const config = { runtime: 'nodejs' };
 
 const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
