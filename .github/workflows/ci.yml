@@ -41,9 +41,9 @@ jobs:
           name: dist
           path: dist
 
-      # OPTIONAL: publish a Sentry release & upload source maps
+      # OPTIONAL: publish a Sentry release & upload source maps (only if secrets configured)
       - name: Create Sentry release (web)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.SENTRY_AUTH_TOKEN != ''
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
