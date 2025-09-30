@@ -4,6 +4,15 @@ import { supabase } from "@/lib/supabase";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    
+    // If we get a 401 Unauthorized, the token is invalid - log out
+    if (res.status === 401) {
+      console.error('🔒 Session expired or invalid token - logging out');
+      // Clear auth and reload to trigger login
+      await supabase.auth.signOut();
+      window.location.href = '/auth/login';
+    }
+    
     throw new Error(`${res.status}: ${text}`);
   }
 }
