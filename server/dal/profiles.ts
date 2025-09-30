@@ -1,5 +1,27 @@
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
+// Helper function to map database fields (snake_case) to frontend fields (camelCase)
+function mapProfileToFrontend(dbProfile: any) {
+  if (!dbProfile) return null;
+  
+  return {
+    id: dbProfile.id,
+    userId: dbProfile.user_id,
+    firstName: dbProfile.first_name,
+    lastName: dbProfile.last_name,
+    username: dbProfile.username,
+    dateOfBirth: dbProfile.date_of_birth,
+    avatarUrl: dbProfile.avatar_url,
+    providers: dbProfile.providers,
+    createdAt: dbProfile.created_at,
+    updatedAt: dbProfile.updated_at,
+    // Include any other fields that might exist
+    lastLat: dbProfile.last_lat,
+    lastLon: dbProfile.last_lon,
+    timezone: dbProfile.timezone,
+  };
+}
+
 export async function updateProfileProviders(userId: string, provider: string) {
   // First, get the current profile to see existing providers
   const { data: currentProfile, error: fetchError } = await supabaseAdmin
@@ -24,7 +46,7 @@ export async function updateProfileProviders(userId: string, provider: string) {
         throw new Error(`Failed to create profile with provider: ${error.message}`);
       }
 
-      return data;
+      return mapProfileToFrontend(data);
     } else {
       throw new Error(`Failed to fetch profile: ${fetchError.message}`);
     }
@@ -48,11 +70,11 @@ export async function updateProfileProviders(userId: string, provider: string) {
       throw new Error(`Failed to update profile providers: ${error.message}`);
     }
 
-    return data;
+    return mapProfileToFrontend(data);
   }
 
   // Provider already exists, return current profile
-  return currentProfile;
+  return mapProfileToFrontend(currentProfile);
 }
 
 export async function getProfile(userId: string) {
@@ -69,7 +91,7 @@ export async function getProfile(userId: string) {
     throw new Error(`Failed to get profile: ${error.message}`);
   }
 
-  return data;
+  return mapProfileToFrontend(data);
 }
 
 export async function updateProfile(userId: string, updates: {
@@ -98,7 +120,7 @@ export async function updateProfile(userId: string, updates: {
 
   // If update succeeds, return the result
   if (!updateError && updateResult) {
-    return updateResult;
+    return mapProfileToFrontend(updateResult);
   }
 
   // If profile doesn't exist (PGRST116), create it with the provided data
@@ -118,7 +140,7 @@ export async function updateProfile(userId: string, updates: {
       throw new Error(`Failed to create profile: ${insertError.message}`);
     }
 
-    return insertResult;
+    return mapProfileToFrontend(insertResult);
   }
 
   // If other error, throw it
@@ -126,5 +148,5 @@ export async function updateProfile(userId: string, updates: {
     throw new Error(`Failed to update profile: ${updateError.message}`);
   }
 
-  return updateResult;
+  return mapProfileToFrontend(updateResult);
 }
