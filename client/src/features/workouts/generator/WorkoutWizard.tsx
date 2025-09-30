@@ -236,11 +236,21 @@ export function WorkoutWizard() {
         ...(seedValue && { seed: seedValue })
       };
 
-      // Use httpJSON directly for generation endpoint (keeping existing logic)
+      // Get auth token and make authenticated request
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('You must be logged in to generate a workout');
+      }
+
       const { httpJSON } = await import('@/lib/http');
       const response = await httpJSON('/workouts/generate', {
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify(requestData)
       });
 
@@ -322,6 +332,14 @@ export function WorkoutWizard() {
     }
     
     try {
+      // Get auth token
+      const { supabase } = await import('@/lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('You must be logged in to save a workout');
+      }
+
       // First, generate and save the workout using seed from preview data
       const requestData = {
         archetype: wizardState.archetype,
@@ -334,7 +352,10 @@ export function WorkoutWizard() {
       const { httpJSON } = await import('@/lib/http');
       const response = await httpJSON('/workouts/generate', {
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify(requestData)
       });
 
