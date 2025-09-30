@@ -1,5 +1,28 @@
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
+/**
+ * Maps workout data from database snake_case to frontend camelCase
+ */
+export function mapWorkoutToFrontend(workout: any) {
+  if (!workout) return null;
+  
+  return {
+    id: workout.id,
+    userId: workout.user_id,
+    title: workout.title,
+    request: workout.request,
+    sets: workout.sets,
+    notes: workout.notes,
+    completed: workout.completed,
+    feedback: workout.feedback,
+    startedAt: workout.started_at,
+    createdAt: workout.created_at,
+    totalActiveMinutes: workout.total_active_minutes,
+    intensity: workout.intensity,
+    energySystem: workout.energy_system
+  };
+}
+
 export interface InsertWorkoutParams {
   userId: string;
   workout: {
@@ -44,7 +67,7 @@ export async function insertWorkout({ userId, workout }: InsertWorkoutParams) {
     throw new Error(`Failed to insert workout: ${error.message}`);
   }
 
-  return data;
+  return mapWorkoutToFrontend(data);
 }
 
 export async function listWorkouts(userId: string, options: ListWorkoutsOptions = {}) {
@@ -61,7 +84,7 @@ export async function listWorkouts(userId: string, options: ListWorkoutsOptions 
     throw new Error(`Failed to list workouts: ${error.message}`);
   }
 
-  return data || [];
+  return (data || []).map(mapWorkoutToFrontend);
 }
 
 export async function getWorkout(userId: string, id: string) {
@@ -79,7 +102,7 @@ export async function getWorkout(userId: string, id: string) {
     throw new Error(`Failed to get workout: ${error.message}`);
   }
 
-  return data;
+  return mapWorkoutToFrontend(data);
 }
 
 export async function updateWorkout(userId: string, id: string, patch: UpdateWorkoutPatch) {
@@ -98,7 +121,7 @@ export async function updateWorkout(userId: string, id: string, patch: UpdateWor
     throw new Error(`Failed to update workout: ${error.message}`);
   }
 
-  return data;
+  return mapWorkoutToFrontend(data);
 }
 
 export async function deleteWorkout(userId: string, id: string) {
@@ -160,7 +183,7 @@ export async function startWorkoutAtomic(userId: string, id: string): Promise<{
 
   // Successfully started
   return {
-    workout: data,
+    workout: mapWorkoutToFrontend(data),
     wasAlreadyStarted: false
   };
 }
