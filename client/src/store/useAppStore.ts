@@ -914,17 +914,17 @@ export const useAppStore = create<AppState>()(
             return;
           }
           
-          // Update local store with response data
+          // Update local store with response data (backend now returns camelCase)
           set({ 
             profile: {
-              userId: responseData.profile.user_id,
+              userId: responseData.profile.userId || responseData.profile.user_id,
               username: responseData.profile.username,
-              firstName: responseData.profile.first_name,
-              lastName: responseData.profile.last_name,
-              avatarUrl: responseData.profile.avatar_url,
-              dateOfBirth: responseData.profile.date_of_birth,
+              firstName: responseData.profile.firstName || responseData.profile.first_name,
+              lastName: responseData.profile.lastName || responseData.profile.last_name,
+              avatarUrl: responseData.profile.avatarUrl || responseData.profile.avatar_url,
+              dateOfBirth: responseData.profile.dateOfBirth || responseData.profile.date_of_birth,
               providers: responseData.profile.providers || ['email'],
-              createdAt: new Date(responseData.profile.created_at)
+              createdAt: responseData.profile.createdAt ? new Date(responseData.profile.createdAt) : (responseData.profile.created_at ? new Date(responseData.profile.created_at) : new Date())
             }
           });
           
