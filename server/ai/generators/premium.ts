@@ -56,22 +56,48 @@ const PremiumWorkoutSchema = z.object({
     equipment_ok: z.boolean(),
     injury_safe: z.boolean(),
     readiness_mod_applied: z.boolean(),
-    hardness_ok: z.boolean()
+    hardness_ok: z.boolean(),
+    patterns_locked: z.boolean().optional()
   })
 });
 
 type PremiumWorkout = z.infer<typeof PremiumWorkoutSchema>;
 
-// Banned easy bodyweight exercises for main blocks
+// Banned easy bodyweight exercises for main blocks (strength/conditioning)
 const BANNED_EASY = new Set([
-  "Wall Sit", "Mountain Climber", "Star Jump", "High Knees", "Jumping Jacks", "Side Plank Reach"
+  "Wall Sit", "Mountain Climber", "Star Jump", "High Knees", "Jumping Jacks", "Side Plank Reach",
+  "Sit-Up", "Sit-Ups", "V-Up", "V-Ups", "Tuck-Up", "Tuck-Ups"
 ]);
+
+// Allowed main block pattern regexes
+const ALLOWED_PATTERNS = [
+  /Every\s+3:00\s*x/i,      // E3:00 x N
+  /Every\s+4:00\s*x/i,      // E4:00 x N
+  /E3:00\s*x/i,             // E3:00 x N (short form)
+  /E4:00\s*x/i,             // E4:00 x N (short form)
+  /EMOM/i,                  // EMOM 10-16
+  /AMRAP/i,                 // AMRAP 8-15
+  /For\s*Time.*21-15-9/i,   // For Time 21-15-9
+  /21-15-9/i                // 21-15-9 (short form)
+];
 
 function createPremiumSystemPrompt(): string {
   return `You are HOBH's CF/HIIT generator. Produce Warm-up → Main blocks → Cool-down in strict CrossFit style.
+
+PATTERN LOCK REQUIREMENT (CRITICAL):
+Every main block (strength/conditioning/skill/core) title MUST match one of these patterns:
+- "Every 3:00 x N" or "E3:00 x N" (strength density)
+- "Every 4:00 x N" or "E4:00 x N" (strength density)
+- "EMOM 10-16" (every minute on the minute)
+- "AMRAP 8-15" (as many rounds as possible)
+- "For Time 21-15-9" or "21-15-9" (decreasing reps)
+
+BODYWEIGHT FILLER BANNED in strength/conditioning main blocks:
+Never use Wall Sit, Mountain Climber, Star Jump, High Knees, Jumping Jacks, Sit-Ups in strength/conditioning blocks.
+Keep bodyweight movements ONLY in warmup, skill, core, and cooldown sections.
+Exception: If no equipment available AND low readiness, tag reason:"readiness" in substitutions.
+
 When focus = "mixed" you MUST output exactly one main block per requested category in order.
-Allowed main-block patterns only: E3:00 x 5 sets (strength density), EMOM 10–16, AMRAP 8–15, For-Time 21-15-9.
-Never use bodyweight filler (wall sit, mountain climber, star jump, high knees) in main blocks unless no equipment is available or readiness is low—then tag reason:"readiness" in substitutions.
 Require a hardness score ≥ 0.65 (see rule below). If score < 0.65, regenerate by upgrading pattern (heavier loading, shorter rests, bigger sets) or swapping movements (BB/DB/KB > BW).
 Warm-ups/cool-downs must come from the templates below (adapt to available equipment).
 Enforce time budget ±10%.
@@ -178,6 +204,30 @@ SOFT REQUIREMENTS:
 If any hard check fails, silently repair and re-validate before returning JSON.`;
 }
 
+// Validate main block patterns
+function validatePatterns(workout: PremiumWorkout): { valid: boolean; violations: string[] } {
+  const violations: string[] = [];
+  
+  for (const block of workout.blocks) {
+    // Only validate main blocks (strength, conditioning, skill, core)
+    if (!['strength', 'conditioning', 'skill', 'core'].includes(block.kind)) {
+      continue;
+    }
+    
+    // Check if title matches any allowed pattern
+    const matchesPattern = ALLOWED_PATTERNS.some(pattern => pattern.test(block.title));
+    
+    if (!matchesPattern) {
+      violations.push(`Main block "${block.title}" (${block.kind}) doesn't match allowed patterns`);
+    }
+  }
+  
+  return {
+    valid: violations.length === 0,
+    violations
+  };
+}
+
 // Hardness calculation function
 function computeHardness(workout: PremiumWorkout): number {
   let h = 0;
@@ -185,6 +235,7 @@ function computeHardness(workout: PremiumWorkout): number {
   for (const b of workout.blocks) {
     // Pattern-based scoring
     if (b.kind === "strength" && /Every 3:00/.test(b.title)) h += 0.28;
+    if (b.kind === "strength" && /Every 4:00/.test(b.title)) h += 0.28;
     if (b.kind === "conditioning" && /EMOM/.test(b.title)) h += 0.22;
     if (b.kind === "conditioning" && /AMRAP/.test(b.title)) h += 0.22;
     if (b.kind === "conditioning" && /21-15-9/.test(b.title)) h += 0.20;
@@ -212,15 +263,22 @@ function sanitizeWorkout(
   workout: PremiumWorkout, 
   opts: { equipment?: string[]; wearable_snapshot?: any }
 ): PremiumWorkout {
-  // 1) Remove banned BW items in main blocks if equipment exists
   const hasLoad = (opts.equipment || []).some(e => 
     /(barbell|dumbbell|kettlebell)/i.test(e)
   );
   
+  const ws = opts.wearable_snapshot || {};
+  const lowReadiness = ws.sleep_score && ws.sleep_score < 60;
+  
+  // 1) Remove banned BW items in STRENGTH/CONDITIONING main blocks
   for (const b of workout.blocks) {
-    if (["strength", "conditioning", "skill", "core"].includes(b.kind) && hasLoad) {
+    // Only sanitize strength and conditioning blocks
+    if (["strength", "conditioning"].includes(b.kind)) {
       b.items = b.items.map(it => {
-        if (BANNED_EASY.has((it.exercise || "").trim())) {
+        const exerciseName = (it.exercise || "").trim();
+        
+        // If banned exercise found and we have equipment (or not low readiness)
+        if (BANNED_EASY.has(exerciseName) && (hasLoad || !lowReadiness)) {
           return { 
             ...it, 
             exercise: "DB Box Step-Overs", 
@@ -234,10 +292,14 @@ function sanitizeWorkout(
   
   // 2) Calculate hardness and check floor
   let floor = 0.65;
-  const ws = opts.wearable_snapshot || {};
-  if (ws.sleep_score && ws.sleep_score < 60) floor = 0.55;
+  if (lowReadiness) floor = 0.55;
 
   workout.variety_score = computeHardness(workout);
+  
+  // 3) Validate patterns
+  const patternValidation = validatePatterns(workout);
+  
+  // 4) Set acceptance flags
   workout.acceptance_flags = workout.acceptance_flags || {
     time_fit: true,
     has_warmup: true,
@@ -246,9 +308,12 @@ function sanitizeWorkout(
     equipment_ok: true,
     injury_safe: true,
     readiness_mod_applied: true,
-    hardness_ok: true
+    hardness_ok: true,
+    patterns_locked: true
   };
+  
   workout.acceptance_flags.hardness_ok = workout.variety_score >= floor;
+  workout.acceptance_flags.patterns_locked = patternValidation.valid;
 
   return workout;
 }
@@ -328,12 +393,12 @@ REQUIREMENTS:
 - Ensure all acceptance criteria are met`;
 }
 
-export async function generatePremiumWorkout(request: WorkoutGenerationRequest): Promise<any> {
+export async function generatePremiumWorkout(request: WorkoutGenerationRequest, retryCount = 0): Promise<any> {
   try {
     const systemPrompt = createPremiumSystemPrompt();
     const userPrompt = createUserPrompt(request);
 
-    console.log(`Generating premium workout for ${request.category}, ${request.duration}min, intensity ${request.intensity}/10`);
+    console.log(`Generating premium workout for ${request.category}, ${request.duration}min, intensity ${request.intensity}/10 (attempt ${retryCount + 1})`);
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -355,7 +420,7 @@ export async function generatePremiumWorkout(request: WorkoutGenerationRequest):
     const workout = JSON.parse(content);
     let validated = PremiumWorkoutSchema.parse(workout);
 
-    // Sanitize and enforce hardness requirements
+    // Sanitize and enforce requirements
     validated = sanitizeWorkout(validated, {
       equipment: request.context?.equipment || [],
       wearable_snapshot: {
@@ -363,12 +428,29 @@ export async function generatePremiumWorkout(request: WorkoutGenerationRequest):
       }
     });
 
+    // Check pattern lock violations and regenerate once if needed
+    if (!validated.acceptance_flags.patterns_locked && retryCount === 0) {
+      const patternCheck = validatePatterns(validated);
+      console.warn(`⚠️ Pattern lock violation: ${patternCheck.violations.join('; ')}. Regenerating...`);
+      
+      // Add pattern violation reason to context for next attempt
+      const retryRequest = {
+        ...request,
+        context: {
+          ...request.context,
+          pattern_violation_reason: patternCheck.violations.join('; ')
+        }
+      };
+      
+      return generatePremiumWorkout(retryRequest, retryCount + 1);
+    }
+
     // Check if hardness meets requirements
     if (!validated.acceptance_flags.hardness_ok) {
       console.warn(`⚠️ Hardness score ${validated.variety_score.toFixed(2)} below threshold, workout may be too easy`);
     }
 
-    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score.toFixed(2)}`);
+    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score.toFixed(2)}, patterns_locked: ${validated.acceptance_flags.patterns_locked}`);
     
     return validated;
 
