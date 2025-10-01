@@ -229,8 +229,8 @@ export function WorkoutWizard() {
 
       // Transform wizard state to server format
       const requestData = {
-        archetype: wizardState.archetype,
-        minutes: wizardState.minutes,
+        goal: wizardState.archetype,
+        durationMin: wizardState.minutes,
         intensity: wizardState.intensity,
         equipment: wizardState.equipment,
         ...(seedValue && { seed: seedValue })
@@ -245,7 +245,7 @@ export function WorkoutWizard() {
       }
 
       const { httpJSON } = await import('@/lib/http');
-      const response = await httpJSON('/workouts/generate', {
+      const response = await httpJSON('/api/workouts/generate', {
         method: 'POST', 
         headers: { 
           'Content-Type': 'application/json',
@@ -342,15 +342,15 @@ export function WorkoutWizard() {
 
       // First, generate and save the workout using seed from preview data
       const requestData = {
-        archetype: wizardState.archetype,
-        minutes: wizardState.minutes,
+        goal: wizardState.archetype,
+        durationMin: wizardState.minutes,
         intensity: wizardState.intensity,
         equipment: wizardState.equipment,
         seed: previewData.seed
       };
 
       const { httpJSON } = await import('@/lib/http');
-      const response = await httpJSON('/workouts/generate', {
+      const response = await httpJSON('/api/workouts/generate', {
         method: 'POST', 
         headers: { 
           'Content-Type': 'application/json',

@@ -3,7 +3,7 @@ import { toast } from '@/hooks/use-toast';
 
 export async function generateWorkout(input:{category:string;durationMin:number;intensity:number;equipment?:string[];goal?:string;}) {
   try {
-    const data = await httpJSON('/workouts/generate', {
+    const data = await httpJSON('/api/workouts/generate', {
       method: 'POST', 
       headers: { 'content-type': 'application/json' }, 
       body: JSON.stringify(input),

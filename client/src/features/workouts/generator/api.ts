@@ -7,7 +7,7 @@ export async function fetchPreview(input: {
   intensity: number;
   seed?: string;
 }) {
-  return httpJSON("/workouts/preview", {
+  return httpJSON("/api/workouts/preview", {
     method: "POST",
     body: JSON.stringify(input),
   });
