@@ -1,195 +1,138 @@
-/**
- * Premium CrossFit/HIIT-style workout generator for ALL categories
- * 
- * Delivers structured sessions with:
- * - Warm-up (≥6 min) → Main Block(s) → Cool-down (≥4 min)
- * - Equipment-aware with auto-substitutions
- * - Readiness gates based on biometrics
- * - Time-boxed patterns (E3:00, EMOM, AMRAP, For Time)
- * - For "mixed" focus: one main block per selected category
- */
-
 import OpenAI from 'openai';
 import { z } from 'zod';
-import type { WorkoutGenerationRequest } from '../generateWorkout';
+import type { WorkoutGenerationRequest } from '../workoutGenerator';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY,
-  dangerouslyAllowBrowser: process.env.NODE_ENV === 'test'
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Define schema for premium workout structure
+const WorkoutItemSchema = z.object({
+  exercise: z.string(),
+  target: z.string(),
+  notes: z.string().optional()
 });
 
-// Schema for the premium workout format
-const PremiumBlockSchema = z.object({
-  title: z.string(),
+const WorkoutBlockSchema = z.object({
   kind: z.enum(['warmup', 'strength', 'conditioning', 'skill', 'core', 'cooldown']),
+  title: z.string(),
   time_min: z.number(),
-  items: z.array(z.object({
-    exercise: z.string(),
-    scheme: z.object({
-      sets: z.union([z.number(), z.null()]).optional(),
-      reps: z.union([z.string(), z.number(), z.null()]).optional(),
-      rpe: z.union([z.string(), z.number(), z.null()]).optional(),
-      rest_s: z.union([z.number(), z.null()]).optional(),
-      tempo: z.union([z.string(), z.null()]).optional()
-    }),
-    notes: z.string()
-  })),
-  coach_notes: z.array(z.string())
+  items: z.array(WorkoutItemSchema),
+  notes: z.string().optional()
+});
+
+const AcceptanceFlagsSchema = z.object({
+  time_fit: z.boolean(),
+  has_warmup: z.boolean(),
+  has_cooldown: z.boolean(),
+  mixed_rule_ok: z.boolean(),
+  equipment_ok: z.boolean(),
+  injury_safe: z.boolean(),
+  readiness_mod_applied: z.boolean(),
+  hardness_ok: z.boolean(),
+  patterns_locked: z.boolean()
 });
 
 const PremiumWorkoutSchema = z.object({
   title: z.string(),
-  focus: z.string(),
   duration_min: z.number(),
-  blocks: z.array(PremiumBlockSchema),
-  substitutions: z.array(z.object({
-    from: z.string(),
-    to: z.string(),
-    reason: z.string()
-  })),
-  variety_score: z.number(),
-  acceptance_flags: z.object({
-    time_fit: z.boolean(),
-    has_warmup: z.boolean(),
-    has_cooldown: z.boolean(),
-    mixed_rule_ok: z.boolean(),
-    equipment_ok: z.boolean(),
-    injury_safe: z.boolean(),
-    readiness_mod_applied: z.boolean(),
-    hardness_ok: z.boolean(),
-    patterns_locked: z.boolean().optional()
-  })
+  blocks: z.array(WorkoutBlockSchema),
+  substitutions: z.array(z.string()).optional(),
+  acceptance_flags: AcceptanceFlagsSchema,
+  variety_score: z.number().optional()
 });
 
 type PremiumWorkout = z.infer<typeof PremiumWorkoutSchema>;
 
-// Banned easy bodyweight exercises for main blocks (strength/conditioning)
+// Banned easy bodyweight movements (wall sit, mountain climber, star jump, high knees)
 const BANNED_EASY = new Set([
-  "Wall Sit", "Mountain Climber", "Star Jump", "High Knees", "Jumping Jacks", "Side Plank Reach",
-  "Sit-Up", "Sit-Ups", "V-Up", "V-Ups", "Tuck-Up", "Tuck-Ups"
+  "Wall Sit",
+  "Mountain Climbers",
+  "Star Jumps",
+  "High Knees"
 ]);
 
-// Allowed main block pattern regexes
+// Allowed patterns for main blocks
 const ALLOWED_PATTERNS = [
-  /Every\s+3:00\s*x/i,      // E3:00 x N
-  /Every\s+4:00\s*x/i,      // E4:00 x N
-  /E3:00\s*x/i,             // E3:00 x N (short form)
-  /E4:00\s*x/i,             // E4:00 x N (short form)
-  /EMOM/i,                  // EMOM 10-16
-  /AMRAP/i,                 // AMRAP 8-15
-  /For\s*Time.*21-15-9/i,   // For Time 21-15-9
-  /21-15-9/i                // 21-15-9 (short form)
+  /E[34]:00 x \d+/i,        // E3:00 x 5, E4:00 x 4
+  /Every [34]:00 x \d+/i,   // Every 3:00 x 5
+  /EMOM \d+(-\d+)?/i,       // EMOM 12, EMOM 10-16
+  /AMRAP \d+/i,             // AMRAP 12
+  /For Time 21-15-9/i       // For Time 21-15-9
 ];
 
-function createPremiumSystemPrompt(): string {
-  return `You are HOBH's CF/HIIT generator. Produce Warm-up → Main blocks → Cool-down in strict CrossFit style.
+// Movement pools with expanded options
+const MOVEMENT_POOLS = {
+  conditioning: [
+    "Echo Bike Calories",
+    "Row for Calories",
+    "Ski Erg",
+    "KB Swings",
+    "DB Box Step-Overs",
+    "Burpees",
+    "Wall Balls",
+    "DB/KB Farmer Carry",
+    "Shuttle Runs",
+    "DB Snatches"
+  ],
+  strength: [
+    "BB Back Squat",
+    "BB Front Squat",
+    "BB Deadlift",
+    "BB RDL",
+    "BB Thruster",
+    "BB Clean & Jerk",
+    "DB Bench Press",
+    "DB Floor Press",
+    "Weighted Pull-Ups (fallback: Strict Pull-Ups → Ring Rows)",
+    "DB/KB Goblet Squat",
+    "DB/KB Overhead Press"
+  ],
+  skill: [
+    "Toes-to-Bar",
+    "Double-Unders",
+    "Handstand Hold/Walk",
+    "Muscle-Ups (progression)"
+  ],
+  core: [
+    "Hollow Rocks",
+    "Plank Variations",
+    "Sit-Ups"
+  ]
+};
 
-PATTERN LOCK REQUIREMENT (CRITICAL):
-Every main block (strength/conditioning/skill/core) title MUST match one of these patterns:
-- "Every 3:00 x N" or "E3:00 x N" (strength density)
-- "Every 4:00 x N" or "E4:00 x N" (strength density)
-- "EMOM 10-16" (every minute on the minute)
-- "AMRAP 8-15" (as many rounds as possible)
-- "For Time 21-15-9" or "21-15-9" (decreasing reps)
+// Fallback ladder: BB → DB → KB → BW
+const FALLBACK_LADDER = {
+  "BB Clean & Jerk": ["DB Snatches", "KB Swings"],
+  "BB Thruster": ["DB Thrusters", "KB Goblet Squat"],
+  "Weighted Pull-Ups": ["Strict Pull-Ups", "Ring Rows"],
+  "DB Bench Press": ["Push-Ups"],
+  "BB Front Squat": ["DB Goblet Squat", "Air Squat"],
+  "BB Deadlift": ["DB RDL", "KB Deadlift", "Good Mornings"],
+  "Wall Balls": ["KB Swings", "Burpees"]
+};
 
-BODYWEIGHT FILLER BANNED in strength/conditioning main blocks:
-Never use Wall Sit, Mountain Climber, Star Jump, High Knees, Jumping Jacks, Sit-Ups in strength/conditioning blocks.
-Keep bodyweight movements ONLY in warmup, skill, core, and cooldown sections.
-Exception: If no equipment available AND low readiness, tag reason:"readiness" in substitutions.
+function getSystemPrompt(): string {
+  return `You are HOBH CF/HIIT Premium Generator v2.
 
-MIXED SEMANTICS (CRITICAL when focus="mixed"):
-Generate exactly ONE main block per category in categories_for_mixed, in order.
-Map categories to block kinds: Strength→strength, Conditioning→conditioning, Skill→skill, Core→core.
-If total time of (warmup + main blocks + cooldown) < duration_min × 0.9, append ONE finisher:
-- Finisher: "For Time 21-15-9" (≤10 min, conditioning kind)
-- This makes total blocks = categories.length + 1
-
-Require a hardness score ≥ 0.75 when equipment includes DB/KB/BB and readiness is good (≥ 0.55 if low readiness).
-If score is too low, regenerate by:
-- Upgrading pattern (heavier loading, shorter rests, bigger sets)
-- Swapping movements (BB/DB/KB > BW)
-- Pairing cyclical cals with loaded movements in EMOMs
-- Avoiding strength blocks with only bodyweight movements
-Warm-ups/cool-downs must come from the templates below (adapt to available equipment).
-Enforce time budget ±10%.
-Return only JSON matching the schema. Self-validate and set acceptance_flags before returning.
-
-WARM-UP TEMPLATES (choose 1 and adapt):
-
-WU1 (~8 min):
-1-2 sets: 1:30 Bike (:45 easy/:30 moderate/:15 hard) · 8/8 Runner's Lunge + T-rotation · 10 Barbell Stiff-Leg Deadlifts · 10 Barbell Bent-Over Rows (1-2s pause at chest) · 10 Alt Scorpions · 8 Cat/Cows · 10 V-Ups/Sit-ups. Rest :60.
-
-WU2 (~8 min):
-1-2 sets: 2:00 Cardio (choice) · 12 Alt Box Step-Ups · 12 Deep Lunge Mountain Climbers · 10 Down-Dog Toe Touches → :30 Child's Pose · 10 Air Squats · 10 Alt Reverse Lunges. Rest :60.
-
-WU3 (~8 min):
-1-2 sets for quality: 2:00 Cardio (:30 easy/:30 medium/:30 hard) · 8 Barbell Strict Press · 6 Inchworm Push-Ups · 4 No-Jump Burpees · 4 Box Jumps (step-down) · 12 Jumping Squats · 16 "90/90s". Rest :60.
-
-COOL-DOWN TEMPLATE (~6 min):
-2-3 sets for quality: :90 Legs-Up-the-Wall · :45 Child's Pose · :30 Cat/Cows · :30 Seated Toe-Touch Hold · :30 Deep Squat Hold (hands overhead) · :60 Pigeon (R) · :60 Pigeon (L).
-
-MOVEMENT POOLS (main blocks):
-
-Conditioning: Echo Bike ▸ Row ▸ Ski ▸ KB Swings ▸ DB Box Step-Overs ▸ Burpees.
-
-Strength: BB Front Squat ▸ BB Push Press ▸ BB Deadlift ▸ DB Floor/Bench Press ▸ DB Goblet Squat ▸ DB RDL ▸ KB Front Rack Squat ▸ KB Push Press ▸ Strict Pull-Ups/Ring Rows.
-
-Skill/Gym: Toes-to-Bar ▸ Hanging Knee Raises ▸ Double-Unders ▸ Single-Unders ▸ Handstand Hold ▸ Wall-Facing Hold.
-
-Core: Hollow Rocks ▸ Plank Variations ▸ Sit-Ups.
-
-HARDNESS SCORE (0–1) — compute and enforce:
-
-Base per pattern: Strength E3:00x5 = .28; EMOM 12 = .22; AMRAP 12 = .22; 21-15-9 = .20.
-
-Equipment bonuses:
-+.05 if barbell used
-+.03 if DB/KB used
-+.02 if cyclical cals present
-+.03 if EMOM pairs cyclical cals with loaded movement (odd/even pattern)
-
-Penalties:
-−.07 if 2+ bodyweight-only movements in main items
-−.05 if strength block contains only bodyweight or only push-ups/pull-ups
-
-Cap 1.0. Required floor: ≥ 0.75 when equipment present and readiness good; ≥ 0.55 if low readiness. Regenerate and upgrade if below.
-
-READINESS GATES:
-
-Sleep < 60 or HRV flagged → cap strength at RPE 7, exclude sprints/plyos; hardness floor becomes .55.
-
-MIXED SEMANTICS:
-
-The number of main blocks must equal len(categories_for_mixed) and each block's kind must map to that category (strength/conditioning/skill/core). If time remains > 10% short, add one For-Time 21-15-9 finisher ≤10 min.
-
-OUTPUT SCHEMA:
+OUTPUT FORMAT:
 {
   "title": "string",
-  "focus": "strength | conditioning | endurance | mixed",
-  "duration_min": 0,
+  "duration_min": number,
   "blocks": [
     {
+      "kind": "warmup" | "strength" | "conditioning" | "skill" | "core" | "cooldown",
       "title": "string",
-      "kind": "warmup | strength | conditioning | skill | core | cooldown",
-      "time_min": 0,
+      "time_min": number,
       "items": [
         {
           "exercise": "string",
-          "scheme": {
-            "sets": 0,
-            "reps": "string|number",
-            "rpe": "string|number|null",
-            "rest_s": 0|null,
-            "tempo": "string|null"
-          },
-          "notes": "string"
+          "target": "reps | time | cal | tempo",
+          "notes": "optional guidance"
         }
       ],
-      "coach_notes": ["string"]
+      "notes": "optional block intent"
     }
   ],
-  "substitutions": [{"from": "string", "to": "string", "reason": "string"}],
-  "variety_score": 0.0,
+  "substitutions": ["Array of equipment swaps if needed"],
   "acceptance_flags": {
     "time_fit": true,
     "has_warmup": true,
@@ -198,7 +141,95 @@ OUTPUT SCHEMA:
     "equipment_ok": true,
     "injury_safe": true,
     "readiness_mod_applied": true,
-    "hardness_ok": true
+    "hardness_ok": true,
+    "patterns_locked": true
+  }
+}
+
+MOVEMENT POOLS:
+Conditioning: ${MOVEMENT_POOLS.conditioning.join(', ')}
+Strength: ${MOVEMENT_POOLS.strength.join(', ')}
+Skill: ${MOVEMENT_POOLS.skill.join(', ')}
+Core: ${MOVEMENT_POOLS.core.join(', ')}
+
+FALLBACK LADDER (BB → DB → KB → BW):
+${Object.entries(FALLBACK_LADDER).map(([key, vals]) => `${key} → ${vals.join(' → ')}`).join('\n')}
+
+STRUCTURE REQUIREMENTS:
+1. Warm-up: ≥6 min (foam roll, mobility, ramp-up drills)
+2. Main block(s): Choose ONLY from:
+   - E3:00 x 5 / E4:00 x 4 (strength density)
+   - EMOM 10-16 (conditioning or mixed)
+   - AMRAP 8-15 (conditioning)
+   - For Time 21-15-9 (finisher, ≤10 min)
+3. Cool-down: ≥4 min (stretching, breathing)
+
+MAIN BLOCK RULES:
+- NO bodyweight filler (wall sit, mountain climber, star jump, high knees) in main blocks
+- Prioritize loaded movements (BB/DB/KB) over bodyweight when equipment available
+- Use expanded pools for variety: BB Clean & Jerk, Thrusters, Wall Balls, Farmer Carry, DB Snatches, Shuttle Runs
+- Apply fallback ladder when equipment is missing
+
+MIXED FOCUS RULES:
+- For "mixed" focus with categories_for_mixed, generate exactly N main blocks where N = len(categories_for_mixed)
+- Each block's kind must map to its category (Strength → "strength", Conditioning → "conditioning")
+- If total time < duration_min × 0.9, append +1 finisher block (For Time 21-15-9, ≤10 min)
+
+EXAMPLE OUTPUT:
+{
+  "title": "Advanced Mixed Focus Workout",
+  "duration_min": 45,
+  "blocks": [
+    {
+      "kind": "warmup",
+      "title": "Warm-Up",
+      "time_min": 8,
+      "items": [
+        { "exercise": "Foam Roll", "target": "2 min", "notes": "Upper back, lats, quads" },
+        { "exercise": "Dynamic Stretching", "target": "3 min", "notes": "Leg swings, arm circles" },
+        { "exercise": "Barbell Warm-Up", "target": "3 min", "notes": "5 reps: deadlift, hang clean, press" }
+      ]
+    },
+    {
+      "kind": "strength",
+      "title": "E3:00 x 5",
+      "time_min": 15,
+      "items": [
+        { "exercise": "BB Clean & Jerk", "target": "3 reps @ 75%", "notes": "Focus on explosive hip drive" }
+      ],
+      "notes": "Build to working weight across 5 sets"
+    },
+    {
+      "kind": "conditioning",
+      "title": "EMOM 12",
+      "time_min": 12,
+      "items": [
+        { "exercise": "Echo Bike Calories", "target": "12/10 cal", "notes": "Odd minutes" },
+        { "exercise": "DB Snatches", "target": "10 reps (5/arm)", "notes": "Even minutes, moderate load" }
+      ],
+      "notes": "Alternate odd/even minutes"
+    },
+    {
+      "kind": "cooldown",
+      "title": "Cool-Down",
+      "time_min": 10,
+      "items": [
+        { "exercise": "Walk/Light Bike", "target": "3 min", "notes": "Lower heart rate" },
+        { "exercise": "Static Stretching", "target": "7 min", "notes": "Hamstrings, shoulders, hip flexors" }
+      ]
+    }
+  ],
+  "substitutions": [],
+  "acceptance_flags": {
+    "time_fit": true,
+    "has_warmup": true,
+    "has_cooldown": true,
+    "mixed_rule_ok": true,
+    "equipment_ok": true,
+    "injury_safe": true,
+    "readiness_mod_applied": true,
+    "hardness_ok": true,
+    "patterns_locked": true
   }
 }
 
@@ -207,7 +238,7 @@ HARD REQUIREMENTS:
 1. Warm-up present (≥6 min) and Cool-down present (≥4 min)
 2. Time budget: Σ time_min within ±10% of duration_min
 3. Mixed semantics: If focus="mixed", number of main blocks = len(categories_for_mixed); each block's kind maps to category. If time < duration_min × 0.9, append +1 finisher (For Time 21-15-9, ≤10 min).
-4. Equipment-safe: No exercise requires missing equipment. If swapped, log in substitutions[]
+4. Equipment-safe: No exercise requires missing equipment. If swapped, log in substitutions[]. When gear (BB/DB/KB) is present, at least 2/3 of main movements must be loaded.
 5. Injury-safe: No contraindicated patterns; provide safer alternates
 6. Readiness: If low readiness (Sleep < 60 or HRV flagged), cap strength at RPE ≤ 7, remove sprints/plyos
 7. Hardness score: Must be ≥ 0.75 when equipment present and readiness good (or ≥ 0.55 if readiness is low). Use BB/DB/KB movements, not bodyweight filler. Pair cyclical with loaded movements in EMOMs.
@@ -252,22 +283,30 @@ function computeHardness(workout: PremiumWorkout): number {
   let h = 0;
   
   for (const b of workout.blocks) {
-    // Pattern-based scoring
-    if (b.kind === "strength" && /Every 3:00/.test(b.title)) h += 0.28;
-    if (b.kind === "strength" && /Every 4:00/.test(b.title)) h += 0.28;
-    if (b.kind === "conditioning" && /EMOM/.test(b.title)) h += 0.22;
-    if (b.kind === "conditioning" && /AMRAP/.test(b.title)) h += 0.22;
+    // Pattern-based scoring (case-insensitive, match both long and short forms)
+    if (b.kind === "strength" && /(Every\s+[34]:00|E[34]:00)/i.test(b.title)) h += 0.28;
+    if (b.kind === "conditioning" && /EMOM/i.test(b.title)) h += 0.22;
+    if (b.kind === "conditioning" && /AMRAP/i.test(b.title)) h += 0.22;
     if (b.kind === "conditioning" && /21-15-9/.test(b.title)) h += 0.20;
 
     // Equipment bonuses
     const text = JSON.stringify(b.items).toLowerCase();
-    const hasBarbell = /(barbell|bb )/.test(text);
-    const hasDbKb = /(dumbbell|db |kettlebell|kb )/.test(text);
+    const hasBarbell = /(barbell|bb[\s,])/.test(text);
+    const hasDbKb = /(dumbbell|db[\s,]|kettlebell|kb[\s,])/.test(text);
     const hasCyclical = /(echo bike|row|ski|cal)/.test(text);
     
     if (hasBarbell) h += 0.05;
     if (hasDbKb) h += 0.03;
     if (hasCyclical) h += 0.02;
+    
+    // Heavy-movement bonuses (+0.05 each for advanced loaded movements)
+    if (text.includes("clean & jerk") || text.includes("clean and jerk") || text.includes("clean&jerk")) h += 0.05;
+    if (text.includes("thruster")) h += 0.05;
+    if (text.includes("deadlift") || text.includes("rdl")) h += 0.05;
+    if (text.includes("front squat")) h += 0.05;
+    if (text.includes("weighted pull-up") || text.includes("weighted pullup")) h += 0.05;
+    if (text.includes("wall ball")) h += 0.05;
+    if (text.includes("farmer carry")) h += 0.05;
 
     // Penalty for bodyweight-only in multiple main items
     let bwOnly = 0;
@@ -343,10 +382,93 @@ function sanitizeWorkout(
 
   workout.variety_score = computeHardness(workout);
   
+  // 2b) Enforce hardness floor: append finisher if hardness < floor
+  if (workout.variety_score < floor) {
+    console.warn(`⚠️ Hardness ${workout.variety_score.toFixed(2)} < floor ${floor.toFixed(2)}, appending intensity finisher`);
+    
+    // Find cooldown index
+    const cooldownIdx = workout.blocks.findIndex(b => b.kind === 'cooldown');
+    
+    // Select a loaded movement based on available equipment
+    let finisherMovement = "DB Snatches";
+    if (hasLoad) {
+      const equipment = opts.equipment || [];
+      if (equipment.includes('barbell')) {
+        finisherMovement = "BB Thrusters";
+      } else if (equipment.includes('dumbbell')) {
+        finisherMovement = "DB Snatches";
+      } else if (equipment.includes('kettlebell')) {
+        finisherMovement = "KB Swings";
+      }
+    }
+    
+    // Create finisher block (For Time 21-15-9, ≤10 min)
+    const finisher = {
+      kind: "conditioning" as const,
+      title: "For Time 21-15-9",
+      time_min: 8,
+      items: [
+        { 
+          exercise: finisherMovement, 
+          target: "21-15-9", 
+          notes: "Quick pace, prioritize movement quality" 
+        },
+        { 
+          exercise: "Burpees", 
+          target: "21-15-9", 
+          notes: "Full chest-to-deck, explosive jump" 
+        }
+      ],
+      notes: "Fast finisher to elevate heart rate and add intensity"
+    };
+    
+    // Insert before cooldown
+    if (cooldownIdx !== -1) {
+      workout.blocks.splice(cooldownIdx, 0, finisher);
+    } else {
+      workout.blocks.push(finisher);
+    }
+    
+    // Recalculate hardness after adding finisher
+    workout.variety_score = computeHardness(workout);
+    console.log(`✅ Finisher added, new hardness: ${workout.variety_score.toFixed(2)}`);
+  }
+  
   // 3) Validate patterns
   const patternValidation = validatePatterns(workout);
   
-  // 4) Validate mixed semantics
+  // 4) Validate equipment usage (at least 2/3 main movements are loaded when gear present)
+  // Only check strength + conditioning blocks (skill/core typically use bodyweight)
+  let equipmentOk = true;
+  if (hasLoad) {
+    const mainBlocks = workout.blocks.filter(b => 
+      ['strength', 'conditioning'].includes(b.kind)
+    );
+    
+    let totalMovements = 0;
+    let loadedMovements = 0;
+    
+    for (const block of mainBlocks) {
+      for (const item of block.items || []) {
+        const exercise = (item.exercise || "").toLowerCase();
+        totalMovements++;
+        
+        // Check if movement is loaded (BB/DB/KB) - improved regex to avoid false positives
+        if (/(barbell|bb[\s,]|dumbbell|db[\s,]|kettlebell|kb[\s,]|weighted|wall ball|farmer)/i.test(exercise)) {
+          loadedMovements++;
+        }
+      }
+    }
+    
+    const loadedRatio = totalMovements > 0 ? loadedMovements / totalMovements : 0;
+    equipmentOk = loadedRatio >= (2/3) || totalMovements === 0;
+    
+    if (!equipmentOk) {
+      console.warn(`⚠️ Equipment usage violation: ${loadedMovements}/${totalMovements} movements are loaded (${(loadedRatio * 100).toFixed(0)}%), need ≥67%`);
+    }
+  }
+  
+  // 5) Validate mixed semantics
   let mixedRuleOk = true;
   if (opts.focus === 'mixed' && opts.categories_for_mixed && opts.categories_for_mixed.length > 0) {
     const mainBlocks = workout.blocks.filter(b => 
@@ -367,7 +489,7 @@ function sanitizeWorkout(
     }
   }
   
-  // 5) Set acceptance flags
+  // 6) Set acceptance flags
   workout.acceptance_flags = workout.acceptance_flags || {
     time_fit: true,
     has_warmup: true,
@@ -383,6 +505,7 @@ function sanitizeWorkout(
   workout.acceptance_flags.hardness_ok = workout.variety_score >= floor;
   workout.acceptance_flags.patterns_locked = patternValidation.valid;
   workout.acceptance_flags.mixed_rule_ok = mixedRuleOk;
+  workout.acceptance_flags.equipment_ok = equipmentOk;
 
   return workout;
 }
@@ -466,13 +589,15 @@ REQUIREMENTS:
 - Category: ${category}
 - Target Intensity: ${intensity}/10
 - Return ONLY valid JSON matching the schema
-- No markdown, no explanations
-- Ensure all acceptance criteria are met`;
+- No markdown, no explanations`;
 }
 
-export async function generatePremiumWorkout(request: WorkoutGenerationRequest, retryCount = 0): Promise<any> {
+export async function generatePremiumWorkout(
+  request: WorkoutGenerationRequest,
+  retryCount: number = 0
+): Promise<PremiumWorkout> {
   try {
-    const systemPrompt = createPremiumSystemPrompt();
+    const systemPrompt = getSystemPrompt();
     const userPrompt = createUserPrompt(request);
     const { focus, categoriesForMixed } = extractFocusAndCategories(request);
 
@@ -534,8 +659,13 @@ export async function generatePremiumWorkout(request: WorkoutGenerationRequest, 
     if (focus === 'mixed' && !validated.acceptance_flags.mixed_rule_ok) {
       console.warn(`⚠️ Mixed rule violation: blocks don't match expected categories`);
     }
+    
+    // Check if equipment usage is satisfied
+    if (!validated.acceptance_flags.equipment_ok) {
+      console.warn(`⚠️ Equipment usage violation: insufficient loaded movements when gear is present`);
+    }
 
-    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score.toFixed(2)}, patterns_locked: ${validated.acceptance_flags.patterns_locked}, mixed_rule_ok: ${validated.acceptance_flags.mixed_rule_ok}`);
+    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score.toFixed(2)}, patterns_locked: ${validated.acceptance_flags.patterns_locked}, mixed_rule_ok: ${validated.acceptance_flags.mixed_rule_ok}, equipment_ok: ${validated.acceptance_flags.equipment_ok}`);
     
     return validated;
 

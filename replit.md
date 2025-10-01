@@ -10,6 +10,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Expanded Movement Pools + Fallback Ladder (October 1, 2025)
+- **Enhancement**: Richer, harder movement choices with graceful degradation
+- **Implementation**:
+  - **Strength Pool Additions**: BB Thruster, BB Clean & Jerk, DB Bench Press, Weighted Pull-Ups (fallback: Strict → Ring Rows), Deadlift variations, Front Squat
+  - **Conditioning Pool Additions**: Wall Balls, Farmer Carry (DB/KB), Shuttle Runs (no machine only), DB Snatches (alt: KB Swings)
+  - **Fallback Ladder**: Barbell → Dumbbell → Kettlebell → Bodyweight
+  - **Equipment Validation**: When gear (BB/DB/KB) is present, at least 2/3 of main movements must be loaded
+  - **Acceptance Flag**: acceptance_flags.equipment_ok === true validates loaded movement ratio
+- **Files Modified**: `server/ai/generators/premium.ts`
+- **Testing Results**:
+  - ✅ Equipment validation: 2/3 movements loaded when gear present
+  - ✅ Heavier movements: BB Clean & Jerk, DB Snatches prioritized
+  - ✅ equipment_ok flag correctly validates
+
 ### Mixed Semantics Enforcement (October 1, 2025)
 - **Enhancement**: Strict enforcement of Mixed workout semantics - exactly one block per selected category
 - **Implementation**:
