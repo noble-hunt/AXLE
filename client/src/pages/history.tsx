@@ -104,10 +104,11 @@ export default function History() {
     )
     
     // If workout was created recently (last 30 days) and has AI patterns, likely suggested
-    const workoutDate = new Date(workout.created_at || workout.date)
+    const dateValue = workout.created_at || workout.date || workout.createdAt || workout.startedAt
+    const workoutDate = dateValue ? new Date(dateValue) : null
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const isRecent = workoutDate >= thirtyDaysAgo
+    const isRecent = workoutDate && !isNaN(workoutDate.getTime()) && workoutDate >= thirtyDaysAgo
     
     return hasSuggestionKeywords || (isRecent && hasAiPattern)
   }
@@ -127,8 +128,8 @@ export default function History() {
       return matchesCategory && matchesCompletion && matchesSource
     })
     .sort((a, b) => {
-      const dateA = new Date(a.created_at || a.date)
-      const dateB = new Date(b.created_at || b.date)
+      const dateA = new Date(a.created_at || a.date || a.createdAt || a.startedAt || 0)
+      const dateB = new Date(b.created_at || b.date || b.createdAt || b.startedAt || 0)
       return dateB.getTime() - dateA.getTime()
     })
 
@@ -143,7 +144,12 @@ export default function History() {
 
   // Group workouts by date (ensure dates are Date objects)
   const groupedWorkouts = filteredWorkouts.reduce((acc, workout) => {
-    const workoutDate = new Date(workout.created_at || workout.date)
+    const dateValue = workout.created_at || workout.date || workout.createdAt || workout.startedAt
+    if (!dateValue) return acc // Skip workouts without a valid date
+    
+    const workoutDate = new Date(dateValue)
+    if (isNaN(workoutDate.getTime())) return acc // Skip invalid dates
+    
     const dateKey = format(workoutDate, 'yyyy-MM-dd')
     const dateLabel = format(workoutDate, 'MMM d, yyyy')
     if (!acc[dateKey]) {
