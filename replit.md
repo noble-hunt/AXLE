@@ -10,6 +10,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Mixed Semantics Enforcement (October 1, 2025)
+- **Enhancement**: Strict enforcement of Mixed workout semantics - exactly one block per selected category
+- **Implementation**:
+  - **Category Mapping**: CrossFit/HIIT defaults to Strength + Conditioning (2 main blocks)
+  - **Block Generation**: Generates exactly N main blocks where N = len(categories_for_mixed)
+  - **Finisher Rule**: If total time < duration × 0.9, append one finisher block (For Time 21-15-9, ≤10 min)
+  - **Validation**: acceptance_flags.mixed_rule_ok checks len(main_blocks) === len(categories) OR len(categories) + 1 (if finisher)
+  - **Helper Function**: extractFocusAndCategories() maps request category to focus and categories_for_mixed
+  - **Logging**: Detailed warnings for mixed rule violations with expected vs actual block counts
+- **Files Modified**: `server/ai/generators/premium.ts`
+- **Testing Results**: 
+  - ✅ CrossFit with 45min generates exactly 2 blocks (Strength "Every 3:00 x 5" + Conditioning "AMRAP 12")
+  - ✅ mixed_rule_ok flag correctly validates block count
+  - ✅ Warmup (≥6min) and Cooldown (≥4min) preserved
+
 ### HOBH CF/HIIT Premium Generator Implementation (October 1, 2025)
 - **Enhancement**: Upgraded workout generation system with strict CrossFit/HIIT format and quality enforcement
 - **Implementation**:
@@ -17,14 +32,14 @@ Preferred communication style: Simple, everyday language.
   - Enforces strict structure: Warm-up (≥6min) → Main Block(s) → Cool-down (≥4min)
   - Main blocks limited to: E3:00 x 5 (strength density), EMOM 10-16, AMRAP 8-15, For-Time 21-15-9
   - Banned bodyweight filler (wall sit, mountain climber, star jump, high knees) in main blocks
-  - **Hardness Score System**: Requires ≥0.65 score (≥0.55 if readiness low)
+  - **Hardness Score System**: Raised floor to 0.75 when barbell/dumbbell/kettlebell equipment present and sleep ≥ 60
     - Pattern-based: E3:00x5 = .28, EMOM = .22, AMRAP = .22, 21-15-9 = .20
     - Equipment bonuses: Barbell +.05, DB/KB +.03, Cyclical +.02
-    - Penalty: -0.07 if 2+ bodyweight-only movements
+    - Penalties: -0.07 if 2+ bodyweight-only movements, -0.05 for bodyweight-only strength blocks
+    - Bonus: +0.03 for cyclical + loaded movement pairings in EMOMs
   - **Post-Generation Sanitizer**: Automatically removes banned exercises and validates hardness
   - **Movement Pools**: Conditioning (Echo Bike, Row, Ski, KB Swings, DB Step-Overs, Burpees), Strength (BB/DB/KB variants), Skill (T2B, DU, HS), Core (Hollow Rocks, Planks, Sit-Ups)
-  - Mixed semantics: One main block per category requested
-- **Files Modified**: `server/ai/generators/premium.ts`, `server/workoutGenerator.ts`
+- **Files Modified**: `server/ai/generators/premium.ts`, `server/workoutGenerator.ts`, `server/routes.ts`
 - **Benefits**: Eliminates low-quality workouts, ensures proper warm-up/cool-down, equipment-aware substitutions, readiness-based modifications
 
 ### Production Data Display Fix (September 30, 2025)

@@ -97,7 +97,13 @@ Never use Wall Sit, Mountain Climber, Star Jump, High Knees, Jumping Jacks, Sit-
 Keep bodyweight movements ONLY in warmup, skill, core, and cooldown sections.
 Exception: If no equipment available AND low readiness, tag reason:"readiness" in substitutions.
 
-When focus = "mixed" you MUST output exactly one main block per requested category in order.
+MIXED SEMANTICS (CRITICAL when focus="mixed"):
+Generate exactly ONE main block per category in categories_for_mixed, in order.
+Map categories to block kinds: Strength→strength, Conditioning→conditioning, Skill→skill, Core→core.
+If total time of (warmup + main blocks + cooldown) < duration_min × 0.9, append ONE finisher:
+- Finisher: "For Time 21-15-9" (≤10 min, conditioning kind)
+- This makes total blocks = categories.length + 1
+
 Require a hardness score ≥ 0.75 when equipment includes DB/KB/BB and readiness is good (≥ 0.55 if low readiness).
 If score is too low, regenerate by:
 - Upgrading pattern (heavier loading, shorter rests, bigger sets)
@@ -200,7 +206,7 @@ ACCEPTANCE CRITERIA (self-check before output):
 HARD REQUIREMENTS:
 1. Warm-up present (≥6 min) and Cool-down present (≥4 min)
 2. Time budget: Σ time_min within ±10% of duration_min
-3. Mixed semantics: If focus="mixed", number of main blocks = len(categories); each block's kind maps to category
+3. Mixed semantics: If focus="mixed", number of main blocks = len(categories_for_mixed); each block's kind maps to category. If time < duration_min × 0.9, append +1 finisher (For Time 21-15-9, ≤10 min).
 4. Equipment-safe: No exercise requires missing equipment. If swapped, log in substitutions[]
 5. Injury-safe: No contraindicated patterns; provide safer alternates
 6. Readiness: If low readiness (Sleep < 60 or HRV flagged), cap strength at RPE ≤ 7, remove sprints/plyos
@@ -291,7 +297,12 @@ function computeHardness(workout: PremiumWorkout): number {
 // Sanitizer function to enforce rules post-generation
 function sanitizeWorkout(
   workout: PremiumWorkout, 
-  opts: { equipment?: string[]; wearable_snapshot?: any }
+  opts: { 
+    equipment?: string[]; 
+    wearable_snapshot?: any;
+    focus?: string;
+    categories_for_mixed?: string[];
+  }
 ): PremiumWorkout {
   const hasLoad = (opts.equipment || []).some(e => 
     /(barbell|dumbbell|kettlebell)/i.test(e)
@@ -335,7 +346,28 @@ function sanitizeWorkout(
   // 3) Validate patterns
   const patternValidation = validatePatterns(workout);
   
-  // 4) Set acceptance flags
+  // 4) Validate mixed semantics
+  let mixedRuleOk = true;
+  if (opts.focus === 'mixed' && opts.categories_for_mixed && opts.categories_for_mixed.length > 0) {
+    const mainBlocks = workout.blocks.filter(b => 
+      ['strength', 'conditioning', 'skill', 'core'].includes(b.kind)
+    );
+    
+    const expectedCount = opts.categories_for_mixed.length;
+    const actualCount = mainBlocks.length;
+    
+    // Check: should be exactly N blocks OR N+1 if finisher added due to time shortfall
+    const totalTime = workout.blocks.reduce((sum, b) => sum + b.time_min, 0);
+    const hasFinisher = actualCount === expectedCount + 1 && totalTime < workout.duration_min * 0.9;
+    
+    mixedRuleOk = actualCount === expectedCount || (actualCount === expectedCount + 1 && hasFinisher);
+    
+    if (!mixedRuleOk) {
+      console.warn(`⚠️ Mixed rule violation: expected ${expectedCount} main blocks (or ${expectedCount + 1} with finisher), got ${actualCount}`);
+    }
+  }
+  
+  // 5) Set acceptance flags
   workout.acceptance_flags = workout.acceptance_flags || {
     time_fit: true,
     has_warmup: true,
@@ -350,8 +382,34 @@ function sanitizeWorkout(
   
   workout.acceptance_flags.hardness_ok = workout.variety_score >= floor;
   workout.acceptance_flags.patterns_locked = patternValidation.valid;
+  workout.acceptance_flags.mixed_rule_ok = mixedRuleOk;
 
   return workout;
+}
+
+// Helper function to extract focus and categories from request
+function extractFocusAndCategories(request: WorkoutGenerationRequest): { focus: string; categoriesForMixed: string[] } {
+  const categoryStr = String(request.category);
+  let focus = 'strength';
+  let categoriesForMixed: string[] = [];
+  
+  if (categoryStr.includes('CrossFit') || categoryStr.includes('HIIT')) {
+    focus = 'mixed';
+    // For CrossFit/HIIT, default to Strength + Conditioning (can be extended based on equipment/duration)
+    categoriesForMixed = ['Strength', 'Conditioning'];
+  } else if (categoryStr.includes('Olympic')) {
+    focus = 'strength';
+  } else if (categoryStr.includes('Powerlifting')) {
+    focus = 'strength';
+  } else if (categoryStr.includes('Gymnastics')) {
+    focus = 'skill';
+  } else if (categoryStr.includes('Cardio')) {
+    focus = 'conditioning';
+  } else if (categoryStr.includes('Bodybuilding')) {
+    focus = 'strength';
+  }
+  
+  return { focus, categoriesForMixed };
 }
 
 function createUserPrompt(request: WorkoutGenerationRequest): string {
@@ -370,25 +428,8 @@ function createUserPrompt(request: WorkoutGenerationRequest): string {
   // Determine experience level from intensity
   const experience = intensity <= 4 ? 'beginner' : intensity <= 7 ? 'intermediate' : 'advanced';
   
-  // Map category to focus
-  let focus = 'strength';
-  let categoriesForMixed: string[] = [];
-  
-  const categoryStr = String(category);
-  if (categoryStr.includes('CrossFit') || categoryStr.includes('HIIT')) {
-    focus = 'mixed';
-    categoriesForMixed = ['Conditioning', 'Skill'];
-  } else if (categoryStr.includes('Olympic')) {
-    focus = 'strength';
-  } else if (categoryStr.includes('Powerlifting')) {
-    focus = 'strength';
-  } else if (categoryStr.includes('Gymnastics')) {
-    focus = 'skill';
-  } else if (categoryStr.includes('Cardio')) {
-    focus = 'conditioning';
-  } else if (categoryStr.includes('Bodybuilding')) {
-    focus = 'strength';
-  }
+  // Extract focus and categories
+  const { focus, categoriesForMixed } = extractFocusAndCategories(request);
   
   // Extract biometric snapshot
   const healthSnapshot = context?.health_snapshot;
@@ -433,6 +474,7 @@ export async function generatePremiumWorkout(request: WorkoutGenerationRequest, 
   try {
     const systemPrompt = createPremiumSystemPrompt();
     const userPrompt = createUserPrompt(request);
+    const { focus, categoriesForMixed } = extractFocusAndCategories(request);
 
     console.log(`Generating premium workout for ${request.category}, ${request.duration}min, intensity ${request.intensity}/10 (attempt ${retryCount + 1})`);
 
@@ -461,7 +503,9 @@ export async function generatePremiumWorkout(request: WorkoutGenerationRequest, 
       equipment: request.context?.equipment || [],
       wearable_snapshot: {
         sleep_score: request.context?.health_snapshot?.sleep_score
-      }
+      },
+      focus,
+      categories_for_mixed: categoriesForMixed
     });
 
     // Check pattern lock violations and regenerate once if needed
@@ -485,8 +529,13 @@ export async function generatePremiumWorkout(request: WorkoutGenerationRequest, 
     if (!validated.acceptance_flags.hardness_ok) {
       console.warn(`⚠️ Hardness score ${validated.variety_score.toFixed(2)} below threshold, workout may be too easy`);
     }
+    
+    // Check if mixed rule is satisfied
+    if (focus === 'mixed' && !validated.acceptance_flags.mixed_rule_ok) {
+      console.warn(`⚠️ Mixed rule violation: blocks don't match expected categories`);
+    }
 
-    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score.toFixed(2)}, patterns_locked: ${validated.acceptance_flags.patterns_locked}`);
+    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score.toFixed(2)}, patterns_locked: ${validated.acceptance_flags.patterns_locked}, mixed_rule_ok: ${validated.acceptance_flags.mixed_rule_ok}`);
     
     return validated;
 
