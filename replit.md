@@ -10,6 +10,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Premium→UI Conversion Fix (October 1, 2025)
+- **Enhancement**: Fixed premium workout conversion to respect block structure and eliminate synthetic placeholders
+- **Implementation**:
+  - **Block-to-Set Mapping**: Each premium block (warm-up, strength, conditioning, cool-down) becomes ONE set in UI format, preserving pattern titles like "E3:00 x 5", "EMOM 12", "AMRAP 8", "For Time 21-15-9"
+  - **Exercise Listing**: All exercises in a block are listed with bullet points in the notes field (e.g., "• BB Front Squat: 4 reps @ 80%")
+  - **Duration Conversion**: Block time_min converted to seconds for set duration (e.g., 15 min → 900s)
+  - **Code Deduplication**: Exported convertPremiumToGenerated() function reused in both workoutGenerator.ts and routes.ts
+  - **Unit Tests**: Added comprehensive unit tests with mocked data to verify no synthetic placeholders, pattern title preservation, and exercise listing
+- **Files Modified**: `server/workoutGenerator.ts`, `server/routes.ts`, `server/__tests__/premium-conversion.test.ts`
+- **Testing Results**:
+  - ✅ No synthetic placeholders like "Bird Dog x 270s"
+  - ✅ Pattern titles preserved: "Warm-Up", "E3:00 x 5", "EMOM 12", "Cool-Down"
+  - ✅ Durations correctly converted: 420s, 900s, 720s, 660s
+  - ✅ Exercises listed with targets in notes
+  - ✅ Code deduplicated with shared converter function
+
 ### Premium Workout Sanitizer Upgrade (October 1, 2025)
 - **Enhancement**: Advanced sanitization system with rotation-based substitution and intensity upgrades
 - **Implementation**:
