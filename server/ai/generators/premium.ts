@@ -710,6 +710,7 @@ REQUIREMENTS:
 
 export async function generatePremiumWorkout(
   request: WorkoutGenerationRequest,
+  seed?: string,
   retryCount: number = 0
 ): Promise<PremiumWorkout> {
   try {
@@ -717,7 +718,10 @@ export async function generatePremiumWorkout(
     const userPrompt = createUserPrompt(request);
     const { focus, categoriesForMixed } = extractFocusAndCategories(request);
 
-    console.log(`Generating premium workout for ${request.category}, ${request.duration}min, intensity ${request.intensity}/10 (attempt ${retryCount + 1})`);
+    console.log(`Generating premium workout for ${request.category}, ${request.duration}min, intensity ${request.intensity}/10, seed: ${seed || 'none'} (attempt ${retryCount + 1})`);
+
+    // Convert seed to integer for OpenAI (they accept integer seeds)
+    const seedInt = seed ? parseInt(seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0).toString().slice(0, 8)) : undefined;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -727,7 +731,8 @@ export async function generatePremiumWorkout(
       ],
       response_format: { type: "json_object" },
       temperature: 0.75,
-      max_tokens: 2500
+      max_tokens: 2500,
+      ...(seedInt !== undefined && { seed: seedInt })
     });
 
     const content = completion.choices[0]?.message?.content;
@@ -763,7 +768,7 @@ export async function generatePremiumWorkout(
         }
       };
       
-      return generatePremiumWorkout(retryRequest, retryCount + 1);
+      return generatePremiumWorkout(retryRequest, seed, retryCount + 1);
     }
 
     // Check if hardness meets requirements

@@ -408,6 +408,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (shouldForcePremium) {
         try {
           const { generatePremiumWorkout } = await import('./ai/generators/premium');
+          const { generateSeed } = await import('./lib/seededRandom');
+          
+          // Use provided seed or generate a new one
+          const workoutSeed = seed || generateSeed();
           
           const premiumRequest = {
             category: goal,
@@ -420,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           };
           
-          const premiumWorkout = await generatePremiumWorkout(premiumRequest);
+          const premiumWorkout = await generatePremiumWorkout(premiumRequest, workoutSeed);
           
           // Convert premium workout to UI format using shared converter
           const { convertPremiumToGenerated } = await import('./workoutGenerator');
@@ -434,16 +438,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: `premium-${Date.now()}`,
             ...converted,
             estTimeMin: premiumWorkout.duration_min || durationMin,
-            seed: seed || 'premium-generated',
+            seed: workoutSeed,
             meta: {
               ...converted.meta,
               title: premiumWorkout.title || `${goal} Workout`,
               goal,
-              equipment: equipmentList
+              equipment: equipmentList,
+              seed: workoutSeed
             }
           };
           
-          console.log(`✅ Premium workout generated: "${premiumWorkout.title}"`);
+          console.log(`✅ Premium workout generated: "${premiumWorkout.title}" with seed: ${workoutSeed}`);
           return res.json({ ok: true, workout });
         } catch (premiumError) {
           console.error('Premium generator failed:', premiumError);
