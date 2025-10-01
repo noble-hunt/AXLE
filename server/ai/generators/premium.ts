@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
-import type { WorkoutGenerationRequest } from '../workoutGenerator';
+import type { WorkoutGenerationRequest } from '../generateWorkout';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -776,7 +776,7 @@ export async function generatePremiumWorkout(
 
     // Check if hardness meets requirements
     if (!validated.acceptance_flags.hardness_ok) {
-      console.warn(`⚠️ Hardness score ${validated.variety_score.toFixed(2)} below threshold, workout may be too easy`);
+      console.warn(`⚠️ Hardness score ${validated.variety_score?.toFixed(2) ?? 'N/A'} below threshold, workout may be too easy`);
     }
     
     // Check if mixed rule is satisfied
@@ -789,7 +789,7 @@ export async function generatePremiumWorkout(
       console.warn(`⚠️ Equipment usage violation: insufficient loaded movements when gear is present`);
     }
 
-    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score.toFixed(2)}, patterns_locked: ${validated.acceptance_flags.patterns_locked}, mixed_rule_ok: ${validated.acceptance_flags.mixed_rule_ok}, equipment_ok: ${validated.acceptance_flags.equipment_ok}`);
+    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score?.toFixed(2) ?? 'N/A'}, patterns_locked: ${validated.acceptance_flags.patterns_locked}, mixed_rule_ok: ${validated.acceptance_flags.mixed_rule_ok}, equipment_ok: ${validated.acceptance_flags.equipment_ok}`);
     
     return validated;
 
