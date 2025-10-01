@@ -63,6 +63,44 @@ export class SeededRandom {
   }
 
   /**
+   * Weighted random choice
+   * @param items Array of items to choose from
+   * @param weights Array of weights (will be normalized)
+   * @returns Selected item based on weights
+   */
+  weightedChoice<T>(items: T[], weights: number[]): T {
+    if (items.length !== weights.length) {
+      throw new Error('Items and weights must have same length');
+    }
+    if (items.length === 0) {
+      throw new Error('Cannot choose from empty array');
+    }
+
+    // Normalize weights to sum to 1
+    const total = weights.reduce((sum, w) => sum + w, 0);
+    if (total === 0) {
+      // All weights are 0, choose uniformly
+      return this.choice(items);
+    }
+
+    const normalized = weights.map(w => w / total);
+
+    // Generate random number and find corresponding item
+    const rand = this.next();
+    let cumulative = 0;
+
+    for (let i = 0; i < items.length; i++) {
+      cumulative += normalized[i];
+      if (rand < cumulative) {
+        return items[i];
+      }
+    }
+
+    // Fallback to last item (shouldn't reach here due to floating point)
+    return items[items.length - 1];
+  }
+
+  /**
    * Convert string to 32-bit hash
    */
   private hashCode(str: string): number {
