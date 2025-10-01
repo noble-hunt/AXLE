@@ -373,7 +373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/workouts/generate - Generate workout (no auth required)
+  // POST /api/workouts/generate - Generate workout with premium path enforcement
   app.post("/api/workouts/generate", async (req, res) => {
     res.type('application/json');
     
@@ -387,9 +387,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      const equipmentList = equipment || ['bodyweight'];
+      const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM !== 'false';
+      
+      // Determine if we should force premium
+      const goalLower = goal.toLowerCase();
+      const shouldForcePremium = FORCE_PREMIUM && (
+        goalLower.includes('crossfit') || 
+        goalLower.includes('hiit') ||
+        equipmentList.some((eq: string) => 
+          eq.toLowerCase().includes('barbell') || 
+          eq.toLowerCase().includes('dumbbell') || 
+          eq.toLowerCase().includes('kettlebell')
+        )
+      );
+      
+      console.log(`🎯 /api/workouts/generate - Force Premium: ${shouldForcePremium} (goal: ${goal}, equipment: ${equipmentList.join(', ')})`);
+      
+      // Try premium generator if forced or for CrossFit/HIIT
+      if (shouldForcePremium) {
+        try {
+          const { generatePremiumWorkout } = await import('./ai/generators/premium');
+          
+          const premiumRequest = {
+            category: goal,
+            duration: durationMin,
+            intensity,
+            context: {
+              equipment: equipmentList,
+              constraints: [],
+              goals: ['general_fitness']
+            }
+          };
+          
+          const premiumWorkout = await generatePremiumWorkout(premiumRequest);
+          
+          const workout = {
+            id: `premium-${Date.now()}`,
+            blocks: premiumWorkout.blocks || [],
+            estTimeMin: premiumWorkout.duration_min || durationMin,
+            intensity: premiumWorkout.variety_score * 10 || intensity,
+            seed: seed || 'premium-generated',
+            meta: {
+              title: premiumWorkout.title || `${goal} Workout`,
+              goal,
+              equipment: equipmentList,
+              generator: 'premium',
+              acceptance: premiumWorkout.acceptance_flags || {}
+            }
+          };
+          
+          console.log(`✅ Premium workout generated: "${premiumWorkout.title}"`);
+          return res.json({ ok: true, workout });
+        } catch (premiumError) {
+          console.error('Premium generator failed:', premiumError);
+          // Continue to fallback
+        }
+      }
+      
+      // Fallback to simple generator
       const { openai } = await import('./lib/openai');
       const { generateSeed } = await import('./lib/seededRandom');
-      const equipmentList = equipment || ['bodyweight'];
       const workoutSeed = seed || generateSeed();
       
       const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}. Use the provided seed for any random selections to ensure deterministic results.`;
@@ -397,17 +455,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const r = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        temperature: 0, // Set to 0 for maximum determinism
+        temperature: 0,
         response_format: { type: 'json_object' },
         messages: [{ role: 'system', content: sys }, { role: 'user', content: user }],
-        seed: parseInt(workoutSeed.slice(-8), 36) // Use seed as numeric seed for OpenAI
+        seed: parseInt(workoutSeed.slice(-8), 36)
       });
       
       const raw = r.choices?.[0]?.message?.content ?? '{}';
       const workoutData = JSON.parse(raw);
       
       const workout = {
-        id: `preview-${workoutSeed}`, // Preview ID for generated workout
+        id: `simple-${workoutSeed}`,
         blocks: workoutData.exercises || [],
         estTimeMin: workoutData.est_duration_min || durationMin,
         intensity: workoutData.intensity || intensity,
@@ -415,7 +473,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         meta: {
           title: workoutData.title || `${goal} Workout`,
           goal,
-          equipment: equipmentList
+          equipment: equipmentList,
+          generator: 'simple',
+          acceptance: {}
         }
       };
       

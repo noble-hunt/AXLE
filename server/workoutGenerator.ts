@@ -9,6 +9,9 @@ import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
+// Force premium generator for CrossFit/HIIT and equipped workouts (default: true)
+const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM !== 'false';
+
 // Enhanced request type with context data
 type EnhancedWorkoutRequest = WorkoutRequest & {
   recentPRs?: Array<{
@@ -157,8 +160,29 @@ CRITICAL RULES:
 Return ONLY the JSON object. No markdown formatting, explanations, or additional text.`;
 };
 
-// Convert premium workout format to GeneratedWorkout format
-function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkoutRequest): GeneratedWorkout {
+// Determine if premium generator should be forced
+function shouldForcePremium(request: EnhancedWorkoutRequest, equipment?: string[]): boolean {
+  if (!FORCE_PREMIUM) return false;
+  
+  // Force premium for CrossFit and HIIT
+  const category = request.category.toLowerCase();
+  if (category.includes('crossfit') || category.includes('hiit')) {
+    return true;
+  }
+  
+  // Force premium if barbell, dumbbell, or kettlebell equipment available
+  const equipmentList = equipment || [];
+  const hasLoadedEquipment = equipmentList.some(eq => 
+    eq.toLowerCase().includes('barbell') || 
+    eq.toLowerCase().includes('dumbbell') || 
+    eq.toLowerCase().includes('kettlebell')
+  );
+  
+  return hasLoadedEquipment;
+}
+
+// Convert premium workout format to GeneratedWorkout format with meta
+function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkoutRequest): GeneratedWorkout & { meta?: any } {
   const sets: WorkoutSet[] = [];
   
   // Convert each block to sets
@@ -183,7 +207,11 @@ function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkout
     description: `Premium ${premiumWorkout.focus} workout with warm-up and cool-down. ${premiumWorkout.blocks.length} blocks total.`,
     duration: premiumWorkout.duration_min,
     intensity: request.intensity,
-    sets
+    sets,
+    meta: {
+      generator: 'premium' as const,
+      acceptance: premiumWorkout.acceptance_flags || {}
+    }
   };
 }
 
@@ -203,6 +231,12 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     return generateMockWorkout(request);
   }
 
+  // Extract equipment from request (if available in context)
+  const equipment = (request as any).equipment || ['barbell', 'dumbbell', 'kettlebell', 'bike', 'rower'];
+  const forcePremium = shouldForcePremium(request, equipment);
+  
+  console.log(`🎯 Force Premium: ${forcePremium} (category: ${request.category}, equipment: ${equipment.join(', ')})`);
+
   // Try premium generator first (with warm-up and cool-down)
   try {
     console.log('🎯 Using premium workout generator with warm-up/cool-down');
@@ -221,7 +255,7 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
           sleep_score: request.todaysReport.sleep * 10,
           stress_flag: request.todaysReport.stress > 7
         } : undefined,
-        equipment: ['barbell', 'dumbbell', 'kettlebell', 'bike', 'rower'],
+        equipment,
         constraints: [],
         goals: ['general_fitness']
       }
@@ -232,10 +266,18 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     // Convert premium format to GeneratedWorkout format
     return convertPremiumToGenerated(premiumWorkout, request);
   } catch (premiumError) {
-    console.warn('Premium generator failed, falling back to standard generator:', premiumError);
+    console.warn('Premium generator failed:', premiumError);
+    
+    // If premium is forced, skip simple generator and go straight to mock
+    if (forcePremium) {
+      console.warn('⚠️ Premium forced but failed - falling back to mock workout');
+      return generateMockWorkout(request, 'premium-failed');
+    }
+    
+    console.warn('Falling back to standard generator');
   }
 
-  // Fallback to original prompt-based generator
+  // Fallback to original prompt-based generator (only if not forced premium)
   const prompt = createPromptTemplate(request);
 
   try {
@@ -307,11 +349,17 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     const validation = generatedWorkoutSchema.safeParse(workoutData);
     
     if (validation.success) {
-      return validation.data;
+      return {
+        ...validation.data,
+        meta: {
+          generator: 'simple' as const,
+          acceptance: {}
+        }
+      } as any;
     } else {
       console.error('AI response validation failed:', validation.error.issues);
       console.log('Falling back to mock workout due to validation failure');
-      return generateMockWorkout(request);
+      return generateMockWorkout(request, 'validation-failed');
     }
 
   } catch (error: any) {
@@ -319,12 +367,12 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     
     // Fallback to mock workout if OpenAI fails
     console.log('Falling back to mock workout generation');
-    return generateMockWorkout(request);
+    return generateMockWorkout(request, 'simple-failed');
   }
 }
 
 // Fallback mock workout generator
-export function generateMockWorkout(request: EnhancedWorkoutRequest): GeneratedWorkout {
+export function generateMockWorkout(request: EnhancedWorkoutRequest, reason?: string): GeneratedWorkout {
   const workoutTemplates = {
     [Category.CROSSFIT]: {
       name: '"THE MOCK HERO CHALLENGE"',
@@ -410,6 +458,11 @@ Single Unders x 30 each round
       distance: (exercise as any).distance || undefined,
       restTime: (exercise as any).restTime || undefined,
       notes: `Intensity level ${request.intensity}/10`,
-    }))
-  };
+    })),
+    meta: {
+      generator: 'mock' as const,
+      acceptance: {},
+      reason: reason || 'no-api-key'
+    }
+  } as any;
 }
