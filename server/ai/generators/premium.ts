@@ -61,7 +61,8 @@ const ALLOWED_PATTERNS = [
   /Every [34]:00 x \d+/i,   // Every 3:00 x 5
   /EMOM \d+(-\d+)?/i,       // EMOM 12, EMOM 10-16
   /AMRAP \d+/i,             // AMRAP 12
-  /For Time 21-15-9/i       // For Time 21-15-9
+  /For Time 21-15-9/i,      // For Time 21-15-9
+  /Chipper 40-30-20-10/i    // Chipper 40-30-20-10
 ];
 
 // Movement pools with expanded options
@@ -163,10 +164,11 @@ ${Object.entries(FALLBACK_LADDER).map(([key, vals]) => `${key} → ${vals.join('
 STRUCTURE REQUIREMENTS:
 1. Warm-up: ≥6 min (foam roll, mobility, ramp-up drills)
 2. Main block(s): Choose ONLY from:
-   - E3:00 x 5 / E4:00 x 4 (strength density)
+   - E3:00 x 5 / E4:00 x 4 (strength density; E4:00 x 4 for strength into skill/row pairing)
    - EMOM 10-16 (conditioning or mixed)
    - AMRAP 8-15 (conditioning)
    - For Time 21-15-9 (finisher, ≤10 min)
+   - Chipper 40-30-20-10 (≤12 min cap; 3 movements max; loaded+cyclical mix)
 3. Cool-down: ≥4 min (stretching, breathing)
 
 MAIN BLOCK RULES:
@@ -293,6 +295,7 @@ function computeHardness(workout: PremiumWorkout): number {
     if (b.kind === "conditioning" && /EMOM/i.test(b.title)) h += 0.22;
     if (b.kind === "conditioning" && /AMRAP/i.test(b.title)) h += 0.22;
     if (b.kind === "conditioning" && /21-15-9/.test(b.title)) h += 0.20;
+    if (b.kind === "conditioning" && /Chipper 40-30-20-10/i.test(b.title)) h += 0.24;
 
     // Equipment bonuses
     const text = JSON.stringify(b.items).toLowerCase();
