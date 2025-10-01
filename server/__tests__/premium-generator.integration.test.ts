@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { generatePremiumWorkout } from '../ai/generators/premium';
 import { convertPremiumToGenerated } from '../workoutGenerator';
 import type { WorkoutGenerationRequest } from '../ai/generateWorkout';
+import { Category } from '../../shared/schema';
 
 describe('Premium Generator Integration Tests', () => {
   beforeAll(() => {
@@ -13,7 +14,7 @@ describe('Premium Generator Integration Tests', () => {
 
   it('should use premium generator for CrossFit with barbell/dumbbell/bike equipment', async () => {
     const request: WorkoutGenerationRequest = {
-      category: 'CrossFit',
+      category: Category.CROSSFIT,
       duration: 45,
       intensity: 8,
       context: {
@@ -51,7 +52,7 @@ describe('Premium Generator Integration Tests', () => {
 
   it('should have no banned BW movements in main blocks', async () => {
     const request: WorkoutGenerationRequest = {
-      category: 'HIIT',
+      category: Category.HIIT,
       duration: 30,
       intensity: 7,
       context: {
@@ -94,14 +95,13 @@ describe('Premium Generator Integration Tests', () => {
 
   it('should respect mixed rule when categories_for_mixed provided', async () => {
     const request: WorkoutGenerationRequest = {
-      category: 'mixed',
+      category: Category.STRENGTH,
       duration: 50,
       intensity: 8,
       context: {
         equipment: ['barbell', 'dumbbell', 'rower'],
         constraints: [],
-        goals: ['general_fitness'],
-        categories_for_mixed: ['Strength', 'Conditioning']
+        goals: ['general_fitness']
       }
     };
 
@@ -120,7 +120,7 @@ describe('Premium Generator Integration Tests', () => {
 
   it('should preserve block titles and items in conversion', async () => {
     const request: WorkoutGenerationRequest = {
-      category: 'CrossFit',
+      category: Category.CROSSFIT,
       duration: 40,
       intensity: 7,
       context: {
@@ -132,7 +132,7 @@ describe('Premium Generator Integration Tests', () => {
 
     const premiumWorkout = await generatePremiumWorkout(request);
     const converted = convertPremiumToGenerated(premiumWorkout, {
-      category: 'CrossFit',
+      category: Category.CROSSFIT,
       duration: 40,
       intensity: 7
     });
@@ -173,7 +173,7 @@ describe('Premium Generator Integration Tests', () => {
 
   it('should have hardness >= 0.75 when equipped and good readiness', async () => {
     const request: WorkoutGenerationRequest = {
-      category: 'CrossFit',
+      category: Category.CROSSFIT,
       duration: 45,
       intensity: 8,
       context: {
@@ -202,7 +202,7 @@ describe('Premium Generator Integration Tests', () => {
 
   it('should generate workouts with allowed patterns only', async () => {
     const request: WorkoutGenerationRequest = {
-      category: 'HIIT',
+      category: Category.HIIT,
       duration: 35,
       intensity: 8,
       context: {

@@ -7,6 +7,7 @@
 import { generatePremiumWorkout } from '../ai/generators/premium';
 import { convertPremiumToGenerated } from '../workoutGenerator';
 import type { WorkoutGenerationRequest } from '../ai/generateWorkout';
+import { Category } from '../../shared/schema';
 
 // ANSI color codes for terminal output
 const colors = {
@@ -119,7 +120,7 @@ async function main() {
   results.push(await testWorkout(
     'CrossFit with Barbell/Dumbbell/Bike',
     {
-      category: 'CrossFit',
+      category: Category.CROSSFIT,
       duration: 45,
       intensity: 8,
       context: {
@@ -135,7 +136,7 @@ async function main() {
   results.push(await testWorkout(
     'HIIT with Kettlebell/Rower',
     {
-      category: 'HIIT',
+      category: Category.HIIT,
       duration: 30,
       intensity: 7,
       context: {
@@ -147,18 +148,17 @@ async function main() {
     'smoke-test-2'
   ));
 
-  // Test 3: Mixed focus with multiple equipment
+  // Test 3: Strength focus with multiple equipment
   results.push(await testWorkout(
-    'Mixed Focus (Strength + Conditioning)',
+    'Strength Focus (Barbell/Dumbbell)',
     {
-      category: 'mixed',
+      category: Category.STRENGTH,
       duration: 50,
       intensity: 8,
       context: {
         equipment: ['barbell', 'dumbbell', 'rower', 'bike'],
         constraints: [],
-        goals: ['general_fitness'],
-        categories_for_mixed: ['Strength', 'Conditioning']
+        goals: ['general_fitness']
       }
     },
     'smoke-test-3'
