@@ -26,8 +26,8 @@ const PremiumBlockSchema = z.object({
   items: z.array(z.object({
     exercise: z.string(),
     scheme: z.object({
-      sets: z.number().optional(),
-      reps: z.union([z.string(), z.number()]).optional(),
+      sets: z.union([z.number(), z.null()]).optional(),
+      reps: z.union([z.string(), z.number(), z.null()]).optional(),
       rpe: z.union([z.string(), z.number(), z.null()]).optional(),
       rest_s: z.union([z.number(), z.null()]).optional(),
       tempo: z.union([z.string(), z.null()]).optional()
@@ -98,7 +98,12 @@ Keep bodyweight movements ONLY in warmup, skill, core, and cooldown sections.
 Exception: If no equipment available AND low readiness, tag reason:"readiness" in substitutions.
 
 When focus = "mixed" you MUST output exactly one main block per requested category in order.
-Require a hardness score ≥ 0.65 (see rule below). If score < 0.65, regenerate by upgrading pattern (heavier loading, shorter rests, bigger sets) or swapping movements (BB/DB/KB > BW).
+Require a hardness score ≥ 0.75 when equipment includes DB/KB/BB and readiness is good (≥ 0.55 if low readiness).
+If score is too low, regenerate by:
+- Upgrading pattern (heavier loading, shorter rests, bigger sets)
+- Swapping movements (BB/DB/KB > BW)
+- Pairing cyclical cals with loaded movements in EMOMs
+- Avoiding strength blocks with only bodyweight movements
 Warm-ups/cool-downs must come from the templates below (adapt to available equipment).
 Enforce time budget ±10%.
 Return only JSON matching the schema. Self-validate and set acceptance_flags before returning.
@@ -131,9 +136,17 @@ HARDNESS SCORE (0–1) — compute and enforce:
 
 Base per pattern: Strength E3:00x5 = .28; EMOM 12 = .22; AMRAP 12 = .22; 21-15-9 = .20.
 
-Add +.05 if barbell used; +.03 if DB/KB used; +.02 if cyclical cals present; −.07 if any bodyweight-only movement appears in two main items.
+Equipment bonuses:
++.05 if barbell used
++.03 if DB/KB used
++.02 if cyclical cals present
++.03 if EMOM pairs cyclical cals with loaded movement (odd/even pattern)
 
-Cap 1.0. If < .65, regenerate and upgrade.
+Penalties:
+−.07 if 2+ bodyweight-only movements in main items
+−.05 if strength block contains only bodyweight or only push-ups/pull-ups
+
+Cap 1.0. Required floor: ≥ 0.75 when equipment present and readiness good; ≥ 0.55 if low readiness. Regenerate and upgrade if below.
 
 READINESS GATES:
 
@@ -191,7 +204,7 @@ HARD REQUIREMENTS:
 4. Equipment-safe: No exercise requires missing equipment. If swapped, log in substitutions[]
 5. Injury-safe: No contraindicated patterns; provide safer alternates
 6. Readiness: If low readiness (Sleep < 60 or HRV flagged), cap strength at RPE ≤ 7, remove sprints/plyos
-7. Hardness score: Must be ≥ 0.65 (or ≥ 0.55 if readiness is low). Use BB/DB/KB movements, not bodyweight filler
+7. Hardness score: Must be ≥ 0.75 when equipment present and readiness good (or ≥ 0.55 if readiness is low). Use BB/DB/KB movements, not bodyweight filler. Pair cyclical with loaded movements in EMOMs.
 8. Clarity: Every items[] entry has explicit reps/cal/time, any rest, and intent via notes
 9. Structure: Order is Warm-up → main block(s) → Cool-down
 
@@ -242,9 +255,13 @@ function computeHardness(workout: PremiumWorkout): number {
 
     // Equipment bonuses
     const text = JSON.stringify(b.items).toLowerCase();
-    if (/(barbell|bb )/.test(text)) h += 0.05;
-    if (/(dumbbell|db |kettlebell|kb )/.test(text)) h += 0.03;
-    if (/(echo bike|row|ski)/.test(text)) h += 0.02;
+    const hasBarbell = /(barbell|bb )/.test(text);
+    const hasDbKb = /(dumbbell|db |kettlebell|kb )/.test(text);
+    const hasCyclical = /(echo bike|row|ski|cal)/.test(text);
+    
+    if (hasBarbell) h += 0.05;
+    if (hasDbKb) h += 0.03;
+    if (hasCyclical) h += 0.02;
 
     // Penalty for bodyweight-only in multiple main items
     let bwOnly = 0;
@@ -253,6 +270,19 @@ function computeHardness(workout: PremiumWorkout): number {
       if (BANNED_EASY.has(name)) bwOnly++;
     }
     if (bwOnly >= 2) h -= 0.07;
+    
+    // NEW: Penalty for strength blocks with only bodyweight or only push-ups/pull-ups
+    if (b.kind === "strength") {
+      const hasLoaded = hasBarbell || hasDbKb;
+      const onlyBodyweight = !hasLoaded && /(push-up|pull-up|air squat|lunge)/i.test(text);
+      if (onlyBodyweight) h -= 0.05;
+    }
+    
+    // NEW: Bonus for pairing cyclical cals with loaded movement (EMOM odd/even pattern)
+    if (/EMOM/i.test(b.title)) {
+      const hasLoaded = hasBarbell || hasDbKb;
+      if (hasCyclical && hasLoaded) h += 0.03;
+    }
   }
   
   return Math.min(1, Math.max(0, h));
@@ -292,7 +322,13 @@ function sanitizeWorkout(
   
   // 2) Calculate hardness and check floor
   let floor = 0.65;
-  if (lowReadiness) floor = 0.55;
+  
+  // Raise floor to 0.75 when equipment includes DB/KB/BB and sleep >= 60
+  if (hasLoad && !lowReadiness) {
+    floor = 0.75;
+  } else if (lowReadiness) {
+    floor = 0.55;
+  }
 
   workout.variety_score = computeHardness(workout);
   

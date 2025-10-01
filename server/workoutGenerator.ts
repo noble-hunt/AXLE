@@ -208,6 +208,7 @@ function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkout
     duration: premiumWorkout.duration_min,
     intensity: request.intensity,
     sets,
+    variety_score: premiumWorkout.variety_score,
     meta: {
       generator: 'premium' as const,
       acceptance: premiumWorkout.acceptance_flags || {}

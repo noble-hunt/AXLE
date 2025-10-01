@@ -426,7 +426,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: `premium-${Date.now()}`,
             blocks: premiumWorkout.blocks || [],
             estTimeMin: premiumWorkout.duration_min || durationMin,
-            intensity: premiumWorkout.variety_score * 10 || intensity,
+            intensity,
+            variety_score: premiumWorkout.variety_score,
             seed: seed || 'premium-generated',
             meta: {
               title: premiumWorkout.title || `${goal} Workout`,
