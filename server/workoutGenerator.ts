@@ -2,6 +2,8 @@ import OpenAI from "openai";
 import type { WorkoutRequest, GeneratedWorkout, WorkoutSet } from "../shared/schema";
 import { Category } from "../shared/schema";
 import { generatedWorkoutSchema } from "../shared/schema";
+import { generatePremiumWorkout } from "./ai/generators/premium";
+import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
 
 // Using gpt-4o model for reliable workout generation. Do not change this unless explicitly requested by the user
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
@@ -155,6 +157,36 @@ CRITICAL RULES:
 Return ONLY the JSON object. No markdown formatting, explanations, or additional text.`;
 };
 
+// Convert premium workout format to GeneratedWorkout format
+function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkoutRequest): GeneratedWorkout {
+  const sets: WorkoutSet[] = [];
+  
+  // Convert each block to sets
+  premiumWorkout.blocks.forEach((block: any, blockIndex: number) => {
+    block.items.forEach((item: any, itemIndex: number) => {
+      sets.push({
+        id: `premium-${blockIndex}-${itemIndex}-${Date.now()}`,
+        exercise: `${block.title}: ${item.exercise}`,
+        weight: undefined,
+        reps: typeof item.scheme.reps === 'number' ? item.scheme.reps : undefined,
+        duration: item.scheme.rest_s || undefined,
+        distance: undefined,
+        restTime: item.scheme.rest_s || (request.intensity >= 7 ? 60 : 90),
+        notes: `${block.kind.toUpperCase()} - ${item.notes}\n${block.coach_notes.join(' ')}`
+      });
+    });
+  });
+
+  return {
+    name: premiumWorkout.title,
+    category: request.category,
+    description: `Premium ${premiumWorkout.focus} workout with warm-up and cool-down. ${premiumWorkout.blocks.length} blocks total.`,
+    duration: premiumWorkout.duration_min,
+    intensity: request.intensity,
+    sets
+  };
+}
+
 export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
   console.log('Generating workout with enhanced context:', {
     category: request.category,
@@ -171,7 +203,39 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     return generateMockWorkout(request);
   }
 
-  // Create the enhanced prompt with context
+  // Try premium generator first (with warm-up and cool-down)
+  try {
+    console.log('🎯 Using premium workout generator with warm-up/cool-down');
+    const premiumRequest: WorkoutGenerationRequest = {
+      category: request.category,
+      duration: request.duration,
+      intensity: request.intensity,
+      context: {
+        yesterday: request.lastWorkouts?.[0] ? {
+          category: request.lastWorkouts[0].category,
+          intensity: request.lastWorkouts[0].intensity
+        } : undefined,
+        health_snapshot: request.todaysReport ? {
+          hrv: undefined,
+          resting_hr: undefined,
+          sleep_score: request.todaysReport.sleep * 10,
+          stress_flag: request.todaysReport.stress > 7
+        } : undefined,
+        equipment: ['barbell', 'dumbbell', 'kettlebell', 'bike', 'rower'],
+        constraints: [],
+        goals: ['general_fitness']
+      }
+    };
+    
+    const premiumWorkout = await generatePremiumWorkout(premiumRequest);
+    
+    // Convert premium format to GeneratedWorkout format
+    return convertPremiumToGenerated(premiumWorkout, request);
+  } catch (premiumError) {
+    console.warn('Premium generator failed, falling back to standard generator:', premiumError);
+  }
+
+  // Fallback to original prompt-based generator
   const prompt = createPromptTemplate(request);
 
   try {
