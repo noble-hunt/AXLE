@@ -43,11 +43,16 @@ const PremiumWorkoutSchema = z.object({
 type PremiumWorkout = z.infer<typeof PremiumWorkoutSchema>;
 
 // Banned easy bodyweight movements (wall sit, mountain climber, star jump, high knees)
+// Stored in lowercase for case-insensitive matching
 const BANNED_EASY = new Set([
-  "Wall Sit",
-  "Mountain Climbers",
-  "Star Jumps",
-  "High Knees"
+  "wall sit",
+  "wall sits",
+  "mountain climber",
+  "mountain climbers",
+  "star jump",
+  "star jumps",
+  "high knee",
+  "high knees"
 ]);
 
 // Allowed patterns for main blocks
@@ -311,7 +316,7 @@ function computeHardness(workout: PremiumWorkout): number {
     // Penalty for bodyweight-only in multiple main items
     let bwOnly = 0;
     for (const it of b.items || []) {
-      const name = (it.exercise || "").trim();
+      const name = (it.exercise || "").trim().toLowerCase();
       if (BANNED_EASY.has(name)) bwOnly++;
     }
     if (bwOnly >= 2) h -= 0.07;
@@ -343,30 +348,133 @@ function sanitizeWorkout(
     categories_for_mixed?: string[];
   }
 ): PremiumWorkout {
-  const hasLoad = (opts.equipment || []).some(e => 
+  // Normalize equipment for consistent access throughout function
+  const equipment = (opts.equipment || []).map(e => e.toLowerCase());
+  const hasLoad = equipment.some(e => 
     /(barbell|dumbbell|kettlebell)/i.test(e)
   );
   
   const ws = opts.wearable_snapshot || {};
   const lowReadiness = ws.sleep_score && ws.sleep_score < 60;
   
-  // 1) Remove banned BW items in STRENGTH/CONDITIONING main blocks
+  // 1) Remove banned BW items in STRENGTH/CONDITIONING main blocks with rotation
   for (const b of workout.blocks) {
     // Only sanitize strength and conditioning blocks
     if (["strength", "conditioning"].includes(b.kind)) {
+      const equipment = opts.equipment || [];
+      const usedSubs = new Set<string>();
+      let bannedCount = 0;
+      
+      // First pass: count banned movements (case-insensitive)
+      for (const it of b.items) {
+        const exerciseName = (it.exercise || "").trim().toLowerCase();
+        if (BANNED_EASY.has(exerciseName)) bannedCount++;
+      }
+      
+      // Second pass: replace with rotation (always replace banned, regardless of equipment/readiness)
       b.items = b.items.map(it => {
-        const exerciseName = (it.exercise || "").trim();
+        const exerciseName = (it.exercise || "").trim().toLowerCase();
         
-        // If banned exercise found and we have equipment (or not low readiness)
-        if (BANNED_EASY.has(exerciseName) && (hasLoad || !lowReadiness)) {
+        // If banned exercise found, always replace to meet "no >1 banned per block" rule
+        if (BANNED_EASY.has(exerciseName)) {
+          // Rotation: DB Box Step-Overs → KB Swings → Wall Balls → Burpees
+          let replacement = "Burpees"; // Default fallback
+          
+          if (equipment.includes('dumbbell') && !usedSubs.has("DB Box Step-Overs")) {
+            replacement = "DB Box Step-Overs";
+          } else if (equipment.includes('kettlebell') && !usedSubs.has("KB Swings")) {
+            replacement = "KB Swings";
+          } else if ((equipment.includes('medicine ball') || equipment.includes('med ball')) && !usedSubs.has("Wall Balls")) {
+            replacement = "Wall Balls";
+          } else if (!usedSubs.has("Burpees")) {
+            replacement = "Burpees";
+          } else {
+            // If all used, cycle back through available
+            if (equipment.includes('dumbbell')) replacement = "DB Box Step-Overs";
+            else if (equipment.includes('kettlebell')) replacement = "KB Swings";
+          }
+          
+          usedSubs.add(replacement);
           return { 
             ...it, 
-            exercise: "DB Box Step-Overs", 
-            notes: (it.notes || "") + " (auto-sub for intensity)" 
+            exercise: replacement, 
+            notes: (it.notes || "") + " (upgraded for intensity)" 
           };
         }
         return it;
       });
+      
+      // Enforce: no block has >1 banned BW movement (case-insensitive)
+      let remainingBanned = b.items.filter(it => BANNED_EASY.has((it.exercise || "").trim().toLowerCase())).length;
+      
+      // If >1 banned still exists, force replace remaining until ≤1
+      while (remainingBanned > 1) {
+        console.warn(`⚠️ Block "${b.title}" still has ${remainingBanned} banned movements, enforcing replacement`);
+        
+        for (let i = 0; i < b.items.length; i++) {
+          const exerciseName = (b.items[i].exercise || "").trim().toLowerCase();
+          if (BANNED_EASY.has(exerciseName)) {
+            // Force replace with Burpees (always available)
+            b.items[i] = {
+              ...b.items[i],
+              exercise: "Burpees",
+              notes: (b.items[i].notes || "") + " (enforced replacement)"
+            };
+            console.log(`✅ Enforced replacement: ${exerciseName} → Burpees`);
+            break; // Only replace one per iteration
+          }
+        }
+        
+        // Recount
+        remainingBanned = b.items.filter(it => BANNED_EASY.has((it.exercise || "").trim().toLowerCase())).length;
+      }
+      
+      if (remainingBanned === 1) {
+        console.log(`✅ Block "${b.title}" has exactly 1 banned movement (acceptable)`);
+      } else if (remainingBanned === 0) {
+        console.log(`✅ Block "${b.title}" has no banned movements`);
+      }
+      
+      // 1b) Upgrade intensity if block still appears too easy after substitutions
+      // Check if block has any loaded movements
+      const text = JSON.stringify(b.items).toLowerCase();
+      const hasLoadedMovements = /(barbell|bb[\s,]|dumbbell|db[\s,]|kettlebell|kb[\s,]|weighted|wall ball)/i.test(text);
+      
+      // If we have equipment but block is still mostly bodyweight, upgrade
+      if (hasLoad && !hasLoadedMovements && bannedCount > 0) {
+        let upgraded = false;
+        
+        // Option 1: Tighten rest intervals in title (only to valid patterns)
+        if (/E4:00/i.test(b.title)) {
+          b.title = b.title.replace(/E4:00/gi, "E3:00");
+          b.notes = (b.notes || "") + " Rest tightened to increase density";
+          console.log(`✅ Tightened rest: E4:00 → E3:00 in "${b.title}"`);
+          upgraded = true;
+        } else if (/Every 4:00/i.test(b.title)) {
+          b.title = b.title.replace(/Every 4:00/gi, "Every 3:00");
+          b.notes = (b.notes || "") + " Rest tightened to increase density";
+          console.log(`✅ Tightened rest: Every 4:00 → Every 3:00 in "${b.title}"`);
+          upgraded = true;
+        }
+        
+        // Option 2: Increase reps by 10-15% (only for pure rep targets)
+        if (!upgraded) {
+          for (const it of b.items) {
+            const target = it.target || "";
+            // Only increase if target is pure reps (not cal, time, or complex schemes)
+            if (/^\d+\s*reps?$/i.test(target) || /^\d+$/.test(target)) {
+              const repsMatch = target.match(/(\d+)/);
+              if (repsMatch) {
+                const currentReps = parseInt(repsMatch[1]);
+                const newReps = Math.ceil(currentReps * 1.15); // 15% increase
+                it.target = `${newReps} reps`;
+                it.notes = (it.notes || "") + ` Upgraded from ${currentReps} reps`;
+                console.log(`✅ Increased reps: ${currentReps} → ${newReps} for ${it.exercise}`);
+              }
+            }
+          }
+        }
+      }
     }
   }
   
@@ -383,6 +491,7 @@ function sanitizeWorkout(
   workout.variety_score = computeHardness(workout);
   
   // 2b) Enforce hardness floor: append finisher if hardness < floor
+  let hardnessFinisherAdded = false;
   if (workout.variety_score < floor) {
     console.warn(`⚠️ Hardness ${workout.variety_score.toFixed(2)} < floor ${floor.toFixed(2)}, appending intensity finisher`);
     
@@ -391,18 +500,22 @@ function sanitizeWorkout(
     
     // Select a loaded movement based on available equipment
     let finisherMovement = "DB Snatches";
+    let finisherSecondMovement = "Burpees";
     if (hasLoad) {
-      const equipment = opts.equipment || [];
       if (equipment.includes('barbell')) {
         finisherMovement = "BB Thrusters";
+        finisherSecondMovement = "BB Clean & Jerk";
       } else if (equipment.includes('dumbbell')) {
         finisherMovement = "DB Snatches";
+        finisherSecondMovement = "DB Box Step-Overs";
       } else if (equipment.includes('kettlebell')) {
         finisherMovement = "KB Swings";
+        finisherSecondMovement = "KB Goblet Squat";
       }
     }
     
     // Create finisher block (For Time 21-15-9, ≤10 min)
+    // Use TWO loaded movements to maintain equipment ratio
     const finisher = {
       kind: "conditioning" as const,
       title: "For Time 21-15-9",
@@ -414,9 +527,9 @@ function sanitizeWorkout(
           notes: "Quick pace, prioritize movement quality" 
         },
         { 
-          exercise: "Burpees", 
+          exercise: finisherSecondMovement, 
           target: "21-15-9", 
-          notes: "Full chest-to-deck, explosive jump" 
+          notes: "Full range, explosive" 
         }
       ],
       notes: "Fast finisher to elevate heart rate and add intensity"
@@ -428,6 +541,8 @@ function sanitizeWorkout(
     } else {
       workout.blocks.push(finisher);
     }
+    
+    hardnessFinisherAdded = true;
     
     // Recalculate hardness after adding finisher
     workout.variety_score = computeHardness(workout);
@@ -478,11 +593,12 @@ function sanitizeWorkout(
     const expectedCount = opts.categories_for_mixed.length;
     const actualCount = mainBlocks.length;
     
-    // Check: should be exactly N blocks OR N+1 if finisher added due to time shortfall
+    // Check: should be exactly N blocks OR N+1 if finisher added
     const totalTime = workout.blocks.reduce((sum, b) => sum + b.time_min, 0);
-    const hasFinisher = actualCount === expectedCount + 1 && totalTime < workout.duration_min * 0.9;
+    const hasTimeShortfallFinisher = actualCount === expectedCount + 1 && totalTime < workout.duration_min * 0.9;
+    const hasHardnessFinisher = actualCount === expectedCount + 1 && hardnessFinisherAdded;
     
-    mixedRuleOk = actualCount === expectedCount || (actualCount === expectedCount + 1 && hasFinisher);
+    mixedRuleOk = actualCount === expectedCount || hasTimeShortfallFinisher || hasHardnessFinisher;
     
     if (!mixedRuleOk) {
       console.warn(`⚠️ Mixed rule violation: expected ${expectedCount} main blocks (or ${expectedCount + 1} with finisher), got ${actualCount}`);
