@@ -10,6 +10,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Hardness Scoring Improvements (October 1, 2025)
+- **Enhancement**: Fixed hardness calculation to properly score intensity and enforce minimum thresholds
+- **Implementation**:
+  - **Pattern Matching Fix**: computeHardness now recognizes short forms (E3:00, E4:00) with case-insensitive regex
+  - **Heavy-Movement Bonuses**: +0.05 each for BB Clean & Jerk, Thrusters, Deadlifts, Front Squats, Weighted Pull-Ups, Wall Balls, Farmer Carry
+  - **Hardness Floor Enforcement**: Automatically appends ≤10 min 21-15-9 finisher when hardness < floor (0.75 for equipped sessions, 0.55 for low readiness)
+  - **Equipment Validation Scope**: Tightened to strength + conditioning blocks only (skill/core excluded from loaded movement ratio)
+- **Files Modified**: `server/ai/generators/premium.ts`
+- **Testing Results**:
+  - ✅ Hardness increased from 0.35 → 0.78 for CrossFit workouts with loaded movements
+  - ✅ Pattern recognition: "E3:00 x 5" correctly adds +0.28
+  - ✅ Heavy-movement bonuses: BB Clean & Jerk, DB Snatches each add +0.05
+  - ✅ hardness_ok flag: true when floor is met
+
 ### Expanded Movement Pools + Fallback Ladder (October 1, 2025)
 - **Enhancement**: Richer, harder movement choices with graceful degradation
 - **Implementation**:
