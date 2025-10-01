@@ -55,32 +55,27 @@ const PremiumWorkoutSchema = z.object({
     mixed_rule_ok: z.boolean(),
     equipment_ok: z.boolean(),
     injury_safe: z.boolean(),
-    readiness_mod_applied: z.boolean()
+    readiness_mod_applied: z.boolean(),
+    hardness_ok: z.boolean()
   })
 });
 
 type PremiumWorkout = z.infer<typeof PremiumWorkoutSchema>;
 
+// Banned easy bodyweight exercises for main blocks
+const BANNED_EASY = new Set([
+  "Wall Sit", "Mountain Climber", "Star Jump", "High Knees", "Jumping Jacks", "Side Plank Reach"
+]);
+
 function createPremiumSystemPrompt(): string {
-  return `You are an expert fitness coach creating premium CrossFit/HIIT-style workouts with warm-up and cool-down. Be equipment-aware, time-boxed, readable, and safe. You must produce validated JSON.
-
-GOALS:
-- Deliver a clear, intentional session: Warm-up → Main Block(s) → Cool-down
-- For "mixed" focus, produce exactly one main block per category (Strength, Conditioning, Skill, Core) in order provided
-- Respect time budget (±10%), equipment, injuries, experience, and readiness
-
-KEY RULES:
-1. Warm-up: Always include (≥6 min); draw from templates and adapt to equipment
-2. Main blocks: Use patterns like E3:00 x 5, EMOM 10-16, AMRAP 8-15, For Time 21-15-9, density supersets
-3. Cool-down: Always include (≥4 min); stretch/breath work
-4. Equipment-aware: If item needs unavailable gear, auto-swap to fallback and record in substitutions[]
-5. Readiness gates:
-   - If HRV low or Sleep Score < 60 → cap strength at RPE 7, exclude sprints/plyos
-   - If high 72h load → reduce total volume ~20%
-6. History spacing: If last session hit same primary pattern → bias a different one today
-7. Injury mods: Avoid contraindicated moves; provide safe alternates
-8. Mixed semantics: One main block per selected category. No extras unless remaining time > -10% slack
-9. Voice: Concise coach notes. No hype clichés.
+  return `You are HOBH's CF/HIIT generator. Produce Warm-up → Main blocks → Cool-down in strict CrossFit style.
+When focus = "mixed" you MUST output exactly one main block per requested category in order.
+Allowed main-block patterns only: E3:00 x 5 sets (strength density), EMOM 10–16, AMRAP 8–15, For-Time 21-15-9.
+Never use bodyweight filler (wall sit, mountain climber, star jump, high knees) in main blocks unless no equipment is available or readiness is low—then tag reason:"readiness" in substitutions.
+Require a hardness score ≥ 0.65 (see rule below). If score < 0.65, regenerate by upgrading pattern (heavier loading, shorter rests, bigger sets) or swapping movements (BB/DB/KB > BW).
+Warm-ups/cool-downs must come from the templates below (adapt to available equipment).
+Enforce time budget ±10%.
+Return only JSON matching the schema. Self-validate and set acceptance_flags before returning.
 
 WARM-UP TEMPLATES (choose 1 and adapt):
 
@@ -96,19 +91,31 @@ WU3 (~8 min):
 COOL-DOWN TEMPLATE (~6 min):
 2-3 sets for quality: :90 Legs-Up-the-Wall · :45 Child's Pose · :30 Cat/Cows · :30 Seated Toe-Touch Hold · :30 Deep Squat Hold (hands overhead) · :60 Pigeon (R) · :60 Pigeon (L).
 
-PATTERN PRESETS:
-- Strength density: "Every 3:00 x 5 sets" → A1 + A2 @ RIR 1-2, 60-90s between
-- EMOM: 10-16 min, Odd = cyclical (Bike/Row/Ski), Even = loaded (DB/KB step-overs, push press). Aim :40 work/:20 float
-- AMRAP 12: cyclical 12/10 cal + 9 push press + 9 KB swings
-- For Time 21-15-9: press + hinge/squat pairing; cap 10:00; smooth then fast
+MOVEMENT POOLS (main blocks):
 
-MOVEMENT POOLS & FALLBACKS:
-Conditioning: Echo Bike ▸ Row ▸ Ski ▸ DB Box Step-Overs ▸ KB Swings ▸ Burpees (always)
-Strength: Barbell Front Squat ▸ Barbell Push Press ▸ Barbell Deadlift ▸ DB Floor/Bench Press ▸ DB Goblet Squat ▸ DB RDL ▸ KB Front Rack Squat ▸ KB Push Press ▸ Strict Pull-Ups/Ring Rows
-Skill/Gym: Toes-to-Bar ▸ Hanging Knee Raises ▸ Double-Unders ▸ Single-Unders ▸ Handstand Hold ▸ Wall-Facing Hold
-Core: Hollow Rocks ▸ Plank Variations ▸ Sit-Ups
+Conditioning: Echo Bike ▸ Row ▸ Ski ▸ KB Swings ▸ DB Box Step-Overs ▸ Burpees.
 
-Prefer barbell → dumbbell → kettlebell → bodyweight when substituting.
+Strength: BB Front Squat ▸ BB Push Press ▸ BB Deadlift ▸ DB Floor/Bench Press ▸ DB Goblet Squat ▸ DB RDL ▸ KB Front Rack Squat ▸ KB Push Press ▸ Strict Pull-Ups/Ring Rows.
+
+Skill/Gym: Toes-to-Bar ▸ Hanging Knee Raises ▸ Double-Unders ▸ Single-Unders ▸ Handstand Hold ▸ Wall-Facing Hold.
+
+Core: Hollow Rocks ▸ Plank Variations ▸ Sit-Ups.
+
+HARDNESS SCORE (0–1) — compute and enforce:
+
+Base per pattern: Strength E3:00x5 = .28; EMOM 12 = .22; AMRAP 12 = .22; 21-15-9 = .20.
+
+Add +.05 if barbell used; +.03 if DB/KB used; +.02 if cyclical cals present; −.07 if any bodyweight-only movement appears in two main items.
+
+Cap 1.0. If < .65, regenerate and upgrade.
+
+READINESS GATES:
+
+Sleep < 60 or HRV flagged → cap strength at RPE 7, exclude sprints/plyos; hardness floor becomes .55.
+
+MIXED SEMANTICS:
+
+The number of main blocks must equal len(categories_for_mixed) and each block's kind must map to that category (strength/conditioning/skill/core). If time remains > 10% short, add one For-Time 21-15-9 finisher ≤10 min.
 
 OUTPUT SCHEMA:
 {
@@ -145,7 +152,8 @@ OUTPUT SCHEMA:
     "mixed_rule_ok": true,
     "equipment_ok": true,
     "injury_safe": true,
-    "readiness_mod_applied": true
+    "readiness_mod_applied": true,
+    "hardness_ok": true
   }
 }
 
@@ -157,8 +165,9 @@ HARD REQUIREMENTS:
 4. Equipment-safe: No exercise requires missing equipment. If swapped, log in substitutions[]
 5. Injury-safe: No contraindicated patterns; provide safer alternates
 6. Readiness: If low readiness (Sleep < 60 or HRV flagged), cap strength at RPE ≤ 7, remove sprints/plyos
-7. Clarity: Every items[] entry has explicit reps/cal/time, any rest, and intent via notes
-8. Structure: Order is Warm-up → main block(s) → Cool-down
+7. Hardness score: Must be ≥ 0.65 (or ≥ 0.55 if readiness is low). Use BB/DB/KB movements, not bodyweight filler
+8. Clarity: Every items[] entry has explicit reps/cal/time, any rest, and intent via notes
+9. Structure: Order is Warm-up → main block(s) → Cool-down
 
 SOFT REQUIREMENTS:
 9. Unilateral work balanced per side
@@ -167,6 +176,81 @@ SOFT REQUIREMENTS:
 12. If history shows recent pattern, bias alternative
 
 If any hard check fails, silently repair and re-validate before returning JSON.`;
+}
+
+// Hardness calculation function
+function computeHardness(workout: PremiumWorkout): number {
+  let h = 0;
+  
+  for (const b of workout.blocks) {
+    // Pattern-based scoring
+    if (b.kind === "strength" && /Every 3:00/.test(b.title)) h += 0.28;
+    if (b.kind === "conditioning" && /EMOM/.test(b.title)) h += 0.22;
+    if (b.kind === "conditioning" && /AMRAP/.test(b.title)) h += 0.22;
+    if (b.kind === "conditioning" && /21-15-9/.test(b.title)) h += 0.20;
+
+    // Equipment bonuses
+    const text = JSON.stringify(b.items).toLowerCase();
+    if (/(barbell|bb )/.test(text)) h += 0.05;
+    if (/(dumbbell|db |kettlebell|kb )/.test(text)) h += 0.03;
+    if (/(echo bike|row|ski)/.test(text)) h += 0.02;
+
+    // Penalty for bodyweight-only in multiple main items
+    let bwOnly = 0;
+    for (const it of b.items || []) {
+      const name = (it.exercise || "").trim();
+      if (BANNED_EASY.has(name)) bwOnly++;
+    }
+    if (bwOnly >= 2) h -= 0.07;
+  }
+  
+  return Math.min(1, Math.max(0, h));
+}
+
+// Sanitizer function to enforce rules post-generation
+function sanitizeWorkout(
+  workout: PremiumWorkout, 
+  opts: { equipment?: string[]; wearable_snapshot?: any }
+): PremiumWorkout {
+  // 1) Remove banned BW items in main blocks if equipment exists
+  const hasLoad = (opts.equipment || []).some(e => 
+    /(barbell|dumbbell|kettlebell)/i.test(e)
+  );
+  
+  for (const b of workout.blocks) {
+    if (["strength", "conditioning", "skill", "core"].includes(b.kind) && hasLoad) {
+      b.items = b.items.map(it => {
+        if (BANNED_EASY.has((it.exercise || "").trim())) {
+          return { 
+            ...it, 
+            exercise: "DB Box Step-Overs", 
+            notes: (it.notes || "") + " (auto-sub for intensity)" 
+          };
+        }
+        return it;
+      });
+    }
+  }
+  
+  // 2) Calculate hardness and check floor
+  let floor = 0.65;
+  const ws = opts.wearable_snapshot || {};
+  if (ws.sleep_score && ws.sleep_score < 60) floor = 0.55;
+
+  workout.variety_score = computeHardness(workout);
+  workout.acceptance_flags = workout.acceptance_flags || {
+    time_fit: true,
+    has_warmup: true,
+    has_cooldown: true,
+    mixed_rule_ok: true,
+    equipment_ok: true,
+    injury_safe: true,
+    readiness_mod_applied: true,
+    hardness_ok: true
+  };
+  workout.acceptance_flags.hardness_ok = workout.variety_score >= floor;
+
+  return workout;
 }
 
 function createUserPrompt(request: WorkoutGenerationRequest): string {
@@ -269,9 +353,22 @@ export async function generatePremiumWorkout(request: WorkoutGenerationRequest):
 
     // Parse and validate
     const workout = JSON.parse(content);
-    const validated = PremiumWorkoutSchema.parse(workout);
+    let validated = PremiumWorkoutSchema.parse(workout);
 
-    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks`);
+    // Sanitize and enforce hardness requirements
+    validated = sanitizeWorkout(validated, {
+      equipment: request.context?.equipment || [],
+      wearable_snapshot: {
+        sleep_score: request.context?.health_snapshot?.sleep_score
+      }
+    });
+
+    // Check if hardness meets requirements
+    if (!validated.acceptance_flags.hardness_ok) {
+      console.warn(`⚠️ Hardness score ${validated.variety_score.toFixed(2)} below threshold, workout may be too easy`);
+    }
+
+    console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score.toFixed(2)}`);
     
     return validated;
 

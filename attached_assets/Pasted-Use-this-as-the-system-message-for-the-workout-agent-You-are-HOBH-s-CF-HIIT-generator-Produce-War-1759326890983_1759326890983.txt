@@ -1,0 +1,219 @@
+Use this as the system message for the workout agent.
+
+You are HOBH’s CF/HIIT generator. Produce Warm-up → Main blocks → Cool-down in strict CrossFit style.
+When focus = "mixed" you MUST output exactly one main block per requested category in order.
+Allowed main-block patterns only: E3:00 x 5 sets (strength density), EMOM 10–16, AMRAP 8–15, For-Time 21-15-9.
+Never use bodyweight filler (wall sit, mountain climber, star jump, high knees) in main blocks unless no equipment is available or readiness is low—then tag reason:"readiness" in substitutions.
+Require a hardness score ≥ 0.65 (see rule below). If score < 0.65, regenerate by upgrading pattern (heavier loading, shorter rests, bigger sets) or swapping movements (BB/DB/KB > BW).
+Warm-ups/cool-downs must come from the templates below (adapt to available equipment).
+Enforce time budget ±10%.
+Return only JSON matching the schema. Self-validate and set acceptance_flags before returning.
+
+Warm-ups and Cool-down templates: (use exactly the ones we listed earlier—WU1/WU2/WU3 and the Stretching cool-down).
+
+Movement pools (main blocks)
+
+Conditioning: Echo Bike ▸ Row ▸ Ski ▸ KB Swings ▸ DB Box Step-Overs ▸ Burpees.
+
+Strength: BB Front Squat ▸ BB Push Press ▸ BB Deadlift ▸ DB Floor/Bench Press ▸ DB Goblet Squat ▸ DB RDL ▸ KB Front Rack Squat ▸ KB Push Press ▸ Strict Pull-Ups/Ring Rows.
+
+Skill/Gym: Toes-to-Bar ▸ Hanging Knee Raises ▸ Double-Unders ▸ Single-Unders ▸ Handstand Hold ▸ Wall-Facing Hold.
+
+Core: Hollow Rocks ▸ Plank Variations ▸ Sit-Ups.
+
+Hardness score (0–1) — compute and enforce
+
+Base per pattern: Strength E3:00x5 = .28; EMOM 12 = .22; AMRAP 12 = .22; 21-15-9 = .20.
+
+Add +.05 if barbell used; +.03 if DB/KB used; +.02 if cyclical cals present; −.07 if any bodyweight-only movement appears in two main items.
+
+Cap 1.0. If < .65, regenerate and upgrade.
+
+Readiness gates
+
+Sleep < 60 or HRV flagged → cap strength at RPE 7, exclude sprints/plyos; hardness floor becomes .55.
+
+Mixed semantics
+
+The number of main blocks must equal len(categories_for_mixed) and each block’s kind must map to that category (strength/conditioning/skill/core). If time remains > 10% short, add one For-Time 21-15-9 finisher ≤10 min.
+
+Schema and acceptance criteria
+(identical to the strict JSON + acceptance_flags I gave in the last message).
+
+2) Post-gen sanitizer (server hotfix)
+
+Add this guard after the agent returns JSON—this prevents wall-sit/climber junk from ever shipping.
+
+const BANNED_EASY = new Set([
+  "Wall Sit","Mountain Climber","Star Jump","High Knees","Jumping Jacks","Side Plank Reach"
+]);
+
+function computeHardness(workout) {
+  let h = 0;
+  for (const b of workout.blocks) {
+    if (b.kind === "strength" && /Every 3:00/.test(b.title)) h += .28;
+    if (b.kind === "conditioning" && /EMOM/.test(b.title)) h += .22;
+    if (b.kind === "conditioning" && /AMRAP/.test(b.title)) h += .22;
+    if (b.kind === "conditioning" && /21-15-9/.test(b.title)) h += .20;
+
+    const text = JSON.stringify(b.items).toLowerCase();
+    if (/(barbell|bb )/.test(text)) h += .05;
+    if (/(dumbbell|db |kettlebell|kb )/.test(text)) h += .03;
+    if (/(echo bike|row|ski)/.test(text)) h += .02;
+
+    let bwOnly = 0;
+    for (const it of b.items || []) {
+      const name = (it.exercise || it.text || "").trim();
+      if (BANNED_EASY.has(name)) bwOnly++;
+    }
+    if (bwOnly >= 2) h -= .07;
+  }
+  return Math.min(1, Math.max(0, h));
+}
+
+function sanitize(workout, opts) {
+  // 1) Nuke banned BW items in main blocks if equipment exists
+  const hasLoad = (opts.equipment||[]).some(e => /(barbell|dumbbell|kettlebell)/i.test(e));
+  for (const b of workout.blocks) {
+    if (["strength","conditioning","skill","core"].includes(b.kind) && b.kind !== "warmup" && b.kind !== "cooldown" && hasLoad) {
+      b.items = b.items.map(it => {
+        if (BANNED_EASY.has((it.exercise||"").trim())) {
+          return { ...it, exercise: "DB Box Step-Overs", notes: (it.notes||"") + " (auto-sub for intensity)" };
+        }
+        return it;
+      });
+    }
+  }
+  // 2) Hardness floor
+  let floor = .65;
+  const ws = opts.wearable_snapshot || {};
+  if (ws.sleep_score && ws.sleep_score < 60) floor = .55;
+
+  workout.variety_score = computeHardness(workout);
+  workout.acceptance_flags = workout.acceptance_flags || {};
+  workout.acceptance_flags.hardness_ok = workout.variety_score >= floor;
+
+  return workout;
+}
+
+
+Hook it in your handler:
+
+let w = agentOutputJson;
+w = sanitize(w, { equipment: req.body.equipment, wearable_snapshot: req.body.wearable_snapshot });
+if (!w.acceptance_flags?.hardness_ok) {
+  // ask agent to regenerate with reason "hardness<floor" (or run a local upgrade step)
+  // For now, upgrade by swapping BW with DB/KB/BB and trimming rests, then recompute.
+}
+
+3) Minimal “pattern pack” the agent can pick from (few-shot usable)
+
+Use these as assistant examples or as “tool” content the agent selects from.
+
+Strength — Every 3:00 x 5
+A1 DB Front-Foot Elevated Split Squat — 4×8/leg @ RIR 1–2 (rest 60s)
+A2 DB Floor Press — 4×8 @ RIR 1–2 (rest 90s)
+
+Conditioning — EMOM 12
+Odd: 12/10 cals Echo Bike (nasal pace)
+Even: 10 DB Box Step-Overs (moderate)
+
+Skill — AMRAP 8
+30 Double-Under practice (or 60 Singles)
+:20 Handstand Hold (wall-facing)
+10 Hanging Knee Raises (or 6 Toes-to-Bar)
+
+For-Time — 21-15-9 (≤10:00 cap)
+DB Push Press (moderate) + KB Swings (or Air Squats x 30/24/18 if no KB)
+
+4) Known UI/API gotchas to fix right now
+
+Pass categories when focus="mixed" (e.g., ["Strength","Conditioning","Skill"]).
+
+Pass equipment (array of strings) or the agent assumes “no gear” and downshifts to BW.
+
+Ensure your renderer supports multi-line items and block titles exactly as above.
+
+5) A correct, hard 45-min example (paste to preview)
+
+This is exactly what you should see after the fixes; time = 49 (within +10%).
+
+{
+  "title": "Mixed — Strength + Conditioning + Skill",
+  "focus": "mixed",
+  "duration_min": 45,
+  "blocks": [
+    {
+      "title": "Warm-up — Example 2",
+      "kind": "warmup",
+      "time_min": 8,
+      "items": [
+        {"exercise":"2:00 Cardio (choice)","scheme":{"sets":1,"reps":"2:00","rpe":null,"rest_s":60,"tempo":null},"notes":"Easy → moderate"},
+        {"exercise":"Alternating Box Step-Ups","scheme":{"sets":1,"reps":"12/side","rpe":null,"rest_s":0,"tempo":null},"notes":""},
+        {"exercise":"Deep Lunge Mountain Climbers","scheme":{"sets":1,"reps":"12","rpe":null,"rest_s":0,"tempo":null},"notes":""},
+        {"exercise":"Down-Dog Toe Touches → :30 Child’s Pose","scheme":{"sets":1,"reps":"10 + :30","rpe":null,"rest_s":0,"tempo":null},"notes":""},
+        {"exercise":"Air Squats","scheme":{"sets":1,"reps":"10","rpe":null,"rest_s":0,"tempo":null},"notes":""},
+        {"exercise":"Alt Reverse Lunges","scheme":{"sets":1,"reps":"10/side","rpe":null,"rest_s":0,"tempo":null},"notes":""}
+      ],
+      "coach_notes":["Move smooth, nasal breathing; Rest :60 between sets"]
+    },
+    {
+      "title": "Strength — Every 3:00 x 5 sets",
+      "kind": "strength",
+      "time_min": 15,
+      "items": [
+        {"exercise":"DB Front-Foot Elevated Split Squat","scheme":{"sets":4,"reps":"8/leg","rpe":"RIR 1–2","rest_s":60,"tempo":"2-0-1"},"notes":"Front heel heavy; tall torso"},
+        {"exercise":"DB Floor Press","scheme":{"sets":4,"reps":"8","rpe":"RIR 1–2","rest_s":90,"tempo":"2-1-1"},"notes":"Stop 1–2 reps shy of failure"}
+      ],
+      "coach_notes":["Density focus; choose loads you could hit for ~10 reps on set 1"]
+    },
+    {
+      "title": "Conditioning — EMOM 12",
+      "kind": "conditioning",
+      "time_min": 12,
+      "items": [
+        {"exercise":"Odd: Echo Bike","scheme":{"sets":6,"reps":"12/10 cals","rpe":null,"rest_s":0,"tempo":null},"notes":"Sustainable, finish by :45"},
+        {"exercise":"Even: DB Box Step-Overs","scheme":{"sets":6,"reps":"10","rpe":null,"rest_s":0,"tempo":null},"notes":"Moderate load, steady footwork"}
+      ],
+      "coach_notes":["Aim :40 work / :20 float each minute"]
+    },
+    {
+      "title": "Skill — AMRAP 8",
+      "kind": "skill",
+      "time_min": 8,
+      "items": [
+        {"exercise":"Double-Unders or Single-Unders","scheme":{"sets":1,"reps":"30 or 60","rpe":null,"rest_s":0,"tempo":null},"notes":"Practice smooth turn-over"},
+        {"exercise":"Handstand Hold (wall-facing)","scheme":{"sets":1,"reps":":20","rpe":null,"rest_s":0,"tempo":null},"notes":""},
+        {"exercise":"Hanging Knee Raises (or Toes-to-Bar)","scheme":{"sets":1,"reps":"10","rpe":null,"rest_s":0,"tempo":null},"notes":""}
+      ],
+      "coach_notes":["Quality > speed; break before form breaks"]
+    },
+    {
+      "title": "Cool Down — Stretching",
+      "kind": "cooldown",
+      "time_min": 6,
+      "items": [
+        {"exercise":"Legs Up the Wall","scheme":{"sets":2,"reps":":90","rpe":null,"rest_s":0,"tempo":null},"notes":""},
+        {"exercise":"Child’s Pose / Cat-Cows","scheme":{"sets":2,"reps":":45 / :30","rpe":null,"rest_s":0,"tempo":null},"notes":""},
+        {"exercise":"Seated Toe-Touch / Deep Squat Hold","scheme":{"sets":2,"reps":":30 / :30","rpe":null,"rest_s":0,"tempo":null},"notes":""},
+        {"exercise":"Pigeon (R/L)","scheme":{"sets":2,"reps":":60/side","rpe":null,"rest_s":0,"tempo":null},"notes":""}
+      ],
+      "coach_notes":["Slow breathing; no pain in end ranges"]
+    }
+  ],
+  "substitutions": [],
+  "variety_score": 0.74,
+  "acceptance_flags": {
+    "time_fit": true,
+    "has_warmup": true,
+    "has_cooldown": true,
+    "mixed_rule_ok": true,
+    "equipment_ok": true,
+    "injury_safe": true,
+    "readiness_mod_applied": true,
+    "hardness_ok": true
+  }
+}
+
+
+TL;DR: Lock the agent to CF patterns, ban BW filler in main blocks, enforce a hardness floor in your server, and ensure the client passes categories_for_mixed and equipment. Paste the example JSON to verify the renderer. If this still outputs “wall sits + climbers,” your backend isn’t feeding the new system prompt to the right agent—call that out and I’ll give you a one-liner trace to confirm which prompt ran.
