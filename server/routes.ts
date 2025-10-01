@@ -422,19 +422,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const premiumWorkout = await generatePremiumWorkout(premiumRequest);
           
+          // Convert premium workout to UI format using shared converter
+          const { convertPremiumToGenerated } = await import('./workoutGenerator');
+          const converted = convertPremiumToGenerated(premiumWorkout, {
+            category: goal,
+            duration: durationMin,
+            intensity
+          });
+          
           const workout = {
             id: `premium-${Date.now()}`,
-            blocks: premiumWorkout.blocks || [],
+            ...converted,
             estTimeMin: premiumWorkout.duration_min || durationMin,
-            intensity,
-            variety_score: premiumWorkout.variety_score,
             seed: seed || 'premium-generated',
             meta: {
+              ...converted.meta,
               title: premiumWorkout.title || `${goal} Workout`,
               goal,
-              equipment: equipmentList,
-              generator: 'premium',
-              acceptance: premiumWorkout.acceptance_flags || {}
+              equipment: equipmentList
             }
           };
           

@@ -182,29 +182,29 @@ function shouldForcePremium(request: EnhancedWorkoutRequest, equipment?: string[
 }
 
 // Convert premium workout format to GeneratedWorkout format with meta
-function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkoutRequest): GeneratedWorkout & { meta?: any } {
+export function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkoutRequest): GeneratedWorkout & { meta?: any } {
   const sets: WorkoutSet[] = [];
   
-  // Convert each block to sets
+  // Convert each block to a single set (preserving block structure)
   premiumWorkout.blocks.forEach((block: any, blockIndex: number) => {
-    block.items.forEach((item: any, itemIndex: number) => {
-      sets.push({
-        id: `premium-${blockIndex}-${itemIndex}-${Date.now()}`,
-        exercise: `${block.title}: ${item.exercise}`,
-        weight: undefined,
-        reps: typeof item.scheme.reps === 'number' ? item.scheme.reps : undefined,
-        duration: item.scheme.rest_s || undefined,
-        distance: undefined,
-        restTime: item.scheme.rest_s || (request.intensity >= 7 ? 60 : 90),
-        notes: `${block.kind.toUpperCase()} - ${item.notes}\n${block.coach_notes.join(' ')}`
-      });
+    // Format items list for notes
+    const itemsList = block.items.map((item: any) => {
+      return `• ${item.exercise}: ${item.target}${item.notes ? ` (${item.notes})` : ''}`;
+    }).join('\n');
+    
+    // Create one set per block
+    sets.push({
+      id: `premium-block-${blockIndex}-${Date.now()}`,
+      exercise: block.title,
+      duration: block.time_min * 60, // Convert minutes to seconds
+      notes: `${block.kind.toUpperCase()}\n\n${itemsList}${block.notes ? '\n\n' + block.notes : ''}`
     });
   });
 
   return {
     name: premiumWorkout.title,
     category: request.category,
-    description: `Premium ${premiumWorkout.focus} workout with warm-up and cool-down. ${premiumWorkout.blocks.length} blocks total.`,
+    description: `Premium ${premiumWorkout.focus || 'Mixed Focus'} workout with warm-up and cool-down. ${premiumWorkout.blocks.length} blocks total.`,
     duration: premiumWorkout.duration_min,
     intensity: request.intensity,
     sets,
