@@ -235,14 +235,14 @@ FALLBACK LADDER (BB → DB → KB → BW):
 ${Object.entries(FALLBACK_LADDER).map(([key, vals]) => `${key} → ${vals.join(' → ')}`).join('\n')}
 
 STRUCTURE REQUIREMENTS:
-1. Warm-up: ≥6 min (foam roll, mobility, ramp-up drills)
+1. Warm-up: ≥8 min with 6-7 exercises (foam roll, mobility drills, dynamic stretches, movement prep)
 2. Main block(s): Choose ONLY from:
-   - E3:00 x 5 / E4:00 x 4 (strength density; E4:00 x 4 for strength into skill/row pairing)
-   - EMOM 10-16 (conditioning or mixed)
-   - AMRAP 8-15 (conditioning)
-   - For Time 21-15-9 (finisher, ≤10 min)
-   - Chipper 40-30-20-10 (≤12 min cap; 3 movements max; loaded+cyclical mix)
-3. Cool-down: ≥4 min (stretching, breathing)
+   - E3:00 x 5 / E4:00 x 4 (3-5 movements per round; strength density; E4:00 x 4 for strength into skill/row pairing)
+   - EMOM 10-16 (3-4 movements rotating; conditioning or mixed)
+   - AMRAP 8-15 (4-5 movements; conditioning)
+   - For Time 21-15-9 (3-4 movements; finisher, ≤10 min)
+   - Chipper 40-30-20-10 (3-4 movements; ≤12 min cap; loaded+cyclical mix)
+3. Cool-down: ≥8 min with 5-6 exercises (active recovery, static stretches, breathing work)
 
 MAIN BLOCK RULES:
 - NO bodyweight filler (wall sit, mountain climber, star jump, high knees) in main blocks
@@ -265,9 +265,13 @@ EXAMPLE OUTPUT:
       "title": "Warm-Up",
       "time_min": 8,
       "items": [
-        { "exercise": "Foam Roll", "target": "2 min", "notes": "Upper back, lats, quads" },
-        { "exercise": "Dynamic Stretching", "target": "3 min", "notes": "Leg swings, arm circles" },
-        { "exercise": "Barbell Warm-Up", "target": "3 min", "notes": "5 reps: deadlift, hang clean, press" }
+        { "exercise": "Foam Roll", "target": "2 min", "notes": "Upper back, lats, IT bands, quads" },
+        { "exercise": "Cat-Cow", "target": "10 reps", "notes": "Spinal mobility" },
+        { "exercise": "World's Greatest Stretch", "target": "5/side", "notes": "Hip mobility, thoracic rotation" },
+        { "exercise": "Jumping Jacks", "target": "40 reps", "notes": "Elevate HR" },
+        { "exercise": "Air Squat", "target": "15 reps", "notes": "Full ROM" },
+        { "exercise": "Push-Up", "target": "10 reps", "notes": "Shoulder activation" },
+        { "exercise": "Barbell Complex", "target": "5 reps each", "notes": "Deadlift, hang clean, front squat, press" }
       ]
     },
     {
@@ -275,7 +279,9 @@ EXAMPLE OUTPUT:
       "title": "E3:00 x 5",
       "time_min": 15,
       "items": [
-        { "exercise": "BB Clean & Jerk", "target": "3 reps @ 75%", "notes": "Focus on explosive hip drive" }
+        { "exercise": "BB Clean & Jerk", "target": "3 reps @ 75%", "notes": "Explosive hip drive" },
+        { "exercise": "BB Front Squat", "target": "5 reps @ 70%", "notes": "Controlled tempo down" },
+        { "exercise": "Strict Pull-Ups", "target": "8 reps", "notes": "Full range of motion" }
       ],
       "notes": "Build to working weight across 5 sets"
     },
@@ -284,18 +290,23 @@ EXAMPLE OUTPUT:
       "title": "EMOM 12",
       "time_min": 12,
       "items": [
-        { "exercise": "Echo Bike Calories", "target": "12/10 cal", "notes": "Odd minutes" },
-        { "exercise": "DB Snatches", "target": "10 reps (5/arm)", "notes": "Even minutes, moderate load" }
+        { "exercise": "Echo Bike Calories", "target": "12/10 cal", "notes": "Odd minutes, hard pace" },
+        { "exercise": "DB Snatches", "target": "10 reps (5/arm)", "notes": "Even minutes, moderate load" },
+        { "exercise": "Burpees", "target": "10 reps", "notes": "Minute 4, 8, 12" }
       ],
-      "notes": "Alternate odd/even minutes"
+      "notes": "Rotating exercises every minute"
     },
     {
       "kind": "cooldown",
       "title": "Cool-Down",
-      "time_min": 10,
+      "time_min": 8,
       "items": [
-        { "exercise": "Walk/Light Bike", "target": "3 min", "notes": "Lower heart rate" },
-        { "exercise": "Static Stretching", "target": "7 min", "notes": "Hamstrings, shoulders, hip flexors" }
+        { "exercise": "Walk or Light Bike", "target": "3 min", "notes": "Gradually lower heart rate" },
+        { "exercise": "Child's Pose", "target": "60 sec", "notes": "Deep breathing, lat stretch" },
+        { "exercise": "Pigeon Stretch", "target": "45 sec/side", "notes": "Hip flexor release" },
+        { "exercise": "Hamstring Stretch", "target": "45 sec/side", "notes": "Seated or standing" },
+        { "exercise": "Spinal Twist", "target": "45 sec/side", "notes": "Gentle rotation" },
+        { "exercise": "Shoulder Stretch", "target": "60 sec total", "notes": "Doorway or wall-assisted" }
       ]
     }
   ],
@@ -315,15 +326,16 @@ EXAMPLE OUTPUT:
 
 ACCEPTANCE CRITERIA (self-check before output):
 HARD REQUIREMENTS:
-1. Warm-up present (≥6 min) and Cool-down present (≥4 min)
-2. Time budget: Σ time_min within ±10% of duration_min
-3. Mixed semantics: If focus="mixed", number of main blocks = len(categories_for_mixed); each block's kind maps to category. If time < duration_min × 0.9, append +1 finisher (For Time 21-15-9, ≤10 min).
-4. Equipment-safe: No exercise requires missing equipment. If swapped, log in substitutions[]. When gear (BB/DB/KB) is present, at least 2/3 of main movements must be loaded.
-5. Injury-safe: No contraindicated patterns; provide safer alternates
-6. Readiness: If low readiness (Sleep < 60 or HRV flagged), cap strength at RPE ≤ 7, remove sprints/plyos
-7. Hardness score: Must be ≥ 0.75 when equipment present and readiness good (or ≥ 0.55 if readiness is low). Use BB/DB/KB movements, not bodyweight filler. Pair cyclical with loaded movements in EMOMs.
-8. Clarity: Every items[] entry has explicit reps/cal/time, any rest, and intent via notes
-9. Structure: Order is Warm-up → main block(s) → Cool-down
+1. Warm-up present (≥8 min, 6-7 exercises: foam roll, mobility, dynamic stretches, movement prep) and Cool-down present (≥8 min, 5-6 exercises: active recovery, static stretches)
+2. Main blocks: 3-5 movements per block (not 1-2). E3:00 x 5 needs 3+ movements per round. EMOM needs 3-4 rotating movements. AMRAP needs 4-5 movements.
+3. Time budget: Σ time_min within ±10% of duration_min
+4. Mixed semantics: If focus="mixed", number of main blocks = len(categories_for_mixed); each block's kind maps to category. If time < duration_min × 0.9, append +1 finisher (For Time 21-15-9, ≤10 min).
+5. Equipment-safe: No exercise requires missing equipment. If swapped, log in substitutions[]. When gear (BB/DB/KB) is present, at least 2/3 of main movements must be loaded.
+6. Injury-safe: No contraindicated patterns; provide safer alternates
+7. Readiness: If low readiness (Sleep < 60 or HRV flagged), cap strength at RPE ≤ 7, remove sprints/plyos
+8. Hardness score: Must be ≥ 0.75 when equipment present and readiness good (or ≥ 0.55 if readiness is low). Use BB/DB/KB movements, not bodyweight filler. Pair cyclical with loaded movements in EMOMs.
+9. Clarity: Every items[] entry has explicit reps/cal/time, any rest, and intent via notes
+10. Structure: Order is Warm-up → main block(s) → Cool-down
 
 SOFT REQUIREMENTS:
 9. Unilateral work balanced per side
@@ -1024,32 +1036,40 @@ function makeFinisher21_15_9(req: WorkoutGenerationRequest): any {
 }
 
 function pickWarmup(req: WorkoutGenerationRequest): any {
+  const equipment = req.context?.equipment || [];
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  
   return {
     kind: 'warmup',
     title: 'Dynamic Warm-Up',
-    time_min: 5,
+    time_min: 8,
     items: [
-      { exercise: 'Jumping Jacks', target: '30 reps', notes: 'Get heart rate up' },
-      { exercise: 'Arm Circles', target: '20 total', notes: 'Forward and backward' },
-      { exercise: 'Leg Swings', target: '10/leg', notes: 'Front to back, side to side' },
-      { exercise: 'Inchworm', target: '5 reps', notes: 'Walk hands out to plank' }
+      { exercise: 'Foam Roll', target: '2 min', notes: 'Upper back, lats, IT bands, quads' },
+      { exercise: 'Cat-Cow', target: '10 reps', notes: 'Spinal mobility, controlled breathing' },
+      { exercise: 'World\'s Greatest Stretch', target: '5/side', notes: 'Hip mobility, thoracic rotation' },
+      { exercise: 'Jumping Jacks', target: '40 reps', notes: 'Elevate heart rate' },
+      { exercise: 'Air Squat', target: '15 reps', notes: 'Full ROM, tempo' },
+      { exercise: 'Push-Up', target: '10 reps', notes: 'Shoulder activation' },
+      ...(hasBarbell ? [{ exercise: 'Barbell Complex', target: '5 reps each', notes: 'Deadlift, hang clean, front squat, press' }] : [{ exercise: 'Inchworm', target: '8 reps', notes: 'Hamstring + shoulder prep' }])
     ],
-    notes: 'Prepare body for main work'
+    notes: 'Comprehensive mobility and activation'
   };
 }
 
 function makeCooldown(): any {
   return {
     kind: 'cooldown',
-    title: 'Cool Down & Stretch',
-    time_min: 5,
+    title: 'Cool Down & Recovery',
+    time_min: 8,
     items: [
-      { exercise: 'Walk or Light Jog', target: '2 min', notes: 'Bring heart rate down' },
-      { exercise: 'Hamstring Stretch', target: '30 sec/side', notes: 'Seated or standing' },
-      { exercise: 'Quad Stretch', target: '30 sec/side', notes: 'Standing, hold foot' },
-      { exercise: 'Shoulder Stretch', target: '30 sec/side', notes: 'Cross-body arm pull' }
+      { exercise: 'Walk or Light Bike', target: '3 min', notes: 'Gradually lower heart rate' },
+      { exercise: 'Child\'s Pose', target: '60 sec', notes: 'Deep breathing, lat stretch' },
+      { exercise: 'Pigeon Stretch', target: '45 sec/side', notes: 'Hip flexor and glute release' },
+      { exercise: 'Hamstring Stretch', target: '45 sec/side', notes: 'Seated or standing, relaxed' },
+      { exercise: 'Spinal Twist', target: '45 sec/side', notes: 'Supine or seated, gentle rotation' },
+      { exercise: 'Shoulder + Chest Stretch', target: '60 sec total', notes: 'Doorway or wall-assisted' }
     ],
-    notes: 'Active recovery and mobility'
+    notes: 'Complete recovery protocol'
   };
 }
 
