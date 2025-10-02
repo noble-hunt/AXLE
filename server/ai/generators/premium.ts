@@ -651,7 +651,7 @@ function sanitizeWorkout(
 
   workout.variety_score = computeHardness(workout);
   
-  // 2b) Enforce hardness floor: append finisher if hardness < floor
+  // ===== HOBH: finisher only-on-deficit and harder defaults =====
   let hardnessFinisherAdded = false;
   if (workout.variety_score < floor) {
     console.warn(`⚠️ Hardness ${workout.variety_score.toFixed(2)} < floor ${floor.toFixed(2)}, appending intensity finisher`);
@@ -659,41 +659,52 @@ function sanitizeWorkout(
     // Find cooldown index
     const cooldownIdx = workout.blocks.findIndex(b => b.kind === 'cooldown');
     
-    // Select a loaded movement based on available equipment
-    let finisherMovement = "DB Snatches";
-    let finisherSecondMovement = "Burpees";
-    if (hasLoad) {
-      if (equipment.includes('barbell')) {
-        finisherMovement = "BB Thrusters";
-        finisherSecondMovement = "BB Clean & Jerk";
-      } else if (equipment.includes('dumbbell')) {
-        finisherMovement = "DB Snatches";
-        finisherSecondMovement = "DB Box Step-Overs";
-      } else if (equipment.includes('kettlebell')) {
-        finisherMovement = "KB Swings";
-        finisherSecondMovement = "KB Goblet Squat";
-      }
-    }
+    // Helper: Choose loaded hinge movement
+    const chooseLoadedHinge = () => {
+      if (equipment.includes('barbell')) return "BB Deadlift";
+      if (equipment.includes('dumbbell')) return "DB Romanian Deadlift";
+      if (equipment.includes('kettlebell')) return "KB Swings";
+      return "Good Mornings"; // bodyweight fallback
+    };
     
-    // Create finisher block (For Time 21-15-9, ≤10 min)
-    // Use TWO loaded movements to maintain equipment ratio
+    // Helper: Choose press or wall ball
+    const choosePressOrWallBall = () => {
+      if (equipment.includes('barbell')) return "BB Thrusters";
+      if (equipment.includes('dumbbell')) return "DB Push Press";
+      if (equipment.includes('kettlebell')) return "KB Push Press";
+      return "Wall Balls"; // or bodyweight: "Burpees"
+    };
+    
+    // Helper: Choose cyclical movement
+    const chooseCyclical = () => {
+      if (equipment.includes('rower')) return "Row";
+      if (equipment.includes('bike')) return "Bike";
+      return "Run"; // universal fallback
+    };
+    
+    // Create finisher block (For Time 30-20-10, ≤12 min)
     const finisher = {
       kind: "conditioning" as const,
-      title: "For Time 21-15-9",
-      time_min: 8,
+      title: "For Time 30-20-10",
+      time_min: 12,
       items: [
         { 
-          exercise: finisherMovement, 
-          target: "21-15-9", 
-          notes: "Quick pace, prioritize movement quality" 
+          exercise: chooseLoadedHinge(), 
+          target: "30-20-10", 
+          notes: "Maintain tension and form" 
         },
         { 
-          exercise: finisherSecondMovement, 
-          target: "21-15-9", 
-          notes: "Full range, explosive" 
+          exercise: choosePressOrWallBall(), 
+          target: "30-20-10", 
+          notes: "Explosive power" 
+        },
+        { 
+          exercise: chooseCyclical(), 
+          target: "30-20-10 cals", 
+          notes: "Push the pace" 
         }
       ],
-      notes: "Fast finisher to elevate heart rate and add intensity"
+      notes: "Harder finisher to boost intensity"
     };
     
     // Insert before cooldown
