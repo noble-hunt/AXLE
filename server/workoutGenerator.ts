@@ -201,58 +201,41 @@ CRITICAL RULES:
 
 Return ONLY the JSON object. No markdown formatting, explanations, or additional text.`;
 };
-
-
-// Convert premium workout format to GeneratedWorkout format with meta
-function toUiSetsFromPremium(premium: any) {
+// ===== HOBH: premium -> UI conversion (preserve patterns/items) =====
+export function convertPremiumToGenerated(premium: any): any {
   const sets: any[] = [];
-  let idCounter = 0;
-  
   for (const b of premium.blocks) {
     const header = (b.kind === 'warmup') ? 'Warm-up' : (b.kind === 'cooldown' ? 'Cool-down' : b.title);
+    // block header (as a container row)
     sets.push({
-      id: `premium-${Date.now()}-${idCounter++}`,
+      id: `premium-${Math.random().toString(36).slice(2, 10)}`,
       exercise: header,
       reps: undefined,
-      duration: (b.time_min || 0) * 60,
+      duration: (b.time_min || 0) * 60,       // only block duration
       notes: b.title
     });
-
+    // exact items
     for (const it of (b.items || [])) {
-      const reps = typeof it.scheme?.reps === 'number' ? `${it.scheme.reps}` : (it.scheme?.reps || '');
-      const notesParts = [];
-      if (it.notes) notesParts.push(it.notes);
-      if (it.scheme?.rpe) notesParts.push(`@ ${it.scheme.rpe}`);
-      if (it.scheme?.rest_s) notesParts.push(`Rest ${it.scheme.rest_s}s`);
+      const r = typeof it.scheme?.reps === 'number' ? `${it.scheme.reps}` : (it.scheme?.reps || '');
+      const notes = [it.notes, it.scheme?.rpe ? `@ ${it.scheme.rpe}` : '', it.scheme?.rest_s ? `Rest ${it.scheme.rest_s}s` : '']
+        .filter(Boolean).join(' · ');
       sets.push({
-        id: `premium-${Date.now()}-${idCounter++}`,
+        id: `premium-item-${Math.random().toString(36).slice(2, 10)}`,
         exercise: it.exercise,
-        reps,
-        duration: undefined,            // DO NOT auto-fill minutes
-        notes: notesParts.join(' · ')
+        reps: r,
+        duration: undefined,       // DO NOT synthesize per-item durations
+        notes
       });
     }
   }
-  return sets;
-}
-
-export function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkoutRequest): any {
-  const sets = toUiSetsFromPremium(premiumWorkout);
-
   return {
-    name: premiumWorkout.title,
-    category: request.category,
-    description: `Premium ${premiumWorkout.focus || 'Mixed Focus'} workout with warm-up and cool-down. ${premiumWorkout.blocks.length} blocks total.`,
-    duration: premiumWorkout.duration_min,
-    intensity: request.intensity,
+    name: premium.title || 'HOBH Workout',
+    category: 'CrossFit',
+    description: 'Premium CF/HIIT with warm-up, mains, cool-down',
+    duration: premium.duration_min,
+    intensity: premium.intensity || 7,
     sets,
-    variety_score: premiumWorkout.variety_score,
-    acceptance_flags: premiumWorkout.acceptance_flags || {},
-    meta: {
-      generator: 'premium' as const,
-      acceptance: premiumWorkout.acceptance_flags || {},
-      seed: premiumWorkout.meta?.seed
-    }
+    meta: premium.meta || {}
   };
 }
 
@@ -324,7 +307,7 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
       const upgradedWorkout = upgradeIntensity(premiumWorkout, equipment, readiness);
       console.log('✅ Intensity upgrade complete. Hardness:', upgradedWorkout.variety_score, 'hardness_ok:', upgradedWorkout.acceptance_flags?.hardness_ok);
       
-      result = convertPremiumToGenerated(upgradedWorkout, request);
+      result = convertPremiumToGenerated(upgradedWorkout);
     } else {
       generatorUsed = 'simple';
       const prompt = createPromptTemplate(request);
