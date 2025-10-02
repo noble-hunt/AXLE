@@ -9,7 +9,9 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "refs:build": "node scripts/build-ref-manifest.cjs"
+    "refs:build": "node scripts/build-ref-manifest.cjs",
+    "test:workouts": "vitest run __tests__/workouts.premium.spec.ts",
+    "smoke:workouts": "node scripts/smokeWorkouts.js"
   },
   "dependencies": {
     "@capacitor/cli": "^7.4.3",
