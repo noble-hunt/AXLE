@@ -403,27 +403,27 @@ export function computeHardness(workout: PremiumWorkout): number {
   let h = 0;
   
   for (const b of workout.blocks) {
-    // Pattern-based scoring (case-insensitive, match both long and short forms)
-    if (b.kind === "strength" && /(Every\s+[34]:00|E[34]:00)/i.test(b.title)) h += 0.28;
-    if (b.kind === "conditioning" && /EMOM/i.test(b.title)) h += 0.22;
-    if (b.kind === "conditioning" && /AMRAP/i.test(b.title)) h += 0.22;
-    if (b.kind === "conditioning" && /21-15-9/.test(b.title)) h += 0.20;
-    if (b.kind === "conditioning" && /Chipper 40-30-20-10/i.test(b.title)) h += 0.24;
+    // ===== HOBH: pattern bonuses (hard mode) =====
+    if (/(Every\s+[234]:00|E[234]:00)/i.test(b.title)) h += 0.35;   // was 0.28
+    if (/EMOM/i.test(b.title))       h += 0.30;  // was 0.22
+    if (/AMRAP/i.test(b.title))      h += 0.30;  // was 0.22
+    if (/21-15-9/i.test(b.title))    h += 0.28;  // was 0.20
+    if (/Chipper/i.test(b.title))    h += 0.32;  // was 0.24
 
-    // Equipment bonuses
+    // ===== HOBH: equipment & heavy movement bonuses =====
     const text = JSON.stringify(b.items).toLowerCase();
     const hasBarbell = /(barbell|bb[\s,])/.test(text);
     const hasDbKb = /(dumbbell|db[\s,]|kettlebell|kb[\s,])/.test(text);
     const hasCyclical = /(echo bike|row|ski|cal)/.test(text);
     
-    if (hasBarbell) h += 0.05;
-    if (hasDbKb) h += 0.03;
-    if (hasCyclical) h += 0.02;
+    if (hasBarbell)  h += 0.10; // was 0.05
+    if (hasDbKb)     h += 0.07; // was 0.03
+    if (hasCyclical) h += 0.05; // was 0.02
     
-    // Heavy-movement bonuses (+0.05 each for advanced loaded movements)
-    if (text.includes("clean & jerk") || text.includes("clean and jerk") || text.includes("clean&jerk")) h += 0.05;
-    if (text.includes("thruster")) h += 0.05;
-    if (text.includes("deadlift") || text.includes("rdl")) h += 0.05;
+    // heavy lifts present?
+    if (/clean\s*&\s*jerk/i.test(text)) h += 0.08; // was 0.05
+    if (/thruster/i.test(text))         h += 0.08; // was 0.05
+    if (/deadlift/i.test(text))         h += 0.08; // was 0.05
     if (text.includes("front squat")) h += 0.05;
     if (text.includes("weighted pull-up") || text.includes("weighted pullup")) h += 0.05;
     if (text.includes("wall ball")) h += 0.05;
@@ -638,15 +638,16 @@ function sanitizeWorkout(
     }
   }
   
-  // 2) Calculate hardness and check floor
-  let floor = 0.65;
+  // ===== HOBH: hardness floor (hard mode) =====
+  let floor = 0.75; // base floor (was 0.65)
+  // lowReadiness and hasLoad already declared above
   
-  // Raise floor to 0.75 when equipment includes DB/KB/BB and sleep >= 60
   if (hasLoad && !lowReadiness) {
-    floor = 0.75;
+    floor = 0.85;  // was 0.75 —> HARDER by default when gear present
   } else if (lowReadiness) {
-    floor = 0.55;
+    floor = 0.55;  // unchanged guardrail
   }
+  // If score < floor, attempt repair path first; only then consider finisher.
 
   workout.variety_score = computeHardness(workout);
   
