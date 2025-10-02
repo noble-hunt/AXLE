@@ -31,11 +31,17 @@ const AcceptanceFlagsSchema = z.object({
   patterns_locked: z.boolean()
 });
 
+const SubstitutionSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  reason: z.string()
+});
+
 const PremiumWorkoutSchema = z.object({
   title: z.string(),
   duration_min: z.number(),
   blocks: z.array(WorkoutBlockSchema),
-  substitutions: z.array(z.string()).optional(),
+  substitutions: z.array(SubstitutionSchema).optional(),
   acceptance_flags: AcceptanceFlagsSchema,
   variety_score: z.number().optional()
 });
@@ -75,29 +81,32 @@ const ALLOWED_PATTERNS = [
 // Movement pools with expanded options
 const MOVEMENT_POOLS = {
   conditioning: [
-    "Echo Bike Calories",
-    "Row for Calories",
-    "Ski Erg",
+    "Echo Bike cals",
+    "Row cals",
+    "Ski Erg cals",
     "KB Swings",
     "DB Box Step-Overs",
     "Burpees",
     "Wall Balls",
-    "DB/KB Farmer Carry",
-    "Shuttle Runs",
-    "DB Snatches"
+    "Farmer Carry (DB/KB)",
+    "DB Snatch (alt: KB Swings)",
+    "Shuttle Runs (no machine)"
   ],
   strength: [
-    "BB Back Squat",
-    "BB Front Squat",
-    "BB Deadlift",
-    "BB RDL",
-    "BB Thruster",
-    "BB Clean & Jerk",
-    "DB Bench Press",
-    "DB Floor Press",
-    "Weighted Pull-Ups (fallback: Strict Pull-Ups → Ring Rows)",
-    "DB/KB Goblet Squat",
-    "DB/KB Overhead Press"
+    "Barbell Front Squat",
+    "Barbell Push Press",
+    "Barbell Deadlift",
+    "Barbell Thruster",
+    "Barbell Clean & Jerk (moderate, touch-and-go)",
+    "Dumbbell Floor Press",
+    "Dumbbell Bench Press",
+    "DB Goblet Squat",
+    "DB Romanian Deadlift",
+    "KB Front Rack Squat",
+    "KB Push Press",
+    "Weighted Pull-Ups",
+    "Strict Pull-Ups",
+    "Ring Rows"
   ],
   skill: [
     "Toes-to-Bar",
@@ -111,6 +120,76 @@ const MOVEMENT_POOLS = {
     "Sit-Ups"
   ]
 };
+
+// Equipment fallback ladder: Barbell → Dumbbell → Kettlebell → Bodyweight
+const MOVEMENT_FALLBACKS: Record<string, string[]> = {
+  "Barbell Front Squat": ["DB Goblet Squat", "KB Front Rack Squat", "Air Squat x 20 tempo"],
+  "Barbell Push Press": ["DB Push Press", "KB Push Press", "Push-Ups x 15"],
+  "Barbell Deadlift": ["DB Romanian Deadlift", "KB Deadlift", "Glute Bridge x 20"],
+  "Barbell Thruster": ["DB Thruster", "KB Thruster", "Air Squat to Press x 15"],
+  "Barbell Clean & Jerk (moderate, touch-and-go)": ["DB Clean & Jerk", "KB Clean & Press", "Burpees x 10"],
+  "Dumbbell Bench Press": ["DB Floor Press", "Push-Ups", "Push-Ups x 15"],
+  "Dumbbell Floor Press": ["Push-Ups", "Pike Push-Ups x 10"],
+  "DB Goblet Squat": ["KB Goblet Squat", "Air Squat x 20"],
+  "DB Romanian Deadlift": ["KB Romanian Deadlift", "Glute Bridge x 20"],
+  "KB Front Rack Squat": ["Goblet Squat", "Air Squat x 20"],
+  "KB Push Press": ["DB Push Press", "Push-Ups x 15"],
+  "Weighted Pull-Ups": ["Strict Pull-Ups", "Ring Rows", "Inverted Rows x 12"],
+  "Wall Balls": ["DB Thruster", "Air Squat to Press x 15"],
+  "Farmer Carry (DB/KB)": ["Farmers Walk", "Plank Hold 60s"],
+  "DB Snatch (alt: KB Swings)": ["KB Swings", "Burpees x 10"]
+};
+
+function applyEquipmentFallback(movement: string, equipment: string[]): { exercise: string; wasSubstituted: boolean } {
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  const hasDumbbell = equipment.some(e => /dumbbell/i.test(e));
+  const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
+  
+  // If movement requires equipment not available, use fallback
+  if (movement.toLowerCase().includes('barbell') && !hasBarbell) {
+    const fallbacks = MOVEMENT_FALLBACKS[movement] || [];
+    // Try DB first
+    if (hasDumbbell && fallbacks[0]) {
+      return { exercise: fallbacks[0], wasSubstituted: true };
+    }
+    // Try KB next
+    if (hasKettlebell && fallbacks[1]) {
+      return { exercise: fallbacks[1], wasSubstituted: true };
+    }
+    // Fall back to bodyweight
+    if (fallbacks[2]) {
+      return { exercise: fallbacks[2], wasSubstituted: true };
+    }
+  }
+  
+  if (movement.toLowerCase().includes('dumbbell') && !hasDumbbell) {
+    const fallbacks = MOVEMENT_FALLBACKS[movement] || [];
+    // Try KB first
+    if (hasKettlebell && fallbacks[0]) {
+      return { exercise: fallbacks[0], wasSubstituted: true };
+    }
+    // Fall back to bodyweight
+    if (fallbacks[1]) {
+      return { exercise: fallbacks[1], wasSubstituted: true };
+    }
+  }
+  
+  if (movement.toLowerCase().includes('kettlebell') || movement.toLowerCase().includes('kb ')) {
+    if (!hasKettlebell) {
+      const fallbacks = MOVEMENT_FALLBACKS[movement] || [];
+      // Try DB first
+      if (hasDumbbell && fallbacks[0]) {
+        return { exercise: fallbacks[0], wasSubstituted: true };
+      }
+      // Fall back to bodyweight
+      if (fallbacks[1]) {
+        return { exercise: fallbacks[1], wasSubstituted: true };
+      }
+    }
+  }
+  
+  return { exercise: movement, wasSubstituted: false };
+}
 
 // Fallback ladder: BB → DB → KB → BW
 const FALLBACK_LADDER = {
@@ -393,6 +472,50 @@ function sanitizeWorkout(
   
   const ws = opts.wearable_snapshot || {};
   const lowReadiness = ws.sleep_score && ws.sleep_score < 60;
+  
+  // Initialize substitutions array if not exists
+  if (!workout.substitutions) {
+    workout.substitutions = [];
+  }
+  
+  // Apply equipment fallbacks to all main blocks
+  for (const b of workout.blocks) {
+    if (['strength', 'conditioning'].includes(b.kind)) {
+      for (let i = 0; i < b.items.length; i++) {
+        const item = b.items[i];
+        const result = applyEquipmentFallback(item.exercise, opts.equipment || []);
+        if (result.wasSubstituted) {
+          console.log(`🔄 Equipment fallback: ${item.exercise} → ${result.exercise}`);
+          workout.substitutions.push({
+            from: item.exercise,
+            to: result.exercise,
+            reason: 'equipment_unavailable'
+          });
+          b.items[i].exercise = result.exercise;
+        }
+      }
+    }
+  }
+  
+  // Verify loaded movement ratio (at least 2/3 main movements should be loaded)
+  const mainBlocks = workout.blocks.filter(b => ['strength', 'conditioning'].includes(b.kind));
+  let totalMainMovements = 0;
+  let loadedMovements = 0;
+  
+  for (const b of mainBlocks) {
+    for (const item of b.items) {
+      totalMainMovements++;
+      const exercise = item.exercise.toLowerCase();
+      if (exercise.includes('barbell') || exercise.includes('dumbbell') || 
+          exercise.includes('kettlebell') || exercise.includes('kb ') ||
+          exercise.includes('weighted')) {
+        loadedMovements++;
+      }
+    }
+  }
+  
+  const loadedRatio = totalMainMovements > 0 ? loadedMovements / totalMainMovements : 0;
+  console.log(`📊 Loaded movement ratio: ${loadedMovements}/${totalMainMovements} = ${loadedRatio.toFixed(2)}`);
   
   // 1) Remove banned BW items in STRENGTH/CONDITIONING main blocks with rotation
   for (const b of workout.blocks) {

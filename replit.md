@@ -248,6 +248,9 @@ curl -X POST http://localhost:5000/api/workouts/generate \
 - Added hardness penalties/bonuses for movement quality
 - Implemented automatic regeneration on validation failures
 - Added meta tracing for generator transparency and reproducibility
+- **Fixed Premium → UI conversion** (`toUiSetsFromPremium`): Header sets show duration, individual item sets only have reps with NO auto-filled duration to prevent invented data
+- **Equipment fallback ladder system**: Barbell → Dumbbell → Kettlebell → Bodyweight with automatic substitutions, substitution tracking, and loaded movement ratio logging (≥2/3 requirement)
+- **Expanded movement pools**: Added BB Thruster, BB Clean & Jerk, Weighted Pull-Ups, Wall Balls, Farmer Carry, DB Snatch, Shuttle Runs to strength/conditioning pools
 
 ## Roadmap
 

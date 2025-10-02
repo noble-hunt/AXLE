@@ -198,24 +198,40 @@ Return ONLY the JSON object. No markdown formatting, explanations, or additional
 
 
 // Convert premium workout format to GeneratedWorkout format with meta
-export function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkoutRequest): any {
-  const sets: WorkoutSet[] = [];
+function toUiSetsFromPremium(premium: any) {
+  const sets: any[] = [];
+  let idCounter = 0;
   
-  // Convert each block to a single set (preserving block structure)
-  premiumWorkout.blocks.forEach((block: any, blockIndex: number) => {
-    // Format items list for notes
-    const itemsList = block.items.map((item: any) => {
-      return `• ${item.exercise}: ${item.target}${item.notes ? ` (${item.notes})` : ''}`;
-    }).join('\n');
-    
-    // Create one set per block
+  for (const b of premium.blocks) {
+    const header = (b.kind === 'warmup') ? 'Warm-up' : (b.kind === 'cooldown' ? 'Cool-down' : b.title);
     sets.push({
-      id: `premium-block-${blockIndex}-${Date.now()}`,
-      exercise: block.title,
-      duration: block.time_min * 60, // Convert minutes to seconds
-      notes: `${block.kind.toUpperCase()}\n\n${itemsList}${block.notes ? '\n\n' + block.notes : ''}`
+      id: `premium-${Date.now()}-${idCounter++}`,
+      exercise: header,
+      reps: undefined,
+      duration: (b.time_min || 0) * 60,
+      notes: b.title
     });
-  });
+
+    for (const it of (b.items || [])) {
+      const reps = typeof it.scheme?.reps === 'number' ? `${it.scheme.reps}` : (it.scheme?.reps || '');
+      const notesParts = [];
+      if (it.notes) notesParts.push(it.notes);
+      if (it.scheme?.rpe) notesParts.push(`@ ${it.scheme.rpe}`);
+      if (it.scheme?.rest_s) notesParts.push(`Rest ${it.scheme.rest_s}s`);
+      sets.push({
+        id: `premium-${Date.now()}-${idCounter++}`,
+        exercise: it.exercise,
+        reps,
+        duration: undefined,            // DO NOT auto-fill minutes
+        notes: notesParts.join(' · ')
+      });
+    }
+  }
+  return sets;
+}
+
+export function convertPremiumToGenerated(premiumWorkout: any, request: EnhancedWorkoutRequest): any {
+  const sets = toUiSetsFromPremium(premiumWorkout);
 
   return {
     name: premiumWorkout.title,
