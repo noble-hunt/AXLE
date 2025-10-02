@@ -1,0 +1,71 @@
+“Hard Mode Scoring & Floors + Strict Pattern Lock + Ban BW in Mains”
+
+Goal: Raise difficulty immediately via hardness floors and scoring, and hard-lock patterns to CF/HIIT only. Ban BW filler in main blocks when equipment exists.
+
+File to edit: server/ai/generators/premium.ts
+
+Instructions to the agent:
+
+Increase hardness floors (edit inside sanitizeWorkout(); use anchor // hardness floor):
+
+// ===== HOBH: hardness floor (hard mode) =====
+let floor = 0.75; // base floor (was 0.65)
+const lowReadiness = Boolean(readiness?.sleep_score && readiness.sleep_score < 60) || readiness?.hrv_flag;
+const hasLoad = (req.equipment || []).some((e: string) => /(barbell|dumbbell|kettlebell)/i.test(e));
+
+if (hasLoad && !lowReadiness) {
+  floor = 0.85;  // was 0.75 —> HARDER by default when gear present
+} else if (lowReadiness) {
+  floor = 0.55;  // unchanged guardrail
+}
+// If score < floor, attempt repair path first; only then consider finisher.
+
+
+Make scoring tougher (edit computeHardness(); anchor // pattern bonuses):
+
+// ===== HOBH: pattern bonuses (hard mode) =====
+if (/E[234]:00/i.test(b.title)) h += 0.35;   // was 0.28
+if (/EMOM/i.test(b.title))       h += 0.30;  // was 0.22
+if (/AMRAP/i.test(b.title))/****/ h += 0.30; // was 0.22
+if (/21-15-9/i.test(b.title))    h += 0.28;  // was 0.20
+if (/Chipper/i.test(b.title))    h += 0.32;  // was 0.24
+
+// ===== HOBH: equipment & heavy movement bonuses =====
+if (hasBarbell)  h += 0.10; // was 0.05
+if (hasDbKb)     h += 0.07; // was 0.03
+if (hasCyclical) h += 0.05; // was 0.02
+
+// heavy lifts present?
+if (/clean\s*&\s*jerk/i.test(text)) h += 0.08; // was 0.05
+if (/thruster/i.test(text))         h += 0.08; // was 0.05
+if (/deadlift/i.test(text))         h += 0.08; // was 0.05
+
+
+Lock patterns & ban BW in mains (post-model pre-return validator; anchor // pattern lock or add if missing):
+
+// ===== HOBH: pattern lock + BW ban in mains =====
+const ALLOWED_PATTERNS = /(Every\s*[234]:?00\s*x\s*\d+|EMOM\s*(10|12|14|16)|AMRAP\s*(8|10|12|15)|For\s*Time\s*21-15-9|Chipper\s*40-30-20-10)/i;
+const BANNED_BW_MAIN  = /^(Wall Sit|Mountain Climber|Star Jump|High Knees|Jumping Jacks|Bicycle Crunch)$/i;
+
+function enforcePatterns(workout:any, equipment:string[]) {
+  const hasLoadEq = (equipment||[]).some(e=>/(barbell|dumbbell|kettlebell)/i.test(e));
+  const mains = workout.blocks.filter((b:any)=>!['warmup','cooldown'].includes(b.kind));
+  if (!mains.length) throw new Error('no_main_blocks');
+
+  for (const b of mains) {
+    if (!ALLOWED_PATTERNS.test(b.title||'')) throw new Error('pattern_lock_violation');
+    if (hasLoadEq) {
+      const bannedInBlock = (b.items||[]).some((it:any)=>BANNED_BW_MAIN.test(it.exercise||''));
+      if (bannedInBlock) throw new Error('banned_bw_in_main');
+    }
+  }
+}
+
+
+Call enforcePatterns(generatedWorkout, req.equipment) and if it throws, regenerate once with reason “pattern_lock_violation or banned_bw_in_main; use DB/KB/BB.”
+
+Acceptance Criteria:
+
+variety_score >= 0.85 for gear sessions unless readiness low.
+
+All main blocks match the allowed patterns and contain no banned BW when gear exists.

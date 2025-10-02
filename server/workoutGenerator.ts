@@ -273,22 +273,19 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     return mockResult;
   }
 
-  // Extract equipment from request (if available in context)
-  const equipment = (request as any).equipment || ['barbell', 'dumbbell', 'kettlebell', 'bike', 'rower'];
-  
-  // Compute wantsPremium based on category and equipment
-  const categoryMatch = ['crossfit', 'hiit'].includes((request.category || '').toLowerCase());
-  const equipmentMatch = (equipment || []).some((e: string) => /(barbell|dumbbell|kettlebell)/i.test(e));
-  const wantsPremium = FORCE_PREMIUM || categoryMatch || equipmentMatch;
-  
-  console.log(`🎯 Wants Premium: ${wantsPremium} (FORCE_PREMIUM: ${FORCE_PREMIUM}, category: ${request.category}, equipment: ${equipment.join(', ')})`);
+  // ===== HOBH: generator selection (forced premium for CF/HIIT or any DB/KB/BB) =====
+  const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM?.toLowerCase() !== 'false';
+  const goalStr = String((request as any).goal || '').toLowerCase();
+  const hasLoadEq = ((request as any).equipment || []).some((e: string) => /(barbell|dumbbell|kettlebell)/i.test(e));
+  const wantsPremium = FORCE_PREMIUM || ['crossfit','hiit'].includes(goalStr) || hasLoadEq;
 
+  let generatorUsed: 'premium'|'simple'|'mock' = 'premium';
   let result: any;
-  let generatorUsed: 'premium' | 'simple' | 'mock' = 'premium';
 
   try {
     if (wantsPremium) {
       // Try premium generator
+      const equipment = (request as any).equipment || ['barbell', 'dumbbell', 'kettlebell', 'bike', 'rower'];
       console.log('🎯 Using premium workout generator with warm-up/cool-down');
       const premiumRequest: WorkoutGenerationRequest = {
         category: request.category,
@@ -323,8 +320,6 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
       
       result = convertPremiumToGenerated(upgradedWorkout, request);
     } else {
-      // Use simple generator
-      console.log('🎯 Using simple workout generator');
       generatorUsed = 'simple';
       const prompt = createPromptTemplate(request);
       const response = await openai.chat.completions.create({
@@ -401,27 +396,24 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
       
       result = validation.data;
     }
-  } catch (e) {
-    console.warn('Primary generator failed, trying fallback:', e);
-    try {
-      generatorUsed = 'simple';
-      result = await generateSimpleFallback(request);
-    } catch (e2) {
-      console.warn('Simple fallback failed, using mock:', e2);
-      generatorUsed = 'mock';
-      result = generateMockWorkout(request);
-    }
+  } catch (err) {
+    try { generatorUsed = 'simple'; result = await generateSimpleFallback(request); }
+    catch (err2) { generatorUsed = 'mock'; result = generateMockWorkout(request); }
   }
 
-  // Attach meta BEFORE returning (even simple/mock should include it)
+  // attach meta/trace (seed, acceptance flags, generator)
   result.meta = {
     ...(result.meta || {}),
     generator: generatorUsed,
-    acceptance: result.acceptance_flags || result.meta?.acceptance || {},
+    acceptance: result.acceptance_flags || {},
     seed: (request as any).seed || result.meta?.seed || Math.random().toString(16).slice(2, 10)
   };
 
+  console.log('HOBH: generator=%s seed=%s acceptance=%j',
+    result.meta.generator, result.meta.seed, result.meta.acceptance);
+
   return result;
+  // ===== END selection =====
 }
 
 // Simple fallback generator

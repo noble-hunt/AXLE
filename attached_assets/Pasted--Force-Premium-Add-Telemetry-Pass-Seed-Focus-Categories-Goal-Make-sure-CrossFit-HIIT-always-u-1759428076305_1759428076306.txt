@@ -1,0 +1,76 @@
+“Force Premium + Add Telemetry + Pass Seed/Focus/Categories”
+
+Goal: Make sure CrossFit/HIIT always uses the premium generator, and expose enough metadata to confirm it. Also pass focus, categories_for_mixed, and seed end-to-end.
+
+Files to edit:
+
+server/workoutGenerator.ts
+
+server/routes.ts
+
+Instructions to the agent (do exactly this):
+
+server/workoutGenerator.ts — force premium path & meta trace
+Search for the function generateWorkout and the branch where it decides premium vs simple. Replace that selection logic with the block below (use the comment // HOBH: generator selection as your search anchor; if not found, inject near the top of the function).
+
+// ===== HOBH: generator selection (forced premium for CF/HIIT or any DB/KB/BB) =====
+const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM?.toLowerCase() !== 'false';
+const goalStr = String(req.goal || '').toLowerCase();
+const hasLoadEq = (req.equipment || []).some((e: string) => /(barbell|dumbbell|kettlebell)/i.test(e));
+const wantsPremium = FORCE_PREMIUM || ['crossfit','hiit'].includes(goalStr) || hasLoadEq;
+
+let generatorUsed: 'premium'|'simple'|'mock' = 'premium';
+let result: any;
+
+try {
+  if (wantsPremium) {
+    result = await premiumGenerate(req);
+  } else {
+    generatorUsed = 'simple';
+    result = await simpleGenerate(req);
+  }
+} catch (err) {
+  try { generatorUsed = 'simple'; result = await simpleGenerate(req); }
+  catch (err2) { generatorUsed = 'mock'; result = await mockGenerate(req); }
+}
+
+// attach meta/trace (seed, acceptance flags, generator)
+result.meta = {
+  ...(result.meta || {}),
+  generator: generatorUsed,
+  acceptance: result.acceptance_flags || {},
+  seed: req.seed || result.meta?.seed || Math.random().toString(16).slice(2, 10)
+};
+
+console.log('HOBH: generator=%s seed=%s acceptance=%j',
+  result.meta.generator, result.meta.seed, result.meta.acceptance);
+
+return result;
+// ===== END selection =====
+
+
+server/routes.ts — pass through new fields
+In the /api/workouts/generate handler, ensure we read and forward focus, categories_for_mixed, and seed. Search for the JSON body parsing and add:
+
+const payload = {
+  goal: body.goal,
+  durationMin: body.durationMin,
+  intensity: body.intensity,
+  equipment: body.equipment || [],
+  focus: body.focus,                             // <— NEW
+  categories_for_mixed: body.categories_for_mixed, // <— NEW
+  seed: body.seed                                // <— NEW
+};
+
+
+Acceptance Criteria:
+
+Calling the API with goal:"CrossFit" returns meta.generator === "premium".
+
+Response JSON includes meta.acceptance and meta.seed.
+
+Smoke Test (run locally after restart):
+
+curl -s http://localhost:5000/api/workouts/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"goal":"CrossFit","durationMin":45,"intensity":8,"equipment":["barbell","dumbbell"],"focus":"mixed","categories_for_mixed":["Strength","Conditioning","Skill"],"seed":"A1B2C3"}' | jq '.meta'
