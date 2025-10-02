@@ -793,10 +793,11 @@ function extractFocusAndCategories(request: WorkoutGenerationRequest): { focus: 
   let focus = 'strength';
   let categoriesForMixed: string[] = [];
   
-  if (categoryStr.includes('CrossFit') || categoryStr.includes('HIIT')) {
+  // Check if focus/categories are explicitly passed in context
+  if (request.context?.focus) {
+    focus = request.context.focus;
+  } else if (categoryStr.includes('CrossFit') || categoryStr.includes('HIIT')) {
     focus = 'mixed';
-    // For CrossFit/HIIT, default to Strength + Conditioning (can be extended based on equipment/duration)
-    categoriesForMixed = ['Strength', 'Conditioning'];
   } else if (categoryStr.includes('Olympic')) {
     focus = 'strength';
   } else if (categoryStr.includes('Powerlifting')) {
@@ -807,6 +808,13 @@ function extractFocusAndCategories(request: WorkoutGenerationRequest): { focus: 
     focus = 'conditioning';
   } else if (categoryStr.includes('Bodybuilding')) {
     focus = 'strength';
+  }
+  
+  // Use passed categories if available, otherwise use defaults based on focus
+  if (request.context?.categories_for_mixed && Array.isArray(request.context.categories_for_mixed)) {
+    categoriesForMixed = request.context.categories_for_mixed;
+  } else if (focus === 'mixed') {
+    categoriesForMixed = ['Strength', 'Conditioning'];
   }
   
   return { focus, categoriesForMixed };
@@ -869,6 +877,170 @@ REQUIREMENTS:
 - No markdown, no explanations`;
 }
 
+// ===== HOBH: Strict Mixed Semantics Helper Functions =====
+
+function makeStrengthE3x(req: WorkoutGenerationRequest): any {
+  const equipment = req.context?.equipment || [];
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  const hasDumbbell = equipment.some(e => /dumbbell/i.test(e));
+  
+  const exercises = [];
+  if (hasBarbell) {
+    exercises.push(
+      { exercise: 'Barbell Back Squat', target: '5 reps @ 75-80%', notes: 'Focus on depth and control' },
+      { exercise: 'Barbell Deadlift', target: '3-5 reps @ 80%', notes: 'Maintain neutral spine' }
+    );
+  } else if (hasDumbbell) {
+    exercises.push(
+      { exercise: 'Dumbbell Front Squat', target: '8 reps', notes: 'Goblet or dual DB position' },
+      { exercise: 'Dumbbell Romanian Deadlift', target: '8 reps', notes: 'Control the eccentric' }
+    );
+  } else {
+    exercises.push(
+      { exercise: 'Bodyweight Squat', target: '15 reps', notes: 'Full depth' },
+      { exercise: 'Single Leg Deadlift', target: '10/side', notes: 'Balance and control' }
+    );
+  }
+  
+  return {
+    kind: 'strength',
+    title: 'E3:00 x 5',
+    time_min: 15,
+    items: exercises,
+    notes: 'Complete all exercises every 3:00 for 5 rounds'
+  };
+}
+
+function makeEmom(req: WorkoutGenerationRequest): any {
+  const equipment = req.context?.equipment || [];
+  const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
+  const hasDumbbell = equipment.some(e => /dumbbell/i.test(e));
+  
+  const exercises = [];
+  if (hasKettlebell) {
+    exercises.push(
+      { exercise: 'Kettlebell Swing', target: '15 reps', notes: 'Hip drive, chest up' },
+      { exercise: 'Burpee', target: '10 reps', notes: 'Full push-up at bottom' }
+    );
+  } else if (hasDumbbell) {
+    exercises.push(
+      { exercise: 'Dumbbell Thruster', target: '12 reps', notes: 'Smooth transition from squat to press' },
+      { exercise: 'Box Jump', target: '10 reps', notes: 'Step down safely' }
+    );
+  } else {
+    exercises.push(
+      { exercise: 'Burpee', target: '12 reps', notes: 'Full push-up' },
+      { exercise: 'Air Squat', target: '20 reps', notes: 'Maintain tempo' }
+    );
+  }
+  
+  return {
+    kind: 'conditioning',
+    title: 'EMOM 12',
+    time_min: 12,
+    items: exercises,
+    notes: 'Alternate exercises every minute for 12 minutes'
+  };
+}
+
+function makeAmrapSkill(req: WorkoutGenerationRequest): any {
+  const equipment = req.context?.equipment || [];
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  
+  const exercises = [];
+  if (hasBarbell) {
+    exercises.push(
+      { exercise: 'Barbell Clean', target: '5 reps @ 60%', notes: 'Focus on technique' },
+      { exercise: 'Handstand Hold', target: '20-30 sec', notes: 'Against wall if needed' },
+      { exercise: 'Double Under', target: '20 reps', notes: 'Or 40 singles' }
+    );
+  } else {
+    exercises.push(
+      { exercise: 'Pull-Up', target: '5-10 reps', notes: 'Strict or kipping' },
+      { exercise: 'Handstand Hold', target: '20-30 sec', notes: 'Against wall' },
+      { exercise: 'Double Under', target: '20 reps', notes: 'Or 40 singles' }
+    );
+  }
+  
+  return {
+    kind: 'skill',
+    title: 'AMRAP 10',
+    time_min: 10,
+    items: exercises,
+    notes: 'As many rounds as possible in 10 minutes'
+  };
+}
+
+function makeAmrapCore(req: WorkoutGenerationRequest): any {
+  return {
+    kind: 'core',
+    title: 'AMRAP 8',
+    time_min: 8,
+    items: [
+      { exercise: 'Hollow Hold', target: '30 sec', notes: 'Press lower back to floor' },
+      { exercise: 'V-Up', target: '15 reps', notes: 'Touch toes at top' },
+      { exercise: 'Russian Twist', target: '20 total', notes: 'Control rotation' }
+    ],
+    notes: 'As many rounds as possible in 8 minutes'
+  };
+}
+
+function makeFinisher21_15_9(req: WorkoutGenerationRequest): any {
+  const equipment = req.context?.equipment || [];
+  const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
+  
+  const exercises = [];
+  if (hasKettlebell) {
+    exercises.push(
+      { exercise: 'Kettlebell Swing', target: '21-15-9 reps', notes: 'American swing to overhead' },
+      { exercise: 'Burpee', target: '21-15-9 reps', notes: 'Chest to deck' }
+    );
+  } else {
+    exercises.push(
+      { exercise: 'Burpee', target: '21-15-9 reps', notes: 'Full push-up' },
+      { exercise: 'Air Squat', target: '21-15-9 reps', notes: 'Full depth' }
+    );
+  }
+  
+  return {
+    kind: 'conditioning',
+    title: 'For Time 21-15-9',
+    time_min: 10,
+    items: exercises,
+    notes: '21 reps each, 15 reps each, 9 reps each - for time'
+  };
+}
+
+function pickWarmup(req: WorkoutGenerationRequest): any {
+  return {
+    kind: 'warmup',
+    title: 'Dynamic Warm-Up',
+    time_min: 5,
+    items: [
+      { exercise: 'Jumping Jacks', target: '30 reps', notes: 'Get heart rate up' },
+      { exercise: 'Arm Circles', target: '20 total', notes: 'Forward and backward' },
+      { exercise: 'Leg Swings', target: '10/leg', notes: 'Front to back, side to side' },
+      { exercise: 'Inchworm', target: '5 reps', notes: 'Walk hands out to plank' }
+    ],
+    notes: 'Prepare body for main work'
+  };
+}
+
+function makeCooldown(): any {
+  return {
+    kind: 'cooldown',
+    title: 'Cool Down & Stretch',
+    time_min: 5,
+    items: [
+      { exercise: 'Walk or Light Jog', target: '2 min', notes: 'Bring heart rate down' },
+      { exercise: 'Hamstring Stretch', target: '30 sec/side', notes: 'Seated or standing' },
+      { exercise: 'Quad Stretch', target: '30 sec/side', notes: 'Standing, hold foot' },
+      { exercise: 'Shoulder Stretch', target: '30 sec/side', notes: 'Cross-body arm pull' }
+    ],
+    notes: 'Active recovery and mobility'
+  };
+}
+
 export async function generatePremiumWorkout(
   request: WorkoutGenerationRequest,
   seed?: string,
@@ -904,6 +1076,38 @@ export async function generatePremiumWorkout(
     // Parse and validate
     const workout = JSON.parse(content);
     let validated = PremiumWorkoutSchema.parse(workout);
+
+    // ===== HOBH: strict mixed semantics =====
+    if (focus === 'mixed') {
+      const cats = Array.isArray(categoriesForMixed) && categoriesForMixed.length
+        ? categoriesForMixed
+        : ['Strength', 'Conditioning', 'Core'];
+
+      const byCat = (cat: string) => {
+        if (/strength/i.test(cat)) return makeStrengthE3x(request);
+        if (/condition/i.test(cat)) return makeEmom(request);
+        if (/skill|gym/i.test(cat)) return makeAmrapSkill(request);
+        if (/core/i.test(cat)) return makeAmrapCore(request);
+        return makeEmom(request);
+      };
+
+      const mainBlocks = cats.map(byCat);
+
+      validated.blocks = [pickWarmup(request), ...mainBlocks, makeCooldown()];
+
+      // optional finisher if short
+      const ttl = validated.blocks.reduce((t, b) => t + (b.time_min || 0), 0);
+      if (ttl < request.duration * 0.90) {
+        validated.blocks.splice(validated.blocks.length - 1, 0, makeFinisher21_15_9(request));
+      }
+
+      validated.acceptance_flags = {
+        ...(validated.acceptance_flags || {}),
+        mixed_rule_ok: true
+      };
+
+      console.log(`🎯 Strict mixed semantics applied: ${cats.length} main blocks (${cats.join(', ')}) + finisher check (total: ${ttl}min vs ${request.duration}min)`);
+    }
 
     // Validate patterns and BW movements before sanitization
     try {

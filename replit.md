@@ -171,10 +171,23 @@ When equipment (barbell/dumbbell/kettlebell) is available, the following movemen
 - Wall Sit, Mountain Climber, Star Jump, High Knees, Jumping Jacks, Bicycle Crunch
 
 ### Hardness Floor Enforcement
-- **0.75 floor** for equipped workouts (barbell/dumbbell/kettlebell) with good readiness (sleep ≥60)
+- **0.85 floor** for equipped workouts (barbell/dumbbell/kettlebell) with good readiness (sleep ≥60) - HARD MODE
+- **0.75 floor** for base workouts with good readiness
 - **0.55 floor** for low readiness (sleep <60)
 - **Automatic finisher injection** when below threshold to meet requirements
 - **Hardness calculation**: Pattern bonuses + equipment bonuses - BW-only penalties
+
+### Strict Mixed Semantics
+When `focus === 'mixed'`, the generator enforces deterministic block structure:
+- **Exactly 1 main block per category** in specified order (e.g., Strength → Conditioning → Skill)
+- **Structure**: Warmup → Main Blocks → Optional Finisher → Cooldown
+- **Finisher logic**: Added only if total time < 90% of requested duration
+- **Category mapping**:
+  - `Strength` → E3:00 x 5 (15min) with barbell/dumbbell/bodyweight exercises
+  - `Conditioning` → EMOM 12 (12min) with kettlebell/dumbbell/bodyweight
+  - `Skill` → AMRAP 10 (10min) with technical movements
+  - `Core` → AMRAP 8 (8min) with core-focused exercises
+- **Equipment-aware**: Exercises adapt based on available equipment (barbell > dumbbell > kettlebell > bodyweight)
 
 ### Meta Tracing
 All workouts include:
@@ -244,10 +257,15 @@ curl -X POST http://localhost:5000/api/workouts/generate \
 ### October 2, 2025
 - Implemented pattern lock validation with allowed patterns whitelist
 - Added banned bodyweight movements checker for main blocks
-- Raised hardness floor to 0.75 (equipped + good readiness) / 0.55 (low readiness)
+- **HARD MODE**: Raised hardness floor to 0.85 (equipped + good readiness), 0.75 (base), 0.55 (low readiness)
+- **Difficulty scoring increased**: Pattern bonuses up 25-40% (E3:00 +0.35, EMOM +0.30, AMRAP +0.30), equipment bonuses doubled (BB +0.10, DB/KB +0.07), heavy movement bonuses increased (+0.08 each)
 - Added hardness penalties/bonuses for movement quality
 - Implemented automatic regeneration on validation failures
 - Added meta tracing for generator transparency and reproducibility
+- **Strict Mixed Semantics**: When `focus === 'mixed'`, generates exactly 1 block per category in order (e.g., Strength → Conditioning → Skill) with equipment-aware exercise selection
+  - Helper functions: `makeStrengthE3x()`, `makeEmom()`, `makeAmrapSkill()`, `makeAmrapCore()`, `makeFinisher21_15_9()`
+  - Optional finisher added only if total time < 90% of requested duration
+  - Structure: Warmup → Main Blocks → Optional Finisher → Cooldown
 - **Fixed Premium → UI conversion** (`toUiSetsFromPremium`): Header sets show duration, individual item sets only have reps with NO auto-filled duration to prevent invented data
 - **Equipment fallback ladder system**: Barbell → Dumbbell → Kettlebell → Bodyweight with automatic substitutions, substitution tracking, and loaded movement ratio logging (≥2/3 requirement)
 - **Expanded movement pools**: Added BB Thruster, BB Clean & Jerk, Weighted Pull-Ups, Wall Balls, Farmer Carry, DB Snatch, Shuttle Runs to strength/conditioning pools
