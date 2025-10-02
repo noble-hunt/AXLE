@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type { WorkoutRequest, GeneratedWorkout, WorkoutSet } from "../shared/schema";
 import { Category } from "../shared/schema";
 import { generatedWorkoutSchema } from "../shared/schema";
-import { generatePremiumWorkout } from "./ai/generators/premium";
+import { generatePremiumWorkout, computeHardness } from "./ai/generators/premium";
 import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
 
 // Using gpt-4o model for reliable workout generation. Do not change this unless explicitly requested by the user
@@ -11,6 +11,42 @@ const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
 // Force premium generator for CrossFit/HIIT and equipped workouts (default: true)
 const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM?.toLowerCase() !== 'false';
+
+// Intensity upgrader constants
+const ROTATION = ["DB Box Step-Overs","KB Swings","Wall Balls","Burpees"];
+const BANNED_SET = new Set(["Wall Sit","Mountain Climber","Star Jump","High Knees","Jumping Jacks","Bicycle Crunch"]);
+
+function upgradeIntensity(workout: any, equipment: string[], readiness: { sleep_score?: number } = {}) {
+  const hasLoad = (equipment || []).some(e => /(barbell|dumbbell|kettlebell)/i.test(e));
+  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+  let rot = 0;
+
+  for (const b of mains) {
+    if (hasLoad) {
+      b.items = (b.items || []).map((it: any) => {
+        const n = (it.exercise || '').trim();
+        if (BANNED_SET.has(n)) {
+          const sub = ROTATION[rot++ % ROTATION.length];
+          workout.substitutions = (workout.substitutions || []).concat([{ from: n, to: sub, reason: "upgrade_intensity" }]);
+          return { ...it, exercise: sub, notes: (it.notes || "") + " (auto-upgrade)" };
+        }
+        return it;
+      });
+    }
+    if (/Every\s*3:00/i.test(b.title)) b.title = b.title.replace(/Every\s*3:00/i, 'Every 2:30');
+    if (/EMOM\s*10\b/i.test(b.title)) b.title = b.title.replace(/EMOM\s*10\b/i, 'EMOM 12');
+
+    for (const it of b.items || []) {
+      if (typeof it.scheme?.reps === 'number') it.scheme.reps = Math.round(it.scheme.reps * 1.15);
+      if (/RIR\s*2-3/i.test(it.scheme?.rpe || '')) it.scheme.rpe = 'RIR 1–2';
+    }
+  }
+
+  const floor = (readiness.sleep_score && readiness.sleep_score < 60) ? 0.55 : 0.75;
+  workout.variety_score = computeHardness(workout);
+  workout.acceptance_flags = { ...(workout.acceptance_flags || {}), hardness_ok: workout.variety_score >= floor };
+  return workout;
+}
 
 // Enhanced request type with context data
 type EnhancedWorkoutRequest = WorkoutRequest & {
@@ -262,7 +298,14 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
       };
       
       const premiumWorkout = await generatePremiumWorkout(premiumRequest, (request as any).seed);
-      result = convertPremiumToGenerated(premiumWorkout, request);
+      
+      // Apply intensity upgrader (post-generation, pre-conversion)
+      const readiness = { sleep_score: request.todaysReport?.sleep ? request.todaysReport.sleep * 10 : undefined };
+      console.log('🔧 Running upgradeIntensity with equipment:', equipment, 'readiness:', readiness);
+      const upgradedWorkout = upgradeIntensity(premiumWorkout, equipment, readiness);
+      console.log('✅ Intensity upgrade complete. Hardness:', upgradedWorkout.variety_score, 'hardness_ok:', upgradedWorkout.acceptance_flags?.hardness_ok);
+      
+      result = convertPremiumToGenerated(upgradedWorkout, request);
     } else {
       // Use simple generator
       console.log('🎯 Using simple workout generator');

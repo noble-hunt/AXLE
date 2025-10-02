@@ -320,7 +320,7 @@ function validatePatternsAndBW(workout: PremiumWorkout, equipment: string[]): vo
 }
 
 // Hardness calculation function
-function computeHardness(workout: PremiumWorkout): number {
+export function computeHardness(workout: PremiumWorkout): number {
   let h = 0;
   
   for (const b of workout.blocks) {
