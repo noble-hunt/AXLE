@@ -77,48 +77,36 @@ const ALLOWED_PATTERNS = [
   /Chipper 40-30-20-10/i    // Chipper 40-30-20-10
 ];
 
-// Movement pools with expanded options
-const MOVEMENT_POOLS = {
-  conditioning: [
-    "Echo Bike cals",
-    "Row cals",
-    "Ski Erg cals",
-    "KB Swings",
-    "DB Box Step-Overs",
-    "Burpees",
-    "Wall Balls",
-    "Farmer Carry (DB/KB)",
-    "DB Snatch (alt: KB Swings)",
-    "Shuttle Runs (no machine)"
-  ],
+// ===== HOBH: movement pools (expanded) =====
+const POOLS = {
   strength: [
-    "Barbell Front Squat",
-    "Barbell Push Press",
-    "Barbell Deadlift",
-    "Barbell Thruster",
-    "Barbell Clean & Jerk (moderate, touch-and-go)",
-    "Dumbbell Floor Press",
-    "Dumbbell Bench Press",
-    "DB Goblet Squat",
-    "DB Romanian Deadlift",
-    "KB Front Rack Squat",
-    "KB Push Press",
-    "Weighted Pull-Ups",
-    "Strict Pull-Ups",
-    "Ring Rows"
+    "Barbell Front Squat","Barbell Push Press","Barbell Deadlift","Barbell Thruster",
+    "Barbell Clean & Jerk (moderate, touch-and-go)","Dumbbell Bench Press","Dumbbell Floor Press",
+    "DB Goblet Squat","DB Romanian Deadlift","KB Front Rack Squat","KB Push Press",
+    "Weighted Pull-Ups","Strict Pull-Ups","Ring Rows"
   ],
-  skill: [
-    "Toes-to-Bar",
-    "Double-Unders",
-    "Handstand Hold/Walk",
-    "Muscle-Ups (progression)"
+  conditioning: [
+    "Echo Bike cals","Row cals","Ski Erg cals","Wall Balls","Farmer Carry (DB/KB)",
+    "KB Swings","DB Box Step-Overs","DB Snatch","Burpees","Shuttle Runs (no machine)"
   ],
-  core: [
-    "Hollow Rocks",
-    "Plank Variations",
-    "Sit-Ups"
-  ]
+  skill: ["Toes-to-Bar","Hanging Knee Raises","Double-Unders","Single-Unders","Handstand Hold","Wall-Facing Hold"],
+  core:  ["Hollow Rocks","Plank Variations","Sit-Ups"]
 };
+
+function fallbackFor(move: string): string[] {
+  // ladder: Barbell -> Dumbbell -> Kettlebell -> Bodyweight (tempo/volume)
+  if (/Barbell Front Squat/.test(move)) return ["DB Goblet Squat","KB Front Rack Squat","Air Squat (tempo 3-1-1 x 20)"];
+  if (/Barbell Push Press/.test(move))  return ["DB Push Press","KB Push Press","Pike Push-Up (tempo)"];
+  if (/Deadlift/.test(move))            return ["DB RDL","KB Swings","Hip Hinge (tempo)"];
+  if (/Bench Press|Floor Press/.test(move)) return ["DB Floor Press","Push-Up (weighted)","Push-Up (tempo)"];
+  if (/Weighted Pull-Ups|Strict Pull-Ups/.test(move)) return ["Ring Rows (feet elevated)","Ring Rows"];
+  if (/DB Box Step-Overs/.test(move))  return ["Box Step-Ups (weighted)","Alt Step-Ups"];
+  if (/DB Snatch/.test(move))          return ["KB Swings","Alt DB Snatch (lighter)","Burpees"];
+  return ["Burpees"];
+}
+
+// Keep legacy MOVEMENT_POOLS reference for compatibility
+const MOVEMENT_POOLS = POOLS;
 
 // Equipment fallback ladder: Barbell → Dumbbell → Kettlebell → Bodyweight
 const MOVEMENT_FALLBACKS: Record<string, string[]> = {
