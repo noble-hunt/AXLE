@@ -68,13 +68,12 @@ const BANNED_EASY = new Set([
 // Banned bodyweight movements specifically for main blocks when equipment is available
 const BANNED_BW_MAIN = /^(Wall Sit|Mountain Climber|Star Jump|High Knees|Jumping Jacks|Bicycle Crunch)$/i;
 
-// Allowed patterns for main blocks
+// Allowed patterns for main blocks (includes upgradeIntensity mutations)
 const ALLOWED_PATTERNS = [
-  /E[34]:00 x \d+/i,        // E3:00 x 5, E4:00 x 4
-  /Every [34]:00 x \d+/i,   // Every 3:00 x 5
-  /EMOM \d+(-\d+)?/i,       // EMOM 12, EMOM 10-16
-  /AMRAP \d+/i,             // AMRAP 12
-  /For Time 21-15-9/i,      // For Time 21-15-9
+  /(E[234]:00|Every [234]:00) x \d+/i,  // E2:00 x 5, E3:00 x 5, E4:00 x 4, Every 3:00 x 5
+  /EMOM \d+(-\d+)?/i,                   // EMOM 12, EMOM 10-16
+  /AMRAP \d+/i,                         // AMRAP 12
+  /For Time (21-15-9|30-20-10)/i,       // For Time 21-15-9, For Time 30-20-10
   /Chipper 40-30-20-10/i    // Chipper 40-30-20-10
 ];
 
@@ -381,9 +380,10 @@ function validatePatternsAndBW(workout: PremiumWorkout, equipment: string[]): vo
   }
 
   for (const b of mains) {
-    // Check pattern lock
-    const ALLOWED_PATTERNS_REGEX = /(Every\s*[234]:?00\s*x\s*\d+|EMOM\s*(8|10|12|14|16)|AMRAP\s*(8|10|12|15)|For\s*Time\s*21-15-9|Chipper\s*40-30-20-10)/i;
+    // Check pattern lock - allow CF patterns + upgradeIntensity mutations + optional suffixes
+    const ALLOWED_PATTERNS_REGEX = /((E[234]:00|Every\s*[234]:?00)\s*x\s*\d+|EMOM\s*(8|10|12|14|16)|AMRAP\s*(8|10|12|15)|For\s*Time\s*(21-15-9|30-20-10)|Chipper\s*40-30-20-10)/i;
     if (!ALLOWED_PATTERNS_REGEX.test(b.title || '')) {
+      console.error(`❌ Pattern lock violation: "${b.title}" doesn't match allowed patterns`);
       throw new Error('pattern_lock_violation');
     }
     
@@ -885,7 +885,20 @@ REQUIREMENTS:
 - Category: ${category}
 - Target Intensity: ${intensity}/10
 - Return ONLY valid JSON matching the schema
-- No markdown, no explanations`;
+- No markdown, no explanations
+
+INTENSITY & LOADING POLICY:
+- Intensity 6–7: use ~70–75% 1RM or RPE 7–8; moderate pace.
+- Intensity 8:   use ~80–85% 1RM or RPE 8–9; challenging pace.
+- Intensity 9–10: use 85–95% 1RM or RPE 9–9.5; maximum sustainable.
+REP/TIME MINIMUMS (strict):
+- Strength density (Every E2:30–E3:00 x 5): ≥4 working sets; 6–10 reps for DB/KB; 3–6 reps per set for BB.
+- EMOM: ≥12 minutes minimum; odd = cyclical cals; even = loaded movement when equipment exists.
+- AMRAP: ≥12 minutes minimum for main conditioning; 2–3 movements with at least one loaded.
+- For Time: baseline 21–15–9; may increase to 30–20–10 if hardness < floor.
+MANDATES:
+- When barbell/dumbbells/kettlebells available, each main block must include ≥2 loaded movements.
+- Avoid bodyweight filler in main blocks (wall sit, mountain climber, star jump, high knees, jumping jacks, bicycle crunch).`;
 }
 
 // ===== HOBH: Strict Mixed Semantics Helper Functions =====
