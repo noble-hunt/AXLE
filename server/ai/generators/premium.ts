@@ -907,21 +907,33 @@ function makeStrengthE3x(req: WorkoutGenerationRequest): any {
   const equipment = req.context?.equipment || [];
   const hasBarbell = equipment.some(e => /barbell/i.test(e));
   const hasDumbbell = equipment.some(e => /dumbbell/i.test(e));
+  const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
   
   const exercises = [];
   if (hasBarbell) {
     exercises.push(
       { exercise: 'Barbell Back Squat', target: '5 reps @ 75-80%', notes: 'Focus on depth and control' },
-      { exercise: 'Barbell Deadlift', target: '3-5 reps @ 80%', notes: 'Maintain neutral spine' }
+      { exercise: 'Barbell Push Press', target: '5 reps @ 75%', notes: 'Explosive hip drive' },
+      { exercise: 'Barbell Deadlift', target: '3 reps @ 80%', notes: 'Maintain neutral spine' },
+      { exercise: 'Strict Pull-Ups', target: '6-8 reps', notes: 'Full range of motion' }
     );
   } else if (hasDumbbell) {
     exercises.push(
       { exercise: 'Dumbbell Front Squat', target: '8 reps', notes: 'Goblet or dual DB position' },
-      { exercise: 'Dumbbell Romanian Deadlift', target: '8 reps', notes: 'Control the eccentric' }
+      { exercise: 'Dumbbell Bench Press', target: '8 reps', notes: 'Controlled tempo' },
+      { exercise: 'Dumbbell Romanian Deadlift', target: '8 reps', notes: 'Control the eccentric' },
+      { exercise: 'DB Row', target: '10 reps/arm', notes: 'Maintain neutral back' }
+    );
+  } else if (hasKettlebell) {
+    exercises.push(
+      { exercise: 'KB Front Rack Squat', target: '10 reps', notes: 'Upright torso' },
+      { exercise: 'KB Push Press', target: '10 reps', notes: 'Hip drive to overhead' },
+      { exercise: 'KB Swings', target: '15 reps', notes: 'Full hip extension' }
     );
   } else {
     exercises.push(
-      { exercise: 'Bodyweight Squat', target: '15 reps', notes: 'Full depth' },
+      { exercise: 'Bodyweight Squat', target: '20 reps', notes: 'Full depth, tempo 3-1-1' },
+      { exercise: 'Push-Up', target: '15 reps', notes: 'Chest to deck' },
       { exercise: 'Single Leg Deadlift', target: '10/side', notes: 'Balance and control' }
     );
   }
@@ -939,22 +951,32 @@ function makeEmom(req: WorkoutGenerationRequest): any {
   const equipment = req.context?.equipment || [];
   const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
   const hasDumbbell = equipment.some(e => /dumbbell/i.test(e));
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
   
   const exercises = [];
-  if (hasKettlebell) {
+  if (hasBarbell) {
     exercises.push(
-      { exercise: 'Kettlebell Swing', target: '15 reps', notes: 'Hip drive, chest up' },
-      { exercise: 'Burpee', target: '10 reps', notes: 'Full push-up at bottom' }
+      { exercise: 'Row Calories', target: '12/10 cal', notes: 'Minute 1, 4, 7, 10 - hard pace' },
+      { exercise: 'Barbell Thruster', target: '10 reps @ 65%', notes: 'Minute 2, 5, 8, 11 - smooth reps' },
+      { exercise: 'Burpees Over Bar', target: '8 reps', notes: 'Minute 3, 6, 9, 12 - lateral jump' }
+    );
+  } else if (hasKettlebell) {
+    exercises.push(
+      { exercise: 'Kettlebell Swing', target: '15 reps', notes: 'Minute 1, 4, 7, 10 - hip drive' },
+      { exercise: 'KB Goblet Squat', target: '12 reps', notes: 'Minute 2, 5, 8, 11 - full depth' },
+      { exercise: 'Burpee', target: '10 reps', notes: 'Minute 3, 6, 9, 12 - full push-up' }
     );
   } else if (hasDumbbell) {
     exercises.push(
-      { exercise: 'Dumbbell Thruster', target: '12 reps', notes: 'Smooth transition from squat to press' },
-      { exercise: 'Box Jump', target: '10 reps', notes: 'Step down safely' }
+      { exercise: 'Dumbbell Thruster', target: '12 reps', notes: 'Minute 1, 4, 7, 10 - smooth transition' },
+      { exercise: 'DB Box Step-Over', target: '10 total', notes: 'Minute 2, 5, 8, 11 - alternating' },
+      { exercise: 'Burpee', target: '10 reps', notes: 'Minute 3, 6, 9, 12 - chest to deck' }
     );
   } else {
     exercises.push(
-      { exercise: 'Burpee', target: '12 reps', notes: 'Full push-up' },
-      { exercise: 'Air Squat', target: '20 reps', notes: 'Maintain tempo' }
+      { exercise: 'Burpee', target: '12 reps', notes: 'Odd minutes - full push-up' },
+      { exercise: 'Air Squat', target: '20 reps', notes: 'Even minutes - maintain tempo' },
+      { exercise: 'Mountain Climbers', target: '30 total', notes: 'Every 4th minute' }
     );
   }
   
@@ -963,66 +985,95 @@ function makeEmom(req: WorkoutGenerationRequest): any {
     title: 'EMOM 12',
     time_min: 12,
     items: exercises,
-    notes: 'Alternate exercises every minute for 12 minutes'
+    notes: 'Rotate exercises every minute for 12 minutes'
   };
 }
 
 function makeAmrapSkill(req: WorkoutGenerationRequest): any {
   const equipment = req.context?.equipment || [];
   const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
   
   const exercises = [];
   if (hasBarbell) {
     exercises.push(
       { exercise: 'Barbell Clean', target: '5 reps @ 60%', notes: 'Focus on technique' },
+      { exercise: 'Toes-to-Bar', target: '8 reps', notes: 'Strict or kipping' },
       { exercise: 'Handstand Hold', target: '20-30 sec', notes: 'Against wall if needed' },
-      { exercise: 'Double Under', target: '20 reps', notes: 'Or 40 singles' }
+      { exercise: 'Double Under', target: '30 reps', notes: 'Or 60 singles' },
+      { exercise: 'Row Calories', target: '10/8 cal', notes: 'Smooth pace' }
+    );
+  } else if (hasKettlebell) {
+    exercises.push(
+      { exercise: 'KB Clean', target: '8 reps/arm', notes: 'Smooth catch' },
+      { exercise: 'Pull-Up', target: '8 reps', notes: 'Strict or kipping' },
+      { exercise: 'Handstand Hold', target: '20-30 sec', notes: 'Against wall' },
+      { exercise: 'Double Under', target: '30 reps', notes: 'Or 60 singles' }
     );
   } else {
     exercises.push(
-      { exercise: 'Pull-Up', target: '5-10 reps', notes: 'Strict or kipping' },
+      { exercise: 'Pull-Up', target: '8 reps', notes: 'Strict or kipping' },
       { exercise: 'Handstand Hold', target: '20-30 sec', notes: 'Against wall' },
-      { exercise: 'Double Under', target: '20 reps', notes: 'Or 40 singles' }
+      { exercise: 'Double Under', target: '30 reps', notes: 'Or 60 singles' },
+      { exercise: 'Burpee', target: '10 reps', notes: 'Full push-up' }
     );
   }
   
   return {
     kind: 'skill',
-    title: 'AMRAP 10',
-    time_min: 10,
+    title: 'AMRAP 12',
+    time_min: 12,
     items: exercises,
-    notes: 'As many rounds as possible in 10 minutes'
+    notes: 'As many rounds as possible in 12 minutes'
   };
 }
 
 function makeAmrapCore(req: WorkoutGenerationRequest): any {
   return {
     kind: 'core',
-    title: 'AMRAP 8',
-    time_min: 8,
+    title: 'AMRAP 10',
+    time_min: 10,
     items: [
       { exercise: 'Hollow Hold', target: '30 sec', notes: 'Press lower back to floor' },
       { exercise: 'V-Up', target: '15 reps', notes: 'Touch toes at top' },
-      { exercise: 'Russian Twist', target: '20 total', notes: 'Control rotation' }
+      { exercise: 'Russian Twist', target: '20 total', notes: 'Control rotation, weighted if possible' },
+      { exercise: 'Plank', target: '45 sec', notes: 'Maintain neutral spine' },
+      { exercise: 'Bicycle Crunch', target: '20 total', notes: 'Slow and controlled' }
     ],
-    notes: 'As many rounds as possible in 8 minutes'
+    notes: 'As many rounds as possible in 10 minutes'
   };
 }
 
 function makeFinisher21_15_9(req: WorkoutGenerationRequest): any {
   const equipment = req.context?.equipment || [];
   const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
+  const hasDumbbell = equipment.some(e => /dumbbell/i.test(e));
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
   
   const exercises = [];
-  if (hasKettlebell) {
+  if (hasBarbell) {
+    exercises.push(
+      { exercise: 'Barbell Thruster', target: '21-15-9 reps @ 65%', notes: 'Smooth cycling' },
+      { exercise: 'Burpees Over Bar', target: '21-15-9 reps', notes: 'Lateral jump' },
+      { exercise: 'Pull-Up', target: '21-15-9 reps', notes: 'Kipping or strict' }
+    );
+  } else if (hasKettlebell) {
     exercises.push(
       { exercise: 'Kettlebell Swing', target: '21-15-9 reps', notes: 'American swing to overhead' },
+      { exercise: 'KB Goblet Squat', target: '21-15-9 reps', notes: 'Full depth' },
       { exercise: 'Burpee', target: '21-15-9 reps', notes: 'Chest to deck' }
+    );
+  } else if (hasDumbbell) {
+    exercises.push(
+      { exercise: 'Dumbbell Thruster', target: '21-15-9 reps', notes: 'Smooth transition' },
+      { exercise: 'DB Box Step-Over', target: '21-15-9 reps', notes: 'Alternating' },
+      { exercise: 'Burpee', target: '21-15-9 reps', notes: 'Full push-up' }
     );
   } else {
     exercises.push(
       { exercise: 'Burpee', target: '21-15-9 reps', notes: 'Full push-up' },
-      { exercise: 'Air Squat', target: '21-15-9 reps', notes: 'Full depth' }
+      { exercise: 'Air Squat', target: '21-15-9 reps', notes: 'Full depth' },
+      { exercise: 'Push-Up', target: '21-15-9 reps', notes: 'Chest to deck' }
     );
   }
   
