@@ -1,0 +1,65 @@
+Force Premium Path + Add Meta Trace (routing/orchestrator)
+
+Objective: For any CrossFit/HIIT request (or when DB/KB/BB are present), always use the premium generator. Only fall back to simple if the premium call hard-fails. Add transparent tracing (meta.generator, meta.acceptance, meta.seed).
+
+Do this exactly:
+
+Edit server/workoutGenerator.ts
+
+Add a FORCE_PREMIUM flag, compute wantsPremium, and attach meta to the final result.
+
+Ensure result.meta.generator is "premium" | "simple" | "mock".
+
+// server/workoutGenerator.ts  (top-level imports unchanged)
+// ADD near top:
+const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM?.toLowerCase() !== 'false';
+
+// INSIDE generateWorkout(req): replace current selection block with the one below
+const wantsPremium =
+  FORCE_PREMIUM ||
+  ['crossfit','hiit'].includes((req.goal||'').toLowerCase()) ||
+  (req.equipment||[]).some((e:string)=>/(barbell|dumbbell|kettlebell)/i.test(e));
+
+let result:any, generatorUsed:'premium'|'simple'|'mock'='premium';
+
+try {
+  if (wantsPremium) {
+    result = await premiumGenerate(req);
+  } else {
+    generatorUsed = 'simple';
+    result = await simpleGenerate(req);
+  }
+} catch (e) {
+  try { generatorUsed = 'simple'; result = await simpleGenerate(req); }
+  catch { generatorUsed = 'mock'; result = await mockGenerate(req); }
+}
+
+// attach meta BEFORE returning (even simple/mock should include it)
+result.meta = {
+  ...(result.meta||{}),
+  generator: generatorUsed,
+  acceptance: result.acceptance_flags || {},
+  seed: req.seed || result.meta?.seed || Math.random().toString(16).slice(2,10)
+};
+
+return result;
+
+
+Edit server/routes.ts (the /api/workouts/generate handler):
+
+Pass through focus, categories_for_mixed, and seed from the client if present (don’t drop them).
+
+Ensure response contains meta.generator.
+
+Acceptance criteria
+
+POST /api/workouts/generate with { "goal":"CrossFit", ... } returns meta.generator:"premium".
+
+If premium throws, only then meta.generator:"simple" appears.
+
+Quick test
+
+curl -s http://localhost:3000/api/workouts/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"goal":"CrossFit","durationMin":45,"intensity":7,"equipment":["barbell","dumbbell"],"seed":"A1B2C3"}' \
+  | jq '.meta'

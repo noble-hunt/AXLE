@@ -378,7 +378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.type('application/json');
     
     try {
-      const { goal, durationMin, intensity, equipment, seed } = req.body ?? {};
+      const { goal, durationMin, intensity, equipment, seed, focus, categories_for_mixed } = req.body ?? {};
       
       if (!goal || !durationMin || !intensity) {
         return res.status(400).json({ 
@@ -420,7 +420,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             context: {
               equipment: equipmentList,
               constraints: [],
-              goals: ['general_fitness']
+              goals: ['general_fitness'],
+              focus: focus,
+              categories_for_mixed: categories_for_mixed
             }
           };
           
