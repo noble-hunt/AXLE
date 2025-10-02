@@ -1,0 +1,201 @@
+# AXLE – Project Context
+
+_Last updated: now_
+
+## What we’re building
+AXLE is a mobile-first web app (Capacitor wrapper planned) for generating, previewing, and logging workouts, plus social/groups and health insights. Near-term generator is **rule-based** (deterministic by seed); long-term we’ll swap in a **fine-tuned model** that emits the **same schema** so the UI/API remain unchanged.
+
+---
+
+## Current Status (high level)
+
+- ✅ **App runs cleanly in dev (Replit)** with Vite + Express.
+- ✅ **Error visibility**: unified `httpJSON` fetch wrapper + toast errors; no more silent failures or `[object Object]`.
+- ✅ **Sentry** wired for **client (React)** and **server (Express)** with DSNs via env.
+- ✅ **Health checks**: `/api/healthz` returns JSON and is used by CI.
+- ✅ **CI (GitHub Actions)**: install → build/typecheck/lint → ping health endpoint.
+- ✅ **Cron** (server): “daily suggestions” job scheduled (05:00 UTC) – logs visible.
+- ✅ **Workout generator flow** restored:
+  - 5-step wizard (Focus → Duration → Equipment → Intensity → Preview).
+  - Preview screen renders **actual exercises** with sets / reps / time / load.
+  - Deterministic by `seed`.
+- ✅ **Backend preview endpoint**: `POST /api/workouts/preview` (returns validated plan).
+- ✅ **Schema guard**: runtime validation prevents “empty plan” responses.
+- ✅ **Routing/UI**:  
+  - “Start Now” (daily suggestion) works.  
+  - “Create New Workout” opens the wizard correctly.
+- 🟨 **Mobile UI polish**: some cards still need responsive tweaks (see “UI polish”).
+- 🟨 **Auth 401s**: some suggestion endpoints can return 401 without token—non-blocking but should be tightened.
+- 🟨 **Push notifications**: VAPID planned; keys required; not yet user-visible.
+- 🟨 **Capacitor/iOS wrapper**: approved plan; waiting on your machine/Xcode.
+
+---
+
+## Key Decisions & Architecture
+
+### 1) Single source of truth: **WorkoutPlan schema**
+Located at `shared/workoutSchema.ts` (shared by server & client via TS):
+
+- Movements, prescriptions, blocks, total time, etc.  
+- **Every plan must validate**: no empty blocks, consistent dosing, equipment awareness.  
+- Lets us swap the rule engine for an ML model later with zero UI changes.
+
+### 2) Deterministic generation (seeded)
+- `mulberry32` RNG + `strSeed(seed)` produce the same plan for the same inputs.  
+- Used for QA repro (“Seed: A1DB6660” badge shown on preview).
+
+### 3) Rule-based generator (now) → ML model (later)
+File: `server/workouts/generate.ts`  
+- Filters catalog by equipment and focus.  
+- Fills warmup/main/cooldown with **real items** and dosing templates.  
+- Outputs a **validated** `WorkoutPlan`.  
+- When your fine-tuned model is ready, it should emit the **same schema**.
+
+### 4) Error handling & observability
+- `client/src/lib/http.ts (httpJSON)` checks `content-type`, parses JSON/text, throws structured `HttpError`.
+- **Toasts** show human messages for failures.
+- Sentry captures exceptions on both client & server.
+
+---
+
+## API Surface (server)
+
+- `GET /api/healthz` → `{ ok: true, uptime, version, env }`
+- `POST /api/workouts/preview`  
+  **Body:**  
+  ```json
+  {
+    "focus": "strength|conditioning|mixed|endurance",
+    "durationMin": 10..120,
+    "intensity": 1..10,
+    "equipment": ["bodyweight","dumbbell","kettlebell","barbell"],
+    "seed": "optional-string"
+  }
+  ```
+  **Returns:** `WorkoutPlan` (validated, non-empty blocks)
+- (Existing) suggestions endpoints: `/api/workouts/suggest/today`, etc.  
+  _Note: may require authenticated requests; minor 401s observed._
+
+> Older saved data is adapted via `server/workouts/adapter.ts` so the UI can render it under the new schema.
+
+---
+
+## Frontend Notes
+
+- **Wizard route**: `/workout/generate` (5 steps).  
+- **Preview screen**: shows block items with full prescriptions:
+  - Strength: `DB Bench — 5 x 5 @ RPE 8, Rest 120s`
+  - Conditioning: `KB Swing — 10 x 40s, Rest 20s`
+- **Daily Suggested Workout** card appears on **Home** and at top of **Workouts** page; buttons are consistent.
+
+---
+
+## Dev & Runbook
+
+### Local/Replit dev
+- Ensure API base URL (dev):
+  ```
+  VITE_API_BASE_URL=http://localhost:5000
+  ```
+- Start both servers (one terminal is fine):
+  ```bash
+  npm ci
+  npm run dev
+  # equivalent to: concurrently "NODE_ENV=development tsx server/index.ts" "vite --host 0.0.0.0 --port 5173"
+  ```
+- If you see blank preview: hard reload, confirm `VITE_API_BASE_URL` and Sentry DSNs.
+
+### Env / Secrets (expect these)
+- `VITE_API_BASE_URL` (client) – dev: `http://localhost:5000`; prod: your API host.
+- **Sentry**
+  - `SENTRY_DSN_SERVER`, `SENTRY_ENV`
+  - `VITE_SENTRY_DSN_CLIENT`, `VITE_SENTRY_ENV`
+- **Web Push (planned)**
+  - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+  - `VITE_VAPID_PUBLIC_KEY` (client)
+- CI
+  - `PROD_SITE_URL` (used by GitHub Actions E2E ping)
+
+---
+
+## CI/CD
+
+- **GitHub Actions** (`.github/workflows/ci.yml`):
+  - Node 20, `npm ci`
+  - Typecheck `tsc --noEmit`
+  - Lint `eslint` (no warnings)
+  - Build client
+  - **E2E ping**: `curl $PROD_SITE_URL/api/healthz` (fast prod smoke)
+- Add test stage for generator (`server/workouts/generate.test.ts`) to guarantee non-empty plans.
+
+---
+
+## Logging, Alerts & Health
+
+- **Sentry** for exceptions (client/server).  
+- Server logs include cron setup:  
+  `"[CRON] Daily suggestions job scheduled for 05:00 UTC"`
+- Health endpoint monitored by CI and can be used by Uptime robot later.
+
+---
+
+## Notifications (web push) – status
+
+- Strategy agreed: **web push for PWA**, Capacitor → APNs later for iOS wrapper.
+- To complete web push you’ll need:
+  1) Generate VAPID keys: `npx web-push generate-vapid-keys`
+  2) Save to secrets (`VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, `VITE_VAPID_PUBLIC_KEY`)
+  3) Register service worker & subscription on client; store endpoint on server; send via `web-push`.
+- Not yet exposed in UI.
+
+---
+
+## Migratons/DB
+
+- Supabase hydration issues fixed earlier.  
+- A guard/migration added to ensure missing columns (e.g., `generation_id`) are created at startup so prod users don’t brick flows.
+- Daily suggestions read/write paths tested.
+
+---
+
+## UI Polish / Responsiveness (open)
+
+- Metric/detail sheets/cards should respect device width; keep content within mobile container, avoid overflow of long headings.  
+- The generator’s **focus cards** are now horizontal; continue refining line-wraps and spacing.
+
+---
+
+## What we still need from you (to improve workouts)
+
+1) **Example workouts** (per focus & duration) in your house style:
+   - Movements, equipment, dosing, rest, tempo, notes.
+2) **Movement catalog** (CSV/JSON):
+   - `id, name, equipment[], tags[], default load text (optional)`.
+3) **Dosing templates** you like:
+   - Strength (e.g., 5×5, 4×8, 6×3),
+   - Conditioning (EMOM, AMRAP, intervals),
+   - Mixed blends.
+4) **Equipment rules**:
+   - e.g., if `dumbbell` + no bench → use floor press alternatives.
+
+> I’ll fold these into the rule engine first (fast improvement), then we can connect your fine-tuned model to emit the **same `WorkoutPlan` schema**.
+
+---
+
+## Troubleshooting quick refs
+
+- **Preview fails / 404**: wrong route (ensure `POST /api/workouts/preview`), or double `/api/api/...` in client paths.  
+- **`[object Object]` toast**: fixed by `httpJSON`; if seen again, an error is bypassing the wrapper.  
+- **Blank page**: Vite running but API down, or `VITE_API_BASE_URL` missing.  
+- **CORS**: server allows Vercel *.vercel.app and local dev.  
+- **401 on suggestions**: ensure auth token is attached in `httpJSON` for protected routes.
+
+---
+
+## Roadmap (near-term)
+
+1) Integrate your **example workouts & catalog** → upgrade templates and tags.
+2) Add **unit tests** for generator presets and equipment rules.
+3) Ship **web push MVP** for daily suggestion nudges.
+4) Wrap with **Capacitor (iOS)** once you’re on your new Mac/Xcode.
+5) Optionally add Sentry **breadcrumbs** around generator decisions for debug clarity.

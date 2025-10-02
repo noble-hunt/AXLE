@@ -42,7 +42,7 @@ const PremiumWorkoutSchema = z.object({
 
 type PremiumWorkout = z.infer<typeof PremiumWorkoutSchema>;
 
-// Banned easy bodyweight movements (wall sit, mountain climber, star jump, high knees)
+// Banned easy bodyweight movements (wall sit, mountain climber, star jump, high knees, jumping jacks, bicycle crunch)
 // Stored in lowercase for case-insensitive matching
 const BANNED_EASY = new Set([
   "wall sit",
@@ -52,8 +52,15 @@ const BANNED_EASY = new Set([
   "star jump",
   "star jumps",
   "high knee",
-  "high knees"
+  "high knees",
+  "jumping jack",
+  "jumping jacks",
+  "bicycle crunch",
+  "bicycle crunches"
 ]);
+
+// Banned bodyweight movements specifically for main blocks when equipment is available
+const BANNED_BW_MAIN = /^(Wall Sit|Mountain Climber|Star Jump|High Knees|Jumping Jacks|Bicycle Crunch)$/i;
 
 // Allowed patterns for main blocks
 const ALLOWED_PATTERNS = [
@@ -283,6 +290,33 @@ function validatePatterns(workout: PremiumWorkout): { valid: boolean; violations
     valid: violations.length === 0,
     violations
   };
+}
+
+// Validate patterns and ban BW filler in main blocks when equipment exists
+function validatePatternsAndBW(workout: PremiumWorkout, equipment: string[]): void {
+  const hasLoad = (equipment || []).some(e => /(barbell|dumbbell|kettlebell)/i.test(e));
+  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+  
+  if (!mains.length) {
+    throw new Error('no_main_blocks');
+  }
+
+  for (const b of mains) {
+    // Check pattern lock
+    const ALLOWED_PATTERNS_REGEX = /(Every\s*[234]:?00\s*x\s*\d+|EMOM\s*(8|10|12|14|16)|AMRAP\s*(8|10|12|15)|For\s*Time\s*21-15-9|Chipper\s*40-30-20-10)/i;
+    if (!ALLOWED_PATTERNS_REGEX.test(b.title || '')) {
+      throw new Error('pattern_lock_violation');
+    }
+    
+    // Check for banned BW movements in main blocks when equipment is available
+    if (hasLoad) {
+      const banned = (b.items || []).filter((it: any) => BANNED_BW_MAIN.test(it.exercise || ''));
+      if (banned.length > 0) {
+        throw new Error('banned_bw_in_main');
+      }
+      console.log(`✅ Block "${b.title}" has no banned movements`);
+    }
+  }
 }
 
 // Hardness calculation function
@@ -746,6 +780,28 @@ export async function generatePremiumWorkout(
     // Parse and validate
     const workout = JSON.parse(content);
     let validated = PremiumWorkoutSchema.parse(workout);
+
+    // Validate patterns and BW movements before sanitization
+    try {
+      validatePatternsAndBW(validated, request.context?.equipment || []);
+    } catch (validationError: any) {
+      if (retryCount === 0 && (validationError.message === 'pattern_lock_violation' || validationError.message === 'banned_bw_in_main')) {
+        console.warn(`⚠️ Validation failed: ${validationError.message}. Regenerating with CF pattern lock and removing bodyweight filler from mains...`);
+        
+        // Regenerate with explicit instructions
+        const retryRequest = {
+          ...request,
+          context: {
+            ...request.context,
+            regeneration_reason: 'Regenerate with CF pattern lock and remove bodyweight filler from mains (use DB/KB/BB)'
+          }
+        };
+        
+        return generatePremiumWorkout(retryRequest, seed, retryCount + 1);
+      }
+      // If second attempt still fails, continue with warning
+      console.warn(`⚠️ Validation failed after retry: ${validationError.message}, continuing anyway`);
+    }
 
     // Sanitize and enforce requirements
     validated = sanitizeWorkout(validated, {
