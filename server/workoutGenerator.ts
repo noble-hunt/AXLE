@@ -12,39 +12,45 @@ const openai = apiKey ? new OpenAI({ apiKey }) : null;
 // Force premium generator for CrossFit/HIIT and equipped workouts (default: true)
 const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM?.toLowerCase() !== 'false';
 
-// Intensity upgrader constants
+// ===== HOBH: upgradeIntensity (hard mode) =====
 const ROTATION = ["DB Box Step-Overs","KB Swings","Wall Balls","Burpees"];
-const BANNED_SET = new Set(["Wall Sit","Mountain Climber","Star Jump","High Knees","Jumping Jacks","Bicycle Crunch"]);
+const BANNED = new Set(["Wall Sit","Mountain Climber","Star Jump","High Knees","Jumping Jacks","Bicycle Crunch"]);
 
-function upgradeIntensity(workout: any, equipment: string[], readiness: { sleep_score?: number } = {}) {
-  const hasLoad = (equipment || []).some(e => /(barbell|dumbbell|kettlebell)/i.test(e));
-  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+export function upgradeIntensity(workout:any, equipment:string[], readiness?:{sleep_score?:number}) {
+  const hasLoad = (equipment||[]).some(e=>/(barbell|dumbbell|kettlebell)/i.test(e));
   let rot = 0;
 
-  for (const b of mains) {
+  for (const b of workout.blocks) {
+    if (['warmup','cooldown'].includes(b.kind)) continue;
+
+    // 1) Remove banned BW in mains when gear exists
     if (hasLoad) {
-      b.items = (b.items || []).map((it: any) => {
-        const n = (it.exercise || '').trim();
-        if (BANNED_SET.has(n)) {
+      b.items = (b.items||[]).map((it:any)=>{
+        const n = (it.exercise||'').trim();
+        if (BANNED.has(n)) {
           const sub = ROTATION[rot++ % ROTATION.length];
-          workout.substitutions = (workout.substitutions || []).concat([{ from: n, to: sub, reason: "upgrade_intensity" }]);
-          return { ...it, exercise: sub, notes: (it.notes || "") + " (auto-upgrade)" };
+          workout.substitutions = (workout.substitutions||[]).concat([{from:n,to:sub,reason:"upgrade_intensity"}]);
+          return { ...it, exercise: sub, notes: ((it.notes||'') + ' (auto-upgrade)').trim() };
         }
         return it;
       });
     }
-    if (/Every\s*3:00/i.test(b.title)) b.title = b.title.replace(/Every\s*3:00/i, 'Every 2:30');
-    if (/EMOM\s*10\b/i.test(b.title)) b.title = b.title.replace(/EMOM\s*10\b/i, 'EMOM 12');
 
-    for (const it of b.items || []) {
-      if (typeof it.scheme?.reps === 'number') it.scheme.reps = Math.round(it.scheme.reps * 1.15);
-      if (/RIR\s*2-3/i.test(it.scheme?.rpe || '')) it.scheme.rpe = 'RIR 1–2';
+    // 2) Tighten time domains
+    if (/(Every\s*3:00|E3:00)/i.test(b.title)) b.title = b.title.replace(/(Every\s*3:00|E3:00)/i,'E2:00');
+    if (/EMOM\s*10\b/i.test(b.title)) b.title = b.title.replace(/EMOM\s*10\b/i,'EMOM 14');
+
+    // 3) Increase volume
+    for (const it of (b.items||[])) {
+      if (typeof it.scheme?.reps === 'number') it.scheme.reps = Math.round(it.scheme.reps * 1.25); // was 1.15
+      if (/RIR\s*2-3/i.test(it.scheme?.rpe||'')) it.scheme.rpe = 'RIR 1–2';
     }
   }
 
-  const floor = (readiness.sleep_score && readiness.sleep_score < 60) ? 0.55 : 0.75;
+  // recompute hardness & flag
   workout.variety_score = computeHardness(workout);
-  workout.acceptance_flags = { ...(workout.acceptance_flags || {}), hardness_ok: workout.variety_score >= floor };
+  const floor = (readiness?.sleep_score && readiness.sleep_score < 60) ? 0.55 : 0.85;
+  workout.acceptance_flags = { ...(workout.acceptance_flags||{}), hardness_ok: workout.variety_score >= floor };
   return workout;
 }
 

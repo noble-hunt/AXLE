@@ -428,9 +428,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const premiumWorkout = await generatePremiumWorkout(premiumRequest, workoutSeed);
           
+          // Apply intensity upgrader (post-generation, pre-conversion)
+          const { upgradeIntensity } = await import('./workoutGenerator');
+          const upgradedWorkout = upgradeIntensity(premiumWorkout, equipmentList);
+          console.log('✅ Intensity upgrade complete. Hardness:', upgradedWorkout.variety_score, 'hardness_ok:', upgradedWorkout.acceptance_flags?.hardness_ok);
+          
           // Convert premium workout to UI format using shared converter
           const { convertPremiumToGenerated } = await import('./workoutGenerator');
-          const converted = convertPremiumToGenerated(premiumWorkout, {
+          const converted = convertPremiumToGenerated(upgradedWorkout, {
             category: goal,
             duration: durationMin,
             intensity
@@ -439,18 +444,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const workout = {
             id: `premium-${Date.now()}`,
             ...converted,
-            estTimeMin: premiumWorkout.duration_min || durationMin,
+            estTimeMin: upgradedWorkout.duration_min || durationMin,
             seed: workoutSeed,
             meta: {
               ...converted.meta,
-              title: premiumWorkout.title || `${goal} Workout`,
+              title: upgradedWorkout.title || `${goal} Workout`,
               goal,
               equipment: equipmentList,
               seed: workoutSeed
             }
           };
           
-          console.log(`✅ Premium workout generated: "${premiumWorkout.title}" with seed: ${workoutSeed}`);
+          console.log(`✅ Premium workout generated: "${upgradedWorkout.title}" with seed: ${workoutSeed}`);
           return res.json({ ok: true, workout });
         } catch (premiumError) {
           console.error('Premium generator failed:', premiumError);
