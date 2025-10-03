@@ -1,0 +1,140 @@
+Premium generator: pattern packs per category + hardness defaults
+
+Goal: Each new focus yields the right style of session and is hard by default when equipment exists.
+
+File: server/ai/generators/premium.ts
+
+Implement a style switch at the top of your generatePremiumWorkout:
+
+// style-aware builder
+switch (req.style) {
+  case 'crossfit':
+    return buildCrossFitCF(req);                 // EMOM/AMRAP/E2:30/E3:00 + finisher logic
+  case 'olympic_weightlifting':
+    return buildOly(req);                        // E2:00 snatch/C&J complexes
+  case 'powerlifting':
+    return buildPowerlifting(req);               // 5x3 / 5x5 main + heavy accessory supersets
+  case 'bb_full_body':
+    return buildBBFull(req);                     // 3–4 sets x 8–15 across push/pull/legs + metabolite finisher
+  case 'bb_upper':
+    return buildBBUpper(req);
+  case 'bb_lower':
+    return buildBBLower(req);
+  case 'aerobic':
+    return buildAerobic(req);                    // Z2/3/4 intervals or steady; EMOM not required
+  case 'gymnastics':
+    return buildGymnastics(req);                 // skill EMOMs (strict pulling/HS/TTB), quality volume
+  case 'mobility':
+    return buildMobility(req);                   // warm-up + 2 quality circuits + cooldown
+  default:
+    return buildCrossFitCF(req);
+}
+
+
+Implementations (concise but hard):
+
+buildCrossFitCF(req)
+
+Warm-up template (your WU1/WU2/WU3).
+
+Main blocks (choose two patterns):
+
+Strength density: Every 2:30 x 5 (A1/A2 loaded pairs)
+
+Conditioning: EMOM 14–16 (odd: cals bike/row/ski, even: loaded—DB step-overs / KB swings / wall balls)
+
+Optionally AMRAP 12 or For Time 21-15-9 finisher if time short.
+
+Cooldown template.
+
+Hardness floor: 0.85 if gear; 0.55 low readiness.
+
+buildOly(req)
+
+Warm-up: barbell complex (PVC/Burgener) 6–8 min.
+
+Main 1: Every 2:00 x 6–8 Snatch complex, 65–80% (e.g., Snatch Pull + Hang Snatch + OHS, 1+1+1).
+
+Main 2: Every 2:00 x 6–8 Clean & Jerk complex, 65–80% (e.g., Clean + Front Squat + Jerk).
+
+Optional accessory: EMOM 10 pulls or RDLs + light cals.
+
+Cooldown: T-spine + hips.
+
+Ban BW filler; require barbell substitutions when no BB -> DB snatch complexes.
+
+buildPowerlifting(req)
+
+Warm-up.
+
+Choose two lifts of S/B/D (bias the one not done yesterday):
+
+Lift A: 5 x 3 @ 85–90% or 6 x 2 @ 90–92%, rest 2–3 min.
+
+Lift B: 4 x 5–6 @ 75–82%, rest 2 min.
+
+Accessory superset: 3 x 10–12 (hamstring/back/pressing), rest 60–90s.
+
+Hardness: increase score bonus for barbell, penalize if BW-only appears.
+
+buildBBFull / buildBBUpper / buildBBLower(req)
+
+Warm-up.
+
+3–4 tri-sets or supersets, 3–4 x 8–15, rest 45–75s, tempos/cues.
+
+Mandatory loaded movements if DB/BB/KB present.
+
+Optional metabolite finisher (e.g., 30-20-10 cable/band/DB).
+
+Hardness: raise floor to 0.80; bonus for supersets/density.
+
+buildAerobic(req)
+
+Warm-up.
+
+Intervals: 5 x 4:00 @ Z3, 2:00 easy or 10 x 1:00 @ Z4, 1:00 easy (bike/row/ski/run).
+
+Optional finisher: EMOM 10 easy skill drills.
+
+Hardness uses time at intensity; do not inject BW “strength.”
+
+buildGymnastics(req)
+
+Warm-up (wrists/shoulders/hips).
+
+Skill EMOM 12–16 across two domains (e.g., odd: :20 HS hold / even: 3–5 strict pull-ups), plus AMRAP 8 quality core (TTB/Knees).
+
+Keep it demanding (progressions written in notes), no random BW fluff.
+
+buildMobility(req)
+
+Warm-up (2–3 min cardio + dynamic).
+
+Circuit A: 2 rounds of 4–5 positions (:45–:60 each)
+
+Circuit B: 2 rounds PNF/contract-relax on hips/shoulders.
+
+Cooldown breathing.
+
+Hardness flag: deliberately low; bypass “hardness_ok” requirement for this style.
+
+Also keep these global rules in sanitizeWorkout():
+
+Allowed patterns for mains: Every 2:00–4:00 x N, EMOM 10–16, AMRAP 8–15, For Time 21-15-9, Chipper 40-30-20-10 (≤12m). Aerobic & Mobility are exceptions.
+
+Banned in mains when gear exists: Wall Sit, Mountain Climber, Star Jump, High Knees, Jumping Jacks, Bicycle Crunch.
+
+If the model violates: repair or regenerate once, then apply the upgradeIntensity step (see Prompt 4 we provided earlier).
+
+Acceptance:
+
+goal:"olympic_weightlifting" yields two E2:00 barbell complexes (snatch + C&J).
+
+goal:"powerlifting" yields two heavy lifts + accessory; no EMOM/AMRAP.
+
+goal:"bb_upper" shows upper-body supersets, hypertrophy rep ranges.
+
+goal:"aerobic" is intervals/steady—not wall sits.
+
+Hardness floors hit: ≥0.85 CF/PL/Oly/BB with gear (readiness not low).
