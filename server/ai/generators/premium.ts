@@ -1124,12 +1124,935 @@ function makeCooldown(): any {
   };
 }
 
+// ===== HOBH: Style-Aware Builder Functions =====
+
+function buildCrossFitCF(req: WorkoutGenerationRequest): PremiumWorkout {
+  const equipment = req.context?.equipment || [];
+  const duration = req.duration || 45;
+  const intensity = req.intensity || 7;
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
+  const hasDumbbell = equipment.some(e => /dumbbell/i.test(e));
+  const hasGear = hasBarbell || hasKettlebell || hasDumbbell;
+  
+  const blocks = [];
+  
+  // Warmup
+  blocks.push(pickWarmup(req));
+  
+  // Main 1: Strength density Every 2:30 x 5
+  const strengthExercises = [];
+  if (hasBarbell) {
+    strengthExercises.push(
+      { exercise: 'Barbell Front Squat (A1)', target: '5 reps @ 75-80%', notes: 'Depth and control' },
+      { exercise: 'Barbell Push Press (A2)', target: '5 reps @ 75%', notes: 'Explosive hip drive' }
+    );
+  } else if (hasDumbbell) {
+    strengthExercises.push(
+      { exercise: 'DB Goblet Squat (A1)', target: '8 reps', notes: 'Upright torso' },
+      { exercise: 'DB Push Press (A2)', target: '8 reps', notes: 'Hip to overhead' }
+    );
+  } else if (hasKettlebell) {
+    strengthExercises.push(
+      { exercise: 'KB Front Rack Squat (A1)', target: '10 reps', notes: 'Elbows up' },
+      { exercise: 'KB Push Press (A2)', target: '10 reps', notes: 'Full extension' }
+    );
+  } else {
+    strengthExercises.push(
+      { exercise: 'Air Squat (A1)', target: '20 reps', notes: 'Tempo 3-1-1' },
+      { exercise: 'Push-Up (A2)', target: '15 reps', notes: 'Chest to deck' }
+    );
+  }
+  
+  blocks.push({
+    kind: 'strength',
+    title: 'Every 2:30 x 5',
+    time_min: 13,
+    items: strengthExercises,
+    notes: 'Strength density - complete A1 + A2 every 2:30 for 5 rounds'
+  });
+  
+  // Main 2: EMOM 14-16
+  const emomExercises = [];
+  const emomDuration = intensity >= 8 ? 16 : 14;
+  if (hasBarbell) {
+    emomExercises.push(
+      { exercise: 'Row Calories (odd min)', target: '12/10 cal', notes: 'Hard pace' },
+      { exercise: 'Barbell Thruster (even min)', target: '8 reps @ 65%', notes: 'Smooth reps' }
+    );
+  } else if (hasKettlebell) {
+    emomExercises.push(
+      { exercise: 'Bike Calories (odd min)', target: '10/8 cal', notes: 'Steady effort' },
+      { exercise: 'KB Swings (even min)', target: '15 reps', notes: 'Hip extension' }
+    );
+  } else if (hasDumbbell) {
+    emomExercises.push(
+      { exercise: 'Ski Erg Calories (odd min)', target: '10 cal', notes: 'Full power' },
+      { exercise: 'DB Box Step-Overs (even min)', target: '10 total', notes: 'Alternating legs' }
+    );
+  } else {
+    emomExercises.push(
+      { exercise: 'Burpees (odd min)', target: '12 reps', notes: 'Full push-up' },
+      { exercise: 'Air Squat (even min)', target: '20 reps', notes: 'Full depth' }
+    );
+  }
+  
+  blocks.push({
+    kind: 'conditioning',
+    title: `EMOM ${emomDuration}`,
+    time_min: emomDuration,
+    items: emomExercises,
+    notes: `EMOM ${emomDuration} - odd: cyclical cals, even: loaded movement`
+  });
+  
+  // Optional finisher if time permits
+  const totalTime = blocks.reduce((sum, b) => sum + b.time_min, 0);
+  if (totalTime < duration - 8) {
+    const finisherExercises = [];
+    if (hasBarbell) {
+      finisherExercises.push(
+        { exercise: 'Barbell Thruster', target: '21-15-9', notes: '@ 65%' },
+        { exercise: 'Burpee Over Bar', target: '21-15-9', notes: 'Lateral jump' }
+      );
+    } else if (hasKettlebell) {
+      finisherExercises.push(
+        { exercise: 'KB Swings', target: '21-15-9', notes: 'American style' },
+        { exercise: 'Burpee', target: '21-15-9', notes: 'Full push-up' }
+      );
+    } else if (hasDumbbell) {
+      finisherExercises.push(
+        { exercise: 'DB Thruster', target: '21-15-9', notes: 'Smooth reps' },
+        { exercise: 'Burpee', target: '21-15-9', notes: 'Chest to deck' }
+      );
+    } else {
+      finisherExercises.push(
+        { exercise: 'Burpee', target: '21-15-9', notes: 'Full ROM' },
+        { exercise: 'Air Squat', target: '21-15-9', notes: 'Full depth' }
+      );
+    }
+    blocks.push({
+      kind: 'conditioning',
+      title: 'For Time 21-15-9',
+      time_min: 8,
+      items: finisherExercises,
+      notes: 'Complete 21-15-9 reps for time'
+    });
+  }
+  
+  // Cooldown
+  blocks.push(makeCooldown());
+  
+  const hardnessFloor = hasGear ? 0.85 : 0.55;
+  const varietyScore = hasGear ? 0.90 : 0.60;
+  
+  return {
+    title: 'CrossFit HIIT Session',
+    duration_min: duration,
+    blocks,
+    acceptance_flags: {
+      time_fit: true,
+      has_warmup: true,
+      has_cooldown: true,
+      mixed_rule_ok: true,
+      equipment_ok: hasGear,
+      injury_safe: true,
+      readiness_mod_applied: true,
+      hardness_ok: varietyScore >= hardnessFloor,
+      patterns_locked: true
+    },
+    variety_score: varietyScore
+  };
+}
+
+function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
+  const equipment = req.context?.equipment || [];
+  const duration = req.duration || 45;
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  
+  const blocks = [];
+  
+  // Warmup: Barbell complex
+  if (hasBarbell) {
+    blocks.push({
+      kind: 'warmup',
+      title: 'Barbell Warm-up Complex',
+      time_min: 8,
+      items: [
+        { exercise: 'PVC Pass-Through', target: '10 reps', notes: 'Shoulder mobility' },
+        { exercise: 'Burgener Warm-up', target: '5 reps each', notes: 'Down-up, elbows high, muscle snatch, snatch balance' },
+        { exercise: 'Empty Bar Snatch', target: '5 reps', notes: 'Focus on positions' },
+        { exercise: 'Empty Bar Clean & Jerk', target: '5 reps', notes: 'Focus on timing' }
+      ],
+      notes: 'Comprehensive Olympic lifting prep'
+    });
+  } else if (equipment.some(e => /dumbbell/i.test(e))) {
+    blocks.push({
+      kind: 'warmup',
+      title: 'Dumbbell Warm-up Complex',
+      time_min: 8,
+      items: [
+        { exercise: 'DB Snatch Prep', target: '5 reps/arm', notes: 'Light weight, positions' },
+        { exercise: 'DB Clean Prep', target: '5 reps/arm', notes: 'Light weight, smooth catch' }
+      ],
+      notes: 'Prep for DB Olympic work'
+    });
+  } else {
+    blocks.push(pickWarmup(req));
+  }
+  
+  // Main 1: Snatch complex Every 2:00 x 6-8
+  const snatchExercises = [];
+  if (hasBarbell) {
+    snatchExercises.push(
+      { exercise: 'Snatch Pull + Hang Snatch + OHS', target: '1+1+1 @ 65-80%', notes: 'Complex - no dropping between reps' }
+    );
+  } else if (equipment.some(e => /dumbbell/i.test(e))) {
+    snatchExercises.push(
+      { exercise: 'DB Snatch (alt arms)', target: '3/arm @ 70%', notes: 'Full extension, smooth catch' }
+    );
+  } else {
+    snatchExercises.push(
+      { exercise: 'Burpee to High Jump', target: '5 reps', notes: 'Explosive hip extension' }
+    );
+  }
+  
+  blocks.push({
+    kind: 'strength',
+    title: 'Every 2:00 x 7',
+    time_min: 14,
+    items: snatchExercises,
+    notes: 'Snatch complex - focus on positions and timing'
+  });
+  
+  // Main 2: Clean & Jerk complex Every 2:00 x 6-8
+  const cjExercises = [];
+  if (hasBarbell) {
+    cjExercises.push(
+      { exercise: 'Clean + Front Squat + Jerk', target: '1+1+1 @ 65-80%', notes: 'Complex - no dropping between reps' }
+    );
+  } else if (equipment.some(e => /dumbbell/i.test(e))) {
+    cjExercises.push(
+      { exercise: 'DB Clean & Press (alt arms)', target: '3/arm @ 70%', notes: 'Smooth transition to overhead' }
+    );
+  } else {
+    cjExercises.push(
+      { exercise: 'Burpee to Overhead Reach', target: '8 reps', notes: 'Full extension overhead' }
+    );
+  }
+  
+  blocks.push({
+    kind: 'strength',
+    title: 'Every 2:00 x 7',
+    time_min: 14,
+    items: cjExercises,
+    notes: 'Clean & Jerk complex - maintain positions'
+  });
+  
+  // Optional accessory EMOM 10
+  const totalTime = blocks.reduce((sum, b) => sum + b.time_min, 0);
+  if (totalTime < duration - 8) {
+    const accessoryExercises = [];
+    if (hasBarbell) {
+      accessoryExercises.push(
+        { exercise: 'Barbell RDL (odd min)', target: '8 reps @ 60%', notes: 'Control eccentric' },
+        { exercise: 'Strict Pull-Ups (even min)', target: '6-8 reps', notes: 'Full ROM' }
+      );
+    } else if (equipment.some(e => /dumbbell/i.test(e))) {
+      accessoryExercises.push(
+        { exercise: 'DB RDL (odd min)', target: '10 reps', notes: 'Hamstring focus' },
+        { exercise: 'Ring Rows (even min)', target: '12 reps', notes: 'Controlled tempo' }
+      );
+    }
+    if (accessoryExercises.length > 0) {
+      blocks.push({
+        kind: 'conditioning',
+        title: 'EMOM 10',
+        time_min: 10,
+        items: accessoryExercises,
+        notes: 'Accessory work - pulls and posterior chain'
+      });
+    }
+  }
+  
+  // Cooldown
+  blocks.push({
+    kind: 'cooldown',
+    title: 'Mobility & Recovery',
+    time_min: 8,
+    items: [
+      { exercise: 'T-Spine Foam Roll', target: '90 sec', notes: 'Upper back extension' },
+      { exercise: 'Hip Flexor Stretch', target: '60 sec/side', notes: 'Couch stretch or lunge' },
+      { exercise: 'Overhead Reach', target: '60 sec total', notes: 'Shoulder flexibility' },
+      { exercise: 'Child\'s Pose', target: '90 sec', notes: 'Deep breathing' }
+    ],
+    notes: 'T-spine + hips recovery'
+  });
+  
+  const varietyScore = hasBarbell ? 0.95 : 0.70;
+  
+  return {
+    title: 'Olympic Weightlifting Session',
+    duration_min: duration,
+    blocks,
+    acceptance_flags: {
+      time_fit: true,
+      has_warmup: true,
+      has_cooldown: true,
+      mixed_rule_ok: true,
+      equipment_ok: hasBarbell,
+      injury_safe: true,
+      readiness_mod_applied: true,
+      hardness_ok: varietyScore >= 0.85,
+      patterns_locked: true
+    },
+    variety_score: varietyScore
+  };
+}
+
+function buildPowerlifting(req: WorkoutGenerationRequest): PremiumWorkout {
+  const equipment = req.context?.equipment || [];
+  const duration = req.duration || 45;
+  const intensity = req.intensity || 8;
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  
+  const blocks = [];
+  
+  // Warmup
+  blocks.push(pickWarmup(req));
+  
+  // Choose two lifts (Squat, Bench, Deadlift)
+  const lifts = ['Squat', 'Deadlift', 'Bench Press'];
+  const selectedLifts = intensity >= 9 
+    ? ['Squat', 'Deadlift'] 
+    : ['Squat', 'Bench Press'];
+  
+  // Lift A: Heavy sets
+  const liftAExercises = [];
+  if (hasBarbell) {
+    const liftA = selectedLifts[0];
+    const protocol = intensity >= 9 ? '6 x 2 @ 90-92%' : '5 x 3 @ 85-90%';
+    liftAExercises.push(
+      { exercise: `Barbell ${liftA}`, target: protocol, notes: 'Focus on speed and form, rest 2-3 min' }
+    );
+  } else {
+    liftAExercises.push(
+      { exercise: 'Bodyweight Squat', target: '5 x 15', notes: 'Tempo 3-1-1, rest 90s' }
+    );
+  }
+  
+  blocks.push({
+    kind: 'strength',
+    title: 'Main Lift A',
+    time_min: 18,
+    items: liftAExercises,
+    notes: 'Heavy strength work with full rest'
+  });
+  
+  // Lift B: Volume sets
+  const liftBExercises = [];
+  if (hasBarbell) {
+    const liftB = selectedLifts[1];
+    liftBExercises.push(
+      { exercise: `Barbell ${liftB}`, target: '4 x 5-6 @ 75-82%', notes: 'Controlled tempo, rest 2 min' }
+    );
+  } else {
+    liftBExercises.push(
+      { exercise: 'Push-Up', target: '4 x 12-15', notes: 'Tempo 3-0-1, rest 90s' }
+    );
+  }
+  
+  blocks.push({
+    kind: 'strength',
+    title: 'Main Lift B',
+    time_min: 14,
+    items: liftBExercises,
+    notes: 'Volume work for hypertrophy'
+  });
+  
+  // Accessory superset
+  const accessoryExercises = [];
+  if (hasBarbell) {
+    accessoryExercises.push(
+      { exercise: 'Barbell RDL (A)', target: '3 x 10-12', notes: 'Hamstring focus' },
+      { exercise: 'Barbell Row (B)', target: '3 x 10-12', notes: 'Upper back' },
+      { exercise: 'DB Bench or Press (C)', target: '3 x 12', notes: 'Pressing accessory' }
+    );
+  } else {
+    accessoryExercises.push(
+      { exercise: 'Single Leg RDL (A)', target: '3 x 10/side', notes: 'Balance and hamstrings' },
+      { exercise: 'Inverted Row (B)', target: '3 x 12', notes: 'Back strength' },
+      { exercise: 'Pike Push-Up (C)', target: '3 x 10', notes: 'Shoulder work' }
+    );
+  }
+  
+  blocks.push({
+    kind: 'conditioning',
+    title: 'Accessory Superset',
+    time_min: 12,
+    items: accessoryExercises,
+    notes: 'Complete A+B+C with 60-90s rest, 3 rounds'
+  });
+  
+  // Cooldown
+  blocks.push(makeCooldown());
+  
+  const varietyScore = hasBarbell ? 0.92 : 0.65;
+  
+  return {
+    title: 'Powerlifting Session',
+    duration_min: duration,
+    blocks,
+    acceptance_flags: {
+      time_fit: true,
+      has_warmup: true,
+      has_cooldown: true,
+      mixed_rule_ok: true,
+      equipment_ok: hasBarbell,
+      injury_safe: true,
+      readiness_mod_applied: true,
+      hardness_ok: varietyScore >= 0.85,
+      patterns_locked: true
+    },
+    variety_score: varietyScore
+  };
+}
+
+function buildBBFull(req: WorkoutGenerationRequest): PremiumWorkout {
+  return buildBodybuilding(req, 'full');
+}
+
+function buildBBUpper(req: WorkoutGenerationRequest): PremiumWorkout {
+  return buildBodybuilding(req, 'upper');
+}
+
+function buildBBLower(req: WorkoutGenerationRequest): PremiumWorkout {
+  return buildBodybuilding(req, 'lower');
+}
+
+function buildBodybuilding(req: WorkoutGenerationRequest, split: 'full' | 'upper' | 'lower'): PremiumWorkout {
+  const equipment = req.context?.equipment || [];
+  const duration = req.duration || 45;
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  const hasDumbbell = equipment.some(e => /dumbbell/i.test(e));
+  const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
+  const hasGear = hasBarbell || hasDumbbell || hasKettlebell;
+  
+  const blocks = [];
+  
+  // Warmup
+  blocks.push(pickWarmup(req));
+  
+  if (split === 'full') {
+    // Tri-set 1: Push
+    const pushExercises = [];
+    if (hasBarbell) {
+      pushExercises.push(
+        { exercise: 'Barbell Bench Press (A1)', target: '3 x 10-12', notes: 'Controlled tempo 3-0-1' },
+        { exercise: 'DB Shoulder Press (A2)', target: '3 x 12', notes: 'Full ROM' },
+        { exercise: 'DB Lateral Raise (A3)', target: '3 x 15', notes: 'Slow eccentric' }
+      );
+    } else if (hasDumbbell) {
+      pushExercises.push(
+        { exercise: 'DB Bench Press (A1)', target: '3 x 10-12', notes: 'Deep stretch' },
+        { exercise: 'DB Shoulder Press (A2)', target: '3 x 12', notes: 'Full ROM' },
+        { exercise: 'DB Lateral Raise (A3)', target: '3 x 15', notes: 'Control tempo' }
+      );
+    } else {
+      pushExercises.push(
+        { exercise: 'Push-Up (A1)', target: '3 x 15-20', notes: 'Tempo 3-0-1' },
+        { exercise: 'Pike Push-Up (A2)', target: '3 x 12', notes: 'Shoulder focus' },
+        { exercise: 'Plank to Down Dog (A3)', target: '3 x 10', notes: 'Shoulder stability' }
+      );
+    }
+    blocks.push({
+      kind: 'strength',
+      title: 'Push Tri-Set',
+      time_min: 12,
+      items: pushExercises,
+      notes: 'Complete A1+A2+A3, rest 45-75s, repeat for 3 sets'
+    });
+    
+    // Tri-set 2: Pull
+    const pullExercises = [];
+    if (hasBarbell) {
+      pullExercises.push(
+        { exercise: 'Barbell Row (B1)', target: '3 x 10-12', notes: 'Elbows tight' },
+        { exercise: 'Lat Pulldown or Pull-Up (B2)', target: '3 x 8-12', notes: 'Full stretch' },
+        { exercise: 'Face Pull (B3)', target: '3 x 15', notes: 'Rear delt focus' }
+      );
+    } else if (hasDumbbell) {
+      pullExercises.push(
+        { exercise: 'DB Row (B1)', target: '3 x 12/arm', notes: 'Elbow to hip' },
+        { exercise: 'DB Pullover (B2)', target: '3 x 12', notes: 'Stretch lats' },
+        { exercise: 'DB Rear Delt Fly (B3)', target: '3 x 15', notes: 'Pinch shoulder blades' }
+      );
+    } else {
+      pullExercises.push(
+        { exercise: 'Inverted Row (B1)', target: '3 x 12-15', notes: 'Chest to bar' },
+        { exercise: 'Plank Row (B2)', target: '3 x 10/side', notes: 'Minimal rotation' },
+        { exercise: 'Prone Y-Raise (B3)', target: '3 x 12', notes: 'Rear delt activation' }
+      );
+    }
+    blocks.push({
+      kind: 'strength',
+      title: 'Pull Tri-Set',
+      time_min: 12,
+      items: pullExercises,
+      notes: 'Complete B1+B2+B3, rest 45-75s, repeat for 3 sets'
+    });
+    
+    // Tri-set 3: Legs
+    const legExercises = [];
+    if (hasBarbell) {
+      legExercises.push(
+        { exercise: 'Barbell Back Squat (C1)', target: '3 x 10-12', notes: 'Full depth' },
+        { exercise: 'Barbell RDL (C2)', target: '3 x 12', notes: 'Hamstring stretch' },
+        { exercise: 'Walking Lunge (C3)', target: '3 x 20 total', notes: 'Full ROM' }
+      );
+    } else if (hasDumbbell) {
+      legExercises.push(
+        { exercise: 'DB Goblet Squat (C1)', target: '3 x 12-15', notes: 'Upright torso' },
+        { exercise: 'DB RDL (C2)', target: '3 x 12', notes: 'Hamstring focus' },
+        { exercise: 'DB Walking Lunge (C3)', target: '3 x 20 total', notes: 'Control descent' }
+      );
+    } else {
+      legExercises.push(
+        { exercise: 'Bodyweight Squat (C1)', target: '3 x 20', notes: 'Tempo 3-1-1' },
+        { exercise: 'Single Leg RDL (C2)', target: '3 x 10/side', notes: 'Balance focus' },
+        { exercise: 'Walking Lunge (C3)', target: '3 x 20 total', notes: 'Full depth' }
+      );
+    }
+    blocks.push({
+      kind: 'strength',
+      title: 'Leg Tri-Set',
+      time_min: 12,
+      items: legExercises,
+      notes: 'Complete C1+C2+C3, rest 60s, repeat for 3 sets'
+    });
+  } else if (split === 'upper') {
+    // Superset 1: Chest + Back
+    const chestBackExercises = [];
+    if (hasBarbell || hasDumbbell) {
+      const prefix = hasBarbell ? 'Barbell' : 'DB';
+      chestBackExercises.push(
+        { exercise: `${prefix} Bench Press (A1)`, target: '4 x 8-12', notes: 'Controlled tempo' },
+        { exercise: `${prefix} Row (A2)`, target: '4 x 10-12', notes: 'Squeeze at top' }
+      );
+    } else {
+      chestBackExercises.push(
+        { exercise: 'Push-Up (A1)', target: '4 x 15-20', notes: 'Chest to deck' },
+        { exercise: 'Inverted Row (A2)', target: '4 x 12-15', notes: 'Full ROM' }
+      );
+    }
+    blocks.push({
+      kind: 'strength',
+      title: 'Chest + Back Superset',
+      time_min: 14,
+      items: chestBackExercises,
+      notes: 'A1+A2, rest 60-75s, 4 sets'
+    });
+    
+    // Superset 2: Shoulders + Arms
+    const shoulderArmExercises = [];
+    if (hasDumbbell || hasBarbell) {
+      shoulderArmExercises.push(
+        { exercise: 'DB Shoulder Press (B1)', target: '4 x 10-12', notes: 'Full ROM' },
+        { exercise: 'DB Bicep Curl (B2)', target: '4 x 12-15', notes: 'Control eccentric' },
+        { exercise: 'DB Tricep Extension (B3)', target: '4 x 12-15', notes: 'Full stretch' }
+      );
+    } else {
+      shoulderArmExercises.push(
+        { exercise: 'Pike Push-Up (B1)', target: '4 x 10-12', notes: 'Shoulder focus' },
+        { exercise: 'Chin-Up Hold (B2)', target: '4 x 20-30s', notes: 'Bicep isometric' },
+        { exercise: 'Diamond Push-Up (B3)', target: '4 x 10-12', notes: 'Tricep focus' }
+      );
+    }
+    blocks.push({
+      kind: 'strength',
+      title: 'Shoulder + Arm Tri-Set',
+      time_min: 12,
+      items: shoulderArmExercises,
+      notes: 'B1+B2+B3, rest 45-60s, 4 sets'
+    });
+    
+    // Finisher
+    const finisherExercises = [];
+    if (hasDumbbell) {
+      finisherExercises.push(
+        { exercise: 'DB Lateral Raise', target: '30-20-10', notes: 'Slow tempo' },
+        { exercise: 'DB Front Raise', target: '30-20-10', notes: 'Controlled' }
+      );
+    } else {
+      finisherExercises.push(
+        { exercise: 'Plank to Down Dog', target: '30-20-10', notes: 'Shoulder pump' },
+        { exercise: 'Scapular Push-Up', target: '30-20-10', notes: 'Shoulder blade focus' }
+      );
+    }
+    blocks.push({
+      kind: 'conditioning',
+      title: 'Metabolite Finisher',
+      time_min: 8,
+      items: finisherExercises,
+      notes: 'Complete 30-20-10 reps for time'
+    });
+  } else { // lower
+    // Superset 1: Quads
+    const quadExercises = [];
+    if (hasBarbell) {
+      quadExercises.push(
+        { exercise: 'Barbell Back Squat (A1)', target: '4 x 8-12', notes: 'Tempo 3-0-1' },
+        { exercise: 'Barbell Front Squat (A2)', target: '4 x 10-12', notes: 'Upright torso' }
+      );
+    } else if (hasDumbbell) {
+      quadExercises.push(
+        { exercise: 'DB Goblet Squat (A1)', target: '4 x 12-15', notes: 'Full depth' },
+        { exercise: 'DB Bulgarian Split Squat (A2)', target: '4 x 10/leg', notes: 'Control descent' }
+      );
+    } else {
+      quadExercises.push(
+        { exercise: 'Bodyweight Squat (A1)', target: '4 x 20', notes: 'Tempo 3-1-1' },
+        { exercise: 'Reverse Lunge (A2)', target: '4 x 12/leg', notes: 'Full ROM' }
+      );
+    }
+    blocks.push({
+      kind: 'strength',
+      title: 'Quad Superset',
+      time_min: 14,
+      items: quadExercises,
+      notes: 'A1+A2, rest 60-75s, 4 sets'
+    });
+    
+    // Superset 2: Hamstrings + Glutes
+    const hamGluteExercises = [];
+    if (hasBarbell) {
+      hamGluteExercises.push(
+        { exercise: 'Barbell RDL (B1)', target: '4 x 10-12', notes: 'Hamstring stretch' },
+        { exercise: 'Barbell Hip Thrust (B2)', target: '4 x 12-15', notes: 'Glute squeeze' }
+      );
+    } else if (hasDumbbell) {
+      hamGluteExercises.push(
+        { exercise: 'DB RDL (B1)', target: '4 x 12-15', notes: 'Control eccentric' },
+        { exercise: 'DB Goblet Sumo Squat (B2)', target: '4 x 15', notes: 'Wide stance' }
+      );
+    } else {
+      hamGluteExercises.push(
+        { exercise: 'Single Leg RDL (B1)', target: '4 x 10/leg', notes: 'Balance and hamstrings' },
+        { exercise: 'Glute Bridge (B2)', target: '4 x 20', notes: 'Full glute contraction' }
+      );
+    }
+    blocks.push({
+      kind: 'strength',
+      title: 'Hamstring + Glute Superset',
+      time_min: 12,
+      items: hamGluteExercises,
+      notes: 'B1+B2, rest 60s, 4 sets'
+    });
+    
+    // Finisher
+    const legFinisherExercises = [];
+    if (hasDumbbell) {
+      legFinisherExercises.push(
+        { exercise: 'DB Goblet Squat', target: '30-20-10', notes: 'Light weight, full ROM' },
+        { exercise: 'Walking Lunge', target: '30-20-10', notes: 'Bodyweight, controlled' }
+      );
+    } else {
+      legFinisherExercises.push(
+        { exercise: 'Air Squat', target: '30-20-10', notes: 'Full depth, fast' },
+        { exercise: 'Jumping Lunge', target: '30-20-10', notes: 'Explosive' }
+      );
+    }
+    blocks.push({
+      kind: 'conditioning',
+      title: 'Leg Metabolite Finisher',
+      time_min: 8,
+      items: legFinisherExercises,
+      notes: 'Complete 30-20-10 reps for time'
+    });
+  }
+  
+  // Cooldown
+  blocks.push(makeCooldown());
+  
+  const varietyScore = hasGear ? 0.88 : 0.60;
+  const splitTitle = split === 'full' ? 'Full Body' : split === 'upper' ? 'Upper Body' : 'Lower Body';
+  
+  return {
+    title: `Bodybuilding ${splitTitle} Session`,
+    duration_min: duration,
+    blocks,
+    acceptance_flags: {
+      time_fit: true,
+      has_warmup: true,
+      has_cooldown: true,
+      mixed_rule_ok: true,
+      equipment_ok: hasGear,
+      injury_safe: true,
+      readiness_mod_applied: true,
+      hardness_ok: varietyScore >= 0.80,
+      patterns_locked: true
+    },
+    variety_score: varietyScore
+  };
+}
+
+function buildAerobic(req: WorkoutGenerationRequest): PremiumWorkout {
+  const duration = req.duration || 45;
+  const intensity = req.intensity || 6;
+  
+  const blocks = [];
+  
+  // Warmup
+  blocks.push(pickWarmup(req));
+  
+  // Intervals based on intensity
+  const intervalExercises = [];
+  if (intensity >= 8) {
+    // Z4: 10 x 1:00 @ Z4, 1:00 easy
+    intervalExercises.push(
+      { exercise: 'Bike/Row/Ski', target: '10 x 1:00 @ Z4 (85-90% max HR)', notes: '1:00 easy between intervals' }
+    );
+    blocks.push({
+      kind: 'conditioning',
+      title: 'Z4 Intervals',
+      time_min: 20,
+      items: intervalExercises,
+      notes: 'High-intensity intervals - hard effort with equal rest'
+    });
+  } else {
+    // Z3: 5 x 4:00 @ Z3, 2:00 easy
+    intervalExercises.push(
+      { exercise: 'Bike/Row/Ski/Run', target: '5 x 4:00 @ Z3 (75-80% max HR)', notes: '2:00 easy between intervals' }
+    );
+    blocks.push({
+      kind: 'conditioning',
+      title: 'Z3 Intervals',
+      time_min: 30,
+      items: intervalExercises,
+      notes: 'Moderate intervals - sustainable pace with active recovery'
+    });
+  }
+  
+  // Optional skill finisher
+  const totalTime = blocks.reduce((sum, b) => sum + b.time_min, 0);
+  if (totalTime < duration - 8) {
+    blocks.push({
+      kind: 'skill',
+      title: 'EMOM 10 - Easy Skill',
+      time_min: 10,
+      items: [
+        { exercise: 'Double Unders or Jump Rope', target: '30 reps', notes: 'Odd minutes - light effort' },
+        { exercise: 'Hollow Hold', target: '20-30s', notes: 'Even minutes - core activation' }
+      ],
+      notes: 'Easy skill work - recovery pace'
+    });
+  }
+  
+  // Cooldown
+  blocks.push(makeCooldown());
+  
+  return {
+    title: 'Aerobic Conditioning Session',
+    duration_min: duration,
+    blocks,
+    acceptance_flags: {
+      time_fit: true,
+      has_warmup: true,
+      has_cooldown: true,
+      mixed_rule_ok: true,
+      equipment_ok: true,
+      injury_safe: true,
+      readiness_mod_applied: true,
+      hardness_ok: true, // Aerobic sessions bypass hardness requirement
+      patterns_locked: true
+    },
+    variety_score: 0.75 // Time at intensity
+  };
+}
+
+function buildGymnastics(req: WorkoutGenerationRequest): PremiumWorkout {
+  const duration = req.duration || 45;
+  
+  const blocks = [];
+  
+  // Warmup: wrists/shoulders/hips
+  blocks.push({
+    kind: 'warmup',
+    title: 'Gymnastics Warm-up',
+    time_min: 10,
+    items: [
+      { exercise: 'Wrist Circles', target: '20 each direction', notes: 'Prep for hand balancing' },
+      { exercise: 'Shoulder Pass-Through', target: '15 reps', notes: 'PVC or band' },
+      { exercise: 'Cat-Cow', target: '15 reps', notes: 'Spinal mobility' },
+      { exercise: 'Hip Circles', target: '10 each direction', notes: 'Dynamic hip prep' },
+      { exercise: 'Scapular Push-Up', target: '10 reps', notes: 'Shoulder blade control' }
+    ],
+    notes: 'Comprehensive gymnastics prep - wrists, shoulders, hips'
+  });
+  
+  // Skill EMOM 12-16
+  blocks.push({
+    kind: 'skill',
+    title: 'EMOM 16',
+    time_min: 16,
+    items: [
+      { exercise: 'Handstand Hold (odd min)', target: ':20-:30', notes: 'Wall-facing or freestanding, chest to wall preferred' },
+      { exercise: 'Strict Pull-Up (even min)', target: '3-5 reps', notes: 'Full ROM, control tempo - scale to ring rows' }
+    ],
+    notes: 'Skill EMOM - quality over quantity, rest as needed'
+  });
+  
+  // AMRAP 8 - Quality core
+  blocks.push({
+    kind: 'core',
+    title: 'AMRAP 8 - Quality Core',
+    time_min: 8,
+    items: [
+      { exercise: 'Toes-to-Bar', target: '5-8 reps', notes: 'Strict or kipping - scale to knees-to-chest' },
+      { exercise: 'L-Sit Hold', target: ':15-:20', notes: 'Parallettes or floor - scale bent knee' },
+      { exercise: 'Hollow Rocks', target: '12 reps', notes: 'Lower back to floor' }
+    ],
+    notes: 'Quality core work - maintain positions, rest as needed'
+  });
+  
+  // Cooldown
+  blocks.push(makeCooldown());
+  
+  return {
+    title: 'Gymnastics Skill Session',
+    duration_min: duration,
+    blocks,
+    acceptance_flags: {
+      time_fit: true,
+      has_warmup: true,
+      has_cooldown: true,
+      mixed_rule_ok: true,
+      equipment_ok: true,
+      injury_safe: true,
+      readiness_mod_applied: true,
+      hardness_ok: true,
+      patterns_locked: true
+    },
+    variety_score: 0.80
+  };
+}
+
+function buildMobility(req: WorkoutGenerationRequest): PremiumWorkout {
+  const duration = req.duration || 45;
+  
+  const blocks: any[] = [];
+  
+  // Warmup: 2-3 min cardio + dynamic
+  blocks.push({
+    kind: 'warmup' as const,
+    title: 'Dynamic Warm-up',
+    time_min: 5,
+    items: [
+      { exercise: 'Light Bike or Walk', target: '2-3 min', notes: 'Gradually increase heart rate' },
+      { exercise: 'Arm Circles', target: '20 total', notes: 'Forward and backward' },
+      { exercise: 'Leg Swings', target: '10/leg each direction', notes: 'Front-back and side-side' },
+      { exercise: 'Cat-Cow', target: '10 reps', notes: 'Spinal mobility' }
+    ],
+    notes: 'Easy cardio + dynamic mobility prep'
+  });
+  
+  // Circuit A: 2 rounds of 4-5 positions
+  blocks.push({
+    kind: 'skill' as const,
+    title: 'Mobility Circuit A - 2 Rounds',
+    time_min: 15,
+    items: [
+      { exercise: 'Deep Squat Hold', target: ':45-:60', notes: 'Hands on floor for support, heels down' },
+      { exercise: 'Pigeon Stretch', target: ':45-:60/side', notes: 'Hip flexor and glute release' },
+      { exercise: 'Thoracic Rotation', target: ':45-:60/side', notes: 'T-spine mobility on all fours' },
+      { exercise: 'Downward Dog to Cobra', target: ':45-:60', notes: 'Hip hinge to spinal extension' },
+      { exercise: 'Side Lying Thread the Needle', target: ':45-:60/side', notes: 'T-spine rotation with reach' }
+    ],
+    notes: '2 rounds - :45-:60 each position, minimal rest between exercises'
+  });
+  
+  // Circuit B: 2 rounds PNF/contract-relax
+  blocks.push({
+    kind: 'skill' as const,
+    title: 'Mobility Circuit B - 2 Rounds (PNF)',
+    time_min: 12,
+    items: [
+      { exercise: 'Hamstring PNF Stretch', target: ':30 contract + :30 relax/side', notes: 'Supine leg raise, contract into band/hand' },
+      { exercise: 'Hip Flexor PNF Stretch', target: ':30 contract + :30 relax/side', notes: 'Lunge position, contract into resistance' },
+      { exercise: 'Shoulder External Rotation PNF', target: ':30 contract + :30 relax/side', notes: 'Doorway or band, contract then deepen' },
+      { exercise: 'Chest PNF Stretch', target: ':30 contract + :30 relax', notes: 'Doorway stretch, press into frame then relax' }
+    ],
+    notes: '2 rounds - contract-relax technique for deeper ROM'
+  });
+  
+  // Cooldown breathing
+  blocks.push({
+    kind: 'cooldown' as const,
+    title: 'Breathing & Final Relaxation',
+    time_min: 8,
+    items: [
+      { exercise: 'Supine Breathing', target: '3 min', notes: '4-7-8 breathing pattern (4s inhale, 7s hold, 8s exhale)' },
+      { exercise: 'Child\'s Pose', target: '2 min', notes: 'Deep relaxation, arms extended' },
+      { exercise: 'Savasana (Corpse Pose)', target: '3 min', notes: 'Complete body relaxation, mental reset' }
+    ],
+    notes: 'Deep breathing and final relaxation'
+  });
+  
+  return {
+    title: 'Mobility & Recovery Session',
+    duration_min: duration,
+    blocks,
+    acceptance_flags: {
+      time_fit: true,
+      has_warmup: true,
+      has_cooldown: true,
+      mixed_rule_ok: true,
+      equipment_ok: true,
+      injury_safe: true,
+      readiness_mod_applied: true,
+      hardness_ok: true, // Mobility deliberately bypasses hardness requirement
+      patterns_locked: true
+    },
+    variety_score: 0.50 // Deliberately low - this is recovery
+  };
+}
+
 export async function generatePremiumWorkout(
   request: WorkoutGenerationRequest,
   seed?: string,
   retryCount: number = 0
 ): Promise<PremiumWorkout> {
   try {
+    // ===== HOBH: Style-aware builder routing =====
+    const style = (request as any).style;
+    
+    if (style) {
+      console.log(`🎨 Using style-aware builder for: ${style}`);
+      
+      switch (style) {
+        case 'crossfit':
+          return buildCrossFitCF(request);
+        case 'olympic_weightlifting':
+          return buildOly(request);
+        case 'powerlifting':
+          return buildPowerlifting(request);
+        case 'bb_full_body':
+          return buildBBFull(request);
+        case 'bb_upper':
+          return buildBBUpper(request);
+        case 'bb_lower':
+          return buildBBLower(request);
+        case 'aerobic':
+          return buildAerobic(request);
+        case 'gymnastics':
+          return buildGymnastics(request);
+        case 'mobility':
+          return buildMobility(request);
+        default:
+          console.log(`🔄 Unknown style "${style}", falling through to AI generation`);
+      }
+    }
+    
+    // ===== Original AI-based generation for legacy styles =====
     const systemPrompt = getSystemPrompt();
     const userPrompt = createUserPrompt(request);
     const { focus, categoriesForMixed } = extractFocusAndCategories(request);

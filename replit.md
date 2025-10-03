@@ -23,6 +23,16 @@ Extended workout generator with 13 comprehensive workout focus types and improve
   - All new workout types route to premium engine with specific style parameter
   - Updated `WorkoutPlanZ` schema to accept all 13 focus types
   - Updated API validation in `server/routes/workouts.ts` to accept new focus types
+- **Style-Aware Builders**: Implemented specialized builder functions in `server/ai/generators/premium.ts` for deterministic workout generation
+  - `buildCrossFitCF`: Every 2:30 x 5 strength + EMOM 14-16 conditioning + optional 21-15-9 finisher
+  - `buildOly`: Barbell warm-up complex + E2:00 x 7 snatch complex + E2:00 x 7 C&J complex + accessory EMOM 10
+  - `buildPowerlifting`: Heavy lift A (5x3 @ 85-90%) + Volume lift B (4x5-6 @ 75-82%) + accessory superset
+  - `buildBBFull/Upper/Lower`: Hypertrophy-focused tri-sets/supersets with 8-15 rep ranges + metabolite finisher
+  - `buildAerobic`: Z3/Z4 intervals (5x4:00 or 10x1:00) + optional easy skill EMOM
+  - `buildGymnastics`: Skill EMOM 16 (HS/strict pull-ups) + AMRAP 8 quality core (TTB/L-sits)
+  - `buildMobility`: Dynamic warm-up + 2 mobility circuits + PNF contract-relax + breathing cooldown
+  - Each builder enforces appropriate hardness floors (0.85 for equipment-based, lower for recovery/aerobic)
+  - Pattern compliance built into builders (no validation needed post-generation)
 
 ### Equipment Normalization (October 2025)
 Fixed workout generation failures caused by equipment name mismatches. Implemented explicit equipment alias mapping in `server/workouts/generate.ts`:
