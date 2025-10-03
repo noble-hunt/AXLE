@@ -6,6 +6,7 @@ import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Sheet } from "@/components/swift/sheet"
 import { DailySuggestionCard } from "@/components/workouts/DailySuggestionCard"
+import { GroupsShortcutCard } from "@/components/groups/GroupsShortcutCard"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
 import { 
@@ -174,6 +175,16 @@ export default function Home() {
           <QuickStats />
         </motion.div>
 
+        {/* Daily Suggested Workout */}
+        <motion.div variants={slideUp}>
+          <DailySuggestionCard />
+        </motion.div>
+
+        {/* Groups Shortcut */}
+        <motion.div variants={slideUp}>
+          <GroupsShortcutCard />
+        </motion.div>
+
         {/* Recent Workouts */}
         <motion.div variants={slideUp}>
           <div className="flex items-center justify-between mb-4">
@@ -215,11 +226,6 @@ export default function Home() {
               </Card>
             )}
           </div>
-        </motion.div>
-
-        {/* Daily Suggested Workout */}
-        <motion.div variants={slideUp}>
-          <DailySuggestionCard />
         </motion.div>
 
         {/* Health Insights */}
