@@ -39,6 +39,8 @@ export interface WorkoutGenerationContext {
   constraints?: string[];
   goals?: string[];
   seed?: string;
+  focus?: string;
+  categories_for_mixed?: string[];
 }
 
 export interface WorkoutGenerationRequest extends WorkoutRequest {

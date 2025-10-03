@@ -6,7 +6,12 @@ import { generatePlan } from "../workouts/generate";
 export const workouts = Router();
 
 const PreviewSchema = z.object({
-  focus: z.enum(["strength","conditioning","mixed","endurance"]),
+  focus: z.enum([
+    "strength", "conditioning", "mixed", "endurance",
+    "crossfit", "olympic_weightlifting", "powerlifting",
+    "bb_full_body", "bb_upper", "bb_lower",
+    "aerobic", "gymnastics", "mobility"
+  ]),
   durationMin: z.coerce.number().int().min(10).max(120), // Align with WorkoutPlanZ
   equipment: z.array(z.string()).default([]),
   intensity: z.coerce.number().int().min(1).max(10), // Align with WorkoutPlanZ - must be integer

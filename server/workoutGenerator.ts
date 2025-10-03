@@ -262,11 +262,30 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     return mockResult;
   }
 
+  // ===== HOBH: Style resolver for new workout focuses =====
+  function resolveStyle(goal: string) {
+    const g = (goal || '').toLowerCase();
+    if (['crossfit', 'mixed'].includes(g))           return { engine: 'premium', style: 'crossfit' };
+    if (g === 'olympic_weightlifting')               return { engine: 'premium', style: 'olympic_weightlifting' };
+    if (g === 'powerlifting')                        return { engine: 'premium', style: 'powerlifting' };
+    if (g === 'bb_full_body')                        return { engine: 'premium', style: 'bb_full_body' };
+    if (g === 'bb_upper')                            return { engine: 'premium', style: 'bb_upper' };
+    if (g === 'bb_lower')                            return { engine: 'premium', style: 'bb_lower' };
+    if (g === 'aerobic' || g === 'cardio')           return { engine: 'premium', style: 'aerobic' };
+    if (g === 'gymnastics')                          return { engine: 'premium', style: 'gymnastics' };
+    if (g === 'mobility')                            return { engine: 'premium', style: 'mobility' };
+    if (['strength', 'conditioning', 'endurance'].includes(g)) return { engine: 'premium', style: g };
+    return { engine: 'simple', style: g };
+  }
+
   // ===== HOBH: generator selection (forced premium for CF/HIIT or any DB/KB/BB) =====
-  const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM?.toLowerCase() !== 'false';
-  const goalStr = String((request as any).goal || '').toLowerCase();
+  const goalStr = String((request as any).goal || (request as any).focus || '').toLowerCase();
+  const { engine, style } = resolveStyle(goalStr);
+  (request as any).style = style;  // attach for downstream (premium generator)
+  console.log(`🎨 Style resolved: goal="${goalStr}" → engine="${engine}", style="${style}"`);
+  
   const hasLoadEq = ((request as any).equipment || []).some((e: string) => /(barbell|dumbbell|kettlebell)/i.test(e));
-  const wantsPremium = FORCE_PREMIUM || ['crossfit','hiit'].includes(goalStr) || hasLoadEq;
+  const wantsPremium = engine === 'premium' || hasLoadEq;
 
   let generatorUsed: 'premium'|'simple'|'mock' = 'premium';
   let result: any;
@@ -294,7 +313,7 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
           equipment,
           constraints: [],
           goals: ['general_fitness'],
-          focus: (request as any).focus,
+          focus: (request as any).style || (request as any).focus,
           categories_for_mixed: (request as any).categories_for_mixed
         }
       };

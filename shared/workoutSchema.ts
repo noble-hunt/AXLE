@@ -37,7 +37,12 @@ export const BlockZ = z.object({
 export const WorkoutPlanZ = z.object({
   id: z.string().optional(),        // will exist after save
   seed: z.string(),                 // for determinism
-  focus: z.enum(["strength","conditioning","mixed","endurance"]),
+  focus: z.enum([
+    "strength", "conditioning", "mixed", "endurance",
+    "crossfit", "olympic_weightlifting", "powerlifting",
+    "bb_full_body", "bb_upper", "bb_lower",
+    "aerobic", "gymnastics", "mobility"
+  ]),
   durationMin: z.number().int().min(10).max(120),
   intensity: z.number().int().min(1).max(10),
   equipment: z.array(z.string()),   // from user

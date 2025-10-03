@@ -19,6 +19,10 @@ Extended workout generator with 13 comprehensive workout focus types and improve
 - **Type System**: Created shared `WorkoutFocus` type in `client/src/types/workouts.ts` used across wizard and API
 - **UI Enhancement**: ArchetypeStep displays 4 primary cards + "More" button that opens a Sheet/modal with 9 additional categories
 - **Implementation**: Sheet component from swift UI library for mobile-friendly category selection
+- **Server Routing**: Added `resolveStyle()` function in `server/workoutGenerator.ts` to map all new focuses to premium generator with appropriate style keys
+  - All new workout types route to premium engine with specific style parameter
+  - Updated `WorkoutPlanZ` schema to accept all 13 focus types
+  - Updated API validation in `server/routes/workouts.ts` to accept new focus types
 
 ### Equipment Normalization (October 2025)
 Fixed workout generation failures caused by equipment name mismatches. Implemented explicit equipment alias mapping in `server/workouts/generate.ts`:
