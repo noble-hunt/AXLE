@@ -392,9 +392,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Determine if we should force premium
       const goalLower = goal.toLowerCase();
+      const isSpecializedWorkout = [
+        'crossfit', 'hiit', 'mixed',
+        'olympic_weightlifting', 'powerlifting',
+        'bb_full_body', 'bb_upper', 'bb_lower',
+        'aerobic', 'cardio', 'gymnastics', 'mobility'
+      ].some(type => goalLower.includes(type));
+      
       const shouldForcePremium = FORCE_PREMIUM && (
-        goalLower.includes('crossfit') || 
-        goalLower.includes('hiit') ||
+        isSpecializedWorkout ||
         equipmentList.some((eq: string) => 
           eq.toLowerCase().includes('barbell') || 
           eq.toLowerCase().includes('dumbbell') || 
@@ -413,15 +419,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Use provided seed or generate a new one
           const workoutSeed = seed || generateSeed();
           
-          const premiumRequest = {
+          // Map goal to style for the premium generator
+          const resolveStyle = (g: string) => {
+            const goal = (g || '').toLowerCase();
+            if (['crossfit', 'mixed'].includes(goal)) return 'crossfit';
+            if (goal === 'olympic_weightlifting') return 'olympic_weightlifting';
+            if (goal === 'powerlifting') return 'powerlifting';
+            if (goal === 'bb_full_body') return 'bb_full_body';
+            if (goal === 'bb_upper') return 'bb_upper';
+            if (goal === 'bb_lower') return 'bb_lower';
+            if (goal === 'aerobic' || goal === 'cardio') return 'aerobic';
+            if (goal === 'gymnastics') return 'gymnastics';
+            if (goal === 'mobility') return 'mobility';
+            return goal; // fallback to original
+          };
+          
+          const resolvedStyle = resolveStyle(goal);
+          console.log(`🎨 Style mapping: goal="${goal}" → style="${resolvedStyle}"`);
+          
+          const premiumRequest: any = {
             category: goal,
             duration: durationMin,
             intensity,
+            style: resolvedStyle, // Add style to request
             context: {
               equipment: equipmentList,
               constraints: [],
               goals: ['general_fitness'],
-              focus: focus,
+              focus: focus || resolvedStyle,
               categories_for_mixed: categories_for_mixed
             }
           };
