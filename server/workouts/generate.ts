@@ -52,7 +52,13 @@ function chooseByTags(pool: ReturnType<typeof filterByEquipment>, tags: string[]
   for (let i = 0; i < n && bag.length; i++) {
     out.push(bag.splice(Math.floor(rng() * bag.length), 1)[0]);
   }
-  return out.length ? out : pool.slice(0, Math.max(1, n));
+  // If we have results, return them; otherwise fall back to pool, or bodyweight movements
+  if (out.length) return out;
+  if (pool.length) return pool.slice(0, Math.max(1, n));
+  
+  // Last resort: return bodyweight movements from MOVEMENTS catalog
+  const bodyweightFallback = MOVEMENTS.filter(m => m.equipment.includes("bodyweight"));
+  return bodyweightFallback.slice(0, Math.max(1, n));
 }
 
 // map intensity to prescriptions
