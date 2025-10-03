@@ -101,6 +101,10 @@ export function ArchetypeStep({ value, onChange }: ArchetypeStepProps) {
     setShowMore(false);
   };
 
+  // Check if current value is from MORE_OPTIONS
+  const isMoreOption = MORE_OPTIONS.some(opt => opt.value === value);
+  const selectedMoreOption = MORE_OPTIONS.find(opt => opt.value === value);
+
   return (
     <>
       <div className="space-y-6">
@@ -130,10 +134,10 @@ export function ArchetypeStep({ value, onChange }: ArchetypeStepProps) {
           })}
           
           <OptionCard
-            icon={<MoreHorizontal className="w-6 h-6" />}
-            title="More"
-            description="CrossFit, Oly, PL, BB, Cardio, Gymnastics, Mobility"
-            selected={false}
+            icon={selectedMoreOption ? <selectedMoreOption.icon className="w-6 h-6" /> : <MoreHorizontal className="w-6 h-6" />}
+            title={selectedMoreOption ? selectedMoreOption.label : "More"}
+            description={selectedMoreOption ? selectedMoreOption.description : "CrossFit, Oly, PL, BB, Cardio, Gymnastics, Mobility"}
+            selected={isMoreOption}
             onClick={() => setShowMore(true)}
             aria-label="More workout types"
             data-testid="archetype-more"
