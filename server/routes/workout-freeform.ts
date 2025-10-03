@@ -43,21 +43,21 @@ router.post('/parse-freeform', requireAuth, async (req, res) => {
                   type: "object",
                   properties: {
                     movement: { type: "string" },
-                    sets: { type: "number", nullable: true },
-                    reps: { type: "string", nullable: true },
-                    repScheme: { type: "string", nullable: true },
-                    weightKg: { type: "number", nullable: true },
-                    timeCapMinutes: { type: "number", nullable: true },
-                    restMinutes: { type: "number", nullable: true },
-                    notes: { type: "string", nullable: true }
+                    sets: { anyOf: [{ type: "number" }, { type: "null" }] },
+                    reps: { anyOf: [{ type: "string" }, { type: "null" }] },
+                    repScheme: { anyOf: [{ type: "string" }, { type: "null" }] },
+                    weightKg: { anyOf: [{ type: "number" }, { type: "null" }] },
+                    timeCapMinutes: { anyOf: [{ type: "number" }, { type: "null" }] },
+                    restMinutes: { anyOf: [{ type: "number" }, { type: "null" }] },
+                    notes: { anyOf: [{ type: "string" }, { type: "null" }] }
                   },
-                  required: ["movement"],
+                  required: ["movement", "sets", "reps", "repScheme", "weightKg", "timeCapMinutes", "restMinutes", "notes"],
                   additionalProperties: false
                 }
               },
-              notes: { type: "string", nullable: true }
+              notes: { anyOf: [{ type: "string" }, { type: "null" }] }
             },
-            required: ["title", "est_duration_min", "intensity", "confidence", "request", "sets"],
+            required: ["title", "est_duration_min", "intensity", "confidence", "request", "sets", "notes"],
             additionalProperties: false
           },
           strict: true
