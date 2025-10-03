@@ -34,7 +34,8 @@ router.post('/parse-freeform', requireAuth, async (req, res) => {
                   durationMinutes: { type: "number" },
                   intensity: { type: "number" }
                 },
-                required: ["category", "durationMinutes", "intensity"]
+                required: ["category", "durationMinutes", "intensity"],
+                additionalProperties: false
               },
               sets: {
                 type: "array",
@@ -50,12 +51,14 @@ router.post('/parse-freeform', requireAuth, async (req, res) => {
                     restMinutes: { type: "number", nullable: true },
                     notes: { type: "string", nullable: true }
                   },
-                  required: ["movement"]
+                  required: ["movement"],
+                  additionalProperties: false
                 }
               },
               notes: { type: "string", nullable: true }
             },
-            required: ["title", "est_duration_min", "intensity", "confidence", "request", "sets"]
+            required: ["title", "est_duration_min", "intensity", "confidence", "request", "sets"],
+            additionalProperties: false
           },
           strict: true
         }
