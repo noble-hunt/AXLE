@@ -15,8 +15,33 @@ function pick<T>(rng: () => number, arr: T[]) {
   return arr[Math.floor(rng() * arr.length)]; 
 }
 
+// Canonical equipment alias mapping
+const EQUIPMENT_ALIASES: Record<string, string> = {
+  // Plural forms
+  'dumbbells': 'dumbbell',
+  'kettlebells': 'kettlebell',
+  'barbells': 'barbell',
+  // Underscore variants
+  'pull_up_bar': 'pullup-bar',
+  'pullup_bar': 'pullup-bar',
+  'dip_bar': 'dip-bar',
+  // Already canonical (pass-through)
+  'bodyweight': 'bodyweight',
+  'dumbbell': 'dumbbell',
+  'kettlebell': 'kettlebell',
+  'barbell': 'barbell',
+  'pullup-bar': 'pullup-bar',
+  'dip-bar': 'dip-bar',
+};
+
+function normalizeEquipment(equipment: string): string {
+  const lower = equipment.toLowerCase();
+  return EQUIPMENT_ALIASES[lower] || lower;
+}
+
 function filterByEquipment(allowed: string[]) {
-  const set = new Set(allowed.length ? allowed : ["bodyweight"]);
+  const normalized = allowed.map(normalizeEquipment);
+  const set = new Set(normalized.length ? normalized : ["bodyweight"]);
   return MOVEMENTS.filter(m => m.equipment.some(e => set.has(e)));
 }
 
