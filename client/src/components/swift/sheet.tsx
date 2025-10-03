@@ -100,8 +100,8 @@ const Sheet = forwardRef<HTMLDivElement, SheetProps>(
                 "relative flex flex-col bg-surface border border-border shadow-2xl",
                 "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                 variant === "fullscreen" && "h-full w-full rounded-none",
-                variant === "default" && "max-h-[85vh] w-full max-w-lg rounded-t-2xl sm:rounded-xl",
-                variant === "compact" && "max-h-[50vh] w-full max-w-md rounded-t-2xl sm:rounded-xl"
+                variant === "default" && "max-h-[85vh] w-full max-w-sm rounded-t-2xl sm:rounded-xl",
+                variant === "compact" && "max-h-[50vh] w-full max-w-xs rounded-t-2xl sm:rounded-xl"
               )}
               role="dialog"
               aria-modal="true"

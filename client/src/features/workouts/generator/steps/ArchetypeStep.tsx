@@ -157,16 +157,16 @@ export function ArchetypeStep({ value, onChange }: ArchetypeStepProps) {
       </div>
 
       <Sheet open={showMore} onOpenChange={setShowMore}>
-        <div className="p-4">
+        <div className="overflow-y-auto max-h-[80vh] p-4">
           <h2 className="text-xl font-bold text-foreground mb-4">More Categories</h2>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-3 pb-4">
             {MORE_OPTIONS.map((option) => {
               const Icon = option.icon;
               
               return (
                 <OptionCard
                   key={option.value}
-                  icon={<Icon className="w-6 h-6" />}
+                  icon={<Icon className="w-5 h-5" />}
                   title={option.label}
                   description={option.description}
                   selected={value === option.value}
