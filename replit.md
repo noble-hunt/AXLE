@@ -4,6 +4,14 @@
 
 AXLE is a modern, mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. Its core purpose is to enable users to log workouts, track personal records, visualize achievements, and analyze fitness progress through detailed reports. The application offers a clean, intuitive interface with a comprehensive dashboard, optimized for mobile devices, supporting a holistic approach to fitness management. The project aims to eventually integrate a fine-tuned ML model for workout generation while maintaining a consistent UI/API schema.
 
+## Recent Changes
+
+### Equipment Normalization (October 2025)
+Fixed workout generation failures caused by equipment name mismatches. Implemented explicit equipment alias mapping in `server/workouts/generate.ts`:
+- **Issue**: User input variations like "dumbbells" (plural) and "pull_up_bar" (underscore) didn't match canonical movement catalog IDs ("dumbbell", "pullup-bar"), causing empty workout blocks
+- **Solution**: Added `EQUIPMENT_ALIASES` map with deterministic mappings for plural forms (dumbbells→dumbbell, kettlebells→kettlebell, barbells→barbell) and underscore variants (pull_up_bar→pullup-bar, dip_bar→dip-bar)
+- **Impact**: Workout generation now reliably finds matching movements for common equipment name variations
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
