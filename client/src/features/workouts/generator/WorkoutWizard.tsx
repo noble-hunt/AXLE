@@ -11,6 +11,7 @@ import { Button } from "@/components/swift/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Progress } from "@/components/ui/progress"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import type { WorkoutFocus } from "@/types/workouts"
 // Removed dependency on shared types - using simpler local generation
 
 // Import step components
@@ -21,7 +22,7 @@ import { IntensityStep } from "./steps/IntensityStep"
 import { WorkoutPreview, type WorkoutPreviewData } from "./components/WorkoutPreview"
 
 export interface WizardState {
-  archetype: 'strength' | 'conditioning' | 'mixed' | 'endurance';
+  archetype: WorkoutFocus;
   minutes: number;
   equipment: string[];
   intensity: number;
