@@ -97,12 +97,12 @@ export function GroupsShortcutCard() {
             <h3 className="text-body font-medium text-foreground">Groups</h3>
           </div>
           <p className="text-caption text-muted-foreground">
-            Join a group to connect with other athletes and share your fitness journey.
+            Create or join a group to connect with other athletes and share your fitness journey!
           </p>
           <Button data-testid="button-discover-groups" className="w-full" asChild>
             <Link href="/groups">
               <Plus className="h-4 w-4 mr-2" />
-              Discover Groups
+              Create or Join Group
             </Link>
           </Button>
         </div>
