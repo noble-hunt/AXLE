@@ -6,6 +6,20 @@ AXLE is a modern, mobile-first Progressive Web App (PWA) for comprehensive fitne
 
 ## Recent Changes
 
+### Expanded Workout Focus Categories (October 2025)
+Extended workout generator with 13 comprehensive workout focus types and improved UX:
+- **Categories**: Added 9 specialized categories beyond the 4 primary types (Strength, Conditioning, Mixed, Endurance)
+  - CrossFit: Classic CF patterns (EMOM/AMRAP/For Time)
+  - Olympic Weightlifting: Snatch & C&J complexes
+  - Powerlifting: Squat/Bench/Deadlift focus
+  - Bodybuilding: Full Body, Upper, Lower splits
+  - Aerobic (Cardio): Z2–Z4 intervals or steady state
+  - Gymnastics Work: Skill EMOMs (TTB, MU, HS, strict pull)
+  - Mobility Session: Quality mobility & tissue work
+- **Type System**: Created shared `WorkoutFocus` type in `client/src/types/workouts.ts` used across wizard and API
+- **UI Enhancement**: ArchetypeStep displays 4 primary cards + "More" button that opens a Sheet/modal with 9 additional categories
+- **Implementation**: Sheet component from swift UI library for mobile-friendly category selection
+
 ### Equipment Normalization (October 2025)
 Fixed workout generation failures caused by equipment name mismatches. Implemented explicit equipment alias mapping in `server/workouts/generate.ts`:
 - **Issue**: User input variations like "dumbbells" (plural) and "pull_up_bar" (underscore) didn't match canonical movement catalog IDs ("dumbbell", "pullup-bar"), causing empty workout blocks

@@ -156,24 +156,27 @@ export function ArchetypeStep({ value, onChange }: ArchetypeStepProps) {
         </div>
       </div>
 
-      <Sheet open={showMore} onOpenChange={setShowMore} title="More Categories">
-        <div className="grid grid-cols-1 gap-3 p-4">
-          {MORE_OPTIONS.map((option) => {
-            const Icon = option.icon;
-            
-            return (
-              <OptionCard
-                key={option.value}
-                icon={<Icon className="w-6 h-6" />}
-                title={option.label}
-                description={option.description}
-                selected={value === option.value}
-                onClick={() => handleSelectMore(option.value)}
-                aria-label={option.label}
-                data-testid={`archetype-${option.value}`}
-              />
-            );
-          })}
+      <Sheet open={showMore} onOpenChange={setShowMore}>
+        <div className="p-4">
+          <h2 className="text-xl font-bold text-foreground mb-4">More Categories</h2>
+          <div className="grid grid-cols-1 gap-3">
+            {MORE_OPTIONS.map((option) => {
+              const Icon = option.icon;
+              
+              return (
+                <OptionCard
+                  key={option.value}
+                  icon={<Icon className="w-6 h-6" />}
+                  title={option.label}
+                  description={option.description}
+                  selected={value === option.value}
+                  onClick={() => handleSelectMore(option.value)}
+                  aria-label={option.label}
+                  data-testid={`archetype-${option.value}`}
+                />
+              );
+            })}
+          </div>
         </div>
       </Sheet>
     </>
