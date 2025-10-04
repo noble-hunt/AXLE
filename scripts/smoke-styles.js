@@ -6,7 +6,9 @@ const cases = [
   { goal: 'crossfit', equipment: ['barbell', 'dumbbell', 'bike'], durationMin: 45 },
   { goal: 'olympic_weightlifting', equipment: ['barbell'], durationMin: 45 },
   { goal: 'powerlifting', equipment: ['barbell'], durationMin: 45 },
+  { goal: 'bb_full_body', equipment: ['dumbbell', 'barbell'], durationMin: 45 },
   { goal: 'bb_upper', equipment: ['dumbbell', 'barbell'], durationMin: 45 },
+  { goal: 'bb_lower', equipment: ['barbell', 'dumbbell'], durationMin: 45 },
   { goal: 'aerobic', equipment: ['bike', 'rower'], durationMin: 30 },
   { goal: 'gymnastics', equipment: ['pullup-bar'], durationMin: 30 },
   { goal: 'mobility', equipment: ['bodyweight'], durationMin: 30 }
@@ -47,14 +49,36 @@ async function smokeTestStyles() {
 
       console.log('\n📊 Meta:');
       console.log(`   generator: ${workout.meta?.generator || 'N/A'}`);
+      console.log(`   style: ${workout.meta?.style || 'N/A'}`);
+      console.log(`   seed: ${workout.meta?.seed || 'N/A'}`);
       console.log(`   hardness: ${workout.variety_score?.toFixed(2) || data.variety_score?.toFixed(2) || 'N/A'}`);
       console.log(`   title: ${workout.name || data.title || 'N/A'}`);
 
-      console.log('\n📝 First 6 Exercises:');
+      console.log('\n📝 First 8 Exercises:');
       const exercises = workout.sets || [];
-      exercises.slice(0, 6).forEach((set, idx) => {
+      exercises.slice(0, 8).forEach((set, idx) => {
         console.log(`   ${idx + 1}. ${set.exercise}`);
       });
+
+      // Count loaded movements in main blocks
+      const mainExercises = exercises.filter(set => {
+        const ex = set.exercise.toLowerCase();
+        return !ex.includes('warm') && 
+               !ex.includes('cool') &&
+               !ex.includes('foam') &&
+               set.exercise.length > 0;
+      });
+
+      const loadedMovements = mainExercises.filter(set => {
+        const ex = set.exercise.toLowerCase();
+        return /barbell|bb[\s,]|dumbbell|db[\s,]|kettlebell|kb[\s,]|weighted|wall ball/.test(ex);
+      });
+
+      const loadedRatio = mainExercises.length > 0 
+        ? ((loadedMovements.length / mainExercises.length) * 100).toFixed(0)
+        : '0';
+
+      console.log(`\n💪 Equipment Usage: ${loadedMovements.length}/${mainExercises.length} loaded (${loadedRatio}%)`);
 
       console.log('\n🔍 Acceptance:');
       const acceptance = workout.meta?.acceptance || workout.acceptance_flags || data.acceptance_flags || {};
@@ -77,21 +101,27 @@ async function smokeTestStyles() {
         case 'powerlifting':
           styleCheck = /squat|deadlift|bench/.test(allText) ? '✅ Powerlifts' : '⚠️ No powerlifts';
           break;
+        case 'bb_full_body':
+          styleCheck = /squat|press|row|deadlift/.test(allText) ? '✅ Full body' : '⚠️ No full body';
+          break;
         case 'bb_upper':
           styleCheck = /press|row|curl|tricep/.test(allText) ? '✅ Upper body' : '⚠️ No upper body';
           break;
+        case 'bb_lower':
+          styleCheck = /squat|deadlift|lunge|leg/.test(allText) ? '✅ Lower body' : '⚠️ No lower body';
+          break;
         case 'aerobic':
-          styleCheck = /bike|row|ski|z[234]/.test(allText) ? '✅ Cardio' : '⚠️ No cardio';
+          styleCheck = /bike|row|ski|z[234]|steady/.test(allText) ? '✅ Cardio' : '⚠️ No cardio';
           break;
         case 'gymnastics':
-          styleCheck = /handstand|pull.*up|toes.*to.*bar|l.*sit/.test(allText) ? '✅ Gymnastics' : '⚠️ No gymnastics';
+          styleCheck = /handstand|pull.*up|toes.*to.*bar|l.*sit|muscle.*up/.test(allText) ? '✅ Gymnastics' : '⚠️ No gymnastics';
           break;
         case 'mobility':
           styleCheck = /stretch|mobility|breathing|pnf/.test(allText) ? '✅ Mobility' : '⚠️ No mobility';
           break;
       }
       
-      console.log(`\n${styleCheck}`);
+      console.log(`\n🎯 Style Validation: ${styleCheck}`);
 
     } catch (error) {
       console.error('❌ Error:', error.message);
