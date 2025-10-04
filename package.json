@@ -11,7 +11,7 @@
     "db:push": "drizzle-kit push",
     "refs:build": "node scripts/build-ref-manifest.cjs",
     "test:workouts": "vitest run __tests__/workouts.premium.spec.ts",
-    "smoke:workouts": "node scripts/smokeWorkouts.js"
+    "smoke:workouts": "node scripts/smokeWorkouts.js",
     "build:movements": "tsx scripts/build-movements.ts"
   },
   "dependencies": {
