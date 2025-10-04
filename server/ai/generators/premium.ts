@@ -2,10 +2,86 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import type { WorkoutGenerationRequest } from '../generateWorkout';
 import { PACKS } from '../config/patternPacks';
+import type { PatternPack } from '../config/patternPacks';
 import { queryMovements, findMovement } from '../movementService';
 import type { Movement } from '../../types/movements';
+import registryData from '../../data/movements.registry.json';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Load movement registry into a Map for fast lookup
+const REG = new Map(registryData.map((m: any) => [m.id, m]));
+
+// Helper: Check if movement has external load
+function isLoaded(m: any) {
+  return m.equipment?.some((e: string) => 
+    ['barbell', 'dumbbell', 'kettlebell', 'machine', 'sandbag', 'sled', 'cable'].includes(e)
+  );
+}
+
+// Helper: Check if movement is banned in main blocks when equipment exists
+function isBannedInMain(m: any) {
+  return !!m.banned_in_main_when_equipment;
+}
+
+// Registry-aware sanitizer: enforce "no banned in mains", hardness floors, and style fidelity
+export function sanitizeWorkout(workout: any, req: any, pack: PatternPack, seed: string) {
+  const equip = (req.equipment || []).map((e: string) => e.toLowerCase());
+  const hasGear = equip.some((e: string) => /(barbell|dumbbell|kettlebell)/.test(e));
+  
+  // 1) Remove banned BW in mains if gear exists; rotate replacement
+  const ROT = ["db-box-step-overs", "kb-swings", "wall-balls", "burpees"]; // registry ids
+  let rot = 0, bannedFound = false;
+  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+  
+  for (const b of mains) {
+    b.items = (b.items || []).map((it: any) => {
+      const mv = REG.get(it.registry_id || '');
+      if (hasGear && mv && isBannedInMain(mv)) {
+        bannedFound = true;
+        const sub = REG.get(ROT[rot++ % ROT.length]);
+        return {
+          ...it,
+          registry_id: sub?.id || it.registry_id,
+          exercise: sub?.name || it.exercise,
+          notes: ((it.notes || '') + ' (auto-upgrade)').trim(),
+          _bannedReplaced: true
+        };
+      }
+      return it;
+    });
+  }
+  
+  // 2) Hardness floor per style
+  const lowReady = Boolean(req?.wearable_snapshot?.sleep_score && req.wearable_snapshot.sleep_score < 60);
+  const floor = hasGear && !lowReady ? (pack.hardnessFloor || 0.85) : (lowReady ? 0.55 : 0.75);
+  
+  // 3) Bonus for loaded mains; penalty for BW-only mains with gear
+  let score = computeHardness(workout);
+  for (const b of mains) {
+    const loaded = (b.items || []).filter((it: any) => {
+      const mv = REG.get(it.registry_id || '');
+      return mv && isLoaded(mv);
+    }).length;
+    const bodywt = (b.items || []).filter((it: any) => {
+      const mv = REG.get(it.registry_id || '');
+      return mv && mv.equipment?.includes('bodyweight');
+    }).length;
+    if (loaded > 0) score += 0.03;
+    if (hasGear && bodywt >= 2) score -= 0.07;
+  }
+  workout.variety_score = score;
+  
+  workout.acceptance_flags = {
+    ...(workout.acceptance_flags || {}),
+    no_banned_in_mains: hasGear ? !bannedFound : true,
+    hardness_ok: workout.variety_score >= floor
+  };
+  
+  console.log(`🎯 SANITIZE | Style: ${pack.name} | Hardness: ${score.toFixed(2)} (floor: ${floor.toFixed(2)}) | Banned found: ${bannedFound}`);
+  
+  return workout;
+}
 
 // Define schema for premium workout structure
 const WorkoutItemSchema = z.object({
@@ -2122,30 +2198,31 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     }
   }
   
-  // Build comprehensive acceptance flags
-  const totalTimeMin = workout.blocks.reduce((sum, b) => sum + (b.time_min || 0), 0);
-  const durationMin = req?.duration || workout.duration_min || 45;
-  const mains = workout.blocks.filter((b: any) => ['strength', 'conditioning', 'skill', 'core'].includes(b.kind));
-  
+  // Apply registry-aware sanitization
   const pack = PACKS[style] || PACKS['crossfit'];
-  const hardnessFloor = pack.hardnessFloor || 0.75;
+  const sanitizedWorkout = sanitizeWorkout(workout, req || { equipment: [] }, pack, seed);
+  
+  // Build comprehensive acceptance flags (sanitizer already sets some)
+  const totalTimeMin = sanitizedWorkout.blocks.reduce((sum, b) => sum + (b.time_min || 0), 0);
+  const durationMin = req?.duration || sanitizedWorkout.duration_min || 45;
   
   const acceptance = {
     time_fit: Math.abs(totalTimeMin - durationMin) <= Math.max(2, durationMin * 0.1),
-    has_warmup: !!workout.blocks.find((b:any)=>b.kind==='warmup' && (b.time_min||0) >= 6),
-    has_cooldown: !!workout.blocks.find((b:any)=>b.kind==='cooldown' && (b.time_min||0) >= 4),
+    has_warmup: !!sanitizedWorkout.blocks.find((b:any)=>b.kind==='warmup' && (b.time_min||0) >= 6),
+    has_cooldown: !!sanitizedWorkout.blocks.find((b:any)=>b.kind==='cooldown' && (b.time_min||0) >= 4),
     style_ok: !!PACKS[style],
-    hardness_ok: (workout.variety_score || 0) >= hardnessFloor,
     equipment_ok: true,
-    no_banned_in_mains: mains.every((b:any)=> (b.items||[]).every((it:any)=> !it._bannedReplaced)),
-    mixed_rule_ok: workout.acceptance_flags?.mixed_rule_ok ?? true,
-    injury_safe: workout.acceptance_flags?.injury_safe ?? true,
-    readiness_mod_applied: workout.acceptance_flags?.readiness_mod_applied ?? true,
-    patterns_locked: workout.acceptance_flags?.patterns_locked ?? true
+    mixed_rule_ok: sanitizedWorkout.acceptance_flags?.mixed_rule_ok ?? true,
+    injury_safe: sanitizedWorkout.acceptance_flags?.injury_safe ?? true,
+    readiness_mod_applied: sanitizedWorkout.acceptance_flags?.readiness_mod_applied ?? true,
+    patterns_locked: sanitizedWorkout.acceptance_flags?.patterns_locked ?? true,
+    // These come from sanitizer:
+    hardness_ok: sanitizedWorkout.acceptance_flags?.hardness_ok ?? true,
+    no_banned_in_mains: sanitizedWorkout.acceptance_flags?.no_banned_in_mains ?? true
   };
   
   // Build selectionTrace showing registry IDs for each block
-  const selectionTrace = workout.blocks.map((b:any)=>({
+  const selectionTrace = sanitizedWorkout.blocks.map((b:any)=>({
     title: b.title, 
     kind: b.kind, 
     time_min: b.time_min,
@@ -2156,21 +2233,21 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
   }));
   
   // Update acceptance flags with computed values
-  workout.acceptance_flags = { 
-    ...(workout.acceptance_flags||{}), 
+  sanitizedWorkout.acceptance_flags = { 
+    ...(sanitizedWorkout.acceptance_flags||{}), 
     ...acceptance 
   };
   
   return {
-    ...workout,
+    ...sanitizedWorkout,
     meta: {
       generator: 'premium',
       style,
       goal: req?.category || style,
-      title: workout.title || pack.name,
+      title: sanitizedWorkout.title || pack.name,
       equipment: req?.context?.equipment || [],
       seed,
-      acceptance: workout.acceptance_flags,
+      acceptance: sanitizedWorkout.acceptance_flags,
       selectionTrace
     }
   };
