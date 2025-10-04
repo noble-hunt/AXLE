@@ -201,38 +201,100 @@ CRITICAL RULES:
 
 Return ONLY the JSON object. No markdown formatting, explanations, or additional text.`;
 };
+// ===== HOBH: Helper functions for premium conversion =====
+function addHeaderSet(sets: any[], title: string, mins: number) {
+  sets.push({
+    id: `hdr-${Math.random().toString(36).slice(2, 8)}`,
+    exercise: title,
+    duration: Math.round(mins * 60),
+    notes: title,
+    is_header: true
+  });
+}
+
+function addItemFromMovement(sets: any[], it: any, extraNote?: string) {
+  sets.push({
+    id: `itm-${Math.random().toString(36).slice(2, 8)}`,
+    exercise: it.name || it.exercise,
+    registry_id: it.registry_id || it.id || null,
+    reps: it.scheme?.reps ?? undefined,
+    duration: undefined,
+    notes: [it.notes, extraNote].filter(Boolean).join(' ').trim() || undefined,
+    rest_s: it.scheme?.rest_s ?? undefined,
+    percent_1rm: it.scheme?.percent_1rm ?? undefined,
+    rpe: it.scheme?.rpe ?? undefined
+  });
+}
+
 // ===== HOBH: premium -> UI conversion (preserve patterns/items) =====
 export function convertPremiumToGenerated(premium: any): any {
   const sets: any[] = [];
-  for (const b of premium.blocks) {
-    const header = (b.kind === 'warmup') ? 'Warm-up' : (b.kind === 'cooldown' ? 'Cool-down' : b.title);
-    // block header (as a container row)
-    sets.push({
-      id: `premium-${Math.random().toString(36).slice(2, 10)}`,
-      exercise: header,
-      reps: undefined,
-      duration: (b.time_min || 0) * 60,       // only block duration
-      notes: b.title
+
+  // Warm-up
+  const wu = premium.blocks.find((b: any) => b.kind === 'warmup');
+  if (wu) {
+    addHeaderSet(sets, 'Warm-up', wu.time_min || 6);
+    (wu.items || []).forEach((it: any) => {
+      addItemFromMovement(sets, it);
+      // Add _source tag and default duration for warm-up items
+      const lastItem = sets[sets.length - 1];
+      lastItem._source = 'warmup';
+      lastItem.duration = Math.round((wu.time_min || 6) * 60 / Math.max(1, (wu.items || []).length));
+      if (!lastItem.notes) lastItem.notes = 'For quality';
     });
-    // exact items
-    for (const it of (b.items || [])) {
-      const r = typeof it.scheme?.reps === 'number' ? `${it.scheme.reps}` : (it.scheme?.reps || '');
-      const notes = [it.notes, it.scheme?.rpe ? `@ ${it.scheme.rpe}` : '', it.scheme?.rest_s ? `Rest ${it.scheme.rest_s}s` : '']
-        .filter(Boolean).join(' · ');
-      sets.push({
-        id: `premium-item-${Math.random().toString(36).slice(2, 10)}`,
-        exercise: it.exercise,
-        reps: r,
-        duration: undefined,       // DO NOT synthesize per-item durations
-        notes
-      });
-    }
   }
+
+  // MAIN — preserve patterns
+  for (const b of premium.blocks.filter((x: any) => !['warmup', 'cooldown'].includes(x.kind))) {
+    const title = String(b.title || 'Main').trim();
+
+    if (/^EMOM\s+(\d+)/i.test(title)) {
+      const mins = Number(title.match(/^EMOM\s+(\d+)/i)?.[1] ?? b.time_min ?? 12);
+      addHeaderSet(sets, `EMOM ${mins}`, mins);
+      // Render items as odd/even notes, not 40/20
+      (b.items || []).forEach((it: any, idx: number) => {
+        const tag = idx === 0 ? '(odd min)' : idx === 1 ? '(even min)' : '';
+        addItemFromMovement(sets, it, tag);
+      });
+      continue;
+    }
+
+    if (/^Every\s*2:00/i.test(title) || /^Every\s*2:30/i.test(title) || /^Every\s*3:00/i.test(title)) {
+      addHeaderSet(sets, title, b.time_min || 12);
+      (b.items || []).forEach((it: any) => addItemFromMovement(sets, it));
+      continue;
+    }
+
+    if (/^AMRAP/i.test(title) || /^For\s*Time/i.test(title) || /^Chipper/i.test(title)) {
+      addHeaderSet(sets, title, b.time_min || 12);
+      (b.items || []).forEach((it: any) => addItemFromMovement(sets, it));
+      continue;
+    }
+
+    // Fallback: still add a header so UI shows pattern name
+    addHeaderSet(sets, title || 'Main', b.time_min || 12);
+    (b.items || []).forEach((it: any) => addItemFromMovement(sets, it));
+  }
+
+  // Cool-down
+  const cd = premium.blocks.find((b: any) => b.kind === 'cooldown');
+  if (cd) {
+    addHeaderSet(sets, 'Cool-down', cd.time_min || 4);
+    (cd.items || []).forEach((it: any) => {
+      addItemFromMovement(sets, it);
+      // Add _source tag and default duration for cool-down items
+      const lastItem = sets[sets.length - 1];
+      lastItem._source = 'cooldown';
+      lastItem.duration = Math.round((cd.time_min || 4) * 60 / Math.max(1, (cd.items || []).length));
+      if (!lastItem.notes) lastItem.notes = 'Easy breathing';
+    });
+  }
+
   return {
-    name: premium.title || 'HOBH Workout',
-    category: 'CrossFit',
-    description: 'Premium CF/HIIT with warm-up, mains, cool-down',
-    duration: premium.duration_min,
+    name: premium.title || premium.meta?.title || 'Session',
+    category: premium.meta?.style || premium.category || 'Mixed',
+    description: premium.description || '',
+    duration: premium.total_min || premium.duration || 45,
     intensity: premium.intensity || 7,
     sets,
     meta: premium.meta || {}

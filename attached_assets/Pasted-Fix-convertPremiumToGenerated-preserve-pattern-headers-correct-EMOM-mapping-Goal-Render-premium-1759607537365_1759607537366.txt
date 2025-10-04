@@ -1,0 +1,115 @@
+Fix convertPremiumToGenerated: preserve pattern headers & correct EMOM mapping
+
+Goal: Render premium blocks as the CrossFit/Oly patterns users expect. Insert header rows for patterns and stop converting EMOM to “10 x 40s”. Keep warm-up/cool-down as-is.
+
+File: server/workoutGenerator.ts (or wherever convertPremiumToGenerated(...) lives)
+
+Make these changes:
+
+Add helpers at top of the converter file:
+
+function addHeaderSet(sets: any[], title: string, mins: number) {
+  sets.push({
+    id: `hdr-${Math.random().toString(36).slice(2,8)}`,
+    exercise: title,           // visible header in app
+    duration: Math.round(mins * 60),
+    notes: title,
+    is_header: true
+  });
+}
+function addItemFromMovement(sets:any[], it:any, extraNote?:string) {
+  sets.push({
+    id: `itm-${Math.random().toString(36).slice(2,8)}`,
+    exercise: it.name || it.exercise,
+    registry_id: it.registry_id || it.id || null,
+    reps: it.scheme?.reps ?? undefined,
+    duration: undefined,               // duration lives on header for pattern blocks
+    notes: [it.notes, extraNote].filter(Boolean).join(' ').trim() || undefined,
+    rest_s: it.scheme?.rest_s ?? undefined,
+    percent_1rm: it.scheme?.percent_1rm ?? undefined,
+    rpe: it.scheme?.rpe ?? undefined
+  });
+}
+
+
+Inside convertPremiumToGenerated(premiumWorkout) replace the current main-block flattening with this:
+
+const sets: any[] = [];
+
+// Warm-up
+const wu = premium.blocks.find((b:any)=>b.kind==='warmup');
+if (wu) {
+  addHeaderSet(sets, 'Warm-up', wu.time_min || 6);
+  (wu.items||[]).forEach((it:any)=> {
+    sets.push({
+      id:`wu-${Math.random().toString(36).slice(2,8)}`,
+      exercise: it.exercise || it.name,
+      duration: Math.round((wu.time_min||6) * 60 / Math.max(1,(wu.items||[]).length)),
+      notes: it.notes || 'For quality',
+      _source:'warmup'
+    });
+  });
+}
+
+// MAIN — preserve patterns
+for (const b of premium.blocks.filter((x:any)=>!['warmup','cooldown'].includes(x.kind))) {
+  const title = String(b.title||'Main').trim();
+
+  if (/^EMOM\s+(\d+)/i.test(title)) {
+    const mins = Number(title.replace(/[^0-9]/g,'')) || (b.time_min||12);
+    addHeaderSet(sets, `EMOM ${mins}`, mins);
+    // Render items as odd/even notes, not 40/20
+    (b.items||[]).forEach((it:any, idx:number)=>{
+      const tag = idx===0 ? '(odd min)' : idx===1 ? '(even min)' : '';
+      addItemFromMovement(sets, it, tag);
+    });
+    continue;
+  }
+
+  if (/^Every\s*2:00/i.test(title) || /^Every\s*2:30/i.test(title) || /^Every\s*3:00/i.test(title)) {
+    addHeaderSet(sets, title, b.time_min || 12);
+    (b.items||[]).forEach((it:any)=> addItemFromMovement(sets, it));
+    continue;
+  }
+
+  if (/^AMRAP/i.test(title) || /^For\s*Time/i.test(title) || /^Chipper/i.test(title)) {
+    addHeaderSet(sets, title, b.time_min || 12);
+    (b.items||[]).forEach((it:any)=> addItemFromMovement(sets, it));
+    continue;
+  }
+
+  // Fallback: still add a header so UI shows pattern name
+  addHeaderSet(sets, title || 'Main', b.time_min || 12);
+  (b.items||[]).forEach((it:any)=> addItemFromMovement(sets, it));
+}
+
+// Cool-down
+const cd = premium.blocks.find((b:any)=>b.kind==='cooldown');
+if (cd) {
+  addHeaderSet(sets, 'Cool-down', cd.time_min || 4);
+  (cd.items||[]).forEach((it:any)=> {
+    sets.push({
+      id:`cd-${Math.random().toString(36).slice(2,8)}`,
+      exercise: it.exercise || it.name,
+      duration: Math.round((cd.time_min||4) * 60 / Math.max(1,(cd.items||[]).length)),
+      notes: it.notes || 'Easy breathing',
+      _source:'cooldown'
+    });
+  });
+}
+
+return {
+  name: premium.title || premium.meta?.title || 'Session',
+  category: premium.meta?.style || premium.category || 'Mixed',
+  description: premium.description || '',
+  duration: premium.total_min || premium.duration || 45,
+  intensity: premium.intensity || 7,
+  sets
+};
+
+
+Acceptance:
+
+In-app, under Main, you now see header rows like “Every 2:30 x 5” and “EMOM 14” above the movements (no “10 x 40s” nonsense).
+
+Warm-up and cool-down still show as before.
