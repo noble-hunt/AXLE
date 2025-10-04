@@ -1919,6 +1919,27 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
   const pack = PACKS[style] || PACKS['crossfit'];
   const sanitizedWorkout = sanitizeWorkout(workout, req || { equipment: [] }, pack, seed);
   
+  // Style-specific guardrails: enforce strict style fidelity
+  const mains = sanitizedWorkout.blocks.filter((b:any)=>!['warmup','cooldown'].includes(b.kind));
+  
+  // Oly must have barbell in every main block
+  if (style === 'olympic_weightlifting') {
+    const barbellOk = mains.every((b:any)=> (b.items||[]).some((it:any)=>{
+      const mv = REG.get(it.registry_id||''); return mv?.equipment?.includes('barbell');
+    }));
+    if (!barbellOk) throw new Error('style_violation_oly_no_barbell');
+  }
+  
+  // Powerlifting mains must include at least 2 of [squat, bench, hinge]
+  if (style === 'powerlifting') {
+    const patterns = new Set<string>();
+    for (const it of mains.flatMap((b:any)=>b.items||[])) {
+      const mv = REG.get(it.registry_id||''); mv?.patterns?.forEach(p=>patterns.add(p));
+    }
+    const hits = ['squat','bench','hinge'].filter(p=>patterns.has(p)).length;
+    if (hits < 2) throw new Error('style_violation_pl_core_patterns');
+  }
+  
   // Ensure block time alignment
   const durationMin = req?.duration || sanitizedWorkout.duration_min || 45;
   fitBlocksToDuration(sanitizedWorkout.blocks, durationMin, pack.warmupMin || 8, pack.cooldownMin || 8);
