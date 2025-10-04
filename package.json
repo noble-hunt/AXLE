@@ -12,6 +12,7 @@
     "refs:build": "node scripts/build-ref-manifest.cjs",
     "test:workouts": "vitest run __tests__/workouts.premium.spec.ts",
     "smoke:workouts": "node scripts/smokeWorkouts.js"
+    "build:movements": "tsx scripts/build-movements.ts"
   },
   "dependencies": {
     "@capacitor/cli": "^7.4.3",
