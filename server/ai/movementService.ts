@@ -55,3 +55,26 @@ export function queryMovements(q: Query): Movement[] {
   }
   return Array.from(uniqueById.values());
 }
+
+// Lookup movement by name (case-insensitive, fuzzy match)
+export function findMovement(exerciseName: string): Movement | undefined {
+  const normalized = exerciseName.toLowerCase().trim();
+  
+  // Direct match by name
+  let match = MOVES.find(m => m.name.toLowerCase() === normalized);
+  if (match) return match;
+  
+  // Check aliases
+  match = MOVES.find(m => 
+    m.aliases?.some(alias => alias.toLowerCase() === normalized)
+  );
+  if (match) return match;
+  
+  // Partial match (starts with)
+  match = MOVES.find(m => 
+    m.name.toLowerCase().includes(normalized) || 
+    normalized.includes(m.name.toLowerCase())
+  );
+  
+  return match;
+}

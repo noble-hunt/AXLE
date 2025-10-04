@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import type { WorkoutGenerationRequest } from '../generateWorkout';
 import { PACKS } from '../config/patternPacks';
-import { queryMovements } from '../movementService';
+import { queryMovements, findMovement } from '../movementService';
 import type { Movement } from '../../types/movements';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -437,56 +437,61 @@ function validatePatternsAndBW(workout: PremiumWorkout, equipment: string[]): vo
   }
 }
 
-// Hardness calculation function
-export function computeHardness(workout: PremiumWorkout): number {
+// Hardness calculation function - uses movement registry metadata
+export function computeHardness(workout: PremiumWorkout, equipmentAvailable?: string[]): number {
   let h = 0;
+  const hasGear = (equipmentAvailable || []).length > 0;
   
   for (const b of workout.blocks) {
-    // ===== HOBH: pattern bonuses (hard mode) =====
-    if (/(Every\s+[234]:00|E[234]:00)/i.test(b.title)) h += 0.35;   // was 0.28
-    if (/EMOM/i.test(b.title))       h += 0.30;  // was 0.22
-    if (/AMRAP/i.test(b.title))      h += 0.30;  // was 0.22
-    if (/21-15-9/i.test(b.title))    h += 0.28;  // was 0.20
-    if (/Chipper/i.test(b.title))    h += 0.32;  // was 0.24
+    // Pattern bonuses
+    if (/(Every\s+[234]:00|E[234]:00)/i.test(b.title)) h += 0.35;
+    if (/EMOM/i.test(b.title))       h += 0.30;
+    if (/AMRAP/i.test(b.title))      h += 0.30;
+    if (/21-15-9/i.test(b.title))    h += 0.28;
+    if (/Chipper/i.test(b.title))    h += 0.32;
 
-    // ===== HOBH: equipment & heavy movement bonuses =====
-    const text = JSON.stringify(b.items).toLowerCase();
-    const hasBarbell = /(barbell|bb[\s,])/.test(text);
-    const hasDbKb = /(dumbbell|db[\s,]|kettlebell|kb[\s,])/.test(text);
-    const hasCyclical = /(echo bike|row|ski|cal)/.test(text);
+    // Use registry metadata for equipment and movement scoring
+    const isMainBlock = ['strength', 'conditioning'].includes(b.kind);
+    let hasExternalLoad = false;
+    let hasOly = false;
+    let hasHeavyCompound = false;
+    let bodyweightCount = 0;
     
-    if (hasBarbell)  h += 0.10; // was 0.05
-    if (hasDbKb)     h += 0.07; // was 0.03
-    if (hasCyclical) h += 0.05; // was 0.02
-    
-    // heavy lifts present?
-    if (/clean\s*&\s*jerk/i.test(text)) h += 0.08; // was 0.05
-    if (/thruster/i.test(text))         h += 0.08; // was 0.05
-    if (/deadlift/i.test(text))         h += 0.08; // was 0.05
-    if (text.includes("front squat")) h += 0.05;
-    if (text.includes("weighted pull-up") || text.includes("weighted pullup")) h += 0.05;
-    if (text.includes("wall ball")) h += 0.05;
-    if (text.includes("farmer carry")) h += 0.05;
-
-    // Penalty for bodyweight-only in multiple main items
-    let bwOnly = 0;
     for (const it of b.items || []) {
-      const name = (it.exercise || "").trim().toLowerCase();
-      if (BANNED_EASY.has(name)) bwOnly++;
+      const movement = findMovement(it.exercise);
+      
+      if (movement) {
+        // Check for external load
+        const hasLoad = movement.equipment.some(e => 
+          ['barbell','dumbbell','kettlebell','machine','cable','sandbag','sled'].includes(e)
+        );
+        if (hasLoad) hasExternalLoad = true;
+        
+        // Check for Olympic patterns
+        const isOly = movement.patterns.some(p => p.startsWith('olympic_'));
+        if (isOly) hasOly = true;
+        
+        // Check for heavy compounds (back squat, deadlift, bench press)
+        const isHeavyCompound = movement.patterns.some(p => 
+          ['squat', 'hinge', 'bench'].includes(p)
+        ) && hasLoad;
+        if (isHeavyCompound) hasHeavyCompound = true;
+        
+        // Count bodyweight movements in main blocks
+        if (isMainBlock && movement.equipment.length === 1 && movement.equipment[0] === 'bodyweight') {
+          bodyweightCount++;
+        }
+      }
     }
-    if (bwOnly >= 2) h -= 0.07;
     
-    // NEW: Penalty for strength blocks with only bodyweight or only push-ups/pull-ups
-    if (b.kind === "strength") {
-      const hasLoaded = hasBarbell || hasDbKb;
-      const onlyBodyweight = !hasLoaded && /(push-up|pull-up|air squat|lunge)/i.test(text);
-      if (onlyBodyweight) h -= 0.05;
-    }
+    // Apply bonuses from movement metadata
+    if (isMainBlock && hasExternalLoad) h += 0.10;
+    if (hasOly) h += 0.08;
+    if (hasHeavyCompound) h += 0.06;
     
-    // NEW: Bonus for pairing cyclical cals with loaded movement (EMOM odd/even pattern)
-    if (/EMOM/i.test(b.title)) {
-      const hasLoaded = hasBarbell || hasDbKb;
-      if (hasCyclical && hasLoaded) h += 0.03;
+    // Penalty: ≥2 bodyweight movements in main block when gear is available
+    if (isMainBlock && hasGear && bodyweightCount >= 2) {
+      h -= 0.10;
     }
   }
   
@@ -556,7 +561,7 @@ function sanitizeWorkout(
   const loadedRatio = totalMainMovements > 0 ? loadedMovements / totalMainMovements : 0;
   console.log(`📊 Loaded movement ratio: ${loadedMovements}/${totalMainMovements} = ${loadedRatio.toFixed(2)}`);
   
-  // 1) Remove banned BW items in STRENGTH/CONDITIONING main blocks with rotation
+  // 1) Use registry to check banned_in_main_when_equipment and replace with rotation
   for (const b of workout.blocks) {
     // Only sanitize strength and conditioning blocks
     if (["strength", "conditioning"].includes(b.kind)) {
@@ -564,18 +569,20 @@ function sanitizeWorkout(
       const usedSubs = new Set<string>();
       let bannedCount = 0;
       
-      // First pass: count banned movements (case-insensitive)
+      // First pass: count banned movements using registry metadata
       for (const it of b.items) {
-        const exerciseName = (it.exercise || "").trim().toLowerCase();
-        if (BANNED_EASY.has(exerciseName)) bannedCount++;
+        const movement = findMovement(it.exercise);
+        if (movement && movement.banned_in_main_when_equipment && hasLoad) {
+          bannedCount++;
+        }
       }
       
-      // Second pass: replace with rotation (always replace banned, regardless of equipment/readiness)
+      // Second pass: replace banned movements when equipment is available
       b.items = b.items.map(it => {
-        const exerciseName = (it.exercise || "").trim().toLowerCase();
+        const movement = findMovement(it.exercise);
         
-        // If banned exercise found, always replace to meet "no >1 banned per block" rule
-        if (BANNED_EASY.has(exerciseName)) {
+        // Check if movement is banned in main blocks when equipment exists
+        if (movement && movement.banned_in_main_when_equipment && hasLoad) {
           // Rotation: DB Box Step-Overs → KB Swings → Wall Balls → Burpees
           let replacement = "Burpees"; // Default fallback
           
@@ -594,6 +601,14 @@ function sanitizeWorkout(
           }
           
           usedSubs.add(replacement);
+          console.log(`🔄 Banned movement replaced: ${it.exercise} → ${replacement} (equipment available)`);
+          
+          workout.substitutions.push({
+            from: it.exercise,
+            to: replacement,
+            reason: 'banned_in_main_when_equipment'
+          });
+          
           return { 
             ...it, 
             exercise: replacement, 
@@ -603,34 +618,18 @@ function sanitizeWorkout(
         return it;
       });
       
-      // Enforce: no block has >1 banned BW movement (case-insensitive)
-      let remainingBanned = b.items.filter(it => BANNED_EASY.has((it.exercise || "").trim().toLowerCase())).length;
-      
-      // If >1 banned still exists, force replace remaining until ≤1
-      while (remainingBanned > 1) {
-        console.warn(`⚠️ Block "${b.title}" still has ${remainingBanned} banned movements, enforcing replacement`);
-        
-        for (let i = 0; i < b.items.length; i++) {
-          const exerciseName = (b.items[i].exercise || "").trim().toLowerCase();
-          if (BANNED_EASY.has(exerciseName)) {
-            // Force replace with Burpees (always available)
-            b.items[i] = {
-              ...b.items[i],
-              exercise: "Burpees",
-              notes: (b.items[i].notes || "") + " (enforced replacement)"
-            };
-            console.log(`✅ Enforced replacement: ${exerciseName} → Burpees`);
-            break; // Only replace one per iteration
-          }
+      // Verify no banned movements remain in main blocks when equipment is available
+      let remainingBanned = 0;
+      for (const it of b.items) {
+        const movement = findMovement(it.exercise);
+        if (movement && movement.banned_in_main_when_equipment && hasLoad) {
+          remainingBanned++;
         }
-        
-        // Recount
-        remainingBanned = b.items.filter(it => BANNED_EASY.has((it.exercise || "").trim().toLowerCase())).length;
       }
       
-      if (remainingBanned === 1) {
-        console.log(`✅ Block "${b.title}" has exactly 1 banned movement (acceptable)`);
-      } else if (remainingBanned === 0) {
+      if (remainingBanned > 0) {
+        console.warn(`⚠️ Block "${b.title}" still has ${remainingBanned} banned movements with equipment available!`);
+      } else {
         console.log(`✅ Block "${b.title}" has no banned movements`);
       }
       
@@ -677,18 +676,23 @@ function sanitizeWorkout(
     }
   }
   
-  // ===== HOBH: hardness floor (hard mode) =====
-  let floor = 0.75; // base floor (was 0.65)
-  // lowReadiness and hasLoad already declared above
+  // ===== Hardness floor enforcement using pattern packs =====
+  // Resolve style and get pack configuration
+  const style = (opts.focus || 'crossfit').toLowerCase().replace(/\s+/g, '_');
+  const pack = PACKS[style] || PACKS['crossfit'];
   
+  let floor = 0.75; // base floor
+  
+  // Use pack hardness floor when equipment is available, otherwise use lower floor
   if (hasLoad && !lowReadiness) {
-    floor = 0.85;  // was 0.75 —> HARDER by default when gear present
+    floor = pack.hardnessFloor; // ≥0.85 for CF/Oly/PL/BB, 0.70 aerobic, 0.40 mobility
   } else if (lowReadiness) {
-    floor = 0.55;  // unchanged guardrail
+    floor = 0.55; // recovery guardrail
   }
-  // If score < floor, attempt repair path first; only then consider finisher.
+  
+  console.log(`📊 Hardness floor for ${style}: ${floor.toFixed(2)} (pack: ${pack.name})`);
 
-  workout.variety_score = computeHardness(workout);
+  workout.variety_score = computeHardness(workout, equipment);
   
   // ===== HOBH: finisher only-on-deficit and harder defaults =====
   let hardnessFinisherAdded = false;
@@ -756,7 +760,7 @@ function sanitizeWorkout(
     hardnessFinisherAdded = true;
     
     // Recalculate hardness after adding finisher
-    workout.variety_score = computeHardness(workout);
+    workout.variety_score = computeHardness(workout, equipment);
     console.log(`✅ Finisher added, new hardness: ${workout.variety_score.toFixed(2)}`);
   }
   

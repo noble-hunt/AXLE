@@ -18,8 +18,21 @@ Integrated the comprehensive Movement Registry and pattern packs into the premiu
   - Modality filtering (strength, conditioning, skill, aerobic, mobility)
   - Automatic bannedMain exclusion for quality control
   - Loaded movement requirements when equipment is available
-- **Integration Points**: Premium generator now imports `PACKS` and `queryMovements` for deterministic, category-appropriate workout generation
-- **Benefits**: Replaces static movement arrays with dynamic, constraint-aware selection; ensures style fidelity; supports all 13 workout focus types
+- **Registry-Based Validation** (`findMovement()` in `server/ai/movementService.ts`):
+  - Lookup movements by name with fuzzy matching (direct, alias, partial)
+  - Used by `computeHardness()` and `sanitizeWorkout()` for metadata-based scoring
+- **Hardness Computation** (`computeHardness()` in `server/ai/generators/premium.ts`):
+  - Uses movement metadata instead of string matching
+  - +0.10 bonus for external load (barbell/dumbbell/kettlebell/machine/sandbag/sled)
+  - +0.08 bonus for Olympic patterns (olympic_snatch, olympic_cleanjerk)
+  - +0.06 bonus for heavy compounds (squat/hinge/bench with external load)
+  - −0.10 penalty when ≥2 bodyweight movements in main blocks while equipment is available
+- **Sanitization** (`sanitizeWorkout()` in `server/ai/generators/premium.ts`):
+  - Checks `movement.banned_in_main_when_equipment` flag from registry
+  - Rotation system: DB Box Step-Overs → KB Swings → Wall Balls → Burpees
+  - Enforces pack-specific hardness floors (≥0.85 for CF/Oly/PL/BB with gear, 0.70 aerobic, 0.40 mobility)
+- **Integration Points**: Premium generator now imports `PACKS`, `queryMovements`, and `findMovement` for deterministic, category-appropriate workout generation
+- **Benefits**: Replaces static movement arrays with dynamic, constraint-aware selection; ensures style fidelity; metadata-driven validation; supports all 13 workout focus types
 
 ### Expanded Workout Focus Categories (October 2025)
 Extended workout generator with 13 comprehensive workout focus types and improved UX:
