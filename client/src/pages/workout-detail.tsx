@@ -413,22 +413,32 @@ Intensity {(workout as any)?.intensity}/10
       <div className="space-y-4">
         <h2 className="text-subheading font-semibold text-foreground">Workout Structure</h2>
         
-        {(workout as any)?.sets?.map((set: any, index: number) => (
-          <Card key={index} className="p-4" data-testid={`exercise-set-${index}`}>
-            <div className="space-y-2">
-              <h3 className="text-body font-semibold text-foreground">{set.exercise}</h3>
-              <div className="grid grid-cols-2 gap-4 text-caption text-muted-foreground">
-                {set.reps && <div>Reps: {set.reps}</div>}
-                {set.weight && <div>Weight: {set.weight} lbs</div>}
-                {set.duration && <div>Duration: {set.duration}s</div>}
-                {set.distance && <div>Distance: {set.distance}m</div>}
+        {(workout as any)?.sets?.map((set: any, index: number) => {
+          if (set.is_header) {
+            return (
+              <div key={set.id || index} className="mb-2 mt-4 text-sm uppercase tracking-wide text-muted-foreground">
+                {set.exercise} <span className="ml-2 text-xs opacity-70">~{Math.round((set.duration||0)/60)} min</span>
               </div>
-              {set.notes && (
-                <p className="text-caption text-muted-foreground mt-2">{set.notes}</p>
-              )}
-            </div>
-          </Card>
-        ))}
+            );
+          }
+          
+          return (
+            <Card key={index} className="p-4" data-testid={`exercise-set-${index}`}>
+              <div className="space-y-2">
+                <h3 className="text-body font-semibold text-foreground">{set.exercise}</h3>
+                <div className="grid grid-cols-2 gap-4 text-caption text-muted-foreground">
+                  {set.reps && <div>Reps: {set.reps}</div>}
+                  {set.weight && <div>Weight: {set.weight} lbs</div>}
+                  {set.duration && <div>Duration: {set.duration}s</div>}
+                  {set.distance && <div>Distance: {set.distance}m</div>}
+                </div>
+                {set.notes && (
+                  <p className="text-caption text-muted-foreground mt-2">{set.notes}</p>
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Action Buttons */}
