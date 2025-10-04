@@ -83,6 +83,52 @@ export function sanitizeWorkout(workout: any, req: any, pack: PatternPack, seed:
   return workout;
 }
 
+// --- Time fitter: aligns block minutes to requested duration within ±5% ---
+function fitBlocksToDuration(blocks: any[], reqDurMin: number, warmupMin: number, cooldownMin: number) {
+  const mains = blocks.filter(b => !['warmup','cooldown'].includes(b.kind));
+  const header = (mins:number) => Math.max(6, Math.min(30, Math.round(mins))); // sane bounds per block
+
+  // 1) Normalize titles to their minute values (EMOM N, Every 2:00 x sets, etc.)
+  for (const b of mains) {
+    if (/^EMOM/i.test(b.title)) b.title = `EMOM ${header(b.time_min)}`;
+    if (/^Every\s*2:00/i.test(b.title)) b.title = `Every 2:00 x ${Math.round((b.time_min||0)/2)}`;
+    if (/^Every\s*2:30/i.test(b.title)) b.title = `Every 2:30 x ${Math.round((b.time_min||0)/2.5)}`;
+    if (/^Every\s*3:00/i.test(b.title)) b.title = `Every 3:00 x ${Math.round((b.time_min||0)/3)}`;
+    if (/^For\s*Time\s*21-15-9/i.test(b.title)) b.time_min = header(b.time_min || 10);
+    if (/^Chipper/i.test(b.title)) b.time_min = header(b.time_min || 12);
+  }
+
+  const minNow = (blocks.reduce((t,b)=>t+(b.time_min||0),0));
+  const target = reqDurMin;
+  const delta = target - minNow;
+
+  // 2) If under target by >5%, extend the longest main or add a finisher
+  if (delta > Math.max(2, target*0.05)) {
+    const longest = mains.sort((a,b)=>(b.time_min||0)-(a.time_min||0))[0];
+    if (longest && /^EMOM/.test(longest.title)) {
+      longest.time_min += delta;  // extend EMOM by the deficit
+      longest.title = `EMOM ${header(longest.time_min)}`;
+    } else {
+      // add a 6–8 min finisher
+      blocks.splice(blocks.length-1, 0, {
+        kind: 'conditioning',
+        title: target >= 40 ? 'For Time 30-20-10' : 'For Time 21-15-9',
+        time_min: Math.min(8, header(delta)),
+        items: (mains[0]?.items||[]).slice(0,2) // reuse first two movements
+      });
+    }
+  }
+
+  // 3) If over target by >5%, trim the longest EMOM/E2:00 block
+  if (-delta > Math.max(2, target*0.05)) {
+    const longest = mains.sort((a,b)=>(b.time_min||0)-(a.time_min||0))[0];
+    if (longest) {
+      longest.time_min = header((longest.time_min||0) + delta); // delta is negative
+      if (/^EMOM/.test(longest.title)) longest.title = `EMOM ${header(longest.time_min)}`;
+    }
+  }
+}
+
 // Define schema for premium workout structure
 const WorkoutItemSchema = z.object({
   exercise: z.string(),
@@ -620,352 +666,6 @@ export function computeHardness(workout: PremiumWorkout, equipmentAvailable?: st
   return Math.min(1, Math.max(0, h));
 }
 
-// Sanitizer function to enforce rules post-generation
-function sanitizeWorkout(
-  workout: PremiumWorkout, 
-  opts: { 
-    equipment?: string[]; 
-    wearable_snapshot?: any;
-    focus?: string;
-    categories_for_mixed?: string[];
-  }
-): PremiumWorkout {
-  // Normalize equipment for consistent access throughout function
-  const equipment = (opts.equipment || []).map(e => e.toLowerCase());
-  const hasLoad = equipment.some(e => 
-    /(barbell|dumbbell|kettlebell)/i.test(e)
-  );
-  
-  const ws = opts.wearable_snapshot || {};
-  const lowReadiness = ws.sleep_score && ws.sleep_score < 60;
-  
-  // Initialize substitutions array if not exists
-  if (!workout.substitutions) {
-    workout.substitutions = [];
-  }
-  
-  // Apply equipment fallbacks to all main blocks
-  for (const b of workout.blocks) {
-    if (['strength', 'conditioning'].includes(b.kind)) {
-      for (let i = 0; i < b.items.length; i++) {
-        const item = b.items[i];
-        const result = applyEquipmentFallback(item.exercise, opts.equipment || []);
-        if (result.wasSubstituted) {
-          console.log(`🔄 Equipment fallback: ${item.exercise} → ${result.exercise}`);
-          workout.substitutions.push({
-            from: item.exercise,
-            to: result.exercise,
-            reason: 'equipment_unavailable'
-          });
-          b.items[i].exercise = result.exercise;
-        }
-      }
-    }
-  }
-  
-  // Verify loaded movement ratio (at least 2/3 main movements should be loaded)
-  const mainBlocks = workout.blocks.filter(b => ['strength', 'conditioning'].includes(b.kind));
-  let totalMainMovements = 0;
-  let loadedMovements = 0;
-  
-  for (const b of mainBlocks) {
-    for (const item of b.items) {
-      totalMainMovements++;
-      const exercise = item.exercise.toLowerCase();
-      if (exercise.includes('barbell') || exercise.includes('dumbbell') || 
-          exercise.includes('kettlebell') || exercise.includes('kb ') ||
-          exercise.includes('weighted')) {
-        loadedMovements++;
-      }
-    }
-  }
-  
-  const loadedRatio = totalMainMovements > 0 ? loadedMovements / totalMainMovements : 0;
-  console.log(`📊 Loaded movement ratio: ${loadedMovements}/${totalMainMovements} = ${loadedRatio.toFixed(2)}`);
-  
-  // 1) Use registry to check banned_in_main_when_equipment and replace with rotation
-  for (const b of workout.blocks) {
-    // Only sanitize strength and conditioning blocks
-    if (["strength", "conditioning"].includes(b.kind)) {
-      const equipment = opts.equipment || [];
-      const usedSubs = new Set<string>();
-      let bannedCount = 0;
-      
-      // First pass: count banned movements using registry metadata
-      for (const it of b.items) {
-        const movement = findMovement(it.exercise);
-        if (movement && movement.banned_in_main_when_equipment && hasLoad) {
-          bannedCount++;
-        }
-      }
-      
-      // Second pass: replace banned movements when equipment is available
-      b.items = b.items.map(it => {
-        const movement = findMovement(it.exercise);
-        
-        // Check if movement is banned in main blocks when equipment exists
-        if (movement && movement.banned_in_main_when_equipment && hasLoad) {
-          // Rotation: DB Box Step-Overs → KB Swings → Wall Balls → Burpees
-          let replacement = "Burpees"; // Default fallback
-          
-          if (equipment.includes('dumbbell') && !usedSubs.has("DB Box Step-Overs")) {
-            replacement = "DB Box Step-Overs";
-          } else if (equipment.includes('kettlebell') && !usedSubs.has("KB Swings")) {
-            replacement = "KB Swings";
-          } else if ((equipment.includes('medicine ball') || equipment.includes('med ball')) && !usedSubs.has("Wall Balls")) {
-            replacement = "Wall Balls";
-          } else if (!usedSubs.has("Burpees")) {
-            replacement = "Burpees";
-          } else {
-            // If all used, cycle back through available
-            if (equipment.includes('dumbbell')) replacement = "DB Box Step-Overs";
-            else if (equipment.includes('kettlebell')) replacement = "KB Swings";
-          }
-          
-          usedSubs.add(replacement);
-          console.log(`🔄 Banned movement replaced: ${it.exercise} → ${replacement} (equipment available)`);
-          
-          workout.substitutions.push({
-            from: it.exercise,
-            to: replacement,
-            reason: 'banned_in_main_when_equipment'
-          });
-          
-          return { 
-            ...it, 
-            exercise: replacement, 
-            notes: (it.notes || "") + " (upgraded for intensity)" 
-          };
-        }
-        return it;
-      });
-      
-      // Verify no banned movements remain in main blocks when equipment is available
-      let remainingBanned = 0;
-      for (const it of b.items) {
-        const movement = findMovement(it.exercise);
-        if (movement && movement.banned_in_main_when_equipment && hasLoad) {
-          remainingBanned++;
-        }
-      }
-      
-      if (remainingBanned > 0) {
-        console.warn(`⚠️ Block "${b.title}" still has ${remainingBanned} banned movements with equipment available!`);
-      } else {
-        console.log(`✅ Block "${b.title}" has no banned movements`);
-      }
-      
-      // 1b) Upgrade intensity if block still appears too easy after substitutions
-      // Check if block has any loaded movements
-      const text = JSON.stringify(b.items).toLowerCase();
-      const hasLoadedMovements = /(barbell|bb[\s,]|dumbbell|db[\s,]|kettlebell|kb[\s,]|weighted|wall ball)/i.test(text);
-      
-      // If we have equipment but block is still mostly bodyweight, upgrade
-      if (hasLoad && !hasLoadedMovements && bannedCount > 0) {
-        let upgraded = false;
-        
-        // Option 1: Tighten rest intervals in title (only to valid patterns)
-        if (/E4:00/i.test(b.title)) {
-          b.title = b.title.replace(/E4:00/gi, "E3:00");
-          b.notes = (b.notes || "") + " Rest tightened to increase density";
-          console.log(`✅ Tightened rest: E4:00 → E3:00 in "${b.title}"`);
-          upgraded = true;
-        } else if (/Every 4:00/i.test(b.title)) {
-          b.title = b.title.replace(/Every 4:00/gi, "Every 3:00");
-          b.notes = (b.notes || "") + " Rest tightened to increase density";
-          console.log(`✅ Tightened rest: Every 4:00 → Every 3:00 in "${b.title}"`);
-          upgraded = true;
-        }
-        
-        // Option 2: Increase reps by 10-15% (only for pure rep targets)
-        if (!upgraded) {
-          for (const it of b.items) {
-            const target = it.target || "";
-            // Only increase if target is pure reps (not cal, time, or complex schemes)
-            if (/^\d+\s*reps?$/i.test(target) || /^\d+$/.test(target)) {
-              const repsMatch = target.match(/(\d+)/);
-              if (repsMatch) {
-                const currentReps = parseInt(repsMatch[1]);
-                const newReps = Math.ceil(currentReps * 1.15); // 15% increase
-                it.target = `${newReps} reps`;
-                it.notes = (it.notes || "") + ` Upgraded from ${currentReps} reps`;
-                console.log(`✅ Increased reps: ${currentReps} → ${newReps} for ${it.exercise}`);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  // ===== Hardness floor enforcement using pattern packs =====
-  // Resolve style and get pack configuration
-  const style = (opts.focus || 'crossfit').toLowerCase().replace(/\s+/g, '_');
-  const pack = PACKS[style] || PACKS['crossfit'];
-  
-  let floor = 0.75; // base floor
-  
-  // Use pack hardness floor when equipment is available, otherwise use lower floor
-  if (hasLoad && !lowReadiness) {
-    floor = pack.hardnessFloor; // ≥0.85 for CF/Oly/PL/BB, 0.70 aerobic, 0.40 mobility
-  } else if (lowReadiness) {
-    floor = 0.55; // recovery guardrail
-  }
-  
-  console.log(`📊 Hardness floor for ${style}: ${floor.toFixed(2)} (pack: ${pack.name})`);
-
-  workout.variety_score = computeHardness(workout, equipment);
-  
-  // ===== HOBH: finisher only-on-deficit and harder defaults =====
-  let hardnessFinisherAdded = false;
-  if (workout.variety_score < floor) {
-    console.warn(`⚠️ Hardness ${workout.variety_score.toFixed(2)} < floor ${floor.toFixed(2)}, appending intensity finisher`);
-    
-    // Find cooldown index
-    const cooldownIdx = workout.blocks.findIndex(b => b.kind === 'cooldown');
-    
-    // Helper: Choose loaded hinge movement
-    const chooseLoadedHinge = () => {
-      if (equipment.includes('barbell')) return "BB Deadlift";
-      if (equipment.includes('dumbbell')) return "DB Romanian Deadlift";
-      if (equipment.includes('kettlebell')) return "KB Swings";
-      return "Good Mornings"; // bodyweight fallback
-    };
-    
-    // Helper: Choose press or wall ball
-    const choosePressOrWallBall = () => {
-      if (equipment.includes('barbell')) return "BB Thrusters";
-      if (equipment.includes('dumbbell')) return "DB Push Press";
-      if (equipment.includes('kettlebell')) return "KB Push Press";
-      return "Wall Balls"; // or bodyweight: "Burpees"
-    };
-    
-    // Helper: Choose cyclical movement
-    const chooseCyclical = () => {
-      if (equipment.includes('rower')) return "Row";
-      if (equipment.includes('bike')) return "Bike";
-      return "Run"; // universal fallback
-    };
-    
-    // Create finisher block (For Time 30-20-10, ≤12 min)
-    const finisher = {
-      kind: "conditioning" as const,
-      title: "For Time 30-20-10",
-      time_min: 12,
-      items: [
-        { 
-          exercise: chooseLoadedHinge(), 
-          target: "30-20-10", 
-          notes: "Maintain tension and form" 
-        },
-        { 
-          exercise: choosePressOrWallBall(), 
-          target: "30-20-10", 
-          notes: "Explosive power" 
-        },
-        { 
-          exercise: chooseCyclical(), 
-          target: "30-20-10 cals", 
-          notes: "Push the pace" 
-        }
-      ],
-      notes: "Harder finisher to boost intensity"
-    };
-    
-    // Insert before cooldown
-    if (cooldownIdx !== -1) {
-      workout.blocks.splice(cooldownIdx, 0, finisher);
-    } else {
-      workout.blocks.push(finisher);
-    }
-    
-    hardnessFinisherAdded = true;
-    
-    // Recalculate hardness after adding finisher
-    workout.variety_score = computeHardness(workout, equipment);
-    console.log(`✅ Finisher added, new hardness: ${workout.variety_score.toFixed(2)}`);
-  }
-  
-  // 3) Validate patterns
-  const patternValidation = validatePatterns(workout);
-  
-  // 4) Validate equipment usage (at least 2/3 main movements are loaded when gear present)
-  // Only check strength + conditioning blocks (skill/core typically use bodyweight)
-  let equipmentOk = true;
-  if (hasLoad) {
-    const mainBlocks = workout.blocks.filter(b => 
-      ['strength', 'conditioning'].includes(b.kind)
-    );
-    
-    let totalMovements = 0;
-    let loadedMovements = 0;
-    
-    for (const block of mainBlocks) {
-      for (const item of block.items || []) {
-        const exercise = (item.exercise || "").toLowerCase();
-        totalMovements++;
-        
-        // Check if movement is loaded (BB/DB/KB) - improved regex to avoid false positives
-        if (/(barbell|bb[\s,]|dumbbell|db[\s,]|kettlebell|kb[\s,]|weighted|wall ball|farmer)/i.test(exercise)) {
-          loadedMovements++;
-        }
-      }
-    }
-    
-    const loadedRatio = totalMovements > 0 ? loadedMovements / totalMovements : 0;
-    equipmentOk = loadedRatio >= (2/3) || totalMovements === 0;
-    
-    if (!equipmentOk) {
-      console.warn(`⚠️ Equipment usage violation: ${loadedMovements}/${totalMovements} movements are loaded (${(loadedRatio * 100).toFixed(0)}%), need ≥67%`);
-    }
-  }
-  
-  // 5) Validate mixed semantics
-  let mixedRuleOk = true;
-  if (opts.focus === 'mixed' && opts.categories_for_mixed && opts.categories_for_mixed.length > 0) {
-    const mainBlocks = workout.blocks.filter(b => 
-      ['strength', 'conditioning', 'skill', 'core'].includes(b.kind)
-    );
-    
-    const expectedCount = opts.categories_for_mixed.length;
-    const actualCount = mainBlocks.length;
-    
-    // Check: should be exactly N blocks OR N+1 if finisher added
-    const totalTime = workout.blocks.reduce((sum, b) => sum + b.time_min, 0);
-    const hasTimeShortfallFinisher = actualCount === expectedCount + 1 && totalTime < workout.duration_min * 0.9;
-    const hasHardnessFinisher = actualCount === expectedCount + 1 && hardnessFinisherAdded;
-    
-    mixedRuleOk = actualCount === expectedCount || hasTimeShortfallFinisher || hasHardnessFinisher;
-    
-    if (!mixedRuleOk) {
-      console.warn(`⚠️ Mixed rule violation: expected ${expectedCount} main blocks (or ${expectedCount + 1} with finisher), got ${actualCount}`);
-    }
-  }
-  
-  // 6) Set acceptance flags
-  workout.acceptance_flags = workout.acceptance_flags || {
-    time_fit: true,
-    has_warmup: true,
-    has_cooldown: true,
-    mixed_rule_ok: true,
-    equipment_ok: true,
-    injury_safe: true,
-    readiness_mod_applied: true,
-    hardness_ok: true,
-    patterns_locked: true
-  };
-  
-  workout.acceptance_flags.hardness_ok = workout.variety_score >= floor;
-  workout.acceptance_flags.patterns_locked = patternValidation.valid;
-  workout.acceptance_flags.mixed_rule_ok = mixedRuleOk;
-  workout.acceptance_flags.equipment_ok = equipmentOk;
-  
-  // Telemetry: Log generation summary
-  const bannedReplacements = (workout.substitutions || []).filter(s => s.reason === 'banned_in_main_when_equipment').length;
-  console.log(`🎯 GENERATION SUMMARY | Style: ${style} | Hardness: ${workout.variety_score?.toFixed(2)} (floor: ${floor.toFixed(2)}) | Pack: ${pack.name} | Banned replacements: ${bannedReplacements}`);
-
-  return workout;
-}
 
 // Helper function to extract focus and categories from request
 function extractFocusAndCategories(request: WorkoutGenerationRequest): { focus: string; categoriesForMixed: string[] } {
@@ -2202,12 +1902,15 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
   const pack = PACKS[style] || PACKS['crossfit'];
   const sanitizedWorkout = sanitizeWorkout(workout, req || { equipment: [] }, pack, seed);
   
+  // Ensure block time alignment
+  const durationMin = req?.duration || sanitizedWorkout.duration_min || 45;
+  fitBlocksToDuration(sanitizedWorkout.blocks, durationMin, pack.warmupMin || 8, pack.cooldownMin || 8);
+  
   // Build comprehensive acceptance flags (sanitizer already sets some)
   const totalTimeMin = sanitizedWorkout.blocks.reduce((sum, b) => sum + (b.time_min || 0), 0);
-  const durationMin = req?.duration || sanitizedWorkout.duration_min || 45;
   
   const acceptance = {
-    time_fit: Math.abs(totalTimeMin - durationMin) <= Math.max(2, durationMin * 0.1),
+    time_fit: Math.abs(totalTimeMin - durationMin) <= Math.max(2, durationMin * 0.05),
     has_warmup: !!sanitizedWorkout.blocks.find((b:any)=>b.kind==='warmup' && (b.time_min||0) >= 6),
     has_cooldown: !!sanitizedWorkout.blocks.find((b:any)=>b.kind==='cooldown' && (b.time_min||0) >= 4),
     style_ok: !!PACKS[style],
