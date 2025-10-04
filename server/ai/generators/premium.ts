@@ -40,13 +40,36 @@ const SubstitutionSchema = z.object({
   reason: z.string()
 });
 
+const SelectionTraceSchema = z.object({
+  blockTitle: z.string(),
+  movements: z.array(z.object({
+    id: z.string(),
+    name: z.string()
+  })),
+  filters: z.object({
+    categories: z.array(z.string()).optional(),
+    patterns: z.array(z.string()).optional(),
+    modality: z.array(z.string()).optional(),
+    equipment: z.array(z.string()).optional(),
+    excludeBannedMains: z.boolean().optional()
+  })
+});
+
+const MetaSchema = z.object({
+  generator: z.string(),
+  style: z.string(),
+  seed: z.string(),
+  selectionTrace: z.array(SelectionTraceSchema).optional()
+});
+
 const PremiumWorkoutSchema = z.object({
   title: z.string(),
   duration_min: z.number(),
   blocks: z.array(WorkoutBlockSchema),
   substitutions: z.array(SubstitutionSchema).optional(),
   acceptance_flags: AcceptanceFlagsSchema,
-  variety_score: z.number().optional()
+  variety_score: z.number().optional(),
+  meta: MetaSchema.optional()
 });
 
 type PremiumWorkout = z.infer<typeof PremiumWorkoutSchema>;
@@ -71,17 +94,25 @@ const BANNED_EASY = new Set([
 // Banned bodyweight movements specifically for main blocks when equipment is available
 const BANNED_BW_MAIN = /^(Wall Sit|Mountain Climber|Star Jump|High Knees|Jumping Jacks|Bicycle Crunch)$/i;
 
-// Helper function to pick movements using MovementService
-function pickMovements(request: WorkoutGenerationRequest, blockCfg: any): Movement[] {
+// Helper function to pick movements using MovementService with telemetry
+function pickMovements(
+  request: WorkoutGenerationRequest, 
+  blockCfg: any,
+  blockTitle: string
+): { movements: Movement[], trace: any } {
   const equip = (request.context?.equipment || []).map((e: string) => e.toLowerCase());
   const seed = (request as any).seed || String(Date.now());
   
-  const moves = queryMovements({
+  const filters = {
     categories: blockCfg.select.categories,
     patterns: blockCfg.select.patterns,
     modality: blockCfg.select.modality,
     equipment: equip.length > 0 ? equip : undefined,
-    excludeBannedMains: true,
+    excludeBannedMains: true
+  };
+  
+  const moves = queryMovements({
+    ...filters,
     limit: blockCfg.select.items * 2, // Get more than needed for variety
     seed
   });
@@ -104,7 +135,22 @@ function pickMovements(request: WorkoutGenerationRequest, blockCfg: any): Moveme
     }
   }
   
-  return moves.slice(0, blockCfg.select.items);
+  const selectedMoves = moves.slice(0, blockCfg.select.items);
+  
+  // Build trace for telemetry
+  const trace = {
+    blockTitle,
+    movements: selectedMoves.map(m => ({ id: m.id, name: m.name })),
+    filters: {
+      categories: filters.categories,
+      patterns: filters.patterns,
+      modality: filters.modality,
+      equipment: filters.equipment,
+      excludeBannedMains: filters.excludeBannedMains
+    }
+  };
+  
+  return { movements: selectedMoves, trace };
 }
 
 // Allowed patterns for main blocks (includes upgradeIntensity mutations)
@@ -837,6 +883,10 @@ function sanitizeWorkout(
   workout.acceptance_flags.patterns_locked = patternValidation.valid;
   workout.acceptance_flags.mixed_rule_ok = mixedRuleOk;
   workout.acceptance_flags.equipment_ok = equipmentOk;
+  
+  // Telemetry: Log generation summary
+  const bannedReplacements = (workout.substitutions || []).filter(s => s.reason === 'banned_in_main_when_equipment').length;
+  console.log(`🎯 GENERATION SUMMARY | Style: ${style} | Hardness: ${workout.variety_score?.toFixed(2)} (floor: ${floor.toFixed(2)}) | Pack: ${pack.name} | Banned replacements: ${bannedReplacements}`);
 
   return workout;
 }
@@ -2059,39 +2109,75 @@ function buildMobility(req: WorkoutGenerationRequest): PremiumWorkout {
   };
 }
 
+// Helper to add meta information to workout
+function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, selectionTrace?: any[]): PremiumWorkout {
+  return {
+    ...workout,
+    meta: {
+      generator: 'premium',
+      style,
+      seed,
+      selectionTrace
+    }
+  };
+}
+
 export async function generatePremiumWorkout(
   request: WorkoutGenerationRequest,
   seed?: string,
   retryCount: number = 0
 ): Promise<PremiumWorkout> {
   try {
+    // Ensure seed is set
+    const workoutSeed = seed || (request as any).seed || `${Date.now()}-${Math.random()}`;
+    
+    // Propagate seed through request for deterministic sampling
+    (request as any).seed = workoutSeed;
+    
     // ===== HOBH: Style-aware builder routing =====
     const style = (request as any).style;
     
     if (style) {
-      console.log(`🎨 Using style-aware builder for: ${style}`);
+      console.log(`🎨 Using style-aware builder for: ${style} | seed: ${workoutSeed}`);
+      
+      let workout: PremiumWorkout;
       
       switch (style) {
         case 'crossfit':
-          return buildCrossFitCF(request);
+          workout = buildCrossFitCF(request);
+          break;
         case 'olympic_weightlifting':
-          return buildOly(request);
+          workout = buildOly(request);
+          break;
         case 'powerlifting':
-          return buildPowerlifting(request);
+          workout = buildPowerlifting(request);
+          break;
         case 'bb_full_body':
-          return buildBBFull(request);
+          workout = buildBBFull(request);
+          break;
         case 'bb_upper':
-          return buildBBUpper(request);
+          workout = buildBBUpper(request);
+          break;
         case 'bb_lower':
-          return buildBBLower(request);
+          workout = buildBBLower(request);
+          break;
         case 'aerobic':
-          return buildAerobic(request);
+          workout = buildAerobic(request);
+          break;
         case 'gymnastics':
-          return buildGymnastics(request);
+          workout = buildGymnastics(request);
+          break;
         case 'mobility':
-          return buildMobility(request);
+          workout = buildMobility(request);
+          break;
         default:
           console.log(`🔄 Unknown style "${style}", falling through to AI generation`);
+          workout = null as any;
+      }
+      
+      if (workout) {
+        // Add meta information to style-aware workouts
+        return enrichWithMeta(workout, style, workoutSeed);
       }
     }
     

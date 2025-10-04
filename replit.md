@@ -31,6 +31,11 @@ Integrated the comprehensive Movement Registry and pattern packs into the premiu
   - Checks `movement.banned_in_main_when_equipment` flag from registry
   - Rotation system: DB Box Step-Overs → KB Swings → Wall Balls → Burpees
   - Enforces pack-specific hardness floors (≥0.85 for CF/Oly/PL/BB with gear, 0.70 aerobic, 0.40 mobility)
+  - Telemetry logging: Summarizes style, hardness, floors, and banned replacements made
+- **Deterministic Sampling** (`generatePremiumWorkout()` in `server/ai/generators/premium.ts`):
+  - Seed propagation ensures same input + same seed = same workout
+  - Meta object includes: `generator`, `style`, `seed`, and `selectionTrace` (movements and filters per block)
+  - Console telemetry logs pools/filters used for debugging and reproducibility
 - **Integration Points**: Premium generator now imports `PACKS`, `queryMovements`, and `findMovement` for deterministic, category-appropriate workout generation
 - **Benefits**: Replaces static movement arrays with dynamic, constraint-aware selection; ensures style fidelity; metadata-driven validation; supports all 13 workout focus types
 
