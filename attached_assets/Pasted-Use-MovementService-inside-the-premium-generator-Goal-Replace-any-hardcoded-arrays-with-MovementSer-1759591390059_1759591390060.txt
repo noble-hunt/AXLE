@@ -1,0 +1,72 @@
+Use MovementService inside the premium generator
+
+Goal
+Replace any hardcoded arrays with MovementService results and enforce style fidelity.
+
+Do this
+
+In server/ai/generators/premium.ts, import:
+
+import { PACKS } from '../config/patternPacks';
+import { queryMovements } from '../movementService';
+
+
+At the top of generatePremiumWorkout(req), resolve style:
+
+const style = (req.style || req.focus || req.goal || 'crossfit').toLowerCase();
+const pack = PACKS[style] || PACKS['crossfit'];
+const equip = (req.equipment || []).map((e:string)=>e.toLowerCase());
+
+
+Warm-up & Cooldown: keep your existing templates.
+
+For each main block in pack.mainBlocks, call MovementService:
+
+function pick(blockCfg:any) {
+  const moves = queryMovements({
+    categories: blockCfg.select.categories,
+    patterns: blockCfg.select.patterns,
+    modality: blockCfg.select.modality,
+    equipment: equip,
+    excludeBannedMains: true,
+    limit: blockCfg.select.items,
+    seed: req.seed
+  });
+  if (!moves.length) throw new Error('no_moves_for_block');
+  if (blockCfg.select.requireLoaded && equip.length) {
+    const loadedCount = moves.filter(m => m.equipment.some(e => ['barbell','dumbbell','kettlebell','machine','cable','sandbag','sled'].includes(e))).length;
+    if (loadedCount < Math.ceil(blockCfg.select.items*0.5)) throw new Error('not_enough_loaded_choices');
+  }
+  return moves;
+}
+
+
+Map patterns to scheme (examples):
+
+E2:00x / E2:30x / E3:00x → “Every 2:00 x 6” with reps or % where appropriate (Oly/PL).
+
+EMOM 12–16 with odd/even selections (e.g., cardio cals + loaded).
+
+AMRAP 8–12 choose 2–3 from the sampled set.
+
+INTERVALS → aerobic prescriptions (5 x 4:00 @ Z3, 2:00 easy etc.).
+
+MOBILITY_QUALITY → static/dynamic holds with :30–:90 prescriptions.
+
+Style acceptance gates (add to sanitizer):
+
+All main items must come from pack pools (categories & patterns).
+
+If style = Oly/PL, ban BW in mains when gear exists.
+
+For styles with gear, hardness floor = pack.hardnessFloor (≥ 0.85 for CF/Oly/PL/BB).
+
+Acceptance
+
+“Olympic Weightlifting” request triggers two E2:00 blocks, each filled with Oly lifts from registry; no burpee/mountain climber.
+
+“Powerlifting” returns S/B/D patterns + accessory rows/hinges (no EMOM/AMRAP cardio).
+
+“Gymnastics” yields EMOM skill/strength + AMRAP core; no barbell lifts.
+
+“Mobility” is 100% mobility drills; hardness gate relaxed.
