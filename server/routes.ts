@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { 
   insertWorkoutSchema, 
   insertPRSchema, 
-  insertAchievementSchema 
+  insertAchievementSchema,
+  insertWorkoutFeedbackSchema
 } from "@shared/schema";
 import { generateWorkout } from "./workoutGenerator";
 import { workoutRequestSchema, WorkoutRequest } from "../shared/schema";
@@ -1977,6 +1978,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         message: "Failed to save feedback" 
+      });
+    }
+  });
+
+  // New workout feedback endpoint - inserts into workout_feedback table
+  app.post("/api/workouts/:id/feedback", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const workoutId = req.params.id;
+      const { perceivedIntensity, notes } = req.body;
+      
+      // Validate with Zod schema
+      const feedbackData = insertWorkoutFeedbackSchema.parse({
+        workoutId,
+        userId: authReq.user.id,
+        perceivedIntensity,
+        notes: notes || null,
+      });
+      
+      // Insert into workout_feedback table
+      const { supabaseAdmin } = await import("./lib/supabaseAdmin");
+      const { data, error } = await supabaseAdmin
+        .from('workout_feedback')
+        .insert({
+          workout_id: feedbackData.workoutId,
+          user_id: feedbackData.userId,
+          perceived_intensity: feedbackData.perceivedIntensity,
+          notes: feedbackData.notes,
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Failed to insert workout feedback:', error);
+        return res.status(400).json({ 
+          error: 'Invalid feedback data',
+          details: error 
+        });
+      }
+      
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Workout feedback submission error:", error);
+      
+      // Return Zod validation errors with proper format
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          error: 'Invalid feedback data',
+          details: error.errors 
+        });
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to save feedback',
+        message: error.message 
       });
     }
   });

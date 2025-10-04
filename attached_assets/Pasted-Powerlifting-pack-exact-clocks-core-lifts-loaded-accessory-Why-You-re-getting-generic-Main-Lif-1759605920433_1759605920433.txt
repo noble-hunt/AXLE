@@ -1,0 +1,95 @@
+Powerlifting pack: exact clocks, core lifts, loaded accessory
+
+Why: You’re getting generic “Main Lift A/B” and missed time targets. We’ll emit precise patterns and ensure both mains + accessory are loaded.
+
+File: server/ai/generators/premium.ts (inside your PL builder, e.g., buildPowerlifting(req))
+
+Replace the block assembly with:
+
+// === POWERLIFTING (Exact clocks + loaded-only) ===
+function buildPowerlifting(req: any, pack: any, seed: string, picks: any) {
+  // picks.coreA/coreB are Movement objects selected from ['squat','bench','hinge'] via MovementService
+  const A = picks.coreA; // e.g., Back Squat or Deadlift or Bench Press
+  const B = picks.coreB;
+
+  const blocks = [
+    // Warm-up already built upstream
+
+    // Main 1 — heavy triples @ 85–90%
+    {
+      kind: 'strength',
+      title: 'Every 3:00 x 5',
+      time_min: 15,               // 3:00 * 5
+      items: [{
+        exercise: A.name,
+        registry_id: A.id,
+        scheme: { reps: 3, percent_1rm: '85–90%', rest_s: 60 },
+        notes: 'Bar speed; full ROM'
+      }]
+    },
+
+    // Main 2 — volume @ 78–82%
+    {
+      kind: 'strength',
+      title: 'Every 2:30 x 5',
+      time_min: 12,               // 2:30 * 5
+      items: [{
+        exercise: B.name,
+        registry_id: B.id,
+        scheme: { reps: 5, percent_1rm: '78–82%', rest_s: 45 },
+        notes: 'Controlled eccentrics'
+      }]
+    },
+
+    // Accessory — loaded superset, zero BW
+    {
+      kind: 'strength',
+      title: 'Superset E2:00 x 6',
+      time_min: 12,               // 2:00 * 6
+      items: [
+        picks.access1 && { // e.g., Barbell Row or DB Row
+          exercise: picks.access1.name, registry_id: picks.access1.id,
+          scheme: { reps: 10, rpe: 'RIR 1–2' }, notes: 'Lat focus'
+        },
+        picks.access2 && { // e.g., Barbell RDL or Hip Thrust
+          exercise: picks.access2.name, registry_id: picks.access2.id,
+          scheme: { reps: 10, rpe: 'RIR 1–2' }, notes: 'Posterior chain'
+        }
+      ].filter(Boolean)
+    }
+  ];
+
+  return blocks;
+}
+
+
+And in your PL movement picks (where you call MovementService):
+
+const corePool = queryMovements({
+  categories: ['powerlifting'],
+  patterns: ['squat','bench','hinge'],
+  modality: ['strength'],
+  equipment: req.equipment, excludeBannedMains: true, limit: 10, seed: req.seed
+});
+
+// choose two distinct
+const coreA = corePool[0];
+const coreB = corePool.find(m => m.patterns.some(p => !coreA.patterns.includes(p))) || corePool[1];
+
+// accessories: loaded-only
+const accessories = queryMovements({
+  categories: ['powerlifting'],
+  patterns: ['pull','hinge'],
+  modality: ['strength'],
+  equipment: req.equipment,
+  excludeBannedMains: true, limit: 4, seed: req.seed
+}).filter(m => m.equipment.some(e => ['barbell','dumbbell','kettlebell','machine','cable','sandbag','sled'].includes(e)));
+
+const picks = { coreA, coreB, access1: accessories[0], access2: accessories[1] };
+
+
+Acceptance:
+
+PL now shows Every 3:00 x 5 + Every 2:30 x 5 + Superset E2:00 x 6.
+
+time_fit=true, main_loaded_ratio ≥ 0.85.
