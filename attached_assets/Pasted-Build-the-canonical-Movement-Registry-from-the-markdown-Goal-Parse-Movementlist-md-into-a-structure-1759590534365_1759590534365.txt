@@ -1,0 +1,59 @@
+Build the canonical Movement Registry from the markdown
+
+Goal
+Parse Movementlist.md into a structured JSON registry and ship it with the server.
+
+Do this exactly
+
+Create a build script scripts/build-movements.ts that:
+
+Reads server/data/Movementlist.md
+
+Splits by ## <Category> headings into 9 categories (Oly WL, Powerlifting, BB Full, BB Upper, BB Lower, Gymnastics Work, CrossFit, Aerobic, Mobility)
+
+Extracts bullet lines as exercises, dedupes, slugifies (slug), and tags each item:
+
+category (one of the 9)
+
+patterns: inferred keywords (squat|hinge|press|pull|lunge|carry|jump|olympic_snatch|olympic_cleanjerk|gym_push|gym_pull|core|cardio|mobility_dynamic|mobility_static)
+
+equipment: barbell|dumbbell|kettlebell|machine|cable|band|bodyweight|ring|rope|sled|sandbag|ball|bike|rower|ski|treadmill|erg|pool
+
+modality: strength|conditioning|skill|aerobic|mobility
+
+level: beginner|intermediate|advanced (simple heuristics: competition/complex/deficit/weighted → higher)
+
+aliases: []
+
+banned_in_main_when_equipment (true for: wall sit, mountain climber, star jump, jumping jacks, bicycle crunch; keep allowed in warmup/skill/core)
+
+Outputs server/data/movements.registry.json and a compact server/data/movements.registry.min.json (for prod)
+
+Add an npm script
+
+"scripts": {
+  "build:movements": "ts-node --esm scripts/build-movements.ts"
+}
+
+
+Data model typedef server/types/movements.ts
+
+export type Movement = {
+  id: string;            // slug
+  name: string;
+  category: 'olympic_weightlifting'|'powerlifting'|'bb_full_body'|'bb_upper'|'bb_lower'|'gymnastics'|'crossfit'|'aerobic'|'mobility';
+  patterns: string[];    // e.g., ['hinge','press'] or ['olympic_snatch']
+  equipment: string[];   // e.g., ['barbell']
+  modality: 'strength'|'conditioning'|'skill'|'aerobic'|'mobility';
+  level: 'beginner'|'intermediate'|'advanced';
+  banned_in_main_when_equipment?: boolean;
+  aliases?: string[];
+};
+export type MovementRegistry = Movement[];
+
+
+Acceptance
+
+Running npm run build:movements creates server/data/movements.registry.json with >1000 unique movements, grouped across the 9 categories.
+
+Spot check: “Snatch”, “Clean & Jerk” are tagged with olympic_weightlifting + olympic_snatch/olympic_cleanjerk and barbell. “Ring Muscle-up” has gymnastics + gym_pull + rings.
