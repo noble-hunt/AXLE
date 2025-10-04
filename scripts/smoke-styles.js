@@ -60,25 +60,7 @@ async function smokeTestStyles() {
         console.log(`   ${idx + 1}. ${set.exercise}`);
       });
 
-      // Count loaded movements in main blocks
-      const mainExercises = exercises.filter(set => {
-        const ex = set.exercise.toLowerCase();
-        return !ex.includes('warm') && 
-               !ex.includes('cool') &&
-               !ex.includes('foam') &&
-               set.exercise.length > 0;
-      });
-
-      const loadedMovements = mainExercises.filter(set => {
-        const ex = set.exercise.toLowerCase();
-        return /barbell|bb[\s,]|dumbbell|db[\s,]|kettlebell|kb[\s,]|weighted|wall ball/.test(ex);
-      });
-
-      const loadedRatio = mainExercises.length > 0 
-        ? ((loadedMovements.length / mainExercises.length) * 100).toFixed(0)
-        : '0';
-
-      console.log(`\n💪 Equipment Usage: ${loadedMovements.length}/${mainExercises.length} loaded (${loadedRatio}%)`);
+      console.log(`\n💪 Main Loaded Ratio: ${(workout?.meta?.main_loaded_ratio ?? 0).toFixed(2)}`);
 
       console.log('\n🔍 Acceptance:');
       const acceptance = workout.meta?.acceptance || workout.acceptance_flags || data.acceptance_flags || {};

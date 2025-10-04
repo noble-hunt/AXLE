@@ -24,6 +24,23 @@ function isBannedInMain(m: any) {
   return !!m.banned_in_main_when_equipment;
 }
 
+// Helper: Check if equipment is loaded
+function isLoadedEquip(e: string) {
+  return ['barbell', 'dumbbell', 'kettlebell', 'machine', 'sandbag', 'sled', 'cable'].includes(e);
+}
+
+// Helper: Compute loaded ratio on main blocks only (excluding warmup/cooldown)
+function loadedRatioMainOnly(blocks: any[], REG: Map<string, any>) {
+  const mains = blocks.filter(b => !['warmup', 'cooldown'].includes(b.kind));
+  const items = mains.flatMap(b => (b.items || [])).filter((it: any) => it._source !== 'warmup' && it._source !== 'cooldown');
+  if (!items.length) return 0;
+  const loaded = items.filter((it: any) => {
+    const mv = REG.get(it.registry_id || '');
+    return mv && mv.equipment?.some(isLoadedEquip);
+  }).length;
+  return loaded / items.length;
+}
+
 // Registry-aware sanitizer: enforce "no banned in mains", hardness floors, and style fidelity
 export function sanitizeWorkout(workout: any, req: any, pack: PatternPack, seed: string) {
   const equip = (req.equipment || []).map((e: string) => e.toLowerCase());
@@ -964,13 +981,13 @@ function pickWarmup(req: WorkoutGenerationRequest): any {
     title: 'Dynamic Warm-Up',
     time_min: 8,
     items: [
-      { exercise: 'Foam Roll', target: '2 min', notes: 'Upper back, lats, IT bands, quads' },
-      { exercise: 'Cat-Cow', target: '10 reps', notes: 'Spinal mobility, controlled breathing' },
-      { exercise: 'World\'s Greatest Stretch', target: '5/side', notes: 'Hip mobility, thoracic rotation' },
-      { exercise: 'Jumping Jacks', target: '40 reps', notes: 'Elevate heart rate' },
-      { exercise: 'Air Squat', target: '15 reps', notes: 'Full ROM, tempo' },
-      { exercise: 'Push-Up', target: '10 reps', notes: 'Shoulder activation' },
-      ...(hasBarbell ? [{ exercise: 'Barbell Complex', target: '5 reps each', notes: 'Deadlift, hang clean, front squat, press' }] : [{ exercise: 'Inchworm', target: '8 reps', notes: 'Hamstring + shoulder prep' }])
+      { exercise: 'Foam Roll', target: '2 min', notes: 'Upper back, lats, IT bands, quads', _source: 'warmup' },
+      { exercise: 'Cat-Cow', target: '10 reps', notes: 'Spinal mobility, controlled breathing', _source: 'warmup' },
+      { exercise: 'World\'s Greatest Stretch', target: '5/side', notes: 'Hip mobility, thoracic rotation', _source: 'warmup' },
+      { exercise: 'Jumping Jacks', target: '40 reps', notes: 'Elevate heart rate', _source: 'warmup' },
+      { exercise: 'Air Squat', target: '15 reps', notes: 'Full ROM, tempo', _source: 'warmup' },
+      { exercise: 'Push-Up', target: '10 reps', notes: 'Shoulder activation', _source: 'warmup' },
+      ...(hasBarbell ? [{ exercise: 'Barbell Complex', target: '5 reps each', notes: 'Deadlift, hang clean, front squat, press', _source: 'warmup' }] : [{ exercise: 'Inchworm', target: '8 reps', notes: 'Hamstring + shoulder prep', _source: 'warmup' }])
     ],
     notes: 'Comprehensive mobility and activation'
   };
@@ -982,12 +999,12 @@ function makeCooldown(): any {
     title: 'Cool Down & Recovery',
     time_min: 8,
     items: [
-      { exercise: 'Walk or Light Bike', target: '3 min', notes: 'Gradually lower heart rate' },
-      { exercise: 'Child\'s Pose', target: '60 sec', notes: 'Deep breathing, lat stretch' },
-      { exercise: 'Pigeon Stretch', target: '45 sec/side', notes: 'Hip flexor and glute release' },
-      { exercise: 'Hamstring Stretch', target: '45 sec/side', notes: 'Seated or standing, relaxed' },
-      { exercise: 'Spinal Twist', target: '45 sec/side', notes: 'Supine or seated, gentle rotation' },
-      { exercise: 'Shoulder + Chest Stretch', target: '60 sec total', notes: 'Doorway or wall-assisted' }
+      { exercise: 'Walk or Light Bike', target: '3 min', notes: 'Gradually lower heart rate', _source: 'cooldown' },
+      { exercise: 'Child\'s Pose', target: '60 sec', notes: 'Deep breathing, lat stretch', _source: 'cooldown' },
+      { exercise: 'Pigeon Stretch', target: '45 sec/side', notes: 'Hip flexor and glute release', _source: 'cooldown' },
+      { exercise: 'Hamstring Stretch', target: '45 sec/side', notes: 'Seated or standing, relaxed', _source: 'cooldown' },
+      { exercise: 'Spinal Twist', target: '45 sec/side', notes: 'Supine or seated, gentle rotation', _source: 'cooldown' },
+      { exercise: 'Shoulder + Chest Stretch', target: '60 sec total', notes: 'Doorway or wall-assisted', _source: 'cooldown' }
     ],
     notes: 'Complete recovery protocol'
   };
@@ -1147,10 +1164,10 @@ function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
       title: 'Barbell Warm-up Complex',
       time_min: 8,
       items: [
-        { exercise: 'PVC Pass-Through', target: '10 reps', notes: 'Shoulder mobility' },
-        { exercise: 'Burgener Warm-up', target: '5 reps each', notes: 'Down-up, elbows high, muscle snatch, snatch balance' },
-        { exercise: 'Empty Bar Snatch', target: '5 reps', notes: 'Focus on positions' },
-        { exercise: 'Empty Bar Clean & Jerk', target: '5 reps', notes: 'Focus on timing' }
+        { exercise: 'PVC Pass-Through', target: '10 reps', notes: 'Shoulder mobility', _source: 'warmup' },
+        { exercise: 'Burgener Warm-up', target: '5 reps each', notes: 'Down-up, elbows high, muscle snatch, snatch balance', _source: 'warmup' },
+        { exercise: 'Empty Bar Snatch', target: '5 reps', notes: 'Focus on positions', _source: 'warmup' },
+        { exercise: 'Empty Bar Clean & Jerk', target: '5 reps', notes: 'Focus on timing', _source: 'warmup' }
       ],
       notes: 'Comprehensive Olympic lifting prep'
     });
@@ -1160,8 +1177,8 @@ function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
       title: 'Dumbbell Warm-up Complex',
       time_min: 8,
       items: [
-        { exercise: 'DB Snatch Prep', target: '5 reps/arm', notes: 'Light weight, positions' },
-        { exercise: 'DB Clean Prep', target: '5 reps/arm', notes: 'Light weight, smooth catch' }
+        { exercise: 'DB Snatch Prep', target: '5 reps/arm', notes: 'Light weight, positions', _source: 'warmup' },
+        { exercise: 'DB Clean Prep', target: '5 reps/arm', notes: 'Light weight, smooth catch', _source: 'warmup' }
       ],
       notes: 'Prep for DB Olympic work'
     });
@@ -1249,10 +1266,10 @@ function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
     title: 'Mobility & Recovery',
     time_min: 8,
     items: [
-      { exercise: 'T-Spine Foam Roll', target: '90 sec', notes: 'Upper back extension' },
-      { exercise: 'Hip Flexor Stretch', target: '60 sec/side', notes: 'Couch stretch or lunge' },
-      { exercise: 'Overhead Reach', target: '60 sec total', notes: 'Shoulder flexibility' },
-      { exercise: 'Child\'s Pose', target: '90 sec', notes: 'Deep breathing' }
+      { exercise: 'T-Spine Foam Roll', target: '90 sec', notes: 'Upper back extension', _source: 'cooldown' },
+      { exercise: 'Hip Flexor Stretch', target: '60 sec/side', notes: 'Couch stretch or lunge', _source: 'cooldown' },
+      { exercise: 'Overhead Reach', target: '60 sec total', notes: 'Shoulder flexibility', _source: 'cooldown' },
+      { exercise: 'Child\'s Pose', target: '90 sec', notes: 'Deep breathing', _source: 'cooldown' }
     ],
     notes: 'T-spine + hips recovery'
   });
@@ -1749,11 +1766,11 @@ function buildGymnastics(req: WorkoutGenerationRequest): PremiumWorkout {
     title: 'Gymnastics Warm-up',
     time_min: 10,
     items: [
-      { exercise: 'Wrist Circles', target: '20 each direction', notes: 'Prep for hand balancing' },
-      { exercise: 'Shoulder Pass-Through', target: '15 reps', notes: 'PVC or band' },
-      { exercise: 'Cat-Cow', target: '15 reps', notes: 'Spinal mobility' },
-      { exercise: 'Hip Circles', target: '10 each direction', notes: 'Dynamic hip prep' },
-      { exercise: 'Scapular Push-Up', target: '10 reps', notes: 'Shoulder blade control' }
+      { exercise: 'Wrist Circles', target: '20 each direction', notes: 'Prep for hand balancing', _source: 'warmup' },
+      { exercise: 'Shoulder Pass-Through', target: '15 reps', notes: 'PVC or band', _source: 'warmup' },
+      { exercise: 'Cat-Cow', target: '15 reps', notes: 'Spinal mobility', _source: 'warmup' },
+      { exercise: 'Hip Circles', target: '10 each direction', notes: 'Dynamic hip prep', _source: 'warmup' },
+      { exercise: 'Scapular Push-Up', target: '10 reps', notes: 'Shoulder blade control', _source: 'warmup' }
     ],
     notes: 'Comprehensive gymnastics prep - wrists, shoulders, hips'
   });
@@ -1816,10 +1833,10 @@ function buildMobility(req: WorkoutGenerationRequest): PremiumWorkout {
     title: 'Dynamic Warm-up',
     time_min: 5,
     items: [
-      { exercise: 'Light Bike or Walk', target: '2-3 min', notes: 'Gradually increase heart rate' },
-      { exercise: 'Arm Circles', target: '20 total', notes: 'Forward and backward' },
-      { exercise: 'Leg Swings', target: '10/leg each direction', notes: 'Front-back and side-side' },
-      { exercise: 'Cat-Cow', target: '10 reps', notes: 'Spinal mobility' }
+      { exercise: 'Light Bike or Walk', target: '2-3 min', notes: 'Gradually increase heart rate', _source: 'warmup' },
+      { exercise: 'Arm Circles', target: '20 total', notes: 'Forward and backward', _source: 'warmup' },
+      { exercise: 'Leg Swings', target: '10/leg each direction', notes: 'Front-back and side-side', _source: 'warmup' },
+      { exercise: 'Cat-Cow', target: '10 reps', notes: 'Spinal mobility', _source: 'warmup' }
     ],
     notes: 'Easy cardio + dynamic mobility prep'
   });
@@ -1859,9 +1876,9 @@ function buildMobility(req: WorkoutGenerationRequest): PremiumWorkout {
     title: 'Breathing & Final Relaxation',
     time_min: 8,
     items: [
-      { exercise: 'Supine Breathing', target: '3 min', notes: '4-7-8 breathing pattern (4s inhale, 7s hold, 8s exhale)' },
-      { exercise: 'Child\'s Pose', target: '2 min', notes: 'Deep relaxation, arms extended' },
-      { exercise: 'Savasana (Corpse Pose)', target: '3 min', notes: 'Complete body relaxation, mental reset' }
+      { exercise: 'Supine Breathing', target: '3 min', notes: '4-7-8 breathing pattern (4s inhale, 7s hold, 8s exhale)', _source: 'cooldown' },
+      { exercise: 'Child\'s Pose', target: '2 min', notes: 'Deep relaxation, arms extended', _source: 'cooldown' },
+      { exercise: 'Savasana (Corpse Pose)', target: '3 min', notes: 'Complete body relaxation, mental reset', _source: 'cooldown' }
     ],
     notes: 'Deep breathing and final relaxation'
   });
@@ -1941,6 +1958,9 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     ...acceptance 
   };
   
+  // Compute main-only loaded ratio (excluding warmup/cooldown)
+  const mainLoadedRatio = loadedRatioMainOnly(sanitizedWorkout.blocks, REG);
+  
   return {
     ...sanitizedWorkout,
     meta: {
@@ -1951,7 +1971,8 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
       equipment: req?.context?.equipment || [],
       seed,
       acceptance: sanitizedWorkout.acceptance_flags,
-      selectionTrace
+      selectionTrace,
+      main_loaded_ratio: mainLoadedRatio
     }
   };
 }
