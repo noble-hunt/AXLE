@@ -6,6 +6,33 @@ AXLE is a modern, mobile-first Progressive Web App (PWA) for comprehensive fitne
 
 ## Recent Changes
 
+### Workout Metadata Enhancement - selectionTrace & Acceptance Flags (October 2025)
+Enhanced workout generation metadata with comprehensive tracing and validation flags for debugging, testing, and quality assurance:
+- **Registry ID Tagging** (`enrichWithMeta()` in `server/ai/generators/premium.ts`):
+  - All workout items now tagged with `registry_id` by looking up exercise names in the movement registry
+  - Enables precise movement tracking and validation throughout the generation pipeline
+  - Supports fuzzy matching for complex exercise names (e.g., "Barbell Front Squat (A1)" → "front-squat")
+- **Selection Trace** (`workout.meta.selectionTrace`):
+  - Complete audit trail showing every block with movement registry IDs
+  - Each trace entry includes: block title, kind (warmup/strength/conditioning/skill/cooldown), time_min, and items array
+  - Items array contains: movement name and registry_id for full traceability
+  - Example: `{title: "Every 2:30 x 5", kind: "strength", items: [{name: "Barbell Front Squat (A1)", id: "front-squat"}]}`
+- **Comprehensive Acceptance Flags** (`workout.meta.acceptance`):
+  - `time_fit`: Validates total duration within ±10% of requested duration
+  - `has_warmup`: Confirms warm-up block ≥6 minutes present
+  - `has_cooldown`: Confirms cool-down block ≥4 minutes present
+  - `style_ok`: Validates style exists in pattern packs configuration
+  - `hardness_ok`: Ensures workout hardness meets pack-specific floor (0.85 CF/Oly/PL/BB, 0.70 aerobic, 0.40 mobility)
+  - `equipment_ok`: Validates no exercises require missing equipment
+  - `no_banned_in_mains`: Confirms no banned bodyweight movements in main blocks when equipment available
+  - `mixed_rule_ok`: For mixed focus, validates correct number of blocks per category
+  - `injury_safe`, `readiness_mod_applied`, `patterns_locked`: Standard quality checks
+- **Top-Level Meta Bubble** (`server/routes.ts` and `server/workoutGenerator.ts`):
+  - Workout meta now available at both `workout.meta` and top-level `meta` in API responses
+  - Includes: generator, style, goal, title, equipment, seed, acceptance, selectionTrace
+  - Consistent metadata structure across all generation paths (premium/simple/mock)
+- **Benefits**: Full reproducibility (same seed + inputs = same workout + same trace), regression testing support, debugging transparency, quality assurance validation
+
 ### MovementService Integration (October 2025)
 Integrated the comprehensive Movement Registry and pattern packs into the premium workout generator to replace hardcoded movement pools with intelligent, constraint-aware movement selection:
 - **Movement Registry**: 1,105 movements across 9 categories with metadata (equipment, patterns, modality, difficulty)

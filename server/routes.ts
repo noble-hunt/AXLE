@@ -471,13 +471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ...converted,
             estTimeMin: upgradedWorkout.duration_min || durationMin,
             seed: workoutSeed,
-            meta: {
-              ...converted.meta,
-              title: upgradedWorkout.title || `${goal} Workout`,
-              goal,
-              equipment: equipmentList,
-              seed: workoutSeed
-            }
+            meta: upgradedWorkout.meta || converted.meta || {}
           };
           
           console.log(`✅ Premium workout generated: "${upgradedWorkout.title}" with seed: ${workoutSeed}`);

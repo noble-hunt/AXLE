@@ -327,6 +327,8 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
       console.log('✅ Intensity upgrade complete. Hardness:', upgradedWorkout.variety_score, 'hardness_ok:', upgradedWorkout.acceptance_flags?.hardness_ok);
       
       result = convertPremiumToGenerated(upgradedWorkout);
+      // Bubble meta to top-level
+      result.meta = upgradedWorkout.meta || result.meta || {};
     } else {
       generatorUsed = 'simple';
       const prompt = createPromptTemplate(request);

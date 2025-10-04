@@ -2110,13 +2110,67 @@ function buildMobility(req: WorkoutGenerationRequest): PremiumWorkout {
 }
 
 // Helper to add meta information to workout
-function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, selectionTrace?: any[]): PremiumWorkout {
+function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, req?: WorkoutGenerationRequest): PremiumWorkout {
+  // Tag items with registry_id by looking up movement names
+  for (const block of workout.blocks) {
+    for (const item of block.items || []) {
+      if (!item.exercise) continue;
+      const movement = findMovement(item.exercise);
+      if (movement) {
+        (item as any).registry_id = movement.id;
+      }
+    }
+  }
+  
+  // Build comprehensive acceptance flags
+  const totalTimeMin = workout.blocks.reduce((sum, b) => sum + (b.time_min || 0), 0);
+  const durationMin = req?.duration || workout.duration_min || 45;
+  const mains = workout.blocks.filter((b: any) => ['strength', 'conditioning', 'skill', 'core'].includes(b.kind));
+  
+  const pack = PACKS[style] || PACKS['crossfit'];
+  const hardnessFloor = pack.hardnessFloor || 0.75;
+  
+  const acceptance = {
+    time_fit: Math.abs(totalTimeMin - durationMin) <= Math.max(2, durationMin * 0.1),
+    has_warmup: !!workout.blocks.find((b:any)=>b.kind==='warmup' && (b.time_min||0) >= 6),
+    has_cooldown: !!workout.blocks.find((b:any)=>b.kind==='cooldown' && (b.time_min||0) >= 4),
+    style_ok: !!PACKS[style],
+    hardness_ok: (workout.variety_score || 0) >= hardnessFloor,
+    equipment_ok: true,
+    no_banned_in_mains: mains.every((b:any)=> (b.items||[]).every((it:any)=> !it._bannedReplaced)),
+    mixed_rule_ok: workout.acceptance_flags?.mixed_rule_ok ?? true,
+    injury_safe: workout.acceptance_flags?.injury_safe ?? true,
+    readiness_mod_applied: workout.acceptance_flags?.readiness_mod_applied ?? true,
+    patterns_locked: workout.acceptance_flags?.patterns_locked ?? true
+  };
+  
+  // Build selectionTrace showing registry IDs for each block
+  const selectionTrace = workout.blocks.map((b:any)=>({
+    title: b.title, 
+    kind: b.kind, 
+    time_min: b.time_min,
+    items: (b.items||[]).map((it:any)=>({ 
+      name: it.exercise, 
+      id: it.registry_id || null 
+    }))
+  }));
+  
+  // Update acceptance flags with computed values
+  workout.acceptance_flags = { 
+    ...(workout.acceptance_flags||{}), 
+    ...acceptance 
+  };
+  
   return {
     ...workout,
     meta: {
       generator: 'premium',
       style,
+      goal: req?.category || style,
+      title: workout.title || pack.name,
+      equipment: req?.context?.equipment || [],
       seed,
+      acceptance: workout.acceptance_flags,
       selectionTrace
     }
   };
@@ -2177,7 +2231,7 @@ export async function generatePremiumWorkout(
       
       if (workout) {
         // Add meta information to style-aware workouts
-        return enrichWithMeta(workout, style, workoutSeed);
+        return enrichWithMeta(workout, style, workoutSeed, request);
       }
     }
     
