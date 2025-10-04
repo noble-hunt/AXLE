@@ -1,6 +1,9 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
 import type { WorkoutGenerationRequest } from '../generateWorkout';
+import { PACKS } from '../config/patternPacks';
+import { queryMovements } from '../movementService';
+import type { Movement } from '../../types/movements';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -67,6 +70,42 @@ const BANNED_EASY = new Set([
 
 // Banned bodyweight movements specifically for main blocks when equipment is available
 const BANNED_BW_MAIN = /^(Wall Sit|Mountain Climber|Star Jump|High Knees|Jumping Jacks|Bicycle Crunch)$/i;
+
+// Helper function to pick movements using MovementService
+function pickMovements(request: WorkoutGenerationRequest, blockCfg: any): Movement[] {
+  const equip = (request.context?.equipment || []).map((e: string) => e.toLowerCase());
+  const seed = (request as any).seed || String(Date.now());
+  
+  const moves = queryMovements({
+    categories: blockCfg.select.categories,
+    patterns: blockCfg.select.patterns,
+    modality: blockCfg.select.modality,
+    equipment: equip.length > 0 ? equip : undefined,
+    excludeBannedMains: true,
+    limit: blockCfg.select.items * 2, // Get more than needed for variety
+    seed
+  });
+  
+  if (!moves.length) {
+    console.warn(`⚠️ No movements found for block config:`, blockCfg.select);
+    throw new Error('no_moves_for_block');
+  }
+  
+  // Check if we have enough loaded movements when required
+  if (blockCfg.select.requireLoaded && equip.length > 0) {
+    const loadedMoves = moves.filter(m => 
+      m.equipment.some(e => ['barbell','dumbbell','kettlebell','machine','cable','sandbag','sled'].includes(e))
+    );
+    const requiredLoaded = Math.ceil(blockCfg.select.items * 0.5);
+    
+    if (loadedMoves.length < requiredLoaded) {
+      console.warn(`⚠️ Not enough loaded movements: found ${loadedMoves.length}, need ${requiredLoaded}`);
+      throw new Error('not_enough_loaded_choices');
+    }
+  }
+  
+  return moves.slice(0, blockCfg.select.items);
+}
 
 // Allowed patterns for main blocks (includes upgradeIntensity mutations)
 const ALLOWED_PATTERNS = [

@@ -6,6 +6,21 @@ AXLE is a modern, mobile-first Progressive Web App (PWA) for comprehensive fitne
 
 ## Recent Changes
 
+### MovementService Integration (October 2025)
+Integrated the comprehensive Movement Registry and pattern packs into the premium workout generator to replace hardcoded movement pools with intelligent, constraint-aware movement selection:
+- **Movement Registry**: 1,105 movements across 9 categories with metadata (equipment, patterns, modality, difficulty)
+- **Pattern Packs Configuration** (`server/ai/config/patternPacks.ts`): Defines unique workout structures for each of the 9 workout categories
+  - Each pack specifies main block patterns (E2:00x, EMOM, AMRAP, etc.), movement selection criteria, hardness floors, and timing
+  - Supports category-specific constraints (requireLoaded, modality filtering, pattern matching)
+- **pickMovements() Helper** in `server/ai/generators/premium.ts`: Uses MovementService to query movements with:
+  - Equipment filtering based on user availability
+  - Pattern and category constraints from pattern packs
+  - Modality filtering (strength, conditioning, skill, aerobic, mobility)
+  - Automatic bannedMain exclusion for quality control
+  - Loaded movement requirements when equipment is available
+- **Integration Points**: Premium generator now imports `PACKS` and `queryMovements` for deterministic, category-appropriate workout generation
+- **Benefits**: Replaces static movement arrays with dynamic, constraint-aware selection; ensures style fidelity; supports all 13 workout focus types
+
 ### Expanded Workout Focus Categories (October 2025)
 Extended workout generator with 13 comprehensive workout focus types and improved UX:
 - **Categories**: Added 9 specialized categories beyond the 4 primary types (Strength, Conditioning, Mixed, Endurance)
