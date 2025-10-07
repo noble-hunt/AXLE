@@ -1982,6 +1982,11 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
   // Compute main-only loaded ratio (excluding warmup/cooldown)
   const mainLoadedRatio = loadedRatioMainOnly(sanitizedWorkout.blocks, REG);
   
+  // Apply premium stamp for debugging (removable)
+  if (process.env.DEBUG_PREMIUM_STAMP === '1') {
+    sanitizedWorkout.title = `PREMIUM • ${sanitizedWorkout.title || pack.name || 'Session'}`;
+  }
+  
   return {
     ...sanitizedWorkout,
     meta: {
@@ -1993,7 +1998,8 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
       seed,
       acceptance: sanitizedWorkout.acceptance_flags,
       selectionTrace,
-      main_loaded_ratio: mainLoadedRatio
+      main_loaded_ratio: mainLoadedRatio,
+      ...(process.env.DEBUG_PREMIUM_STAMP === '1' && { premium_stamp: true })
     }
   };
 }
@@ -2143,6 +2149,7 @@ export async function generatePremiumWorkout(
     }
 
     // Sanitize and enforce requirements
+    const pack = PACKS[focus] || PACKS['crossfit'];
     validated = sanitizeWorkout(validated, {
       equipment: request.context?.equipment || [],
       wearable_snapshot: {
@@ -2150,7 +2157,7 @@ export async function generatePremiumWorkout(
       },
       focus,
       categories_for_mixed: categoriesForMixed
-    });
+    }, pack, workoutSeed);
 
     // Check pattern lock violations and regenerate once if needed
     if (!validated.acceptance_flags.patterns_locked && retryCount === 0) {
