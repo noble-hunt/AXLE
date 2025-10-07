@@ -380,6 +380,13 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
         }
       };
       
+      console.log('[AXLE] generateWorkout → premium', {
+        style: (request as any).style,
+        goal: (request as any).goal,
+        duration: (request as any).duration_min || (request as any).durationMin,
+        equip: (request as any).equipment
+      });
+      
       const premiumWorkout = await generatePremiumWorkout(premiumRequest, (request as any).seed);
       
       // Apply intensity upgrader (post-generation, pre-conversion)

@@ -406,7 +406,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       reqBody.seed = seed;
       reqBody.categories_for_mixed = categories_for_mixed;
       
-      console.log(`🎯 /api/workouts/generate - orchestrator ONLY (goal: ${goal}, equipment: ${reqBody.equipment.join(', ')})`);
+      console.log('[AXLE] /api/workouts/generate', {
+        goal: reqBody.goal,
+        focus: reqBody.focus,
+        style: reqBody.style,
+        durationMin: reqBody.durationMin,
+        intensity: reqBody.intensity,
+        equipment: reqBody.equipment,
+        seed: reqBody.seed
+      });
       
       // Call the orchestrator ONLY (no direct simple/premium calls)
       const workout = await generateWorkout(reqBody) as any;
