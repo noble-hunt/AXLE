@@ -1928,6 +1928,16 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
       const mv = REG.get(it.registry_id||''); return mv?.equipment?.includes('barbell');
     }));
     if (!barbellOk) throw new Error('style_violation_oly_no_barbell');
+    
+    // Oly content guardrail: must have actual Olympic lifts (no DB substitutes or filler)
+    const names = mains.flatMap((b:any)=>b.items||[]).map((it:any)=>String(it.exercise||'').toLowerCase());
+    const hasSnatch = names.some(n => n.includes('snatch') && !n.includes('db ') && !n.includes('dumbbell'));
+    const hasCJ = names.some(n => n.includes('clean') || n.includes('jerk'));
+    const illegal = names.some(n => /(db snatch|thruster|bear crawl|star jump|burpee|mountain climber)/.test(n));
+    
+    if ((!hasSnatch && !hasCJ) || illegal) {
+      throw new Error('style_violation_olympic_content');
+    }
   }
   
   // Powerlifting mains must include at least 2 of [squat, bench, hinge]
