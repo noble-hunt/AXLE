@@ -41,6 +41,47 @@ function loadedRatioMainOnly(blocks: any[], REG: Map<string, any>) {
   return loaded / items.length;
 }
 
+// Helper: Pick movements from registry with filtering
+function pickFromRegistry(options: {
+  categories?: string[];
+  patterns?: string[];
+  equipment?: string[];
+  limit: number;
+  seed: string;
+}): Movement[] {
+  const { categories = [], patterns = [], equipment = [], limit, seed } = options;
+  
+  // Filter registry
+  let pool = Array.from(REG.values()).filter((m: any) => {
+    if (categories.length > 0 && !categories.some(cat => m.categories?.includes(cat))) return false;
+    if (patterns.length > 0 && !patterns.some(pat => m.patterns?.includes(pat))) return false;
+    if (equipment.length > 0 && !equipment.some(eq => m.equipment?.includes(eq))) return false;
+    return true;
+  });
+  
+  // Deterministic shuffle using seed
+  const rng = seedRandom(seed);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  
+  return pool.slice(0, limit) as Movement[];
+}
+
+// Simple seedable RNG
+function seedRandom(seed: string) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return function() {
+    hash = (hash * 9301 + 49297) % 233280;
+    return hash / 233280;
+  };
+}
+
 // Registry-aware sanitizer: enforce "no banned in mains", hardness floors, and style fidelity
 export function sanitizeWorkout(workout: any, req: any, pack: PatternPack, seed: string) {
   const equip = (req.equipment || []).map((e: string) => e.toLowerCase());
@@ -1154,6 +1195,7 @@ function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
   const equipment = req.context?.equipment || [];
   const duration = req.duration || 45;
   const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  const seed = (req as any).seed || `${Date.now()}`;
   
   const blocks = [];
   
@@ -1171,84 +1213,98 @@ function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
       ],
       notes: 'Comprehensive Olympic lifting prep'
     });
-  } else if (equipment.some(e => /dumbbell/i.test(e))) {
-    blocks.push({
-      kind: 'warmup',
-      title: 'Dumbbell Warm-up Complex',
-      time_min: 8,
-      items: [
-        { exercise: 'DB Snatch Prep', target: '5 reps/arm', notes: 'Light weight, positions', _source: 'warmup' },
-        { exercise: 'DB Clean Prep', target: '5 reps/arm', notes: 'Light weight, smooth catch', _source: 'warmup' }
-      ],
-      notes: 'Prep for DB Olympic work'
-    });
   } else {
     blocks.push(pickWarmup(req));
   }
   
-  // Main 1: Snatch complex Every 2:00 x 6-8
-  const snatchExercises = [];
+  // Main 1: Snatch complex Every 2:00 x 7 - use registry
   if (hasBarbell) {
-    snatchExercises.push(
-      { exercise: 'Snatch Pull + Hang Snatch + OHS', target: '1+1+1 @ 65-80%', notes: 'Complex - no dropping between reps' }
-    );
-  } else if (equipment.some(e => /dumbbell/i.test(e))) {
-    snatchExercises.push(
-      { exercise: 'DB Snatch (alt arms)', target: '3/arm @ 70%', notes: 'Full extension, smooth catch' }
-    );
+    const snatchPool = pickFromRegistry({
+      categories: ['olympic_weightlifting'],
+      patterns: ['olympic_snatch', 'pull', 'overhead_squat'],
+      equipment: ['barbell'],
+      limit: 8,
+      seed: seed + '-snatch'
+    });
+    
+    const snatchExercises = snatchPool.slice(0, 1).map((m: Movement) => ({
+      exercise: m.name,
+      registry_id: m.id,
+      target: '1+1+1 @ 65-80%',
+      notes: 'Complex - no dropping between reps'
+    }));
+    
+    blocks.push({
+      kind: 'strength',
+      title: 'Every 2:00 x 7',
+      time_min: 14,
+      items: snatchExercises,
+      notes: 'Snatch complex - focus on positions and timing'
+    });
   } else {
-    snatchExercises.push(
-      { exercise: 'Burpee to High Jump', target: '5 reps', notes: 'Explosive hip extension' }
-    );
+    // Fallback for no barbell
+    blocks.push({
+      kind: 'strength',
+      title: 'Every 2:00 x 7',
+      time_min: 14,
+      items: [{ exercise: 'Burpee to High Jump', target: '5 reps', notes: 'Explosive hip extension' }],
+      notes: 'Power development'
+    });
   }
   
-  blocks.push({
-    kind: 'strength',
-    title: 'Every 2:00 x 7',
-    time_min: 14,
-    items: snatchExercises,
-    notes: 'Snatch complex - focus on positions and timing'
-  });
-  
-  // Main 2: Clean & Jerk complex Every 2:00 x 6-8
-  const cjExercises = [];
+  // Main 2: Clean & Jerk complex Every 2:00 x 7 - use registry
   if (hasBarbell) {
-    cjExercises.push(
-      { exercise: 'Clean + Front Squat + Jerk', target: '1+1+1 @ 65-80%', notes: 'Complex - no dropping between reps' }
-    );
-  } else if (equipment.some(e => /dumbbell/i.test(e))) {
-    cjExercises.push(
-      { exercise: 'DB Clean & Press (alt arms)', target: '3/arm @ 70%', notes: 'Smooth transition to overhead' }
-    );
+    const cjPool = pickFromRegistry({
+      categories: ['olympic_weightlifting'],
+      patterns: ['olympic_cleanjerk', 'front_squat', 'pull'],
+      equipment: ['barbell'],
+      limit: 8,
+      seed: seed + '-cj'
+    });
+    
+    const cjExercises = cjPool.slice(0, 1).map((m: Movement) => ({
+      exercise: m.name,
+      registry_id: m.id,
+      target: '1+1+1 @ 65-80%',
+      notes: 'Complex - no dropping between reps'
+    }));
+    
+    blocks.push({
+      kind: 'strength',
+      title: 'Every 2:00 x 7',
+      time_min: 14,
+      items: cjExercises,
+      notes: 'Clean & Jerk complex - maintain positions'
+    });
   } else {
-    cjExercises.push(
-      { exercise: 'Burpee to Overhead Reach', target: '8 reps', notes: 'Full extension overhead' }
-    );
+    // Fallback for no barbell
+    blocks.push({
+      kind: 'strength',
+      title: 'Every 2:00 x 7',
+      time_min: 14,
+      items: [{ exercise: 'Burpee to Overhead Reach', target: '8 reps', notes: 'Full extension overhead' }],
+      notes: 'Power development'
+    });
   }
   
-  blocks.push({
-    kind: 'strength',
-    title: 'Every 2:00 x 7',
-    time_min: 14,
-    items: cjExercises,
-    notes: 'Clean & Jerk complex - maintain positions'
-  });
-  
-  // Optional accessory EMOM 10
+  // Optional accessory EMOM 10 - loaded movements only
   const totalTime = blocks.reduce((sum, b) => sum + b.time_min, 0);
-  if (totalTime < duration - 8) {
-    const accessoryExercises = [];
-    if (hasBarbell) {
-      accessoryExercises.push(
-        { exercise: 'Barbell RDL (odd min)', target: '8 reps @ 60%', notes: 'Control eccentric' },
-        { exercise: 'Strict Pull-Ups (even min)', target: '6-8 reps', notes: 'Full ROM' }
-      );
-    } else if (equipment.some(e => /dumbbell/i.test(e))) {
-      accessoryExercises.push(
-        { exercise: 'DB RDL (odd min)', target: '10 reps', notes: 'Hamstring focus' },
-        { exercise: 'Ring Rows (even min)', target: '12 reps', notes: 'Controlled tempo' }
-      );
-    }
+  if (totalTime < duration - 8 && hasBarbell) {
+    const accessoryPool = pickFromRegistry({
+      categories: ['olympic_weightlifting', 'powerlifting', 'crossfit'],
+      patterns: ['pull', 'hinge'],
+      equipment: ['barbell'],
+      limit: 8,
+      seed: seed + '-accessory'
+    });
+    
+    const accessoryExercises = accessoryPool.slice(0, 2).map((m: Movement, idx: number) => ({
+      exercise: `${m.name} (${idx === 0 ? 'odd' : 'even'} min)`,
+      registry_id: m.id,
+      target: idx === 0 ? '8 reps @ 60%' : '6-8 reps',
+      notes: idx === 0 ? 'Control eccentric' : 'Full ROM'
+    }));
+    
     if (accessoryExercises.length > 0) {
       blocks.push({
         kind: 'conditioning',
