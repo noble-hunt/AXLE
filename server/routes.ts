@@ -374,155 +374,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/workouts/generate - Generate workout with premium path enforcement
+  // Environment guards for forcing premium-only path
+  const AXLE_DISABLE_SIMPLE = process.env.AXLE_DISABLE_SIMPLE === '1';
+  const AXLE_FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM === 'true';
+
+  // POST /api/workouts/generate - Generate workout using orchestrator only
   app.post("/api/workouts/generate", async (req, res) => {
     res.type('application/json');
     
     try {
-      const { goal, durationMin, intensity, equipment, seed, focus, categories_for_mixed } = req.body ?? {};
+      const reqBody = req.body || {};
       
-      if (!goal || !durationMin || !intensity) {
+      // Normalize goal/style/focus slugs
+      const goal = String(reqBody.goal || reqBody.focus || 'crossfit').toLowerCase();
+      const { durationMin, intensity, equipment, seed, categories_for_mixed } = reqBody;
+      
+      if (!durationMin || !intensity) {
         return res.status(400).json({ 
           ok: false, 
-          error: { code: 'BAD_INPUT', message: 'Missing required fields: goal, durationMin, intensity' } 
+          error: { code: 'BAD_INPUT', message: 'Missing required fields: durationMin, intensity' } 
         });
       }
       
-      const equipmentList = equipment || ['bodyweight'];
-      const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM !== 'false';
+      // Ensure premium sees style
+      reqBody.style = goal;
+      reqBody.goal = goal;
+      reqBody.focus = goal;
+      reqBody.category = goal;
+      reqBody.duration = durationMin;
+      reqBody.equipment = equipment || ['bodyweight'];
+      reqBody.seed = seed;
+      reqBody.categories_for_mixed = categories_for_mixed;
       
-      // Determine if we should force premium
-      const goalLower = goal.toLowerCase();
-      const isSpecializedWorkout = [
-        'crossfit', 'hiit', 'mixed',
-        'olympic_weightlifting', 'powerlifting',
-        'bb_full_body', 'bb_upper', 'bb_lower',
-        'aerobic', 'cardio', 'gymnastics', 'mobility'
-      ].some(type => goalLower.includes(type));
+      console.log(`🎯 /api/workouts/generate - orchestrator ONLY (goal: ${goal}, equipment: ${reqBody.equipment.join(', ')})`);
       
-      const shouldForcePremium = FORCE_PREMIUM && (
-        isSpecializedWorkout ||
-        equipmentList.some((eq: string) => 
-          eq.toLowerCase().includes('barbell') || 
-          eq.toLowerCase().includes('dumbbell') || 
-          eq.toLowerCase().includes('kettlebell')
-        )
-      );
+      // Call the orchestrator ONLY (no direct simple/premium calls)
+      const workout = await generateWorkout(reqBody) as any;
       
-      console.log(`🎯 /api/workouts/generate - Force Premium: ${shouldForcePremium} (goal: ${goal}, equipment: ${equipmentList.join(', ')})`);
+      // Bubble meta for clients + debugging
+      const meta = workout?.meta || {};
+      res.setHeader('X-AXLE-Generator', meta.generator || 'unknown');
+      res.setHeader('X-AXLE-Style', meta.style || goal);
       
-      // Try premium generator if forced or for CrossFit/HIIT
-      if (shouldForcePremium) {
-        try {
-          const { generatePremiumWorkout } = await import('./ai/generators/premium');
-          const { generateSeed } = await import('./lib/seededRandom');
-          
-          // Use provided seed or generate a new one
-          const workoutSeed = seed || generateSeed();
-          
-          // Map goal to style for the premium generator
-          const resolveStyle = (g: string) => {
-            const goal = (g || '').toLowerCase();
-            if (['crossfit', 'mixed'].includes(goal)) return 'crossfit';
-            if (goal === 'olympic_weightlifting') return 'olympic_weightlifting';
-            if (goal === 'powerlifting') return 'powerlifting';
-            if (goal === 'bb_full_body') return 'bb_full_body';
-            if (goal === 'bb_upper') return 'bb_upper';
-            if (goal === 'bb_lower') return 'bb_lower';
-            if (goal === 'aerobic' || goal === 'cardio') return 'aerobic';
-            if (goal === 'gymnastics') return 'gymnastics';
-            if (goal === 'mobility') return 'mobility';
-            return goal; // fallback to original
-          };
-          
-          const resolvedStyle = resolveStyle(goal);
-          console.log(`🎨 Style mapping: goal="${goal}" → style="${resolvedStyle}"`);
-          
-          const premiumRequest: any = {
-            category: goal,
-            duration: durationMin,
-            intensity,
-            style: resolvedStyle, // Add style to request
-            context: {
-              equipment: equipmentList,
-              constraints: [],
-              goals: ['general_fitness'],
-              focus: focus || resolvedStyle,
-              categories_for_mixed: categories_for_mixed
-            }
-          };
-          
-          const premiumWorkout = await generatePremiumWorkout(premiumRequest, workoutSeed);
-          
-          // Apply intensity upgrader (post-generation, pre-conversion)
-          const { upgradeIntensity } = await import('./workoutGenerator');
-          const upgradedWorkout = upgradeIntensity(premiumWorkout, equipmentList);
-          console.log('✅ Intensity upgrade complete. Hardness:', upgradedWorkout.variety_score, 'hardness_ok:', upgradedWorkout.acceptance_flags?.hardness_ok);
-          
-          // Convert premium workout to UI format using shared converter
-          const { convertPremiumToGenerated } = await import('./workoutGenerator');
-          const converted = convertPremiumToGenerated(upgradedWorkout, {
-            category: goal,
-            duration: durationMin,
-            intensity
-          });
-          
-          const workout = {
-            id: `premium-${Date.now()}`,
-            ...converted,
-            estTimeMin: upgradedWorkout.duration_min || durationMin,
-            seed: workoutSeed,
-            meta: upgradedWorkout.meta || converted.meta || {}
-          };
-          
-          console.log(`✅ Premium workout generated: "${upgradedWorkout.title}" with seed: ${workoutSeed}`);
-          return res.json({ ok: true, workout });
-        } catch (premiumError) {
-          console.error('Premium generator failed:', premiumError);
-          // Continue to fallback
-        }
+      return res.json({ ok: true, workout, meta });
+    } catch (err: any) {
+      // If premium failed AND fallbacks are disabled, expose the error
+      if (AXLE_DISABLE_SIMPLE || AXLE_FORCE_PREMIUM) {
+        console.error('[AXLE] premium path failed:', err?.message, err?.stack);
+        return res.status(502).json({ 
+          ok: false, 
+          error: 'premium_failed', 
+          detail: String(err?.message || err) 
+        });
       }
-      
-      // Fallback to simple generator
-      const { openai } = await import('./lib/openai');
-      const { generateSeed } = await import('./lib/seededRandom');
-      const workoutSeed = seed || generateSeed();
-      
-      const sys = `Return ONLY JSON with keys: title, est_duration_min, intensity, exercises[] {name, sets, reps, rest_sec, notes}. Use the provided seed for any random selections to ensure deterministic results.`;
-      const user = `Goal: ${goal}\nDuration: ${durationMin} minutes\nIntensity: ${intensity}/10\nEquipment: ${equipmentList.join(',')}\nSeed: ${workoutSeed}\n\nIMPORTANT: Use this seed value (${workoutSeed}) consistently for any random choices in exercise selection, order, or variations to ensure reproducible results.`;
-      
-      const r = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        temperature: 0,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }],
-        seed: parseInt(workoutSeed.slice(-8), 36)
-      });
-      
-      const raw = r.choices?.[0]?.message?.content ?? '{}';
-      const workoutData = JSON.parse(raw);
-      
-      const workout = {
-        id: `simple-${workoutSeed}`,
-        blocks: workoutData.exercises || [],
-        estTimeMin: workoutData.est_duration_min || durationMin,
-        intensity: workoutData.intensity || intensity,
-        seed: workoutSeed,
-        meta: {
-          title: workoutData.title || `${goal} Workout`,
-          goal,
-          equipment: equipmentList,
-          generator: 'simple',
-          acceptance: {}
-        }
-      };
-      
-      res.json({ ok: true, workout });
-    } catch (e: any) {
-      console.error('[generate] err', e);
+      // Generic error handler
+      console.error('[generate] err', err);
       res.status(500).json({ 
         ok: false, 
-        error: { code: 'INTERNAL', message: e?.message || 'Generation failed' } 
+        error: { code: 'INTERNAL', message: err?.message || 'Generation failed' } 
       });
     }
   });
