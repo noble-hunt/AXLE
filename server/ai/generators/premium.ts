@@ -53,7 +53,7 @@ function pickFromRegistry(options: {
   
   // Filter registry
   let pool = Array.from(REG.values()).filter((m: any) => {
-    if (categories.length > 0 && !categories.some(cat => m.categories?.includes(cat))) return false;
+    if (categories.length > 0 && !categories.includes(m.category)) return false;
     if (patterns.length > 0 && !patterns.some(pat => m.patterns?.includes(pat))) return false;
     if (equipment.length > 0 && !equipment.some(eq => m.equipment?.includes(eq))) return false;
     return true;
