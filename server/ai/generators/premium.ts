@@ -6,6 +6,8 @@ import type { PatternPack } from '../config/patternPacks';
 import { queryMovements, findMovement } from '../movementService';
 import type { Movement } from '../../types/movements';
 import registryData from '../../data/movements.registry.json';
+import { STYLE_POLICIES } from '../config/stylePolicies';
+import type { StylePolicy } from '../config/stylePolicies';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -39,6 +41,160 @@ function loadedRatioMainOnly(blocks: any[], REG: Map<string, any>) {
     return mv && mv.equipment?.some(isLoadedEquip);
   }).length;
   return loaded / items.length;
+}
+
+/**
+ * Enforce style-specific content policies
+ * Returns { ok: true } if policy is satisfied, or { ok: false, reason, offender } if violated
+ */
+function enforceStylePolicy(
+  workout: any,
+  REG: Map<string, any>,
+  style: string
+): { ok: boolean; reason?: string; offender?: string } {
+  const policy = STYLE_POLICIES[style];
+  if (!policy) return { ok: true };
+
+  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+  const items = mains.flatMap((b: any) => b.items || []);
+  const names = items.map((it: any) => String(it.exercise || ''));
+  const regs = items.map((it: any) => REG.get(it.registry_id || '')).filter(Boolean);
+
+  // Check allowed categories only
+  const badCat = regs.find((m: any) => !policy.allowed_categories.includes(m.category));
+  if (badCat) {
+    return {
+      ok: false,
+      reason: `bad_category:${badCat.category}`,
+      offender: badCat.name
+    };
+  }
+
+  // Check required pattern groups
+  if (policy.required_any) {
+    for (const group of policy.required_any) {
+      const hit = regs.some((m: any) => 
+        m.patterns?.some((p: string) => group.includes(p))
+      );
+      if (!hit) {
+        return {
+          ok: false,
+          reason: `missing_required_group:${group.join('|')}`
+        };
+      }
+    }
+  }
+
+  // Check banned regex
+  if (policy.banned_regex?.length) {
+    const bad = names.find(n => policy.banned_regex!.some(rx => rx.test(n)));
+    if (bad) {
+      return {
+        ok: false,
+        reason: `banned:${bad}`,
+        offender: bad
+      };
+    }
+  }
+
+  // Check barbell-only requirement for mains
+  if (policy.require_barbell_only) {
+    const nonBB = regs.find((m: any) => !m.equipment?.includes('barbell'));
+    if (nonBB) {
+      return {
+        ok: false,
+        reason: `non_barbell:${nonBB.name}`,
+        offender: nonBB.name
+      };
+    }
+  }
+
+  // Check main loaded ratio
+  if (policy.require_loaded_ratio != null) {
+    const r = loadedRatioMainOnly(workout.blocks, REG);
+    if (r < policy.require_loaded_ratio) {
+      return {
+        ok: false,
+        reason: `low_loaded_ratio:${r.toFixed(2)}`
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Try to auto-fix style policy violations by substituting offending movements
+ * Returns true if fixed, false otherwise
+ */
+function tryAutoFixByPolicy(
+  workout: any,
+  REG: Map<string, any>,
+  style: string,
+  policyRes: { ok: boolean; reason?: string; offender?: string }
+): boolean {
+  if (policyRes.ok) return true;
+
+  const policy = STYLE_POLICIES[style];
+  if (!policy) return false;
+
+  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+
+  // Try to find and replace offending movements
+  for (const block of mains) {
+    const items = block.items || [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const mv = REG.get(item.registry_id || '');
+      
+      if (!mv) continue;
+
+      let needsReplacement = false;
+
+      // Check if this movement violates policy
+      if (policy.allowed_categories && !policy.allowed_categories.includes(mv.category)) {
+        needsReplacement = true;
+      }
+      if (policy.banned_regex?.some(rx => rx.test(mv.name))) {
+        needsReplacement = true;
+      }
+      if (policy.require_barbell_only && !mv.equipment?.includes('barbell')) {
+        needsReplacement = true;
+      }
+
+      if (needsReplacement) {
+        // Find a replacement from registry matching the same pattern
+        const replacement = Array.from(REG.values()).find((m: any) => {
+          if (!policy.allowed_categories.includes(m.category)) return false;
+          if (policy.banned_regex?.some(rx => rx.test(m.name))) return false;
+          if (policy.require_barbell_only && !m.equipment?.includes('barbell')) return false;
+          // Try to match same pattern
+          if (mv.patterns?.length && m.patterns?.some((p: string) => mv.patterns.includes(p))) {
+            return true;
+          }
+          return false;
+        });
+
+        if (replacement) {
+          items[i] = {
+            ...item,
+            exercise: replacement.name,
+            registry_id: replacement.id,
+            notes: ((item.notes || '') + ' (policy auto-fix)').trim(),
+            _policyFixed: true
+          };
+          console.log(`🔧 Auto-fixed policy violation: ${mv.name} → ${replacement.name}`);
+        } else {
+          // Couldn't find replacement
+          return false;
+        }
+      }
+    }
+  }
+
+  // Re-check policy after fixes
+  const recheckRes = enforceStylePolicy(workout, REG, style);
+  return recheckRes.ok;
 }
 
 // Helper: Pick movements from registry with filtering
@@ -2016,36 +2172,24 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
   const pack = PACKS[style] || PACKS['crossfit'];
   const sanitizedWorkout = sanitizeWorkout(workout, req || { equipment: [] }, pack, seed);
   
-  // Style-specific guardrails: enforce strict style fidelity
-  const mains = sanitizedWorkout.blocks.filter((b:any)=>!['warmup','cooldown'].includes(b.kind));
-  
-  // Oly must have barbell in every main block
-  if (style === 'olympic_weightlifting') {
-    const barbellOk = mains.every((b:any)=> (b.items||[]).some((it:any)=>{
-      const mv = REG.get(it.registry_id||''); return mv?.equipment?.includes('barbell');
-    }));
-    if (!barbellOk) throw new Error('style_violation_oly_no_barbell');
+  // Enforce style-specific content policies
+  const policyRes = enforceStylePolicy(sanitizedWorkout, REG, style);
+  if (!policyRes.ok) {
+    console.warn(`⚠️ Style policy violation for ${style}: ${policyRes.reason}${policyRes.offender ? ` (${policyRes.offender})` : ''}`);
     
-    // Oly content guardrail: must have actual Olympic lifts (no DB substitutes or filler)
-    const names = mains.flatMap((b:any)=>b.items||[]).map((it:any)=>String(it.exercise||'').toLowerCase());
-    const hasSnatch = names.some(n => n.includes('snatch') && !n.includes('db ') && !n.includes('dumbbell'));
-    const hasCJ = names.some(n => n.includes('clean') || n.includes('jerk'));
-    const illegal = names.some(n => /(db snatch|thruster|bear crawl|star jump|burpee|mountain climber)/.test(n));
-    
-    if ((!hasSnatch && !hasCJ) || illegal) {
-      throw new Error('style_violation_olympic_content');
+    // Try auto-fix by swapping offenders with compliant registry matches
+    const fixed = tryAutoFixByPolicy(sanitizedWorkout, REG, style, policyRes);
+    if (!fixed) {
+      throw new Error(`style_violation:${policyRes.reason}`);
     }
+    console.log(`✅ Style policy violation auto-fixed for ${style}`);
   }
   
-  // Powerlifting mains must include at least 2 of [squat, bench, hinge]
-  if (style === 'powerlifting') {
-    const patterns = new Set<string>();
-    for (const it of mains.flatMap((b:any)=>b.items||[])) {
-      const mv = REG.get(it.registry_id||''); mv?.patterns?.forEach(p=>patterns.add(p));
-    }
-    const hits = ['squat','bench','hinge'].filter(p=>patterns.has(p)).length;
-    if (hits < 2) throw new Error('style_violation_pl_core_patterns');
-  }
+  // Tag workout as style-compliant
+  (sanitizedWorkout as any).meta = { 
+    ...((sanitizedWorkout as any).meta || {}), 
+    style_ok: true 
+  };
   
   // Ensure block time alignment
   const durationMin = req?.duration || sanitizedWorkout.duration_min || 45;

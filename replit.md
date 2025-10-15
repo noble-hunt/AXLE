@@ -34,6 +34,16 @@ Preferred communication style: Simple, everyday language.
   - **Builder Pattern**: `pickFromRegistry()` → build blocks → `generateCoachingNotes()` → return workout
   - **Commented Out**: Legacy MOVEMENT_POOLS and FALLBACK_LADDER definitions no longer used
   - **Refactored Builders**: `buildCrossFitCF` now uses registry-first pattern (matching `buildOly`)
+- **Style-Specific Content Policies** (October 2025):
+  - **Policy Enforcement**: Each workout style has strict content policies defined in `server/ai/config/stylePolicies.ts`
+  - **Validation Rules**: Policies specify allowed categories, required patterns, banned exercises, loaded ratio requirements, and barbell-only restrictions
+  - **Auto-Fix**: `tryAutoFixByPolicy()` attempts to auto-fix violations by swapping offending movements with compliant registry matches
+  - **Error Handling**: Throws clear errors (`style_violation:reason`) when policies cannot be satisfied
+  - **Olympic Weightlifting**: Requires barbell-only mains, must include at least one of [snatch, clean&jerk] patterns, bans DB snatch/thruster/burpee/etc
+  - **Powerlifting**: Requires 85% loaded ratio, must include squat/bench/hinge patterns, bans thruster/burpee/double-under
+  - **CrossFit**: Requires 60% loaded ratio, bans wall sit/star jump/high knees/jumping jacks
+  - **Bodybuilding**: Requires 70% loaded ratio across full/upper/lower splits
+  - **Applied in enrichWithMeta()**: Policies enforced after sanitization, before returning workout to user
 - **Deterministic Generation**: `mulberry32` RNG + `strSeed(seed)` ensures reproducibility for workouts, with `meta.generator`, `meta.acceptance`, and `meta.seed` included.
 - **Movement Service**: Integrates a comprehensive Movement Registry (1,105 movements across 9 categories) and pattern packs to intelligently select movements based on equipment, style, and constraints.
 - **Workout Focus Categories**: Supports 13 workout focus types (e.g., CrossFit, Olympic Weightlifting, Powerlifting, Aerobic), each with specialized builder functions and hardness enforcement.
