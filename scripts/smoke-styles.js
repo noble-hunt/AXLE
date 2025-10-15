@@ -14,8 +14,133 @@ const cases = [
   { goal: 'mobility', equipment: ['bodyweight'], durationMin: 30 }
 ];
 
+// Style-specific policy expectations
+const POLICY_EXPECTATIONS = {
+  olympic_weightlifting: {
+    minLoadedRatio: 0.85,
+    requiredPatterns: ['snatch', 'clean.*jerk', 'c&j'],
+    bannedNames: [/db snatch/i, /thruster/i, /bear crawl/i, /star jump/i, /burpee/i, /mountain climber/i]
+  },
+  powerlifting: {
+    minLoadedRatio: 0.85,
+    requiredPatterns: ['squat', 'deadlift', 'bench'],
+    bannedNames: [/thruster/i, /burpee/i, /double under/i]
+  },
+  crossfit: {
+    minLoadedRatio: 0.60,
+    requiredPatterns: ['emom', 'amrap', 'e[234]:00', 'every [234]:00'],
+    bannedNames: [/wall sit/i, /star jump/i, /high knees/i, /jumping jacks/i]
+  },
+  bb_full_body: {
+    minLoadedRatio: 0.70,
+    requiredPatterns: ['squat', 'press', 'row', 'deadlift']
+  },
+  bb_upper: {
+    minLoadedRatio: 0.70,
+    requiredPatterns: ['press', 'row', 'curl', 'tricep']
+  },
+  bb_lower: {
+    minLoadedRatio: 0.70,
+    requiredPatterns: ['squat', 'deadlift', 'lunge', 'leg']
+  },
+  aerobic: {
+    requiredPatterns: ['bike', 'row', 'ski', 'z[234]', 'steady']
+  },
+  gymnastics: {
+    requiredPatterns: ['handstand', 'pull.*up', 'toes.*to.*bar', 'l.*sit', 'muscle.*up']
+  },
+  mobility: {
+    requiredPatterns: ['stretch', 'mobility', 'breathing', 'pnf']
+  }
+};
+
+function checkTimeFit(workout, expectedDuration) {
+  const actualDuration = workout.duration || workout.duration_min || 0;
+  const tolerance = Math.max(2, expectedDuration * 0.05);
+  const isOk = Math.abs(actualDuration - expectedDuration) <= tolerance;
+  return {
+    ok: isOk,
+    message: isOk 
+      ? `✅ time_fit: ${actualDuration}min (target: ${expectedDuration}min)`
+      : `❌ time_fit: ${actualDuration}min (target: ${expectedDuration}min, tolerance: ±${tolerance.toFixed(1)}min)`
+  };
+}
+
+function checkStyleOk(workout) {
+  const acceptance = workout.meta?.acceptance || workout.acceptance_flags || {};
+  const isOk = acceptance.style_ok === true;
+  return {
+    ok: isOk,
+    message: isOk 
+      ? '✅ style_ok: true'
+      : `❌ style_ok: ${acceptance.style_ok || 'undefined'}`
+  };
+}
+
+function checkLoadedRatio(workout, policy) {
+  if (!policy.minLoadedRatio) {
+    return { ok: true, message: '⏭️  loaded_ratio: not required' };
+  }
+
+  const actualRatio = workout.meta?.main_loaded_ratio || 0;
+  const isOk = actualRatio >= policy.minLoadedRatio;
+  return {
+    ok: isOk,
+    message: isOk
+      ? `✅ loaded_ratio: ${(actualRatio * 100).toFixed(0)}% (min: ${(policy.minLoadedRatio * 100).toFixed(0)}%)`
+      : `❌ loaded_ratio: ${(actualRatio * 100).toFixed(0)}% (min: ${(policy.minLoadedRatio * 100).toFixed(0)}%)`
+  };
+}
+
+function checkRequiredPatterns(workout, policy) {
+  if (!policy.requiredPatterns || policy.requiredPatterns.length === 0) {
+    return { ok: true, message: '⏭️  required_patterns: none' };
+  }
+
+  const allText = JSON.stringify(workout.sets || []).toLowerCase();
+  const found = policy.requiredPatterns.filter(pattern => 
+    new RegExp(pattern, 'i').test(allText)
+  );
+
+  const isOk = found.length > 0;
+  return {
+    ok: isOk,
+    message: isOk
+      ? `✅ required_patterns: found [${found.join(', ')}]`
+      : `❌ required_patterns: none found (expected one of: ${policy.requiredPatterns.join(', ')})`
+  };
+}
+
+function checkBannedNames(workout, policy) {
+  if (!policy.bannedNames || policy.bannedNames.length === 0) {
+    return { ok: true, message: '⏭️  banned_names: none' };
+  }
+
+  const exercises = (workout.sets || []).map(s => s.exercise || '');
+  const violations = [];
+
+  for (const exercise of exercises) {
+    for (const bannedRegex of policy.bannedNames) {
+      if (bannedRegex.test(exercise)) {
+        violations.push(exercise);
+        break;
+      }
+    }
+  }
+
+  const isOk = violations.length === 0;
+  return {
+    ok: isOk,
+    message: isOk
+      ? '✅ banned_names: none found'
+      : `❌ banned_names: found [${violations.join(', ')}]`
+  };
+}
+
 async function smokeTestStyles() {
-  console.log('🔥 Style-Aware Generator Smoke Test\n');
+  console.log('🔥 Style Policy Smoke Test (CI-Friendly)\n');
+
+  let allPassed = true;
 
   for (const testCase of cases) {
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
@@ -29,12 +154,13 @@ async function smokeTestStyles() {
         body: JSON.stringify({
           ...testCase,
           intensity: 8,
-          seed: 'STYLE'
+          seed: 'SMOKE-TEST'
         })
       });
 
       if (!response.ok) {
         console.error(`❌ HTTP ${response.status}: ${response.statusText}`);
+        allPassed = false;
         continue;
       }
 
@@ -42,10 +168,12 @@ async function smokeTestStyles() {
 
       if (!data.ok) {
         console.error('❌ Failed:', data.error || 'Unknown error');
+        allPassed = false;
         continue;
       }
 
       const workout = data.workout;
+      const policy = POLICY_EXPECTATIONS[testCase.goal];
 
       console.log('\n📊 Meta:');
       console.log(`   generator: ${workout.meta?.generator || 'N/A'}`);
@@ -54,64 +182,50 @@ async function smokeTestStyles() {
       console.log(`   hardness: ${workout.variety_score?.toFixed(2) || data.variety_score?.toFixed(2) || 'N/A'}`);
       console.log(`   title: ${workout.name || data.title || 'N/A'}`);
 
-      console.log('\n📝 First 8 Exercises:');
+      console.log('\n📝 First 10 Exercises:');
       const exercises = workout.sets || [];
-      exercises.slice(0, 8).forEach((set, idx) => {
+      exercises.slice(0, 10).forEach((set, idx) => {
         console.log(`   ${idx + 1}. ${set.exercise}`);
       });
 
-      console.log(`\n💪 Main Loaded Ratio: ${(workout?.meta?.main_loaded_ratio ?? 0).toFixed(2)}`);
-
-      console.log('\n🔍 Acceptance:');
-      const acceptance = workout.meta?.acceptance || workout.acceptance_flags || data.acceptance_flags || {};
-      const flags = Object.entries(acceptance)
-        .map(([k, v]) => `${k}=${v}`)
-        .join(', ');
-      console.log(`   ${flags || 'N/A'}`);
-
-      // Verify style-specific patterns
-      const allText = JSON.stringify(exercises).toLowerCase();
-      let styleCheck = '';
+      // Run all policy checks
+      console.log('\n🔍 Policy Checks:');
       
-      switch (testCase.goal) {
-        case 'crossfit':
-          styleCheck = /emom|amrap|e[234]:00|every [234]:00/.test(allText) ? '✅ CF patterns' : '⚠️ No CF patterns';
-          break;
-        case 'olympic_weightlifting':
-          styleCheck = /snatch|clean.*jerk|c&j/.test(allText) ? '✅ Olympic lifts' : '⚠️ No Olympic lifts';
-          break;
-        case 'powerlifting':
-          styleCheck = /squat|deadlift|bench/.test(allText) ? '✅ Powerlifts' : '⚠️ No powerlifts';
-          break;
-        case 'bb_full_body':
-          styleCheck = /squat|press|row|deadlift/.test(allText) ? '✅ Full body' : '⚠️ No full body';
-          break;
-        case 'bb_upper':
-          styleCheck = /press|row|curl|tricep/.test(allText) ? '✅ Upper body' : '⚠️ No upper body';
-          break;
-        case 'bb_lower':
-          styleCheck = /squat|deadlift|lunge|leg/.test(allText) ? '✅ Lower body' : '⚠️ No lower body';
-          break;
-        case 'aerobic':
-          styleCheck = /bike|row|ski|z[234]|steady/.test(allText) ? '✅ Cardio' : '⚠️ No cardio';
-          break;
-        case 'gymnastics':
-          styleCheck = /handstand|pull.*up|toes.*to.*bar|l.*sit|muscle.*up/.test(allText) ? '✅ Gymnastics' : '⚠️ No gymnastics';
-          break;
-        case 'mobility':
-          styleCheck = /stretch|mobility|breathing|pnf/.test(allText) ? '✅ Mobility' : '⚠️ No mobility';
-          break;
+      const checks = [
+        checkTimeFit(workout, testCase.durationMin),
+        checkStyleOk(workout),
+        checkLoadedRatio(workout, policy),
+        checkRequiredPatterns(workout, policy),
+        checkBannedNames(workout, policy)
+      ];
+
+      checks.forEach(check => console.log(`   ${check.message}`));
+
+      // Check if all passed
+      const testPassed = checks.every(check => check.ok);
+      
+      if (!testPassed) {
+        console.log(`\n❌ ${testCase.goal.toUpperCase()} FAILED POLICY CHECKS`);
+        allPassed = false;
+      } else {
+        console.log(`\n✅ ${testCase.goal.toUpperCase()} PASSED`);
       }
-      
-      console.log(`\n🎯 Style Validation: ${styleCheck}`);
 
     } catch (error) {
       console.error('❌ Error:', error.message);
+      allPassed = false;
     }
   }
 
   console.log('\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('✨ Style smoke test complete\n');
+  
+  if (allPassed) {
+    console.log('✨ All style tests PASSED\n');
+    process.exit(0);
+  } else {
+    console.log('💥 Some style tests FAILED\n');
+    process.exit(1);
+  }
 }
 
 smokeTestStyles().catch(err => {

@@ -68,6 +68,11 @@ Preferred communication style: Simple, everyday language.
   - **Main Loaded Ratio Tracking**: Recomputes `main_loaded_ratio` post-substitution, tracking percentage of loaded movements in main blocks only (excludes warmup/cooldown)
   - **CrossFit Auto-Upgrade**: If CF loaded ratio < 60%, `autoUpgradeCFToLoaded()` swaps BW mains for loaded CrossFit movements from registry until 60% threshold met
   - **Applied in enrichWithMeta()**: Ratio computed after policy enforcement, auto-upgrade triggered for CrossFit if needed, final ratio stored in `meta.main_loaded_ratio`
+- **Style Smoke Tests** (October 2025):
+  - **CI-Friendly**: `scripts/smoke-styles.js` validates all 9 workout styles with fail-fast behavior
+  - **Policy Checks**: time_fit, style_ok, main_loaded_ratio targets, required pattern presence, banned name detection
+  - **Visibility**: Prints first 10 exercises and detailed policy check results for each style
+  - **Exit Codes**: Returns 0 on success, 1 on any policy violation for CI/CD integration
 
 ### Data Layer
 - **Database**: PostgreSQL with Drizzle ORM
