@@ -59,6 +59,10 @@ Preferred communication style: Simple, everyday language.
   - **Aerobic**: INTERVALS from aerobic category, machines only, no loaded requirement
   - **Gymnastics**: Skill EMOMs and AMRAPs from gymnastics category, allows weighted pull-up variants
   - **Mobility**: MOBILITY_QUALITY from mobility category only
+- **Duration Extraction** (October 2025):
+  - **secondsFromPattern()** helper: Extracts exact durations from pattern titles ("EMOM 14" → 840s, "Every 2:30 x 5" → 750s) for precise header durations
+  - **Warm-Up Rounding**: Warm-up item durations rounded to nearest 30s with 30s minimum for consistent UI display
+  - **Applied in convertPremiumToGenerated()**: Ensures block headers and warm-up items have accurate, consistent durations
 
 ### Data Layer
 - **Database**: PostgreSQL with Drizzle ORM

@@ -202,11 +202,22 @@ CRITICAL RULES:
 Return ONLY the JSON object. No markdown formatting, explanations, or additional text.`;
 };
 // ===== HOBH: Helper functions for premium conversion =====
+function secondsFromPattern(title: string, fallbackMin?: number): number {
+  const em = title.match(/^EMOM\s+(\d+)/i);
+  if (em) return parseInt(em[1], 10) * 60;
+  const ev = title.match(/^Every\s*(\d):([0-5]0)\s*x\s*(\d+)/i);
+  if (ev) { 
+    const m = +ev[1], s = +ev[2], n = +ev[3]; 
+    return n * (m * 60 + s); 
+  }
+  return Math.round((fallbackMin ?? 12) * 60);
+}
+
 function addHeaderSet(sets: any[], title: string, mins: number) {
   sets.push({
     id: `hdr-${Math.random().toString(36).slice(2, 8)}`,
     exercise: title,
-    duration: Math.round(mins * 60),
+    duration: secondsFromPattern(title, mins),
     notes: title,
     is_header: true
   });
@@ -236,10 +247,12 @@ export function convertPremiumToGenerated(premium: any): any {
     addHeaderSet(sets, 'Warm-up', wu.time_min || 6);
     (wu.items || []).forEach((it: any) => {
       addItemFromMovement(sets, it);
-      // Add _source tag and default duration for warm-up items
+      // Add _source tag and rounded duration for warm-up items
       const lastItem = sets[sets.length - 1];
       lastItem._source = 'warmup';
-      lastItem.duration = Math.round((wu.time_min || 6) * 60 / Math.max(1, (wu.items || []).length));
+      const rawDuration = (wu.time_min || 6) * 60 / Math.max(1, (wu.items || []).length);
+      // Round to nearest 30s, minimum 30s
+      lastItem.duration = Math.max(30, Math.round(rawDuration / 30) * 30);
       if (!lastItem.notes) lastItem.notes = 'For quality';
     });
   }
