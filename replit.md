@@ -63,6 +63,11 @@ Preferred communication style: Simple, everyday language.
   - **secondsFromPattern()** helper: Extracts exact durations from pattern titles ("EMOM 14" → 840s, "Every 2:30 x 5" → 750s) for precise header durations
   - **Warm-Up Rounding**: Warm-up item durations rounded to nearest 30s with 30s minimum for consistent UI display
   - **Applied in convertPremiumToGenerated()**: Ensures block headers and warm-up items have accurate, consistent durations
+- **Hardness & Ratio Enforcement** (October 2025):
+  - **Enhanced Hardness Scoring**: Pattern-specific bonuses for E2:00 (+0.38), E2:30 (+0.34), EMOM (+0.30); barbell presence adds +0.12 hardness
+  - **Main Loaded Ratio Tracking**: Recomputes `main_loaded_ratio` post-substitution, tracking percentage of loaded movements in main blocks only (excludes warmup/cooldown)
+  - **CrossFit Auto-Upgrade**: If CF loaded ratio < 60%, `autoUpgradeCFToLoaded()` swaps BW mains for loaded CrossFit movements from registry until 60% threshold met
+  - **Applied in enrichWithMeta()**: Ratio computed after policy enforcement, auto-upgrade triggered for CrossFit if needed, final ratio stored in `meta.main_loaded_ratio`
 
 ### Data Layer
 - **Database**: PostgreSQL with Drizzle ORM

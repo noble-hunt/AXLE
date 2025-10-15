@@ -43,6 +43,54 @@ function loadedRatioMainOnly(blocks: any[], REG: Map<string, any>) {
   return loaded / items.length;
 }
 
+// Helper: Auto-upgrade CrossFit BW mains to loaded movements to meet 60% ratio
+function autoUpgradeCFToLoaded(workout: any, REG: Map<string, any>, req?: WorkoutGenerationRequest) {
+  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+  const equipment = req?.context?.equipment || ['barbell', 'dumbbell', 'kettlebell'];
+  
+  for (const block of mains) {
+    for (let i = 0; i < (block.items || []).length; i++) {
+      const item = block.items[i];
+      const mv = REG.get(item.registry_id || '');
+      
+      // Skip if already loaded
+      if (mv && mv.equipment?.some(isLoadedEquip)) continue;
+      
+      // Try to find a loaded replacement from CrossFit category
+      const replacements = queryMovements({
+        categories: ['crossfit'],
+        patterns: mv?.patterns || ['squat', 'press', 'hinge', 'pull'],
+        equipment,
+        excludeBannedMains: true,
+        limit: 5,
+        seed: `cf-upgrade-${i}`
+      });
+      
+      // Find a loaded replacement
+      const loadedReplacement = replacements.find(m => m.equipment.some(isLoadedEquip));
+      if (loadedReplacement) {
+        console.log(`🔄 CF auto-upgrade: "${item.exercise}" → "${loadedReplacement.name}"`);
+        item.exercise = loadedReplacement.name;
+        item.registry_id = loadedReplacement.id;
+        
+        // Update scheme if needed
+        if (!item.scheme) item.scheme = {};
+        item.scheme.reps = item.scheme.reps || 10;
+        item.notes = (item.notes || '') + ' (upgraded to loaded)';
+      }
+      
+      // Recompute ratio after each upgrade and stop if we hit 60%
+      const currentRatio = loadedRatioMainOnly(workout.blocks, REG);
+      if (currentRatio >= 0.60) {
+        console.log(`✅ CF loaded ratio target met: ${(currentRatio * 100).toFixed(0)}%`);
+        return;
+      }
+    }
+  }
+  
+  console.log(`⚠️ CF auto-upgrade complete but ratio still below 60%: ${(loadedRatioMainOnly(workout.blocks, REG) * 100).toFixed(0)}%`);
+}
+
 /**
  * Enforce style-specific content policies
  * Returns { ok: true } if policy is satisfied, or { ok: false, reason, offender } if violated
@@ -869,14 +917,18 @@ function validatePatternsAndBW(workout: PremiumWorkout, equipment: string[]): vo
 export function computeHardness(workout: PremiumWorkout, equipmentAvailable?: string[]): number {
   let h = 0;
   const hasGear = (equipmentAvailable || []).length > 0;
+  const hasBarbell = (equipmentAvailable || []).some(e => /barbell/i.test(e));
   
   for (const b of workout.blocks) {
-    // Pattern bonuses
-    if (/(Every\s+[234]:00|E[234]:00)/i.test(b.title)) h += 0.35;
-    if (/EMOM/i.test(b.title))       h += 0.30;
+    // Pattern bonuses - more specific for E2:00, E2:30, EMOM
+    if (/^Every\s*2:00/i.test(b.title)) h += 0.38;
+    if (/^Every\s*2:30/i.test(b.title)) h += 0.34;
+    if (/^EMOM\s+\d+/.test(b.title))    h += 0.30;
+    if (/(Every\s+[34]:00|E[34]:00)/i.test(b.title)) h += 0.35;
     if (/AMRAP/i.test(b.title))      h += 0.30;
     if (/21-15-9/i.test(b.title))    h += 0.28;
     if (/Chipper/i.test(b.title))    h += 0.32;
+    if (hasBarbell) h += 0.12;
 
     // Use registry metadata for equipment and movement scoring
     const isMainBlock = ['strength', 'conditioning'].includes(b.kind);
@@ -2185,11 +2237,20 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     console.log(`✅ Style policy violation auto-fixed for ${style}`);
   }
   
-  // Tag workout as style-compliant
+  // Recompute main_loaded_ratio after substitutions
   (sanitizedWorkout as any).meta = { 
     ...((sanitizedWorkout as any).meta || {}), 
-    style_ok: true 
+    style_ok: true,
+    main_loaded_ratio: loadedRatioMainOnly(sanitizedWorkout.blocks, REG)
   };
+  
+  // CrossFit auto-upgrade: if loaded ratio < 60%, upgrade BW mains to loaded
+  if (style === 'crossfit' && (sanitizedWorkout as any).meta.main_loaded_ratio < 0.60) {
+    console.log(`⚠️ CF loaded ratio below 60%: ${((sanitizedWorkout as any).meta.main_loaded_ratio * 100).toFixed(0)}%`);
+    autoUpgradeCFToLoaded(sanitizedWorkout, REG, req);
+    // Recompute after upgrade
+    (sanitizedWorkout as any).meta.main_loaded_ratio = loadedRatioMainOnly(sanitizedWorkout.blocks, REG);
+  }
   
   // Ensure block time alignment
   const durationMin = req?.duration || sanitizedWorkout.duration_min || 45;
