@@ -342,53 +342,6 @@ const ALLOWED_PATTERNS = [
   /Chipper 40-30-20-10/i    // Chipper 40-30-20-10
 ];
 
-// ===== REGISTRY-FIRST: AI only generates coaching notes, not movements =====
-// Movement pools and fallback ladders are REMOVED from AI prompts
-// All movement selection is done deterministically through pattern packs + registry
-
-/**
- * Generate coaching notes for already-built blocks using AI
- * AI is only responsible for coaching tips, not movement selection
- */
-async function generateCoachingNotes(blocks: any[]): Promise<string[]> {
-  try {
-    const context = JSON.stringify(
-      blocks.map(b => ({
-        title: b.title,
-        kind: b.kind,
-        items: b.items?.map((i: any) => i.exercise || 'Movement') || []
-      }))
-    );
-    
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      temperature: 0.2,
-      max_tokens: 400,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: 'Return JSON with coaching_notes: string[]. Provide one short coaching note per block. Focus on pacing, intensity cues, and technique tips.'
-        },
-        {
-          role: 'user',
-          content: `Blocks: ${context}`
-        }
-      ]
-    });
-    
-    const response = completion.choices[0]?.message?.content;
-    if (!response) return [];
-    
-    const parsed = JSON.parse(response);
-    return parsed.coaching_notes || [];
-  } catch (error) {
-    console.warn('Failed to generate coaching notes:', error);
-    return []; // Graceful fallback - blocks already have basic notes
-  }
-}
-
-/* COMMENTED OUT: Movement pools no longer used - registry-first approach
 // ===== HOBH: movement pools (expanded) =====
 const POOLS = {
   strength: [
@@ -489,9 +442,7 @@ function applyEquipmentFallback(movement: string, equipment: string[]): { exerci
   
   return { exercise: movement, wasSubstituted: false };
 }
-END COMMENT OUT */
 
-/* COMMENTED OUT: No longer used in AI prompts - registry-first approach
 // Fallback ladder: BB → DB → KB → BW
 const FALLBACK_LADDER = {
   "BB Clean & Jerk": ["DB Snatches", "KB Swings"],
@@ -502,13 +453,9 @@ const FALLBACK_LADDER = {
   "BB Deadlift": ["DB RDL", "KB Deadlift", "Good Mornings"],
   "Wall Balls": ["KB Swings", "Burpees"]
 };
-*/
 
 function getSystemPrompt(): string {
-  return `You are AXLE Workout Generator v3 - REGISTRY-FIRST MODE.
-
-⚠️  CRITICAL: Movement selection is handled deterministically via pattern packs + movement registry.
-You ONLY generate coaching notes and workout structure validation.
+  return `You are HOBH CF/HIIT Premium Generator v2.
 
 OUTPUT FORMAT:
 {
@@ -543,7 +490,14 @@ OUTPUT FORMAT:
   }
 }
 
-NOTE: Movement pools and fallback ladders removed - all handled by registry
+MOVEMENT POOLS:
+Conditioning: ${MOVEMENT_POOLS.conditioning.join(', ')}
+Strength: ${MOVEMENT_POOLS.strength.join(', ')}
+Skill: ${MOVEMENT_POOLS.skill.join(', ')}
+Core: ${MOVEMENT_POOLS.core.join(', ')}
+
+FALLBACK LADDER (BB → DB → KB → BW):
+${Object.entries(FALLBACK_LADDER).map(([key, vals]) => `${key} → ${vals.join(' → ')}`).join('\n')}
 
 STRUCTURE REQUIREMENTS:
 1. Warm-up: ≥8 min with 6-7 exercises (foam roll, mobility drills, dynamic stretches, movement prep)
@@ -1099,107 +1053,117 @@ function makeCooldown(): any {
 
 // ===== HOBH: Style-Aware Builder Functions =====
 
-/**
- * CrossFit builder - REGISTRY-FIRST
- * Movements selected deterministically from registry, AI only for coaching notes
- */
 function buildCrossFitCF(req: WorkoutGenerationRequest): PremiumWorkout {
   const equipment = req.context?.equipment || [];
   const duration = req.duration || 45;
   const intensity = req.intensity || 7;
-  const seed = (req as any).seed || `${Date.now()}`;
-  const hasGear = equipment.some(e => /(barbell|dumbbell|kettlebell)/i.test(e));
+  const hasBarbell = equipment.some(e => /barbell/i.test(e));
+  const hasKettlebell = equipment.some(e => /kettlebell/i.test(e));
+  const hasDumbbell = equipment.some(e => /dumbbell/i.test(e));
+  const hasGear = hasBarbell || hasKettlebell || hasDumbbell;
   
   const blocks = [];
   
   // Warmup
   blocks.push(pickWarmup(req));
   
-  // Main 1: Strength density Every 2:30 x 5 - use registry
-  const strengthPool = pickFromRegistry({
-    categories: ['powerlifting', 'crossfit'],
-    patterns: ['squat', 'press'],
-    equipment: equipment.length > 0 ? equipment : undefined,
-    limit: 2,
-    seed: seed + '-strength'
-  });
-  
-  const strengthExercises = strengthPool.slice(0, 2).map((m: Movement) => ({
-    exercise: m.name,
-    registry_id: m.id,
-    target: hasGear ? '5 reps @ 75-80%' : '15-20 reps',
-    notes: 'Focus on form and control',
-    _source: 'registry'
-  }));
+  // Main 1: Strength density Every 2:30 x 5
+  const strengthExercises = [];
+  if (hasBarbell) {
+    strengthExercises.push(
+      { exercise: 'Barbell Front Squat (A1)', target: '5 reps @ 75-80%', notes: 'Depth and control' },
+      { exercise: 'Barbell Push Press (A2)', target: '5 reps @ 75%', notes: 'Explosive hip drive' }
+    );
+  } else if (hasDumbbell) {
+    strengthExercises.push(
+      { exercise: 'DB Goblet Squat (A1)', target: '8 reps', notes: 'Upright torso' },
+      { exercise: 'DB Push Press (A2)', target: '8 reps', notes: 'Hip to overhead' }
+    );
+  } else if (hasKettlebell) {
+    strengthExercises.push(
+      { exercise: 'KB Front Rack Squat (A1)', target: '10 reps', notes: 'Elbows up' },
+      { exercise: 'KB Push Press (A2)', target: '10 reps', notes: 'Full extension' }
+    );
+  } else {
+    strengthExercises.push(
+      { exercise: 'Air Squat (A1)', target: '20 reps', notes: 'Tempo 3-1-1' },
+      { exercise: 'Push-Up (A2)', target: '15 reps', notes: 'Chest to deck' }
+    );
+  }
   
   blocks.push({
     kind: 'strength',
     title: 'Every 2:30 x 5',
     time_min: 13,
-    items: strengthExercises.length > 0 ? strengthExercises : [
-      { exercise: 'Air Squat', target: '20 reps', notes: 'Full depth', _source: 'fallback' },
-      { exercise: 'Push-Up', target: '15 reps', notes: 'Chest to deck', _source: 'fallback' }
-    ],
-    notes: 'Strength density - complete all movements every 2:30 for 5 rounds'
+    items: strengthExercises,
+    notes: 'Strength density - complete A1 + A2 every 2:30 for 5 rounds'
   });
   
-  // Main 2: EMOM 14-16 - use registry
+  // Main 2: EMOM 14-16
+  const emomExercises = [];
   const emomDuration = intensity >= 8 ? 16 : 14;
-  const conditioningPool = pickFromRegistry({
-    categories: ['crossfit', 'aerobic'],
-    patterns: ['cardio', 'hinge'],
-    equipment: equipment.length > 0 ? equipment : undefined,
-    limit: 2,
-    seed: seed + '-conditioning'
-  });
-  
-  const emomExercises = conditioningPool.slice(0, 2).map((m: Movement, idx: number) => ({
-    exercise: `${m.name} (${idx % 2 === 0 ? 'odd' : 'even'} min)`,
-    registry_id: m.id,
-    target: hasGear ? '8-12 reps' : '12-15 reps',
-    notes: idx % 2 === 0 ? 'Hard pace' : 'Smooth rhythm',
-    _source: 'registry'
-  }));
+  if (hasBarbell) {
+    emomExercises.push(
+      { exercise: 'Row Calories (odd min)', target: '12/10 cal', notes: 'Hard pace' },
+      { exercise: 'Barbell Thruster (even min)', target: '8 reps @ 65%', notes: 'Smooth reps' }
+    );
+  } else if (hasKettlebell) {
+    emomExercises.push(
+      { exercise: 'Bike Calories (odd min)', target: '10/8 cal', notes: 'Steady effort' },
+      { exercise: 'KB Swings (even min)', target: '15 reps', notes: 'Hip extension' }
+    );
+  } else if (hasDumbbell) {
+    emomExercises.push(
+      { exercise: 'Ski Erg Calories (odd min)', target: '10 cal', notes: 'Full power' },
+      { exercise: 'DB Box Step-Overs (even min)', target: '10 total', notes: 'Alternating legs' }
+    );
+  } else {
+    emomExercises.push(
+      { exercise: 'Burpees (odd min)', target: '12 reps', notes: 'Full push-up' },
+      { exercise: 'Air Squat (even min)', target: '20 reps', notes: 'Full depth' }
+    );
+  }
   
   blocks.push({
     kind: 'conditioning',
     title: `EMOM ${emomDuration}`,
     time_min: emomDuration,
-    items: emomExercises.length > 0 ? emomExercises : [
-      { exercise: 'Burpees (odd min)', target: '12 reps', notes: 'Full push-up', _source: 'fallback' },
-      { exercise: 'Air Squat (even min)', target: '20 reps', notes: 'Full depth', _source: 'fallback' }
-    ],
-    notes: `EMOM ${emomDuration} - alternate movements each minute`
+    items: emomExercises,
+    notes: `EMOM ${emomDuration} - odd: cyclical cals, even: loaded movement`
   });
   
   // Optional finisher if time permits
-  const totalTime = blocks.reduce((sum: number, b: any) => sum + b.time_min, 0);
+  const totalTime = blocks.reduce((sum, b) => sum + b.time_min, 0);
   if (totalTime < duration - 8) {
-    const finisherPool = pickFromRegistry({
-      categories: ['crossfit'],
-      patterns: ['press', 'squat'],
-      equipment: equipment.length > 0 ? equipment : undefined,
-      limit: 2,
-      seed: seed + '-finisher'
-    });
-    
-    const finisherExercises = finisherPool.slice(0, 2).map((m: Movement) => ({
-      exercise: m.name,
-      registry_id: m.id,
-      target: '21-15-9',
-      notes: 'For time',
-      _source: 'registry'
-    }));
-    
-    if (finisherExercises.length > 0) {
-      blocks.push({
-        kind: 'conditioning',
-        title: 'For Time 21-15-9',
-        time_min: 8,
-        items: finisherExercises,
-        notes: 'Complete 21-15-9 reps for time'
-      });
+    const finisherExercises = [];
+    if (hasBarbell) {
+      finisherExercises.push(
+        { exercise: 'Barbell Thruster', target: '21-15-9', notes: '@ 65%' },
+        { exercise: 'Burpee Over Bar', target: '21-15-9', notes: 'Lateral jump' }
+      );
+    } else if (hasKettlebell) {
+      finisherExercises.push(
+        { exercise: 'KB Swings', target: '21-15-9', notes: 'American style' },
+        { exercise: 'Burpee', target: '21-15-9', notes: 'Full push-up' }
+      );
+    } else if (hasDumbbell) {
+      finisherExercises.push(
+        { exercise: 'DB Thruster', target: '21-15-9', notes: 'Smooth reps' },
+        { exercise: 'Burpee', target: '21-15-9', notes: 'Chest to deck' }
+      );
+    } else {
+      finisherExercises.push(
+        { exercise: 'Burpee', target: '21-15-9', notes: 'Full ROM' },
+        { exercise: 'Air Squat', target: '21-15-9', notes: 'Full depth' }
+      );
     }
+    blocks.push({
+      kind: 'conditioning',
+      title: 'For Time 21-15-9',
+      time_min: 8,
+      items: finisherExercises,
+      notes: 'Complete 21-15-9 reps for time'
+    });
   }
   
   // Cooldown
@@ -1223,12 +1187,7 @@ function buildCrossFitCF(req: WorkoutGenerationRequest): PremiumWorkout {
       hardness_ok: varietyScore >= hardnessFloor,
       patterns_locked: true
     },
-    variety_score: varietyScore,
-    meta: {
-      generator: 'premium',
-      style: 'crossfit',
-      seed
-    }
+    variety_score: varietyScore
   };
 }
 
@@ -2170,11 +2129,6 @@ export async function generatePremiumWorkout(
       }
     }
     
-    /* COMMENTED OUT: Legacy AI-based generation removed - registry-first architecture only
-    // This legacy path generated full workouts via AI, contradicting registry-first design
-    // All workouts must now use style-aware builders that call pickFromRegistry() for movements
-    // and only use AI for coaching notes via generateCoachingNotes()
-    
     // ===== Original AI-based generation for legacy styles =====
     const systemPrompt = getSystemPrompt();
     const userPrompt = createUserPrompt(request);
@@ -2306,11 +2260,6 @@ export async function generatePremiumWorkout(
     console.log(`✅ Premium workout generated: "${validated.title}" with ${validated.blocks.length} blocks, hardness: ${validated.variety_score?.toFixed(2) ?? 'N/A'}, patterns_locked: ${validated.acceptance_flags.patterns_locked}, mixed_rule_ok: ${validated.acceptance_flags.mixed_rule_ok}, equipment_ok: ${validated.acceptance_flags.equipment_ok}`);
     
     return validated;
-    */ // END COMMENT OUT - Legacy AI generation removed
-    
-    // Registry-first architecture: No fallback to AI-based generation
-    // All styles must use style-aware builders
-    throw new Error(`Registry-first architecture error: Unknown or unsupported style "${style || 'none'}". All workouts must use style-aware builders (crossfit, olympic_weightlifting, powerlifting, bb_full_body, bb_upper, bb_lower, aerobic, gymnastics, mobility).`);
 
   } catch (error) {
     console.error('Premium generation failed:', error);

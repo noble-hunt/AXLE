@@ -21,12 +21,19 @@ Preferred communication style: Simple, everyday language.
 - **Server**: Express.js with a RESTful API in TypeScript
 - **Modularity**: Abstracted storage interface (`IStorage`)
 - **API Validation**: Zod schemas
-- **Workout Generation**: Three-tier fallback (premium → simple → mock) orchestrator. The premium generator uses AI for CrossFit/HIIT workouts, enforcing pattern locks, hardness floors, and preventing banned bodyweight movements when equipment is available.
+- **Workout Generation**: Three-tier fallback (premium → simple → mock) orchestrator. The premium generator uses a **registry-first architecture** where movements are selected deterministically from the movement registry, and AI is only used for generating coaching notes and pacing tips.
 - **Premium-Only Enforcement**: Environment kill switches ensure exclusive use of the premium generator:
   - `AXLE_DISABLE_SIMPLE=1`: Prevents fallback to simple generator, returns 502 if premium fails
   - `HOBH_FORCE_PREMIUM=true`: Forces premium path (default behavior)
   - `DEBUG_PREMIUM_STAMP=1`: Adds debug headers (`X-AXLE-Generator`, `X-AXLE-Style`) for verification
   - Routes `/api/workouts/generate` and `/api/workouts/simulate` enforce these constraints with clear 502 error responses
+- **Registry-First Architecture** (October 2025):
+  - **Movement Selection**: 100% deterministic via pattern packs + movement registry (1,105 movements)
+  - **AI Role**: Relegated to coaching notes generation only via `generateCoachingNotes()` helper
+  - **System Prompt**: Cleaned of all movement pools and fallback ladders - AI prompt only requests coaching tips
+  - **Builder Pattern**: `pickFromRegistry()` → build blocks → `generateCoachingNotes()` → return workout
+  - **Commented Out**: Legacy MOVEMENT_POOLS and FALLBACK_LADDER definitions no longer used
+  - **Refactored Builders**: `buildCrossFitCF` now uses registry-first pattern (matching `buildOly`)
 - **Deterministic Generation**: `mulberry32` RNG + `strSeed(seed)` ensures reproducibility for workouts, with `meta.generator`, `meta.acceptance`, and `meta.seed` included.
 - **Movement Service**: Integrates a comprehensive Movement Registry (1,105 movements across 9 categories) and pattern packs to intelligently select movements based on equipment, style, and constraints.
 - **Workout Focus Categories**: Supports 13 workout focus types (e.g., CrossFit, Olympic Weightlifting, Powerlifting, Aerobic), each with specialized builder functions and hardness enforcement.
