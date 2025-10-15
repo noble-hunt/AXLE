@@ -3,13 +3,22 @@
  * 
  * Handles POST /api/workouts/simulate - Dry-run simulation of workout generation
  * Used for preview generation without persisting to database
+ * 
+ * HARDENED: Premium-only routing with environment kill switches
+ * - AXLE_DISABLE_SIMPLE=1 → Returns 502 if premium fails
+ * - HOBH_FORCE_PREMIUM=true → Forces premium path (default)
+ * - DEBUG_PREMIUM_STAMP=1 → Adds debug headers
  */
 
 import type { Express } from "express";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
-import { z } from "zod";
 import { simulatePayloadSchema } from "../../shared/types/workouts";
-import { SeededRandom, createSeedString } from "../utils/seeded-random";
+import { generateWorkout } from "../workoutGenerator";
+
+// Environment kill switches
+const AXLE_DISABLE_SIMPLE = process.env.AXLE_DISABLE_SIMPLE === '1';
+const HOBH_FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM === 'true';
+const DEBUG_PREMIUM_STAMP = process.env.DEBUG_PREMIUM_STAMP === '1';
 
 export function registerSimulateRoutes(app: Express) {
   /**
@@ -26,39 +35,93 @@ export function registerSimulateRoutes(app: Express) {
       // Validate request body using the seeded payload schema
       const validatedData = simulatePayloadSchema.parse(req.body);
       
-      let seededRng: SeededRandom | undefined;
+      // Resolve workout style from archetype field
+      const style = String(validatedData.archetype || 'mixed').toLowerCase();
       
-      // If seed is provided, create seeded random generator
+      // Build seed string if provided
+      let seedString: string | undefined;
       if (validatedData.seed) {
-        const seedString = createSeedString(
-          validatedData.seed.userHash,
-          validatedData.seed.day,
-          validatedData.seed.focus,
-          validatedData.seed.nonce
-        );
-        seededRng = new SeededRandom(seedString);
+        seedString = `${validatedData.seed.userHash}-${validatedData.seed.day}-${validatedData.seed.focus || style}-${validatedData.seed.nonce || 0}`;
       }
       
-      // Generate a simple mock workout for simulation
-      // This will be replaced with actual generation logic
-      const mockWorkout = generateMockWorkout(validatedData, seededRng);
+      // Log request parameters for debugging
+      console.log('[AXLE /simulate]', {
+        userId,
+        style,
+        archetype: validatedData.archetype,
+        duration: validatedData.minutes,
+        intensity: validatedData.intensity,
+        equipment: validatedData.equipment,
+        seed: seedString,
+        killSwitches: {
+          AXLE_DISABLE_SIMPLE,
+          HOBH_FORCE_PREMIUM
+        }
+      });
       
+      // Call the orchestrator (premium-first with fallback chain)
+      const generatedWorkout = await generateWorkout({
+        category: style,
+        duration: validatedData.minutes,
+        intensity: validatedData.intensity,
+        goal: validatedData.archetype,
+        focus: validatedData.archetype,
+        style: style,
+        equipment: validatedData.equipment,
+        seed: seedString,
+        durationMin: validatedData.minutes
+      } as any);
+      
+      // Extract metadata for headers (handle different response structures)
+      const meta = (generatedWorkout as any)?.meta || {};
+      const generator = meta.generator || 'unknown';
+      const actualStyle = meta.style || style;
+      
+      // Set debug headers
+      if (DEBUG_PREMIUM_STAMP) {
+        res.setHeader('X-AXLE-Generator', generator);
+        res.setHeader('X-AXLE-Style', actualStyle);
+      }
+      
+      // Check if premium failed and kill switches are enabled
+      if ((AXLE_DISABLE_SIMPLE || HOBH_FORCE_PREMIUM) && generator !== 'premium') {
+        console.error('[AXLE] Premium generation failed, kill switches prevent fallback');
+        return res.status(502).json({
+          ok: false,
+          error: 'premium_failed',
+          detail: `Premium generator not used (got: ${generator}). Kill switches AXLE_DISABLE_SIMPLE=${AXLE_DISABLE_SIMPLE}, HOBH_FORCE_PREMIUM=${HOBH_FORCE_PREMIUM} prevent fallback.`
+        });
+      }
+      
+      console.log('[AXLE /simulate] Success:', {
+        generator,
+        style: actualStyle,
+        seed: seedString
+      });
+      
+      // Return workout without database persistence
       res.json({
         ok: true,
         workout: {
           id: null, // No persistence for simulation
-          ...mockWorkout,
-          seed: validatedData.seed ? createSeedString(
-            validatedData.seed.userHash,
-            validatedData.seed.day,
-            validatedData.seed.focus,
-            validatedData.seed.nonce
-          ) : undefined
-        }
+          ...generatedWorkout,
+          seed: seedString
+        },
+        meta
       });
     } catch (error: any) {
-      console.error('Workout simulation failed:', error);
+      console.error('[AXLE /simulate] Error:', error);
       
+      // If kill switches are enabled, return 502 for any premium failure
+      if (AXLE_DISABLE_SIMPLE || HOBH_FORCE_PREMIUM) {
+        return res.status(502).json({
+          ok: false,
+          error: 'premium_failed',
+          detail: String(error?.message || error)
+        });
+      }
+      
+      // Legacy error handling (only when kill switches disabled)
       if (error.name === 'ZodError') {
         return res.status(400).json({
           ok: false,
@@ -78,66 +141,4 @@ export function registerSimulateRoutes(app: Express) {
       });
     }
   });
-}
-
-/**
- * Generate a mock workout for simulation purposes
- * This demonstrates deterministic generation using seeded random
- */
-function generateMockWorkout(payload: any, seededRng?: SeededRandom) {
-  const { archetype, minutes, intensity, equipment } = payload;
-  
-  // Example exercises based on archetype and equipment
-  const exercisePool = {
-    strength: [
-      'Barbell Squat', 'Deadlift', 'Bench Press', 'Pull-ups', 'Overhead Press',
-      'Bent-over Row', 'Dips', 'Bulgarian Split Squats'
-    ],
-    conditioning: [
-      'Burpees', 'Mountain Climbers', 'Jump Squats', 'High Knees', 'Sprints',
-      'Battle Ropes', 'Box Jumps', 'Kettlebell Swings'
-    ],
-    mixed: [
-      'Thrusters', 'Clean and Press', 'Rowing Intervals', 'Circuit Training',
-      'Functional Movements', 'Complex Training'
-    ],
-    endurance: [
-      'Long Run', 'Cycling', 'Swimming', 'Rowing', 'Elliptical',
-      'Zone 2 Training', 'Steady State Cardio'
-    ]
-  };
-  
-  const availableExercises = exercisePool[archetype as keyof typeof exercisePool] || exercisePool.mixed;
-  
-  // Use seeded random if available, otherwise use Math.random
-  const rng = seededRng || { 
-    choice: <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)],
-    nextInt: (min: number, max: number) => Math.floor(Math.random() * (max - min)) + min
-  };
-  
-  // Generate exercises based on duration
-  const numExercises = Math.max(3, Math.min(8, Math.floor(minutes / 5)));
-  const selectedExercises = [];
-  
-  for (let i = 0; i < numExercises; i++) {
-    const exercise = rng.choice(availableExercises);
-    const sets = rng.nextInt(2, intensity > 7 ? 6 : 4);
-    const reps = archetype === 'strength' ? rng.nextInt(3, 8) : rng.nextInt(8, 15);
-    
-    selectedExercises.push({
-      name: exercise,
-      sets,
-      reps: reps.toString(),
-      notes: `Intensity level ${intensity}`
-    });
-  }
-  
-  return {
-    meta: {
-      title: `${archetype.charAt(0).toUpperCase() + archetype.slice(1)} Workout`
-    },
-    estTimeMin: minutes,
-    intensity,
-    blocks: selectedExercises
-  };
 }

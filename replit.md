@@ -22,6 +22,11 @@ Preferred communication style: Simple, everyday language.
 - **Modularity**: Abstracted storage interface (`IStorage`)
 - **API Validation**: Zod schemas
 - **Workout Generation**: Three-tier fallback (premium → simple → mock) orchestrator. The premium generator uses AI for CrossFit/HIIT workouts, enforcing pattern locks, hardness floors, and preventing banned bodyweight movements when equipment is available.
+- **Premium-Only Enforcement**: Environment kill switches ensure exclusive use of the premium generator:
+  - `AXLE_DISABLE_SIMPLE=1`: Prevents fallback to simple generator, returns 502 if premium fails
+  - `HOBH_FORCE_PREMIUM=true`: Forces premium path (default behavior)
+  - `DEBUG_PREMIUM_STAMP=1`: Adds debug headers (`X-AXLE-Generator`, `X-AXLE-Style`) for verification
+  - Routes `/api/workouts/generate` and `/api/workouts/simulate` enforce these constraints with clear 502 error responses
 - **Deterministic Generation**: `mulberry32` RNG + `strSeed(seed)` ensures reproducibility for workouts, with `meta.generator`, `meta.acceptance`, and `meta.seed` included.
 - **Movement Service**: Integrates a comprehensive Movement Registry (1,105 movements across 9 categories) and pattern packs to intelligently select movements based on equipment, style, and constraints.
 - **Workout Focus Categories**: Supports 13 workout focus types (e.g., CrossFit, Olympic Weightlifting, Powerlifting, Aerobic), each with specialized builder functions and hardness enforcement.
@@ -43,8 +48,8 @@ Preferred communication style: Simple, everyday language.
 
 ### API Surface
 - `GET /api/healthz`: Health and status check.
-- `POST /api/workouts/generate`: Generates a full workout based on user inputs and an optional seed.
-- `POST /api/workouts/preview`: Returns a validated `WorkoutPlan` based on focus, duration, intensity, equipment, and an optional seed.
+- `POST /api/workouts/generate`: Generates a full workout based on user inputs and an optional seed. **Hardened**: Uses premium-only orchestrator with environment kill switches. Returns 502 with `{ok: false, error: 'premium_failed', detail: '...'}` when premium generation fails and kill switches are enabled. Emits debug headers when `DEBUG_PREMIUM_STAMP=1`.
+- `POST /api/workouts/simulate`: Returns a validated `WorkoutPlan` based on focus, duration, intensity, equipment, and an optional seed (preview without database persistence). **Hardened**: Same premium-only enforcement as `/generate`.
 - `/api/workouts/suggest/today`: Provides a daily workout suggestion.
 
 ## External Dependencies
