@@ -1273,8 +1273,8 @@ function buildCrossFitCF(req: WorkoutGenerationRequest): PremiumWorkout {
   
   // Main 1: Strength density Every 2:30 x 5 - use registry
   const strengthPool = pickFromRegistry({
-    categories: ['powerlifting', 'crossfit'],
-    patterns: ['squat', 'press'],
+    categories: ['crossfit'],
+    patterns: ['squat', 'press', 'hinge'],
     equipment: equipment.length > 0 ? equipment : undefined,
     limit: 2,
     seed: seed + '-strength'
@@ -1302,8 +1302,8 @@ function buildCrossFitCF(req: WorkoutGenerationRequest): PremiumWorkout {
   // Main 2: EMOM 14-16 - use registry
   const emomDuration = intensity >= 8 ? 16 : 14;
   const conditioningPool = pickFromRegistry({
-    categories: ['crossfit', 'aerobic'],
-    patterns: ['cardio', 'hinge'],
+    categories: ['crossfit'],
+    patterns: ['cardio', 'hinge', 'squat', 'press'],
     equipment: equipment.length > 0 ? equipment : undefined,
     limit: 2,
     seed: seed + '-conditioning'
@@ -1488,8 +1488,8 @@ function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
   const totalTime = blocks.reduce((sum, b) => sum + b.time_min, 0);
   if (totalTime < duration - 8 && hasBarbell) {
     const accessoryPool = pickFromRegistry({
-      categories: ['olympic_weightlifting', 'powerlifting', 'crossfit'],
-      patterns: ['pull', 'hinge'],
+      categories: ['olympic_weightlifting'],
+      patterns: ['pull', 'squat', 'hinge'],
       equipment: ['barbell'],
       limit: 8,
       seed: seed + '-accessory'

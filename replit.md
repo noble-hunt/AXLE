@@ -48,6 +48,17 @@ Preferred communication style: Simple, everyday language.
 - **Movement Service**: Integrates a comprehensive Movement Registry (1,105 movements across 9 categories) and pattern packs to intelligently select movements based on equipment, style, and constraints.
 - **Workout Focus Categories**: Supports 13 workout focus types (e.g., CrossFit, Olympic Weightlifting, Powerlifting, Aerobic), each with specialized builder functions and hardness enforcement.
 - **Equipment Normalization**: Aliases common equipment name variations (e.g., "dumbbells" to "dumbbell") to prevent generation failures.
+- **Tightened Pattern Packs** (October 2025):
+  - **Style-Only Movement Pools**: Each pattern pack now selects exclusively from its own category for main blocks (e.g., CrossFit only from `['crossfit']`, Olympic from `['olympic_weightlifting']`)
+  - **Block Kind Specification**: All main blocks now explicitly declare their `kind` ('strength'|'conditioning'|'skill'|'aerobic'|'mobility')
+  - **Style-Specific Structure**: Pattern packs define equipment requirements, loaded ratio requirements, and block patterns per style
+  - **CrossFit**: E2:30 strength + EMOM conditioning, both from CrossFit category only
+  - **Olympic Weightlifting**: Two E2:00 complexes (snatch; clean & jerk) + optional loaded EMOM accessory, all from Olympic category only
+  - **Powerlifting**: E3:00 triples + E2:30 fives + E2:00 accessory superset, all from Powerlifting category only
+  - **Bodybuilding**: Hypertrophy schemes (E2:30, E2:00, EMOM) from respective bb_* categories with 70% loaded ratio
+  - **Aerobic**: INTERVALS from aerobic category, machines only, no loaded requirement
+  - **Gymnastics**: Skill EMOMs and AMRAPs from gymnastics category, allows weighted pull-up variants
+  - **Mobility**: MOBILITY_QUALITY from mobility category only
 
 ### Data Layer
 - **Database**: PostgreSQL with Drizzle ORM
