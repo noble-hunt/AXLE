@@ -136,7 +136,7 @@ function enforceStylePolicy(
 
   // Check banned regex
   if (policy.banned_regex?.length) {
-    const bad = names.find(n => policy.banned_regex!.some(rx => rx.test(n)));
+    const bad = names.find((n: string) => policy.banned_regex!.some(rx => rx.test(n)));
     if (bad) {
       return {
         ok: false,
@@ -2286,7 +2286,7 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
   fitBlocksToDuration(sanitizedWorkout.blocks, durationMin, pack.warmupMin || 8, pack.cooldownMin || 8);
   
   // Build comprehensive acceptance flags (sanitizer already sets some)
-  const totalTimeMin = sanitizedWorkout.blocks.reduce((sum, b) => sum + (b.time_min || 0), 0);
+  const totalTimeMin = sanitizedWorkout.blocks.reduce((sum: number, b: any) => sum + (b.time_min || 0), 0);
   
   const acceptance = {
     time_fit: Math.abs(totalTimeMin - durationMin) <= Math.max(2, durationMin * 0.05),
