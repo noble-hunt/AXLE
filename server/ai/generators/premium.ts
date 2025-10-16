@@ -8,12 +8,9 @@ import type { Movement } from '../../types/movements';
 import registryData from '../../data/movements.registry.json';
 import { STYLE_POLICIES } from '../config/stylePolicies';
 import type { StylePolicy } from '../config/stylePolicies';
-import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL } from '../../config/env';
+import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL, PREMIUM_STRICT } from '../../config/env';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// Strictness flag: when true, throw on policy violations; when false, log repairs and continue
-const PREMIUM_STRICT = process.env.HOBH_PREMIUM_STRICT === '1' || process.env.HOBH_PREMIUM_STRICT === 'true';
 
 // Load movement registry into a Map for fast lookup
 const REG = new Map(registryData.map((m: any) => [m.id, m]));

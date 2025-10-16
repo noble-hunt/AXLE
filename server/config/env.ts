@@ -28,6 +28,7 @@ if (DEV) {
 export { FORCE_PREMIUM, DISABLE_SIMPLE, DISABLE_MOCK };
 
 export const PREMIUM_NOTES_MODE_LOCAL = process.env.HOBH_PREMIUM_NOTES_MODE === 'local';
+export const PREMIUM_STRICT = process.env.HOBH_PREMIUM_STRICT === '1' || process.env.HOBH_PREMIUM_STRICT === 'true';
 
 export const ENV_DEBUG = {
   NODE_ENV, DEV,
@@ -37,4 +38,5 @@ export const ENV_DEBUG = {
   AXLE_DISABLE_MOCK: DISABLE_MOCK,
   HOBH_FORCE_PREMIUM: FORCE_PREMIUM,
   HOBH_PREMIUM_NOTES_MODE: process.env.HOBH_PREMIUM_NOTES_MODE || null,
+  HOBH_PREMIUM_STRICT: PREMIUM_STRICT,
 };
