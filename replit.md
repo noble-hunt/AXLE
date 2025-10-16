@@ -90,8 +90,8 @@ Preferred communication style: Simple, everyday language.
 
 ### API Surface
 - `GET /api/healthz`: Health and status check.
-- `POST /api/workouts/generate`: Generates a full workout based on user inputs and an optional seed. **Hardened**: Uses premium-only orchestrator with environment kill switches. Returns 502 with `{ok: false, error: 'premium_failed', detail: '...'}` when premium generation fails and kill switches are enabled. Emits debug headers when `DEBUG_PREMIUM_STAMP=1`.
-- `POST /api/workouts/simulate`: Returns a validated `WorkoutPlan` based on focus, duration, intensity, equipment, and an optional seed (preview without database persistence). **Hardened**: Same premium-only enforcement as `/generate`.
+- `POST /api/workouts/generate`: Generates a full workout based on user inputs and an optional seed. **Hardened (WG-ORCH@1.0.2)**: Uses premium-only orchestrator with environment kill switches. All errors are converted to structured JSON with `code`, `hint`, and `details` fields before being passed to the error middleware. Returns 502 with `{ok: false, error: 'premium_failed:...', code: 'premium_failed', hint: '...', details: {...}}` when premium generation fails and kill switches are enabled. Emits debug headers when `DEBUG_PREMIUM_STAMP=1`.
+- `POST /api/workouts/simulate`: Returns a validated `WorkoutPlan` based on focus, duration, intensity, equipment, and an optional seed (preview without database persistence). **Hardened (WG-ORCH@1.0.2)**: Same premium-only enforcement and structured error handling as `/generate`.
 - `/api/workouts/suggest/today`: Provides a daily workout suggestion.
 
 ## External Dependencies

@@ -7,7 +7,7 @@ import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
 import { DISABLE_SIMPLE, DISABLE_MOCK, FORCE_PREMIUM } from './config/env';
 
 // Orchestrator version stamp for debugging
-export const GENERATOR_STAMP = 'WG-ORCH@1.0.1';
+export const GENERATOR_STAMP = 'WG-ORCH@1.0.2';
 
 // Canonical style resolver - normalizes goal/style/focus to pattern pack keys
 function resolveStyle(input: any): string {
@@ -390,12 +390,15 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     
     console.warn('[WG] premium ok', { stamp: GENERATOR_STAMP, style });
     return result;
-  } catch (err: any) {
-    console.error('[WG] premium_failed', { stamp: GENERATOR_STAMP, style, err: String(err?.message || err) });
+  } catch (e: any) {
+    console.error('[WG] premium_failed', { stamp: GENERATOR_STAMP, style, err: String(e?.message || e) });
     
-    // If kill switches enabled, fail with clear error message
+    // Convert to a recognizable error for the error middleware
     if (DISABLE_SIMPLE || DISABLE_MOCK || FORCE_PREMIUM) {
-      err.message = `premium_failed:${err.message}`;
+      const err: any = new Error(`premium_failed:${e?.message || 'unknown'}`);
+      err.code = 'premium_failed';
+      err.hint = 'Premium was forced; fallbacks are disabled in development.';
+      err.details = e?.details || undefined;
       throw err;
     }
   }
