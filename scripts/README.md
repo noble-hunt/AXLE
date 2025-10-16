@@ -142,6 +142,29 @@ X-AXLE-Orchestrator: WG-ORCH@1.0.1
 
 ---
 
+## Error Response Format
+
+All API errors return structured JSON (never `null`) with consistent format:
+
+```json
+{
+  "ok": false,
+  "error": "policy:barbell_only:DB Snatch",
+  "code": "premium_failed",
+  "style": "olympic_weightlifting",
+  "stamp": "WG-ORCH@1.0.1",
+  "meta": {
+    "hint": "Try removing non-barbell movements",
+    "policy": "barbell_only",
+    "details": "Olympic weightlifting requires barbell-only movements"
+  }
+}
+```
+
+**Error Middleware:** `server/middleware/error.ts` ensures all uncaught errors are caught and returned as structured JSON with the orchestrator stamp, making CLI inspection easy and UI error handling consistent.
+
+---
+
 ## Kill Switches (Advanced)
 
 Override development defaults by explicitly setting environment variables:

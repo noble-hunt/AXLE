@@ -8,6 +8,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { startSuggestionsCron } from "./jobs/suggestions-cron";
 import { initSentry, Sentry } from "./sentry";
 import { logging } from "./middleware/logging";
+import { jsonError } from "./middleware/error";
 import { runBootMigrationGuard } from "./migrations/boot-guard";
 import fs from 'node:fs';
 import path from 'node:path';
@@ -170,32 +171,8 @@ app.get("/api/_routes", (req, res) => {
   //   app.use(Sentry.Handlers.errorHandler());
   // }
 
-  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    
-    // Add request ID to response headers (only if it exists)
-    const requestId = (req as any).id;
-    if (requestId) {
-      res.setHeader('x-request-id', requestId);
-    }
-    
-    // Add request ID to Sentry context (only if it exists)
-    if (typeof Sentry?.setTag === 'function' && requestId) {
-      Sentry.setTag('request_id', requestId);
-    }
-    
-    // For non-API routes that error, serve 500.html
-    if (status === 500 && !req.path.startsWith('/api')) {
-      return res.status(500).sendFile('500.html', { root: 'client/public' });
-    }
-    
-    // For API routes, return JSON error
-    res.status(status).json({ message });
-    
-    // Log the error (don't rethrow to avoid process crashes)
-    console.error(`Error ${status} on ${req.method} ${req.path}:`, err);
-  });
+  // JSON error middleware - ensures all errors return structured JSON (never null)
+  app.use(jsonError);
 
   // Dev uses Vite middleware (with real config). Prod serves static build.
   if (app.get("env") === "development") {
