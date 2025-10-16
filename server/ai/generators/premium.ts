@@ -2326,21 +2326,40 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     sanitizedWorkout.title = `PREMIUM • ${sanitizedWorkout.title || pack.name || 'Session'}`;
   }
   
+  // Add metadata before notes generation
+  const metaData = {
+    generator: 'premium',
+    style,
+    goal: req?.category || style,
+    title: sanitizedWorkout.title || pack.name,
+    equipment: req?.context?.equipment || [],
+    seed,
+    acceptance: sanitizedWorkout.acceptance_flags,
+    selectionTrace,
+    main_loaded_ratio: mainLoadedRatio,
+    ...(process.env.DEBUG_PREMIUM_STAMP === '1' && { premium_stamp: true })
+  };
+  
   return {
     ...sanitizedWorkout,
-    meta: {
-      generator: 'premium',
-      style,
-      goal: req?.category || style,
-      title: sanitizedWorkout.title || pack.name,
-      equipment: req?.context?.equipment || [],
-      seed,
-      acceptance: sanitizedWorkout.acceptance_flags,
-      selectionTrace,
-      main_loaded_ratio: mainLoadedRatio,
-      ...(process.env.DEBUG_PREMIUM_STAMP === '1' && { premium_stamp: true })
-    }
+    meta: metaData
   };
+}
+
+/**
+ * Enrich workout with coaching notes (async wrapper)
+ * This must be called separately since enrichWithMeta is sync
+ */
+async function enrichWithNotes(workout: PremiumWorkout): Promise<PremiumWorkout> {
+  // Generate coaching notes for all blocks
+  const notes = await generateCoachingNotes(workout.blocks);
+  
+  // Apply notes to blocks
+  workout.blocks.forEach((b: any, i: number) => {
+    b.notes = notes[i] || b.notes || 'Move well; maintain quality.';
+  });
+  
+  return workout;
 }
 
 export async function generatePremiumWorkout(
@@ -2398,7 +2417,9 @@ export async function generatePremiumWorkout(
       
       if (workout) {
         // Add meta information to style-aware workouts
-        return enrichWithMeta(workout, style, workoutSeed, request);
+        const enriched = enrichWithMeta(workout, style, workoutSeed, request);
+        // Add coaching notes (works with or without OpenAI)
+        return await enrichWithNotes(enriched);
       }
     }
     
