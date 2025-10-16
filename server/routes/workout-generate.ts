@@ -76,11 +76,9 @@ export function registerGenerateRoutes(app: Express) {
       const generator = meta.generator || 'unknown';
       const actualStyle = meta.style || style;
       
-      // Set debug headers
-      if (DEBUG_PREMIUM_STAMP) {
-        res.setHeader('X-AXLE-Generator', generator);
-        res.setHeader('X-AXLE-Style', actualStyle);
-      }
+      // Set debug headers (always visible in DevTools)
+      res.setHeader('X-AXLE-Generator', (generatedWorkout as any)?.meta?.generator || 'unknown');
+      res.setHeader('X-AXLE-Style', (generatedWorkout as any)?.meta?.style || req.body?.goal || 'unknown');
       
       // Check if premium failed and kill switches are enabled
       if ((AXLE_DISABLE_SIMPLE || HOBH_FORCE_PREMIUM) && generator !== 'premium') {
