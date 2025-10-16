@@ -1389,6 +1389,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
+      if (!dbWorkout) {
+        throw new Error('Failed to insert workout into database');
+      }
+      
       console.log(`✅ Successfully inserted workout with ID: ${dbWorkout.id}`);
       
       // Return the DB row id for navigation
@@ -1659,6 +1663,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
+      if (!testWorkout) {
+        throw new Error('Failed to insert test workout');
+      }
+      
       console.log(`✅ Inserted test workout with ID: ${testWorkout.id}`);
       
       // Test listing workouts
@@ -1670,7 +1678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         testWorkout: {
           id: testWorkout.id,
           title: testWorkout.title,
-          created_at: testWorkout.created_at
+          createdAt: testWorkout.createdAt
         },
         totalWorkouts: workouts.length
       });
