@@ -8,6 +8,7 @@ import type { Movement } from '../../types/movements';
 import registryData from '../../data/movements.registry.json';
 import { STYLE_POLICIES } from '../config/stylePolicies';
 import type { StylePolicy } from '../config/stylePolicies';
+import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL } from '../../config/env';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -555,6 +556,22 @@ const ALLOWED_PATTERNS = [
  * AI is only responsible for coaching tips, not movement selection
  */
 async function generateCoachingNotes(blocks: any[]): Promise<string[]> {
+  // If no key or explicit local mode → synthesize deterministic notes
+  if (!HAS_OPENAI_KEY || PREMIUM_NOTES_MODE_LOCAL) {
+    console.log('🔧 Using deterministic notes (notes-only mode)');
+    return blocks.map((b: any) => {
+      const t = String(b.title || '');
+      if (/^EMOM/i.test(t)) return 'Hit consistent splits; 40–45s work, composure at minute marks.';
+      if (/^Every\s*\d:\d{2}\s*x\s*\d+/i.test(t)) return 'Quality first; steady pacing per interval, no misses.';
+      if (/^AMRAP/i.test(t)) return 'Sustainable pace; break before failure.';
+      if (/^For Time/i.test(t)) return 'Fast but controlled transitions; avoid redline early.';
+      if (b.kind === 'warmup') return 'For quality—tempo, positions, and ROM.';
+      if (b.kind === 'cooldown') return 'Down-regulate breathing; restore ROM.';
+      return 'Move well; align intent with block goal.';
+    });
+  }
+
+  // AI-generated notes when OpenAI key is available
   try {
     const context = JSON.stringify(
       blocks.map(b => ({
@@ -587,8 +604,18 @@ async function generateCoachingNotes(blocks: any[]): Promise<string[]> {
     const parsed = JSON.parse(response);
     return parsed.coaching_notes || [];
   } catch (error) {
-    console.warn('Failed to generate coaching notes:', error);
-    return []; // Graceful fallback - blocks already have basic notes
+    console.warn('Failed to generate AI coaching notes, falling back to deterministic notes:', error);
+    // Fallback to deterministic notes if AI fails
+    return blocks.map((b: any) => {
+      const t = String(b.title || '');
+      if (/^EMOM/i.test(t)) return 'Hit consistent splits; 40–45s work, composure at minute marks.';
+      if (/^Every\s*\d:\d{2}\s*x\s*\d+/i.test(t)) return 'Quality first; steady pacing per interval, no misses.';
+      if (/^AMRAP/i.test(t)) return 'Sustainable pace; break before failure.';
+      if (/^For Time/i.test(t)) return 'Fast but controlled transitions; avoid redline early.';
+      if (b.kind === 'warmup') return 'For quality—tempo, positions, and ROM.';
+      if (b.kind === 'cooldown') return 'Down-regulate breathing; restore ROM.';
+      return 'Move well; align intent with block goal.';
+    });
   }
 }
 
