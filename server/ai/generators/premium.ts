@@ -114,7 +114,7 @@ function enforceStylePolicy(
   if (badCat) {
     return {
       ok: false,
-      reason: `bad_category:${badCat.category}`,
+      reason: `category_mismatch:${badCat.category}`,
       offender: badCat.name
     };
   }
@@ -128,7 +128,7 @@ function enforceStylePolicy(
       if (!hit) {
         return {
           ok: false,
-          reason: `missing_required_group:${group.join('|')}`
+          reason: `oly_required_patterns:${group.join('|')}`
         };
       }
     }
@@ -140,7 +140,7 @@ function enforceStylePolicy(
     if (bad) {
       return {
         ok: false,
-        reason: `banned:${bad}`,
+        reason: `banned_exercise:${bad}`,
         offender: bad
       };
     }
@@ -152,7 +152,7 @@ function enforceStylePolicy(
     if (nonBB) {
       return {
         ok: false,
-        reason: `non_barbell:${nonBB.name}`,
+        reason: `barbell_only:${nonBB.name}`,
         offender: nonBB.name
       };
     }
@@ -164,7 +164,7 @@ function enforceStylePolicy(
     if (r < policy.require_loaded_ratio) {
       return {
         ok: false,
-        reason: `low_loaded_ratio:${r.toFixed(2)}`
+        reason: `loaded_ratio:${r.toFixed(2)}`
       };
     }
   }
@@ -2259,7 +2259,7 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     // Try auto-fix by swapping offenders with compliant registry matches
     const fixed = tryAutoFixByPolicy(sanitizedWorkout, REG, style, policyRes);
     if (!fixed) {
-      throw new Error(`style_violation:${policyRes.reason}`);
+      throw new Error(`policy:${policyRes.reason}`);
     }
     console.log(`✅ Style policy violation auto-fixed for ${style}`);
   }
