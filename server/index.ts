@@ -1,4 +1,5 @@
 // server/index.ts
+import './config/env';
 import express, { type Request, Response, NextFunction } from "express";
 import cors from 'cors';
 import { registerRoutes } from "./routes";
