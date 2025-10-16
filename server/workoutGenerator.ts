@@ -4,13 +4,11 @@ import { Category } from "../shared/schema";
 import { generatedWorkoutSchema } from "../shared/schema";
 import { generatePremiumWorkout, computeHardness } from "./ai/generators/premium";
 import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
+import { DISABLE_SIMPLE, DISABLE_MOCK, FORCE_PREMIUM } from './config/env';
 
 // Using gpt-4o model for reliable workout generation. Do not change this unless explicitly requested by the user
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
-
-// Force premium generator for CrossFit/HIIT and equipped workouts (default: true)
-const FORCE_PREMIUM = process.env.HOBH_FORCE_PREMIUM?.toLowerCase() !== 'false';
 
 // ===== HOBH: upgradeIntensity (hard mode) =====
 const ROTATION = ["DB Box Step-Overs","KB Swings","Wall Balls","Burpees"];
@@ -324,8 +322,12 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     hasReport: !!request.todaysReport
   });
 
-  // If no API key available, fall back to mock immediately
+  // If no API key available, check if we can fall back to mock
   if (!openai) {
+    if (DISABLE_MOCK || FORCE_PREMIUM) {
+      console.error('❌ No OpenAI API key available and mock generator is disabled');
+      throw new Error('no_openai_key_and_mock_disabled');
+    }
     console.log('No OpenAI API key available, using enhanced mock workout');
     const mockResult = generateMockWorkout(request) as any;
     mockResult.meta = {
@@ -488,9 +490,39 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
       
       result = validation.data;
     }
-  } catch (err) {
-    try { generatorUsed = 'simple'; result = await generateSimpleFallback(request); }
-    catch (err2) { generatorUsed = 'mock'; result = generateMockWorkout(request); }
+  } catch (err: any) {
+    // If we're hardening, DO NOT hide failures - fail loudly
+    if (DISABLE_SIMPLE || DISABLE_MOCK || FORCE_PREMIUM) {
+      console.error('❌ Premium generator failed in strict mode:', err.message);
+      err.message = `premium_failed: ${err.message}`;
+      throw err;
+    }
+
+    // Fallbacks only when flags allow
+    console.warn('⚠️ Premium generator failed, attempting fallbacks...', err.message);
+    
+    if (!DISABLE_SIMPLE) {
+      try {
+        console.log('🔄 Attempting simple fallback generator...');
+        generatorUsed = 'simple';
+        result = await generateSimpleFallback(request);
+      } catch (err2: any) {
+        console.error('❌ Simple generator also failed:', err2.message);
+        if (!DISABLE_MOCK) {
+          console.log('🔄 Falling back to mock generator...');
+          generatorUsed = 'mock';
+          result = generateMockWorkout(request);
+        } else {
+          throw new Error('simple_and_mock_disabled');
+        }
+      }
+    } else if (!DISABLE_MOCK) {
+      console.log('🔄 Simple generator disabled, using mock...');
+      generatorUsed = 'mock';
+      result = generateMockWorkout(request);
+    } else {
+      throw new Error('no_generator_available');
+    }
   }
 
   // attach meta/trace (seed, acceptance flags, generator)
