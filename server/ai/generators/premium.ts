@@ -1298,6 +1298,8 @@ function pickWarmup(req: WorkoutGenerationRequest): any {
   const equipment = req.context?.equipment || [];
   const hasBarbell = equipment.some(e => /barbell/i.test(e));
   
+  // Warm-up whitelist: PVC, empty-bar technique, mobility only
+  // No heavy compounds unless Empty Bar technique work
   return {
     kind: 'warmup',
     title: 'Dynamic Warm-Up',
@@ -1306,12 +1308,12 @@ function pickWarmup(req: WorkoutGenerationRequest): any {
       { exercise: 'Foam Roll', target: '2 min', notes: 'Upper back, lats, IT bands, quads', _source: 'warmup' },
       { exercise: 'Cat-Cow', target: '10 reps', notes: 'Spinal mobility, controlled breathing', _source: 'warmup' },
       { exercise: 'World\'s Greatest Stretch', target: '5/side', notes: 'Hip mobility, thoracic rotation', _source: 'warmup' },
-      { exercise: 'Jumping Jacks', target: '40 reps', notes: 'Elevate heart rate', _source: 'warmup' },
-      { exercise: 'Air Squat', target: '15 reps', notes: 'Full ROM, tempo', _source: 'warmup' },
-      { exercise: 'Push-Up', target: '10 reps', notes: 'Shoulder activation', _source: 'warmup' },
-      ...(hasBarbell ? [{ exercise: 'Barbell Complex', target: '5 reps each', notes: 'Deadlift, hang clean, front squat, press', _source: 'warmup' }] : [{ exercise: 'Inchworm', target: '8 reps', notes: 'Hamstring + shoulder prep', _source: 'warmup' }])
+      { exercise: 'PVC Pass-Through', target: '12 reps', notes: 'Shoulder mobility', _source: 'warmup' },
+      { exercise: 'Leg Swings', target: '10/leg', notes: 'Hip mobility prep', _source: 'warmup' },
+      { exercise: 'Arm Circles', target: '20 total', notes: 'Shoulder activation', _source: 'warmup' },
+      ...(hasBarbell ? [{ exercise: 'Empty Bar Technique', target: '5 reps each', notes: 'Deadlift, hang clean, front squat, press - bar only', _source: 'warmup' }] : [{ exercise: 'Inchworm', target: '8 reps', notes: 'Hamstring + shoulder prep', _source: 'warmup' }])
     ],
-    notes: 'Comprehensive mobility and activation'
+    notes: 'Mobility prep and empty-bar technique work'
   };
 }
 

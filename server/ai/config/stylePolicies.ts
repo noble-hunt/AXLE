@@ -15,9 +15,9 @@ export interface StylePolicy {
 export const STYLE_POLICIES: Record<string, StylePolicy> = {
   olympic_weightlifting: {
     allowed_categories: ['olympic_weightlifting'],
-    required_any: [['olympic_snatch', 'olympic_cleanjerk']], // At least ONE of these patterns must appear
+    required_any: [['olympic_snatch'], ['olympic_cleanjerk']], // Must have BOTH: a snatch AND a clean & jerk pattern
     banned_regex: [/db snatch/i, /thruster/i, /bear crawl/i, /star jump/i, /burpee/i, /mountain climber/i],
-    require_loaded_ratio: 0.85,
+    require_loaded_ratio: 0.90,
     require_barbell_only: true
   },
   powerlifting: {
