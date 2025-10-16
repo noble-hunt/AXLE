@@ -18,7 +18,7 @@ export function registerSimulateRoutes(app: Express) {
    * Simulate workout generation without persisting to database
    * Used for preview in the workout generator wizard
    */
-  app.post("/api/workouts/simulate", requireAuth, async (req, res) => {
+  app.post("/api/workouts/simulate", requireAuth, async (req, res, next) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
@@ -48,7 +48,7 @@ export function registerSimulateRoutes(app: Express) {
       // Extract metadata
       const meta = (generatedWorkout as any)?.meta || {};
       
-      // Set debug headers (always visible in DevTools)
+      // Set debug headers for easy tracing (always visible in DevTools)
       res.setHeader('X-AXLE-Generator', meta.generator || 'unknown');
       res.setHeader('X-AXLE-Style', meta.style || validatedData.archetype || 'unknown');
       res.setHeader('X-AXLE-Orchestrator', GENERATOR_STAMP);
@@ -60,7 +60,7 @@ export function registerSimulateRoutes(app: Express) {
       });
       
       // Return workout without database persistence
-      res.json({
+      return res.json({
         ok: true,
         workout: {
           id: null, // No persistence for simulation
@@ -69,37 +69,8 @@ export function registerSimulateRoutes(app: Express) {
         },
         meta
       });
-    } catch (error: any) {
-      console.error('[AXLE /simulate] Error:', error);
-      
-      // Handle Zod validation errors
-      if (error.name === 'ZodError') {
-        return res.status(400).json({
-          ok: false,
-          error: {
-            message: "Invalid request data",
-            details: error.errors
-          }
-        });
-      }
-      
-      // Handle premium generation failures (orchestrator will have clear error messages)
-      if (error.message?.includes('premium_failed:')) {
-        return res.status(502).json({
-          ok: false,
-          error: 'premium_failed',
-          detail: error.message
-        });
-      }
-      
-      // Generic error
-      res.status(500).json({
-        ok: false,
-        error: {
-          message: "Failed to simulate workout",
-          details: error.message
-        }
-      });
+    } catch (e) {
+      return next(e);
     }
   });
 }

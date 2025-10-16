@@ -17,7 +17,7 @@ export function registerGenerateRoutes(app: Express) {
    * Generate and save workout to database
    * Used for final generation in the workout generator wizard
    */
-  app.post("/api/workouts/generate", requireAuth, async (req, res) => {
+  app.post("/api/workouts/generate", requireAuth, async (req, res, next) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
@@ -47,7 +47,7 @@ export function registerGenerateRoutes(app: Express) {
       // Extract metadata
       const meta = (generatedWorkout as any)?.meta || {};
       
-      // Set debug headers (always visible in DevTools)
+      // Set debug headers for easy tracing (always visible in DevTools)
       res.setHeader('X-AXLE-Generator', meta.generator || 'unknown');
       res.setHeader('X-AXLE-Style', meta.style || validatedData.archetype || 'unknown');
       res.setHeader('X-AXLE-Orchestrator', GENERATOR_STAMP);
@@ -86,7 +86,7 @@ export function registerGenerateRoutes(app: Express) {
         seed: seedString
       });
       
-      res.json({
+      return res.json({
         ok: true,
         workout: {
           id: savedWorkout.id,
@@ -95,37 +95,8 @@ export function registerGenerateRoutes(app: Express) {
         },
         meta
       });
-    } catch (error: any) {
-      console.error('[AXLE /generate] Error:', error);
-      
-      // Handle Zod validation errors
-      if (error.name === 'ZodError') {
-        return res.status(400).json({
-          ok: false,
-          error: {
-            message: "Invalid request data",
-            details: error.errors
-          }
-        });
-      }
-      
-      // Handle premium generation failures (orchestrator will have clear error messages)
-      if (error.message?.includes('premium_failed:')) {
-        return res.status(502).json({
-          ok: false,
-          error: 'premium_failed',
-          detail: error.message
-        });
-      }
-      
-      // Generic error
-      res.status(500).json({
-        ok: false,
-        error: {
-          message: "Failed to generate workout",
-          details: error.message
-        }
-      });
+    } catch (e) {
+      return next(e);
     }
   });
 }
