@@ -15,12 +15,18 @@ NODE_ENV=development
 
 # Optional: Force local coaching notes (no OpenAI calls)
 # HOBH_PREMIUM_NOTES_MODE=local
+
+# Optional: Enable strict policy enforcement (throw on violations instead of auto-repair)
+# HOBH_PREMIUM_STRICT=1
 ```
 
 **Important Notes:**
 - In `NODE_ENV=development`, premium-only mode is **automatically enabled** (no fallbacks)
 - Kill switches default to `true` in development: `AXLE_DISABLE_SIMPLE=1`, `HOBH_FORCE_PREMIUM=true`, `AXLE_DISABLE_MOCK=1`
 - Setting `HOBH_PREMIUM_NOTES_MODE=local` skips OpenAI for coaching notes (uses deterministic fallback)
+- **Policy enforcement modes:**
+  - **Repair mode (default)**: Policy violations trigger auto-fix attempts and log to `workout.meta.policy_repairs[]`
+  - **Strict mode**: Set `HOBH_PREMIUM_STRICT=1` to throw errors on policy violations (original behavior)
 
 ### 2. Verify Configuration
 
@@ -42,7 +48,8 @@ Expected output in development:
   "AXLE_DISABLE_SIMPLE": true,
   "AXLE_DISABLE_MOCK": true,
   "HOBH_FORCE_PREMIUM": true,
-  "HOBH_PREMIUM_NOTES_MODE": null
+  "HOBH_PREMIUM_NOTES_MODE": null,
+  "HOBH_PREMIUM_STRICT": false
 }
 ```
 
@@ -99,15 +106,40 @@ When the orchestrator runs successfully, look for:
 [WG] premium ok { stamp: 'WG-ORCH@1.0.1', style: 'olympic_weightlifting' }
 ```
 
-### Policy Violations
+### Policy Violations (Strict Mode)
 
-If premium generation fails due to policy violations:
+In strict mode (`HOBH_PREMIUM_STRICT=1`), if premium generation fails due to policy violations:
 
 ```
 [WG] premium_failed { stamp: 'WG-ORCH@1.0.1', style: 'olympic_weightlifting', err: 'policy:barbell_only:DB Snatch' }
 [WG] premium_failed { stamp: 'WG-ORCH@1.0.1', style: 'crossfit', err: 'policy:loaded_ratio:0.45' }
 [WG] premium_failed { stamp: 'WG-ORCH@1.0.1', style: 'olympic_weightlifting', err: 'policy:oly_required_patterns:snatch|clean_and_jerk' }
 [WG] premium_failed { stamp: 'WG-ORCH@1.0.1', style: 'crossfit', err: 'policy:banned_exercise:Star Jump' }
+```
+
+### Policy Repairs (Default Mode)
+
+In repair mode (default, `HOBH_PREMIUM_STRICT=false`), policy violations are auto-fixed and logged:
+
+```
+[WG] premium ok { stamp: 'WG-ORCH@1.0.1', style: 'olympic_weightlifting', repairs: 1 }
+```
+
+Repairs are logged in the workout response under `meta.policy_repairs`:
+
+```json
+{
+  "ok": true,
+  "workout": { ... },
+  "meta": {
+    "policy_repairs": [
+      {
+        "code": "barbell_only",
+        "details": "Swapped 'DB Snatch' for barbell movement"
+      }
+    ]
+  }
+}
 ```
 
 ### Environment Configuration
@@ -178,6 +210,9 @@ AXLE_DISABLE_SIMPLE=1
 
 # Disable mock generator fallback (default: true in dev)
 AXLE_DISABLE_MOCK=1
+
+# Enable strict policy enforcement - throw on violations instead of auto-repair (default: false)
+HOBH_PREMIUM_STRICT=1
 
 # Add debug stamp to workout titles (optional)
 DEBUG_PREMIUM_STAMP=1
