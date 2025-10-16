@@ -1,30 +1,36 @@
 // server/config/env.ts
-// Load .env **before any other imports**
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-// Mask helper
-const mask = (v?: string | null) =>
-  v ? `${v.slice(0, 6)}…${v.slice(-4)}` : null;
+const mask = (v?: string | null) => (v ? `${v.slice(0,6)}…${v.slice(-4)}` : null);
+const asBool = (v?: string | null) => v === '1' || v === 'true';
 
-// Boolean helper - accepts '1' or 'true'
-const asBool = (v?: string) => v === '1' || v === 'true';
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const DEV = NODE_ENV !== 'production';
 
-// Keys: OpenAI (direct) or Azure OpenAI
+// Keys
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
 export const HAS_OPENAI_KEY = Boolean(OPENAI_API_KEY || AZURE_OPENAI_API_KEY);
 
-// Feature flags
-export const FORCE_PREMIUM = asBool(process.env.HOBH_FORCE_PREMIUM);
-export const DISABLE_SIMPLE = asBool(process.env.AXLE_DISABLE_SIMPLE);
-export const DISABLE_MOCK = asBool(process.env.AXLE_DISABLE_MOCK);
+// Flags from env
+let FORCE_PREMIUM = asBool(process.env.HOBH_FORCE_PREMIUM);
+let DISABLE_SIMPLE = asBool(process.env.AXLE_DISABLE_SIMPLE);
+let DISABLE_MOCK   = asBool(process.env.AXLE_DISABLE_MOCK);
 
-// Notes-only mode for premium (run premium without OpenAI)
+// Development safety defaults (force premium; block fallbacks)
+if (DEV) {
+  if (!FORCE_PREMIUM)  FORCE_PREMIUM  = true;
+  if (!DISABLE_SIMPLE) DISABLE_SIMPLE = true;
+  if (!DISABLE_MOCK)   DISABLE_MOCK   = true;
+}
+
+export { FORCE_PREMIUM, DISABLE_SIMPLE, DISABLE_MOCK };
+
 export const PREMIUM_NOTES_MODE_LOCAL = process.env.HOBH_PREMIUM_NOTES_MODE === 'local';
 
-// Export for debugging - shows parsed boolean values
 export const ENV_DEBUG = {
+  NODE_ENV, DEV,
   HAS_OPENAI_KEY,
   OPENAI_KEY_SAMPLE: mask(OPENAI_API_KEY || AZURE_OPENAI_API_KEY || ''),
   AXLE_DISABLE_SIMPLE: DISABLE_SIMPLE,

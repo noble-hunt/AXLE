@@ -1,0 +1,70 @@
+Normalize goal/style/focus and map to pattern packs
+
+Edit: server/workoutGenerator.ts
+
+import { FORCE_PREMIUM, DISABLE_SIMPLE, DISABLE_MOCK } from './config/env';
+
+export const GENERATOR_STAMP = 'WG-ORCH@1.0.1';
+
+// Canonical style resolver
+function resolveStyle(input: any): string {
+  const raw = String(input?.style || input?.goal || input?.focus || 'mixed').trim().toLowerCase();
+  const map: Record<string,string> = {
+    'crossfit': 'crossfit',
+    'cf': 'crossfit',
+    'olympic': 'olympic_weightlifting',
+    'olympic_weightlifting': 'olympic_weightlifting',
+    'oly': 'olympic_weightlifting',
+    'powerlifting': 'powerlifting',
+    'pl': 'powerlifting',
+    'bb_full_body': 'bb_full_body',
+    'bb_upper': 'bb_upper',
+    'bb_lower': 'bb_lower',
+    'aerobic': 'aerobic',
+    'conditioning': 'conditioning',
+    'strength': 'strength',
+    'endurance': 'endurance',
+    'gymnastics': 'gymnastics',
+    'mobility': 'mobility',
+    'mixed': 'mixed',
+  };
+  return map[raw] || raw;
+}
+
+export async function generateWorkout(req: any) {
+  const style = resolveStyle(req);
+  const request = { ...req, style, goal: style, focus: style }; // normalize
+  console.warn('[WG] start', { stamp: GENERATOR_STAMP, style, minutes: request.durationMin });
+
+  try {
+    const out = await premiumPath(request);
+    console.warn('[WG] premium ok', { stamp: GENERATOR_STAMP, style });
+    return out;
+  } catch (e:any) {
+    console.error('[WG] premium_failed', { stamp: GENERATOR_STAMP, style, err: String(e?.message || e) });
+    if (DISABLE_SIMPLE || DISABLE_MOCK || FORCE_PREMIUM) {
+      e.message = `premium_failed:${e.message}`;
+      throw e;
+    }
+  }
+
+  if (!DISABLE_SIMPLE) {
+    try {
+      const s = await simplePath(request);
+      console.warn('[WG] simple ok', { stamp: GENERATOR_STAMP, style });
+      return s;
+    } catch (e:any) {
+      console.error('[WG] simple_failed', { stamp: GENERATOR_STAMP, style, err: String(e?.message || e) });
+    }
+  }
+
+  if (!DISABLE_MOCK) {
+    console.warn('[WG] mock_fallback', { stamp: GENERATOR_STAMP, style });
+    return await mockPath(request);
+  }
+
+  throw new Error('no_generator_available');
+}
+
+
+This removes style ambiguity (your curl used "goal":"olympic_weightlifting"; now it’s normalized for the premium pack lookup).
