@@ -33,7 +33,7 @@ NODE_ENV=development
 Check effective environment flags:
 
 ```bash
-curl http://localhost:5000/api/_debug/ai | jq .
+curl -s http://localhost:5000/api/_debug/ai | jq .
 ```
 
 Expected output in development:
@@ -50,6 +50,102 @@ Expected output in development:
   "HOBH_FORCE_PREMIUM": true,
   "HOBH_PREMIUM_NOTES_MODE": null,
   "HOBH_PREMIUM_STRICT": false
+}
+```
+
+---
+
+## Quick CLI Inspection
+
+These commands help inspect both response headers and body without `jq` crashes.
+
+**Note:** `/api/workouts/generate` and `/api/workouts/simulate` require authentication. Use these from an authenticated browser session or add test credentials.
+
+### 1. Verify Environment Flags
+
+```bash
+curl -s http://localhost:5000/api/_debug/ai | jq
+```
+
+### 2. Generate Olympic Workout (Raw JSON with Headers)
+
+See both headers and body, works even on error:
+
+```bash
+curl -s -D - http://localhost:5000/api/workouts/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"goal":"olympic_weightlifting","durationMin":30,"intensity":6,"equipment":["barbell"],"seed":"UIREPRO"}' \
+  | sed -n '1,999p'
+```
+
+Headers you should see:
+- `X-AXLE-Generator: premium`
+- `X-AXLE-Style: olympic_weightlifting`
+- `X-AXLE-Orchestrator: WG-ORCH@1.0.2`
+
+### 3. Pretty-Print Friendly Summary
+
+Safe even if workout is missing (error responses):
+
+```bash
+curl -s http://localhost:5000/api/workouts/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"goal":"olympic_weightlifting","durationMin":30,"intensity":6,"equipment":["barbell"],"seed":"UIREPRO"}' \
+  | jq '{ok, error, code, stamp, style, meta:(.workout?.meta), first12:(.workout?.sets[0:12] // [] | map({ex:.exercise, hdr:.is_header, dur:.duration}))}'
+```
+
+**Expected Success Response:**
+
+```json
+{
+  "ok": true,
+  "error": null,
+  "code": null,
+  "stamp": null,
+  "style": null,
+  "meta": {
+    "generator": "premium",
+    "style": "olympic_weightlifting",
+    "stamp": "WG-ORCH@1.0.2",
+    "policy_repairs": []
+  },
+  "first12": [
+    { "ex": "Warm-up", "hdr": true, "dur": 360 },
+    { "ex": "Barbell Snatch", "hdr": null, "dur": 30 }
+  ]
+}
+```
+
+**Expected Error Response (Repair Mode):**
+
+In repair mode (`HOBH_PREMIUM_STRICT=false`), policy violations are auto-fixed and logged:
+
+```json
+{
+  "ok": true,
+  "meta": {
+    "policy_repairs": [
+      {
+        "code": "barbell_only",
+        "details": "Swapped 'DB Snatch' for barbell movement"
+      }
+    ]
+  }
+}
+```
+
+**Expected Error Response (Strict Mode):**
+
+In strict mode (`HOBH_PREMIUM_STRICT=1`), policy violations throw errors:
+
+```json
+{
+  "ok": false,
+  "error": "premium_failed:policy:oly_required_patterns",
+  "code": "premium_failed",
+  "hint": "Premium was forced; fallbacks are disabled in development.",
+  "style": "olympic_weightlifting",
+  "stamp": "WG-ORCH@1.0.2"
 }
 ```
 
