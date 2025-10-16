@@ -5,9 +5,10 @@ import { generatedWorkoutSchema } from "../shared/schema";
 import { generatePremiumWorkout, computeHardness } from "./ai/generators/premium";
 import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
 import { DISABLE_SIMPLE, DISABLE_MOCK, FORCE_PREMIUM } from './config/env';
+import { normalizeStyle } from './lib/style';
 
 // Orchestrator version stamp for debugging
-export const GENERATOR_STAMP = 'WG-ORCH@1.0.2';
+export const GENERATOR_STAMP = 'WG-ORCH@1.0.3';
 
 // Canonical style resolver - normalizes goal/style/focus to pattern pack keys
 function resolveStyle(input: any): string {
@@ -341,8 +342,9 @@ export function convertPremiumToGenerated(premium: any): any {
 }
 
 export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
-  // Normalize goal/style/focus to canonical style
-  const style = resolveStyle(request);
+  // Normalize goal/style/focus to canonical style (backstop defense-in-depth)
+  const req = request as any;
+  const style = normalizeStyle(req?.style ?? req?.goal ?? req?.focus);
   const normalizedRequest = { ...request, style, goal: style, focus: style };
   
   console.warn('[WG] start', { 
