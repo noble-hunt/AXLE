@@ -12,6 +12,9 @@ import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL } from '../../config/env';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Strictness flag: when true, throw on policy violations; when false, log repairs and continue
+const PREMIUM_STRICT = process.env.HOBH_PREMIUM_STRICT === '1' || process.env.HOBH_PREMIUM_STRICT === 'true';
+
 // Load movement registry into a Map for fast lookup
 const REG = new Map(registryData.map((m: any) => [m.id, m]));
 
@@ -30,6 +33,23 @@ function isBannedInMain(m: any) {
 // Helper: Check if equipment is loaded
 function isLoadedEquip(e: string) {
   return ['barbell', 'dumbbell', 'kettlebell', 'machine', 'sandbag', 'sled', 'cable'].includes(e);
+}
+
+/**
+ * Policy failure handler: either throw (if strict) or log repair to meta
+ */
+function policyFailOrRepair(workout: any, code: string, details?: any) {
+  if (PREMIUM_STRICT) {
+    const e: any = new Error(`policy:${code}`);
+    e.policy = code;
+    e.details = details;
+    throw e;
+  } else {
+    workout.meta = workout.meta || {};
+    workout.meta.policy_repairs = workout.meta.policy_repairs || [];
+    workout.meta.policy_repairs.push({ code, details, timestamp: new Date().toISOString() });
+    console.log(`🔧 Policy repair logged: ${code}${details ? ` (${JSON.stringify(details)})` : ''}`);
+  }
 }
 
 // Helper: Compute loaded ratio on main blocks only (excluding warmup/cooldown)
@@ -2261,9 +2281,23 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     // Try auto-fix by swapping offenders with compliant registry matches
     const fixed = tryAutoFixByPolicy(sanitizedWorkout, REG, style, policyRes);
     if (!fixed) {
-      throw new Error(`policy:${policyRes.reason}`);
+      // Policy violation couldn't be auto-fixed: either throw (strict) or log repair and continue
+      policyFailOrRepair(
+        sanitizedWorkout,
+        policyRes.reason || 'unknown_policy_violation',
+        { style, offender: policyRes.offender, auto_fix_attempted: true, auto_fix_succeeded: false }
+      );
+    } else {
+      console.log(`✅ Style policy violation auto-fixed for ${style}`);
+      // Log successful auto-fix as a repair (in non-strict mode)
+      if (!PREMIUM_STRICT) {
+        policyFailOrRepair(
+          sanitizedWorkout,
+          `${policyRes.reason}_auto_fixed`,
+          { style, offender: policyRes.offender, auto_fix_attempted: true, auto_fix_succeeded: true }
+        );
+      }
     }
-    console.log(`✅ Style policy violation auto-fixed for ${style}`);
   }
   
   // Recompute main_loaded_ratio after substitutions
