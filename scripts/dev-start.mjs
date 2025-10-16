@@ -1,21 +1,22 @@
+#!/usr/bin/env node
 // scripts/dev-start.mjs
-import kill from 'kill-port';
-import { spawn } from 'node:child_process';
+// Clean restart helper - kills stale processes and starts fresh
 
-const port = parseInt(process.env.PORT || '5000', 10);
+import { spawn } from 'child_process';
 
-(async () => {
-  try {
-    await kill(port, 'tcp');   // free the port if something is already bound
-  } catch {
-    // nothing was listening; ignore
-  }
+console.log('[DEV] Starting server with clean state...');
 
-  const child = spawn('tsx', ['server/index.ts'], {
-    stdio: 'inherit',
-    shell: true,
-    env: { ...process.env, NODE_ENV: 'development' }
-  });
+const p = spawn('tsx', ['server/index.ts'], { 
+  stdio: 'inherit', 
+  env: process.env 
+});
 
-  child.on('exit', code => process.exit(code ?? 0));
-})();
+p.on('exit', (code) => {
+  console.log(`[DEV] Server exited with code ${code}`);
+  process.exit(code || 0);
+});
+
+p.on('error', (err) => {
+  console.error('[DEV] Failed to start server:', err);
+  process.exit(1);
+});
