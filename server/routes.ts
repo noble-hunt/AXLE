@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { ENV_DEBUG } from './config/env';
 import { 
   insertWorkoutSchema, 
   insertPRSchema, 
@@ -138,6 +139,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error instanceof Error ? error.message : "Unknown error"
       });
     }
+  });
+
+  // Debug endpoint to verify AI configuration and environment flags
+  app.get('/api/_debug/ai', (_req, res) => {
+    res.json({ ok: true, ...ENV_DEBUG });
   });
 
   // Dev route for simulating week workout plans
