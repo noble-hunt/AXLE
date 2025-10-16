@@ -363,6 +363,168 @@ export function sanitizeWorkout(workout: any, req: any, pack: PatternPack, seed:
   return workout;
 }
 
+/**
+ * Minimal repair helper: Inject Olympic required blocks
+ * Ensures at least one snatch and one clean&jerk barbell block in mains
+ */
+function injectOlympicRequiredBlocks(workout: any, seed: string) {
+  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+  const items = mains.flatMap((b: any) => b.items || []);
+  
+  // Check if we have snatch and clean&jerk patterns
+  const hasSnatch = items.some((it: any) => {
+    const mv = REG.get(it.registry_id || '');
+    return mv && mv.patterns?.includes('snatch');
+  });
+  
+  const hasCleanJerk = items.some((it: any) => {
+    const mv = REG.get(it.registry_id || '');
+    return mv && (mv.patterns?.includes('clean') || mv.patterns?.includes('jerk'));
+  });
+  
+  // Inject missing blocks
+  if (!hasSnatch) {
+    const snatchMovements = queryMovements({
+      categories: ['olympic_weightlifting'],
+      patterns: ['snatch'],
+      equipment: ['barbell'],
+      limit: 1,
+      seed: `${seed}-snatch-inject`
+    });
+    
+    if (snatchMovements.length > 0) {
+      mains.unshift({
+        kind: 'strength',
+        title: 'Every 2:00 x 7',
+        time_min: 14,
+        items: [{
+          registry_id: snatchMovements[0].id,
+          exercise: snatchMovements[0].name,
+          scheme: { reps: 2, rpe: 'Heavy Single' },
+          notes: '(injected for Olympic pattern requirement)'
+        }]
+      });
+      console.log(`🔧 Injected snatch block: ${snatchMovements[0].name}`);
+    }
+  }
+  
+  if (!hasCleanJerk) {
+    const cjMovements = queryMovements({
+      categories: ['olympic_weightlifting'],
+      patterns: ['clean', 'jerk'],
+      equipment: ['barbell'],
+      limit: 2,
+      seed: `${seed}-cj-inject`
+    });
+    
+    if (cjMovements.length >= 2) {
+      mains.push({
+        kind: 'strength',
+        title: 'Every 2:00 x 7',
+        time_min: 14,
+        items: cjMovements.slice(0, 2).map(mv => ({
+          registry_id: mv.id,
+          exercise: mv.name,
+          scheme: { reps: 1, rpe: 'Heavy Single' },
+          notes: '(injected for Olympic pattern requirement)'
+        }))
+      });
+      console.log(`🔧 Injected clean&jerk block: ${cjMovements.map(m => m.name).join(', ')}`);
+    }
+  }
+}
+
+/**
+ * Minimal repair helper: Uplift loaded ratio
+ * Replace BW main items with loaded movements until target ratio is met
+ */
+function upliftLoadedRatio(workout: any, targetRatio: number, equipment: string[], seed: string) {
+  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+  let currentRatio = loadedRatioMainOnly(workout.blocks, REG);
+  
+  if (currentRatio >= targetRatio) {
+    console.log(`✅ Loaded ratio already met: ${(currentRatio * 100).toFixed(0)}% >= ${(targetRatio * 100).toFixed(0)}%`);
+    return;
+  }
+  
+  console.log(`🔄 Uplifting loaded ratio from ${(currentRatio * 100).toFixed(0)}% to ${(targetRatio * 100).toFixed(0)}%...`);
+  
+  for (const block of mains) {
+    for (let i = 0; i < (block.items || []).length; i++) {
+      const item = block.items[i];
+      const mv = REG.get(item.registry_id || '');
+      
+      // Skip if already loaded
+      if (mv && mv.equipment?.some(isLoadedEquip)) continue;
+      
+      // Find a loaded replacement
+      const replacements = queryMovements({
+        patterns: mv?.patterns || ['squat', 'press', 'hinge', 'pull'],
+        equipment,
+        limit: 5,
+        seed: `${seed}-uplift-${i}`
+      });
+      
+      const loadedReplacement = replacements.find(m => m.equipment.some(isLoadedEquip));
+      if (loadedReplacement) {
+        console.log(`🔄 Uplift: "${item.exercise}" → "${loadedReplacement.name}"`);
+        item.exercise = loadedReplacement.name;
+        item.registry_id = loadedReplacement.id;
+        item.notes = ((item.notes || '') + ' (loaded uplift)').trim();
+        
+        // Recompute ratio
+        currentRatio = loadedRatioMainOnly(workout.blocks, REG);
+        if (currentRatio >= targetRatio) {
+          console.log(`✅ Target loaded ratio achieved: ${(currentRatio * 100).toFixed(0)}%`);
+          return;
+        }
+      }
+    }
+  }
+  
+  console.log(`⚠️ Uplift complete but ratio still below target: ${(currentRatio * 100).toFixed(0)}%`);
+}
+
+/**
+ * Minimal repair helper: Enforce barbell-only
+ * Replace DB/KB/Bodyweight items in mains with barbell equivalents
+ */
+function enforceBarbellOnly(workout: any, seed: string) {
+  const mains = workout.blocks.filter((b: any) => !['warmup', 'cooldown'].includes(b.kind));
+  let replacedCount = 0;
+  
+  for (const block of mains) {
+    for (let i = 0; i < (block.items || []).length; i++) {
+      const item = block.items[i];
+      const mv = REG.get(item.registry_id || '');
+      
+      // Skip if already barbell
+      if (mv && mv.equipment?.includes('barbell')) continue;
+      
+      // Find barbell replacement with similar pattern
+      const replacements = queryMovements({
+        patterns: mv?.patterns || ['squat', 'press', 'hinge', 'pull'],
+        equipment: ['barbell'],
+        limit: 5,
+        seed: `${seed}-barbell-${i}`
+      });
+      
+      if (replacements.length > 0) {
+        const replacement = replacements[0];
+        console.log(`🔄 Barbell-only: "${item.exercise}" → "${replacement.name}"`);
+        item.exercise = replacement.name;
+        item.registry_id = replacement.id;
+        item.notes = ((item.notes || '') + ' (barbell-only fix)').trim();
+        replacedCount++;
+      }
+    }
+  }
+  
+  if (replacedCount > 0) {
+    console.log(`✅ Enforced barbell-only: ${replacedCount} movements replaced`);
+  }
+}
+
 // --- Time fitter: aligns block minutes to requested duration within ±5% ---
 function fitBlocksToDuration(blocks: any[], reqDurMin: number, warmupMin: number, cooldownMin: number) {
   const mains = blocks.filter(b => !['warmup','cooldown'].includes(b.kind));
