@@ -7,7 +7,32 @@ import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
 import { DISABLE_SIMPLE, DISABLE_MOCK, FORCE_PREMIUM } from './config/env';
 
 // Orchestrator version stamp for debugging
-export const GENERATOR_STAMP = 'WG-ORCH@1.0.0';
+export const GENERATOR_STAMP = 'WG-ORCH@1.0.1';
+
+// Canonical style resolver - normalizes goal/style/focus to pattern pack keys
+function resolveStyle(input: any): string {
+  const raw = String(input?.style || input?.goal || input?.focus || 'mixed').trim().toLowerCase();
+  const map: Record<string,string> = {
+    'crossfit': 'crossfit',
+    'cf': 'crossfit',
+    'olympic': 'olympic_weightlifting',
+    'olympic_weightlifting': 'olympic_weightlifting',
+    'oly': 'olympic_weightlifting',
+    'powerlifting': 'powerlifting',
+    'pl': 'powerlifting',
+    'bb_full_body': 'bb_full_body',
+    'bb_upper': 'bb_upper',
+    'bb_lower': 'bb_lower',
+    'aerobic': 'aerobic',
+    'conditioning': 'conditioning',
+    'strength': 'strength',
+    'endurance': 'endurance',
+    'gymnastics': 'gymnastics',
+    'mobility': 'mobility',
+    'mixed': 'mixed',
+  };
+  return map[raw] || raw;
+}
 
 // Using gpt-4o model for reliable workout generation. Do not change this unless explicitly requested by the user
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
@@ -316,237 +341,84 @@ export function convertPremiumToGenerated(premium: any): any {
 }
 
 export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
+  // Normalize goal/style/focus to canonical style
+  const style = resolveStyle(request);
+  const normalizedRequest = { ...request, style, goal: style, focus: style };
+  
   console.warn('[WG] start', { 
     stamp: GENERATOR_STAMP, 
-    style: (request as any).goal || (request as any).style, 
-    minutes: (request as any).durationMin || request.duration,
-    category: request.category,
-    intensity: request.intensity,
-    prCount: request.recentPRs?.length || 0,
-    workoutCount: request.lastWorkouts?.length || 0,
-    hasReport: !!request.todaysReport
+    style, 
+    minutes: (normalizedRequest as any).durationMin || normalizedRequest.duration,
+    category: normalizedRequest.category,
+    intensity: normalizedRequest.intensity
   });
 
-  // If no API key available, check if we can fall back to mock
-  if (!openai) {
-    if (DISABLE_MOCK || FORCE_PREMIUM) {
-      console.error('❌ No OpenAI API key available and mock generator is disabled');
-      throw new Error('no_openai_key_and_mock_disabled');
-    }
-    console.log('No OpenAI API key available, using enhanced mock workout');
-    const mockResult = generateMockWorkout(request) as any;
-    mockResult.meta = {
-      ...mockResult.meta,
-      generator: 'mock',
-      acceptance: {},
-      seed: (request as any).seed || Math.random().toString(16).slice(2, 10)
-    };
-    return mockResult;
-  }
-
-  // ===== HOBH: Style resolver for new workout focuses =====
-  function resolveStyle(goal: string) {
-    const g = (goal || '').toLowerCase();
-    if (['crossfit', 'mixed'].includes(g))           return { engine: 'premium', style: 'crossfit' };
-    if (g === 'olympic_weightlifting')               return { engine: 'premium', style: 'olympic_weightlifting' };
-    if (g === 'powerlifting')                        return { engine: 'premium', style: 'powerlifting' };
-    if (g === 'bb_full_body')                        return { engine: 'premium', style: 'bb_full_body' };
-    if (g === 'bb_upper')                            return { engine: 'premium', style: 'bb_upper' };
-    if (g === 'bb_lower')                            return { engine: 'premium', style: 'bb_lower' };
-    if (g === 'aerobic' || g === 'cardio')           return { engine: 'premium', style: 'aerobic' };
-    if (g === 'gymnastics')                          return { engine: 'premium', style: 'gymnastics' };
-    if (g === 'mobility')                            return { engine: 'premium', style: 'mobility' };
-    if (['strength', 'conditioning', 'endurance'].includes(g)) return { engine: 'premium', style: g };
-    return { engine: 'simple', style: g };
-  }
-
-  // ===== HOBH: generator selection (forced premium for CF/HIIT or any DB/KB/BB) =====
-  const goalStr = String((request as any).goal || (request as any).focus || '').toLowerCase();
-  const { engine, style } = resolveStyle(goalStr);
-  (request as any).style = style;  // attach for downstream (premium generator)
-  console.log(`🎨 Style resolved: goal="${goalStr}" → engine="${engine}", style="${style}"`);
-  
-  const hasLoadEq = ((request as any).equipment || []).some((e: string) => /(barbell|dumbbell|kettlebell)/i.test(e));
-  const wantsPremium = engine === 'premium' || hasLoadEq;
-
-  let generatorUsed: 'premium'|'simple'|'mock' = 'premium';
-  let result: any;
-
+  // Try premium generator first
   try {
-    if (wantsPremium) {
-      // Try premium generator
-      const equipment = (request as any).equipment || ['barbell', 'dumbbell', 'kettlebell', 'bike', 'rower'];
-      console.log('🎯 Using premium workout generator with warm-up/cool-down');
-      const premiumRequest: WorkoutGenerationRequest = {
-        category: request.category,
-        duration: request.duration,
-        intensity: request.intensity,
-        context: {
-          yesterday: request.lastWorkouts?.[0] ? {
-            category: request.lastWorkouts[0].category,
-            intensity: request.lastWorkouts[0].intensity
-          } : undefined,
-          health_snapshot: request.todaysReport ? {
-            hrv: undefined,
-            resting_hr: undefined,
-            sleep_score: request.todaysReport.sleep * 10,
-            stress_flag: request.todaysReport.stress > 7
-          } : undefined,
-          equipment,
-          constraints: [],
-          goals: ['general_fitness'],
-          focus: (request as any).style || (request as any).focus,
-          categories_for_mixed: (request as any).categories_for_mixed
-        }
-      };
-      
-      console.warn('[WG] → premium', {
-        stamp: GENERATOR_STAMP,
-        style: (request as any).style,
-        goal: (request as any).goal,
-        duration: (request as any).duration_min || (request as any).durationMin,
-        equip: (request as any).equipment
-      });
-      
-      const premiumWorkout = await generatePremiumWorkout(premiumRequest, (request as any).seed);
-      
-      // Apply intensity upgrader (post-generation, pre-conversion)
-      const readiness = { sleep_score: request.todaysReport?.sleep ? request.todaysReport.sleep * 10 : undefined };
-      console.log('🔧 Running upgradeIntensity with equipment:', equipment, 'readiness:', readiness);
-      const upgradedWorkout = upgradeIntensity(premiumWorkout, equipment, readiness);
-      console.log('✅ Intensity upgrade complete. Hardness:', upgradedWorkout.variety_score, 'hardness_ok:', upgradedWorkout.acceptance_flags?.hardness_ok);
-      
-      result = convertPremiumToGenerated(upgradedWorkout);
-      // Bubble meta to top-level
-      result.meta = upgradedWorkout.meta || result.meta || {};
-      console.warn('[WG] premium ok', { stamp: GENERATOR_STAMP });
-    } else {
-      generatorUsed = 'simple';
-      const prompt = createPromptTemplate(request);
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system", 
-            content: "You are AXLE, an expert fitness planner. Always respond with valid JSON matching the exact schema provided. No additional text or markdown formatting."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 1500,
-        temperature: 0.7,
-      });
-
-      const aiResponse = JSON.parse(response.choices[0].message.content || '{}');
-      console.log('AI generated workout:', aiResponse);
-      
-      // Transform AI response to match GeneratedWorkout schema
-      const workoutData = {
-        name: aiResponse.title || `${request.category} Workout`,
-        category: request.category,
-        description: aiResponse.notes || `A ${request.intensity}/10 intensity ${request.category} workout`,
-        duration: request.duration,
-        intensity: request.intensity,
-        sets: aiResponse.sets?.map((set: any, index: number) => {
-          // Improved exercise labeling for better UI display
-          let exerciseName = `Exercise ${index + 1}`;
-          if (set.description) {
-            const desc = set.description.toLowerCase();
-            if (desc.includes('warm-up') || desc.includes('warm up')) {
-              exerciseName = 'Warm-up';
-            } else if (desc.includes('metcon') && desc.includes('rx+')) {
-              exerciseName = 'Metcon (Rx+)';
-            } else if (desc.includes('metcon') && desc.includes('rx')) {
-              exerciseName = 'Metcon (Rx)';
-            } else if (desc.includes('metcon')) {
-              exerciseName = 'Metcon';
-            } else if (desc.includes('cool') || desc.includes('stretch')) {
-              exerciseName = 'Cool Down';
-            } else {
-              // Extract first meaningful word, avoiding common prefixes
-              const words = set.description.split(' ').filter((word: string) => 
-                word.length > 2 && !['the', 'and', 'for', 'with'].includes(word.toLowerCase())
-              );
-              exerciseName = words[0] || `Exercise ${index + 1}`;
-            }
-          }
-          
-          return {
-            id: `ai-set-${Date.now()}-${index}`,
-            exercise: exerciseName,
-            weight: set.target?.weightKg ? Math.round(set.target.weightKg * 2.205) : undefined, // Convert kg to lbs
-            reps: set.target?.reps || undefined,
-            duration: set.target?.timeSec || undefined,
-            distance: set.target?.distanceM || undefined,
-            restTime: request.intensity >= 7 ? 60 : 90,
-            notes: set.description || `Perform with ${request.intensity}/10 intensity`
-          };
-        }) || []
-      };
-
-      // Validate against schema
-      const validation = generatedWorkoutSchema.safeParse(workoutData);
-      
-      if (!validation.success) {
-        console.error('AI response validation failed:', validation.error.issues);
-        throw new Error('Validation failed');
+    const equipment = (normalizedRequest as any).equipment || ['barbell', 'dumbbell', 'kettlebell', 'bike', 'rower'];
+    const premiumRequest: WorkoutGenerationRequest = {
+      category: normalizedRequest.category,
+      duration: normalizedRequest.duration,
+      intensity: normalizedRequest.intensity,
+      context: {
+        yesterday: normalizedRequest.lastWorkouts?.[0] ? {
+          category: normalizedRequest.lastWorkouts[0].category,
+          intensity: normalizedRequest.lastWorkouts[0].intensity
+        } : undefined,
+        health_snapshot: normalizedRequest.todaysReport ? {
+          hrv: undefined,
+          resting_hr: undefined,
+          sleep_score: normalizedRequest.todaysReport.sleep * 10,
+          stress_flag: normalizedRequest.todaysReport.stress > 7
+        } : undefined,
+        equipment,
+        constraints: [],
+        goals: ['general_fitness'],
+        focus: style,
+        categories_for_mixed: (normalizedRequest as any).categories_for_mixed
       }
-      
-      result = validation.data;
-    }
-  } catch (err: any) {
-    console.error('[WG] premium_failed', { stamp: GENERATOR_STAMP, err: String(err?.message || err) });
+    };
     
-    // If we're hardening, DO NOT hide failures - fail loudly
+    const premiumWorkout = await generatePremiumWorkout(premiumRequest, (normalizedRequest as any).seed);
+    
+    // Apply intensity upgrader (post-generation, pre-conversion)
+    const readiness = { sleep_score: normalizedRequest.todaysReport?.sleep ? normalizedRequest.todaysReport.sleep * 10 : undefined };
+    const upgradedWorkout = upgradeIntensity(premiumWorkout, equipment, readiness);
+    
+    const result = convertPremiumToGenerated(upgradedWorkout);
+    result.meta = upgradedWorkout.meta || result.meta || {};
+    
+    console.warn('[WG] premium ok', { stamp: GENERATOR_STAMP, style });
+    return result;
+  } catch (err: any) {
+    console.error('[WG] premium_failed', { stamp: GENERATOR_STAMP, style, err: String(err?.message || err) });
+    
+    // If kill switches enabled, fail with clear error message
     if (DISABLE_SIMPLE || DISABLE_MOCK || FORCE_PREMIUM) {
-      console.error('[WG] HARD STOP - kill switches prevent fallback', { stamp: GENERATOR_STAMP });
-      err.message = `premium_failed: ${err.message}`;
+      err.message = `premium_failed:${err.message}`;
       throw err;
     }
+  }
 
-    // Fallbacks only when flags allow
-    console.warn('[WG] attempting fallbacks...', { stamp: GENERATOR_STAMP });
-    
-    if (!DISABLE_SIMPLE) {
-      try {
-        console.warn('[WG] → simple', { stamp: GENERATOR_STAMP });
-        generatorUsed = 'simple';
-        result = await generateSimpleFallback(request);
-        console.warn('[WG] simple ok', { stamp: GENERATOR_STAMP });
-      } catch (err2: any) {
-        console.error('[WG] simple_failed', { stamp: GENERATOR_STAMP, err: String(err2?.message || err2) });
-        if (!DISABLE_MOCK) {
-          console.warn('[WG] → mock_fallback', { stamp: GENERATOR_STAMP });
-          generatorUsed = 'mock';
-          result = generateMockWorkout(request);
-        } else {
-          throw new Error('simple_and_mock_disabled');
-        }
-      }
-    } else if (!DISABLE_MOCK) {
-      console.warn('[WG] → mock_fallback', { stamp: GENERATOR_STAMP });
-      generatorUsed = 'mock';
-      result = generateMockWorkout(request);
-    } else {
-      throw new Error('no_generator_available');
+  // Fallback to simple generator if allowed
+  if (!DISABLE_SIMPLE) {
+    try {
+      console.warn('[WG] → simple', { stamp: GENERATOR_STAMP, style });
+      const result = await generateSimpleFallback(normalizedRequest);
+      console.warn('[WG] simple ok', { stamp: GENERATOR_STAMP, style });
+      return result;
+    } catch (err: any) {
+      console.error('[WG] simple_failed', { stamp: GENERATOR_STAMP, style, err: String(err?.message || err) });
     }
   }
 
-  // attach meta/trace (seed, acceptance flags, generator)
-  result.meta = {
-    ...(result.meta || {}),
-    generator: generatorUsed,
-    acceptance: result.acceptance_flags || {},
-    seed: (request as any).seed || result.meta?.seed || Math.random().toString(16).slice(2, 10)
-  };
+  // Final fallback to mock if allowed
+  if (!DISABLE_MOCK) {
+    console.warn('[WG] → mock_fallback', { stamp: GENERATOR_STAMP, style });
+    return generateMockWorkout(normalizedRequest);
+  }
 
-  console.log('HOBH: generator=%s seed=%s acceptance=%j',
-    result.meta.generator, result.meta.seed, result.meta.acceptance);
-
-  return result;
+  throw new Error('no_generator_available');
   // ===== END selection =====
 }
 
