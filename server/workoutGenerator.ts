@@ -6,6 +6,9 @@ import { generatePremiumWorkout, computeHardness } from "./ai/generators/premium
 import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
 import { DISABLE_SIMPLE, DISABLE_MOCK, FORCE_PREMIUM } from './config/env';
 
+// Orchestrator version stamp for debugging
+export const GENERATOR_STAMP = 'WG-ORCH@1.0.0';
+
 // Using gpt-4o model for reliable workout generation. Do not change this unless explicitly requested by the user
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
@@ -313,9 +316,11 @@ export function convertPremiumToGenerated(premium: any): any {
 }
 
 export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
-  console.log('Generating workout with enhanced context:', {
+  console.warn('[WG] start', { 
+    stamp: GENERATOR_STAMP, 
+    style: (request as any).goal || (request as any).style, 
+    minutes: (request as any).durationMin || request.duration,
     category: request.category,
-    duration: request.duration,
     intensity: request.intensity,
     prCount: request.recentPRs?.length || 0,
     workoutCount: request.lastWorkouts?.length || 0,
@@ -395,7 +400,8 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
         }
       };
       
-      console.log('[AXLE] generateWorkout → premium', {
+      console.warn('[WG] → premium', {
+        stamp: GENERATOR_STAMP,
         style: (request as any).style,
         goal: (request as any).goal,
         duration: (request as any).duration_min || (request as any).durationMin,
@@ -413,6 +419,7 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
       result = convertPremiumToGenerated(upgradedWorkout);
       // Bubble meta to top-level
       result.meta = upgradedWorkout.meta || result.meta || {};
+      console.warn('[WG] premium ok', { stamp: GENERATOR_STAMP });
     } else {
       generatorUsed = 'simple';
       const prompt = createPromptTemplate(request);
@@ -491,25 +498,28 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
       result = validation.data;
     }
   } catch (err: any) {
+    console.error('[WG] premium_failed', { stamp: GENERATOR_STAMP, err: String(err?.message || err) });
+    
     // If we're hardening, DO NOT hide failures - fail loudly
     if (DISABLE_SIMPLE || DISABLE_MOCK || FORCE_PREMIUM) {
-      console.error('❌ Premium generator failed in strict mode:', err.message);
+      console.error('[WG] HARD STOP - kill switches prevent fallback', { stamp: GENERATOR_STAMP });
       err.message = `premium_failed: ${err.message}`;
       throw err;
     }
 
     // Fallbacks only when flags allow
-    console.warn('⚠️ Premium generator failed, attempting fallbacks...', err.message);
+    console.warn('[WG] attempting fallbacks...', { stamp: GENERATOR_STAMP });
     
     if (!DISABLE_SIMPLE) {
       try {
-        console.log('🔄 Attempting simple fallback generator...');
+        console.warn('[WG] → simple', { stamp: GENERATOR_STAMP });
         generatorUsed = 'simple';
         result = await generateSimpleFallback(request);
+        console.warn('[WG] simple ok', { stamp: GENERATOR_STAMP });
       } catch (err2: any) {
-        console.error('❌ Simple generator also failed:', err2.message);
+        console.error('[WG] simple_failed', { stamp: GENERATOR_STAMP, err: String(err2?.message || err2) });
         if (!DISABLE_MOCK) {
-          console.log('🔄 Falling back to mock generator...');
+          console.warn('[WG] → mock_fallback', { stamp: GENERATOR_STAMP });
           generatorUsed = 'mock';
           result = generateMockWorkout(request);
         } else {
@@ -517,7 +527,7 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
         }
       }
     } else if (!DISABLE_MOCK) {
-      console.log('🔄 Simple generator disabled, using mock...');
+      console.warn('[WG] → mock_fallback', { stamp: GENERATOR_STAMP });
       generatorUsed = 'mock';
       result = generateMockWorkout(request);
     } else {

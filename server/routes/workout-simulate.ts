@@ -13,7 +13,7 @@
 import type { Express } from "express";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
 import { simulatePayloadSchema } from "../../shared/types/workouts";
-import { generateWorkout } from "../workoutGenerator";
+import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator";
 
 // Environment kill switches
 const AXLE_DISABLE_SIMPLE = process.env.AXLE_DISABLE_SIMPLE === '1';
@@ -80,6 +80,7 @@ export function registerSimulateRoutes(app: Express) {
       // Set debug headers (always visible in DevTools)
       res.setHeader('X-AXLE-Generator', (generatedWorkout as any)?.meta?.generator || 'unknown');
       res.setHeader('X-AXLE-Style', (generatedWorkout as any)?.meta?.style || req.body?.goal || 'unknown');
+      res.setHeader('X-AXLE-Orchestrator', GENERATOR_STAMP);
       
       // Check if premium failed and kill switches are enabled
       if ((AXLE_DISABLE_SIMPLE || HOBH_FORCE_PREMIUM) && generator !== 'premium') {
