@@ -10,6 +10,12 @@ import { z } from "zod";
  * Changing nonce or focus changes the result in a predictable way.
  */
 
+// Local copy of supported styles to avoid server import cycles
+const SUPPORTED_STYLES = [
+  'crossfit', 'olympic_weightlifting', 'powerlifting', 'bb_full_body', 'bb_upper',
+  'bb_lower', 'aerobic', 'conditioning', 'strength', 'endurance', 'gymnastics', 'mobility', 'mixed'
+] as const;
+
 export type GenerationSeed = {
   algo: 'v1';
   userHash: string;   // stable per user
@@ -37,13 +43,48 @@ export type GeneratePayload = {
 };
 
 export const generatePayloadSchema = z.object({
-  archetype: z.enum(['strength', 'conditioning', 'mixed', 'endurance']),
+  archetype: z.string().optional(),
+  style: z.string().optional(),
+  goal: z.string().optional(),
+  focus: z.string().optional(),
   minutes: z.number().min(5).max(120),
   intensity: z.number().min(1).max(10),
   equipment: z.array(z.string()),
   constraints: z.array(z.string()).optional(),
   goals: z.array(z.string()).optional(),
   seed: generationSeedSchema.optional(),
+}).transform((d) => {
+  // Normalize style from any field (archetype, style, goal, focus)
+  const raw = (d.style ?? d.goal ?? d.focus ?? d.archetype ?? '').toString().toLowerCase();
+
+  // Inline normalize (duplicates server/lib/style.ts logic to avoid import cycles)
+  const map: Record<string, typeof SUPPORTED_STYLES[number]> = {
+    crossfit: 'crossfit', cf: 'crossfit',
+    oly: 'olympic_weightlifting', olympic: 'olympic_weightlifting', olympic_weightlifting: 'olympic_weightlifting',
+    powerlifting: 'powerlifting', pl: 'powerlifting',
+    bbfull: 'bb_full_body', 'bb full body': 'bb_full_body', bb_full_body: 'bb_full_body',
+    bb_upper: 'bb_upper', bb_lower: 'bb_lower',
+    aerobic: 'aerobic', conditioning: 'conditioning', strength: 'strength', endurance: 'endurance',
+    gymnastics: 'gymnastics', mobility: 'mobility', mixed: 'mixed',
+  };
+  
+  let style = map[raw];
+  if (!style) {
+    if (raw.includes('olympic')) style = 'olympic_weightlifting';
+    else if (raw === 'bb' || raw.includes('bodybuilding')) style = 'bb_full_body';
+    else style = 'mixed';
+  }
+
+  return { 
+    ...d, 
+    archetype: style,
+    style, 
+    goal: style, 
+    focus: style 
+  };
+}).refine(d => (SUPPORTED_STYLES as readonly string[]).includes(d.archetype), {
+  message: 'style_invalid',
+  path: ['archetype'],
 });
 
 export type SimulatePayload = {
@@ -57,13 +98,48 @@ export type SimulatePayload = {
 };
 
 export const simulatePayloadSchema = z.object({
-  archetype: z.enum(['strength', 'conditioning', 'mixed', 'endurance']),
+  archetype: z.string().optional(),
+  style: z.string().optional(),
+  goal: z.string().optional(),
+  focus: z.string().optional(),
   minutes: z.number().min(5).max(120),
   intensity: z.number().min(1).max(10),
   equipment: z.array(z.string()),
   constraints: z.array(z.string()).optional(),
   goals: z.array(z.string()).optional(),
   seed: generationSeedSchema.optional(),
+}).transform((d) => {
+  // Normalize style from any field (archetype, style, goal, focus)
+  const raw = (d.style ?? d.goal ?? d.focus ?? d.archetype ?? '').toString().toLowerCase();
+
+  // Inline normalize (duplicates server/lib/style.ts logic to avoid import cycles)
+  const map: Record<string, typeof SUPPORTED_STYLES[number]> = {
+    crossfit: 'crossfit', cf: 'crossfit',
+    oly: 'olympic_weightlifting', olympic: 'olympic_weightlifting', olympic_weightlifting: 'olympic_weightlifting',
+    powerlifting: 'powerlifting', pl: 'powerlifting',
+    bbfull: 'bb_full_body', 'bb full body': 'bb_full_body', bb_full_body: 'bb_full_body',
+    bb_upper: 'bb_upper', bb_lower: 'bb_lower',
+    aerobic: 'aerobic', conditioning: 'conditioning', strength: 'strength', endurance: 'endurance',
+    gymnastics: 'gymnastics', mobility: 'mobility', mixed: 'mixed',
+  };
+  
+  let style = map[raw];
+  if (!style) {
+    if (raw.includes('olympic')) style = 'olympic_weightlifting';
+    else if (raw === 'bb' || raw.includes('bodybuilding')) style = 'bb_full_body';
+    else style = 'mixed';
+  }
+
+  return { 
+    ...d, 
+    archetype: style,
+    style, 
+    goal: style, 
+    focus: style 
+  };
+}).refine(d => (SUPPORTED_STYLES as readonly string[]).includes(d.archetype), {
+  message: 'style_invalid',
+  path: ['archetype'],
 });
 
 // Utility functions for creating seeds
