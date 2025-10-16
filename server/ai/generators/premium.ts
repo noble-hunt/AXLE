@@ -2362,7 +2362,7 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     sanitizedWorkout.title = `PREMIUM • ${sanitizedWorkout.title || pack.name || 'Session'}`;
   }
   
-  // Add metadata before notes generation
+  // Add metadata before notes generation (preserve policy_repairs if present)
   const metaData = {
     generator: 'premium',
     style,
@@ -2373,6 +2373,8 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     acceptance: sanitizedWorkout.acceptance_flags,
     selectionTrace,
     main_loaded_ratio: mainLoadedRatio,
+    // Preserve policy_repairs from earlier policyFailOrRepair calls
+    ...(sanitizedWorkout.meta?.policy_repairs && { policy_repairs: sanitizedWorkout.meta.policy_repairs }),
     ...(process.env.DEBUG_PREMIUM_STAMP === '1' && { premium_stamp: true })
   };
   
