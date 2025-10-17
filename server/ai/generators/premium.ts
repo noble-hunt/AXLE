@@ -2567,7 +2567,12 @@ export async function generatePremiumWorkout(
 ): Promise<PremiumWorkout> {
   try {
     // Premium entry: validate style against pattern pack keys
-    const raw = (request as any)?.style ?? (request as any)?.goal ?? (request as any)?.focus ?? (request as any)?.meta?.style ?? '';
+    // Check multiple locations: direct fields, context, and meta
+    const raw = (request as any)?.style ?? 
+                (request as any)?.goal ?? 
+                (request as any)?.focus ?? 
+                (request as any)?.context?.focus ??
+                (request as any)?.meta?.style ?? '';
     const style = normalizeStyle(raw);
     const pack = PACKS[style];
 
@@ -2620,6 +2625,22 @@ export async function generatePremiumWorkout(
           break;
         case 'mobility':
           workout = buildMobility(request);
+          break;
+        case 'conditioning':
+          // Use CrossFit builder for conditioning workouts
+          workout = buildCrossFitCF(request);
+          break;
+        case 'strength':
+          // Use Powerlifting builder for strength focus
+          workout = buildPowerlifting(request);
+          break;
+        case 'endurance':
+          // Use Aerobic builder for endurance training
+          workout = buildAerobic(request);
+          break;
+        case 'mixed':
+          // Use CrossFit builder for GPP/mixed training
+          workout = buildCrossFitCF(request);
           break;
         default:
           console.log(`🔄 Unknown style "${style}", falling through to AI generation`);
