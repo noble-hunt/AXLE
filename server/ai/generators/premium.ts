@@ -9,6 +9,7 @@ import registryData from '../../data/movements.registry.json';
 import { STYLE_POLICIES } from '../config/stylePolicies';
 import type { StylePolicy } from '../config/stylePolicies';
 import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL, PREMIUM_STRICT } from '../../config/env';
+import { SUPPORTED_STYLES } from '../../lib/style';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -2565,6 +2566,15 @@ export async function generatePremiumWorkout(
   retryCount: number = 0
 ): Promise<PremiumWorkout> {
   try {
+    // Premium pack guard: ensure style is supported
+    const requestStyle = String((request as any).style || '').toLowerCase();
+    if (!(SUPPORTED_STYLES as readonly string[]).includes(requestStyle)) {
+      const e: any = new Error(`style_unsupported:${requestStyle || 'empty'}`);
+      e.code = 'style_unsupported';
+      e.details = { style: requestStyle, supported: SUPPORTED_STYLES };
+      throw e;
+    }
+
     // Ensure seed is set
     const workoutSeed = seed || (request as any).seed || `${Date.now()}-${Math.random()}`;
     

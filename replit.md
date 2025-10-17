@@ -27,6 +27,14 @@ Preferred communication style: Simple, everyday language.
   - `HOBH_FORCE_PREMIUM=true`: Forces premium path (default behavior)
   - `DEBUG_PREMIUM_STAMP=1`: Adds debug headers (`X-AXLE-Generator`, `X-AXLE-Style`) for verification
   - Routes `/api/workouts/generate` and `/api/workouts/simulate` enforce these constraints with clear 502 error responses
+- **Multi-Layer Style Normalization** (October 2025):
+  - **Defense-in-Depth**: Four layers of style normalization prevent invalid style errors
+  - **Schema Transform**: Zod schemas auto-normalize any style variant (oly→olympic_weightlifting, cf→crossfit) with `.transform()` and `.refine()`
+  - **Route Layer**: Primary normalization using canonical style map in `server/lib/style.ts`
+  - **Orchestrator Backstop**: Secondary normalization in orchestrator (WG-ORCH@1.0.3)
+  - **Premium Guard**: Final validation in `generatePremiumWorkout()` ensures only supported styles reach builders
+  - **Friendly Errors**: Invalid styles throw structured errors `{code: 'style_unsupported', details: {style, supported}}` instead of "none" errors
+  - **13 Supported Styles**: crossfit, olympic_weightlifting, powerlifting, bb_full_body, bb_upper, bb_lower, aerobic, conditioning, strength, endurance, gymnastics, mobility, mixed
 - **Registry-First Architecture** (October 2025):
   - **Movement Selection**: 100% deterministic via pattern packs + movement registry (1,105 movements)
   - **AI Role**: Relegated to coaching notes generation only via `generateCoachingNotes()` helper
