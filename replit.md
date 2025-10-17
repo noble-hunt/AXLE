@@ -65,6 +65,13 @@ Preferred communication style: Simple, everyday language.
   - **Block Kind Specification**: All main blocks now explicitly declare their `kind` ('strength'|'conditioning'|'skill'|'aerobic'|'mobility')
   - **Style-Specific Structure**: Pattern packs define equipment requirements, loaded ratio requirements, and block patterns per style
   - **Complete Pack Coverage**: All 13 supported styles have dedicated pattern packs (October 2025)
+- **Duration-Aware Pack Builders** (October 2025):
+  - **Dynamic Pack Generation**: `buildOlympicPack(totalMin)` creates adaptive workout structures based on available time
+  - **Adaptive Compression**: Warmup/cooldown durations adjust based on total time budget (≥35min: 8/6min; <35min: 6/4min)
+  - **Budget-Aware Main Blocks**: ≥24min budget → two separate E2:00 blocks (snatch + C&J); <24min → combined E2:00 block
+  - **Pack-Driven Builders**: `buildOly()` now consumes duration-aware packs, iterating `pack.mainBlocks` to generate workouts
+  - **Type-Safe Integration**: Builder packs fully compatible with static pack types, proper `kind`, `pattern`, `select`, `modality`
+  - **Validated Testing**: 20min workout → 6/10/4 structure; 45min workout → 8/16/16/6 structure with all patterns present
   - **CrossFit**: E2:30 strength + EMOM conditioning, both from CrossFit category only
   - **Olympic Weightlifting**: Two E2:00 complexes (snatch; clean & jerk) + optional loaded EMOM accessory, all from Olympic category only
   - **Powerlifting**: E3:00 triples + E2:30 fives + E2:00 accessory superset, all from Powerlifting category only

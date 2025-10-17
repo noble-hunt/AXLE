@@ -1,16 +1,16 @@
 // Duration-aware pattern pack builders.
 // Each builder returns the same shape as the old static pack.
-export type PatternBlockSelect = {
-  categories?: string[];
-  patterns?: string[];
-  modality?: string[];
-  items: number;
-  requireLoaded?: boolean;
-};
 export type PatternBlock = {
-  pattern: string;        // e.g., "E2:00x", "EMOM", "Alt E1:30x"
+  pattern: 'E2:00x' | 'E2:30x' | 'E3:00x' | 'EMOM' | 'AMRAP' | 'FOR_TIME_21_15_9' | 'CHIPPER_40_30_20_10' | 'INTERVALS' | 'STEADY' | 'MOBILITY_QUALITY';
   minutes: number;        // target minutes for this block
-  select: PatternBlockSelect[];
+  kind: 'strength' | 'conditioning' | 'skill' | 'aerobic' | 'mobility';  // block type
+  select: {
+    categories: string[];
+    patterns: string[];
+    modality: ('strength' | 'conditioning' | 'skill' | 'aerobic' | 'mobility')[];
+    items: number;
+    requireLoaded?: boolean;
+  };
   title?: string;         // optional explicit title
 };
 export type PatternPack = {
@@ -48,19 +48,27 @@ export function buildOlympicPack(totalMin: number): PatternPack {
         {
           pattern: "E2:00x",
           minutes: clamp(per, 10, 16), // 5–8 rounds typical
-          select: [
-            { categories: ["olympic_weightlifting"], patterns: ["olympic_snatch"], items: 1, requireLoaded: true },
-            { categories: ["olympic_weightlifting"], patterns: ["olympic_pull","overhead_squat"], items: 1, requireLoaded: true },
-          ],
+          kind: 'strength',
+          select: {
+            categories: ["olympic_weightlifting"],
+            patterns: ["olympic_snatch"],  // Guarantee snatch pattern
+            modality: ["strength", "skill"],
+            items: 1,
+            requireLoaded: true
+          },
           title: "Every 2:00 — Snatch Complex",
         },
         {
           pattern: "E2:00x",
           minutes: clamp(per, 10, 16),
-          select: [
-            { categories: ["olympic_weightlifting"], patterns: ["olympic_cleanjerk"], items: 1, requireLoaded: true },
-            { categories: ["olympic_weightlifting"], patterns: ["front_squat","olympic_pull"], items: 1, requireLoaded: true },
-          ],
+          kind: 'strength',
+          select: {
+            categories: ["olympic_weightlifting"],
+            patterns: ["olympic_cleanjerk"],  // Guarantee C&J pattern
+            modality: ["strength", "skill"],
+            items: 1,
+            requireLoaded: true
+          },
           title: "Every 2:00 — Clean & Jerk Complex",
         },
       ],
@@ -77,13 +85,17 @@ export function buildOlympicPack(totalMin: number): PatternPack {
     requiredPatterns,
     mainBlocks: [
       {
-        pattern: "Alt E1:30x",    // alternating, snatch on odd, C&J on even
+        pattern: "E2:00x",        // Combined block for both lifts when time is limited
         minutes: altMin,          // ~10–16 min based on budget
-        select: [
-          { categories: ["olympic_weightlifting"], patterns: ["olympic_snatch"], items: 1, requireLoaded: true },
-          { categories: ["olympic_weightlifting"], patterns: ["olympic_cleanjerk"], items: 1, requireLoaded: true },
-        ],
-        title: "Alt E1:30 — Snatch / Clean & Jerk",
+        kind: 'strength',
+        select: {
+          categories: ["olympic_weightlifting"],
+          patterns: ["olympic_snatch", "olympic_cleanjerk"],  // Both required patterns
+          modality: ["strength", "skill"],
+          items: 2,  // Must pick 2 items to guarantee both patterns
+          requireLoaded: true
+        },
+        title: "Every 2:00 — Snatch / Clean & Jerk",
       },
     ],
   };

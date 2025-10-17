@@ -3,6 +3,8 @@ import { z } from 'zod';
 import type { WorkoutGenerationRequest } from '../generateWorkout';
 import { PACKS } from '../config/patternPacks';
 import type { PatternPack } from '../config/patternPacks';
+import { buildOlympicPack } from '../config/patternPackBuilders';
+import type { PatternPack as BuilderPatternPack } from '../config/patternPackBuilders';
 import { queryMovements, findMovement } from '../movementService';
 import type { Movement } from '../../types/movements';
 import registryData from '../../data/movements.registry.json';
@@ -1649,20 +1651,25 @@ function buildCrossFitCF(req: WorkoutGenerationRequest): PremiumWorkout {
   };
 }
 
-function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
+function buildOly(req: WorkoutGenerationRequest, pack?: BuilderPatternPack | PatternPack): PremiumWorkout {
   const equipment = req.context?.equipment || [];
   const duration = req.duration || 45;
   const hasBarbell = equipment.some(e => /barbell/i.test(e));
   const seed = (req as any).seed || `${Date.now()}`;
   
+  // Use duration-aware pack if provided, otherwise use defaults
+  const warmupMin = pack?.warmupMin || 8;
+  const cooldownMin = pack?.cooldownMin || 8;
+  const mainBlocks = pack?.mainBlocks || [];
+  
   const blocks = [];
   
-  // Warmup: Barbell complex
+  // Warmup: Barbell complex (use pack duration)
   if (hasBarbell) {
     blocks.push({
       kind: 'warmup',
       title: 'Barbell Warm-up Complex',
-      time_min: 8,
+      time_min: warmupMin,
       items: [
         { exercise: 'PVC Pass-Through', target: '10 reps', notes: 'Shoulder mobility', _source: 'warmup' },
         { exercise: 'Burgener Warm-up', target: '5 reps each', notes: 'Down-up, elbows high, muscle snatch, snatch balance', _source: 'warmup' },
@@ -1675,8 +1682,46 @@ function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
     blocks.push(pickWarmup(req));
   }
   
-  // Main 1: Snatch complex Every 2:00 x 7 - use registry
-  if (hasBarbell) {
+  // Build main blocks from pack (if provided) or use hardcoded fallback
+  if (mainBlocks.length > 0 && hasBarbell) {
+    // Pack-driven main blocks (duration-aware)
+    mainBlocks.forEach((packBlock, idx) => {
+      const { pattern, minutes, select, kind } = packBlock;
+      const title = (packBlock as any).title;
+      
+      // Calculate rounds based on pattern and minutes
+      let rounds = 7;
+      if (pattern === 'E2:00x') rounds = Math.floor(minutes / 2);
+      else if (pattern === 'E2:30x') rounds = Math.floor(minutes / 2.5);
+      else if (pattern === 'E3:00x') rounds = Math.floor(minutes / 3);
+      else if (pattern === 'EMOM') rounds = minutes;
+      
+      // Pick movements from registry based on pack select criteria
+      const movements = pickFromRegistry({
+        categories: select.categories,
+        patterns: select.patterns,
+        equipment: equipment.filter(e => /barbell/i.test(e)),
+        limit: 10,
+        seed: seed + '-main-' + idx
+      });
+      
+      const exercises = movements.slice(0, select.items).map((m: Movement) => ({
+        exercise: m.name,
+        registry_id: m.id,
+        target: pattern.includes('E2') || pattern.includes('E3') ? '1+1+1 @ 65-80%' : '5-8 reps',
+        notes: 'Quality movement'
+      }));
+      
+      blocks.push({
+        kind: kind || 'strength',
+        title: title || `${pattern} x ${rounds}`,
+        time_min: minutes,
+        items: exercises,
+        notes: `${title || pattern} - maintain form and positions`
+      });
+    });
+  } else if (hasBarbell) {
+    // Fallback: hardcoded blocks if no pack provided
     const snatchPool = pickFromRegistry({
       categories: ['olympic_weightlifting'],
       patterns: ['olympic_snatch', 'pull', 'overhead_squat'],
@@ -1699,19 +1744,7 @@ function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
       items: snatchExercises,
       notes: 'Snatch complex - focus on positions and timing'
     });
-  } else {
-    // Fallback for no barbell
-    blocks.push({
-      kind: 'strength',
-      title: 'Every 2:00 x 7',
-      time_min: 14,
-      items: [{ exercise: 'Burpee to High Jump', target: '5 reps', notes: 'Explosive hip extension' }],
-      notes: 'Power development'
-    });
-  }
-  
-  // Main 2: Clean & Jerk complex Every 2:00 x 7 - use registry
-  if (hasBarbell) {
+
     const cjPool = pickFromRegistry({
       categories: ['olympic_weightlifting'],
       patterns: ['olympic_cleanjerk', 'front_squat', 'pull'],
@@ -1735,50 +1768,21 @@ function buildOly(req: WorkoutGenerationRequest): PremiumWorkout {
       notes: 'Clean & Jerk complex - maintain positions'
     });
   } else {
-    // Fallback for no barbell
+    // No barbell fallback
     blocks.push({
       kind: 'strength',
       title: 'Every 2:00 x 7',
       time_min: 14,
-      items: [{ exercise: 'Burpee to Overhead Reach', target: '8 reps', notes: 'Full extension overhead' }],
+      items: [{ exercise: 'Burpee to High Jump', target: '5 reps', notes: 'Explosive hip extension' }],
       notes: 'Power development'
     });
   }
   
-  // Optional accessory EMOM 10 - loaded movements only
-  const totalTime = blocks.reduce((sum, b) => sum + b.time_min, 0);
-  if (totalTime < duration - 8 && hasBarbell) {
-    const accessoryPool = pickFromRegistry({
-      categories: ['olympic_weightlifting'],
-      patterns: ['pull', 'squat', 'hinge'],
-      equipment: ['barbell'],
-      limit: 8,
-      seed: seed + '-accessory'
-    });
-    
-    const accessoryExercises = accessoryPool.slice(0, 2).map((m: Movement, idx: number) => ({
-      exercise: `${m.name} (${idx === 0 ? 'odd' : 'even'} min)`,
-      registry_id: m.id,
-      target: idx === 0 ? '8 reps @ 60%' : '6-8 reps',
-      notes: idx === 0 ? 'Control eccentric' : 'Full ROM'
-    }));
-    
-    if (accessoryExercises.length > 0) {
-      blocks.push({
-        kind: 'conditioning',
-        title: 'EMOM 10',
-        time_min: 10,
-        items: accessoryExercises,
-        notes: 'Accessory work - pulls and posterior chain'
-      });
-    }
-  }
-  
-  // Cooldown
+  // Cooldown (use pack duration)
   blocks.push({
     kind: 'cooldown',
     title: 'Mobility & Recovery',
-    time_min: 8,
+    time_min: cooldownMin,
     items: [
       { exercise: 'T-Spine Foam Roll', target: '90 sec', notes: 'Upper back extension', _source: 'cooldown' },
       { exercise: 'Hip Flexor Stretch', target: '60 sec/side', notes: 'Couch stretch or lunge', _source: 'cooldown' },
@@ -2429,8 +2433,19 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     }
   }
   
-  // Apply registry-aware sanitization
-  const pack = PACKS[style] || PACKS['crossfit'];
+  // Apply registry-aware sanitization (use duration-aware pack for olympic)
+  let pack: BuilderPatternPack | PatternPack;
+  if (style === 'olympic_weightlifting') {
+    pack = buildOlympicPack(req?.duration || 45);
+  } else {
+    const base = PACKS[style] || PACKS['crossfit'];
+    pack = { ...base };
+    const total = req?.duration || 45;
+    if (total <= pack.warmupMin + pack.cooldownMin + 10) {
+      pack.warmupMin = Math.max(6, pack.warmupMin - 2);
+      pack.cooldownMin = Math.max(4, pack.cooldownMin - 2);
+    }
+  }
   const sanitizedWorkout = sanitizeWorkout(workout, req || { equipment: [] }, pack, seed);
   
   // Enforce style-specific content policies
@@ -2574,7 +2589,23 @@ export async function generatePremiumWorkout(
                 (request as any)?.context?.focus ??
                 (request as any)?.meta?.style ?? '';
     const style = normalizeStyle(raw);
-    const pack = PACKS[style];
+    
+    // Duration-aware pack resolution
+    let pack: BuilderPatternPack | PatternPack;
+    if (style === 'olympic_weightlifting') {
+      pack = buildOlympicPack(request.duration || 45);
+    } else {
+      // Fall back to existing static packs
+      const base = PACKS[style] || PACKS['crossfit'];
+      pack = { ...base };
+      
+      // OPTIONAL: when minutes are tight, compress warm/cool a bit
+      const total = request.duration || 45;
+      if (total <= pack.warmupMin + pack.cooldownMin + 10) {
+        pack.warmupMin = Math.max(6, pack.warmupMin - 2);
+        pack.cooldownMin = Math.max(4, pack.cooldownMin - 2);
+      }
+    }
 
     console.warn('[PREMIUM] entry', { raw, style, hasPack: !!pack, seed: seed || 'auto', retryCount });
 
@@ -2603,7 +2634,7 @@ export async function generatePremiumWorkout(
           workout = buildCrossFitCF(request);
           break;
         case 'olympic_weightlifting':
-          workout = buildOly(request);
+          workout = buildOly(request, pack);
           break;
         case 'powerlifting':
           workout = buildPowerlifting(request);
