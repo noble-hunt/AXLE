@@ -64,13 +64,18 @@ Preferred communication style: Simple, everyday language.
   - **Style-Only Movement Pools**: Each pattern pack now selects exclusively from its own category for main blocks (e.g., CrossFit only from `['crossfit']`, Olympic from `['olympic_weightlifting']`)
   - **Block Kind Specification**: All main blocks now explicitly declare their `kind` ('strength'|'conditioning'|'skill'|'aerobic'|'mobility')
   - **Style-Specific Structure**: Pattern packs define equipment requirements, loaded ratio requirements, and block patterns per style
+  - **Complete Pack Coverage**: All 13 supported styles have dedicated pattern packs (October 2025)
   - **CrossFit**: E2:30 strength + EMOM conditioning, both from CrossFit category only
   - **Olympic Weightlifting**: Two E2:00 complexes (snatch; clean & jerk) + optional loaded EMOM accessory, all from Olympic category only
   - **Powerlifting**: E3:00 triples + E2:30 fives + E2:00 accessory superset, all from Powerlifting category only
   - **Bodybuilding**: Hypertrophy schemes (E2:30, E2:00, EMOM) from respective bb_* categories with 70% loaded ratio
   - **Aerobic**: INTERVALS from aerobic category, machines only, no loaded requirement
+  - **Conditioning**: EMOM + AMRAP from CrossFit category for metabolic conditioning
+  - **Strength**: E2:30 + E2:00 from powerlifting/CrossFit categories for strength development
+  - **Endurance**: STEADY + INTERVALS from aerobic category for aerobic capacity
   - **Gymnastics**: Skill EMOMs and AMRAPs from gymnastics category, allows weighted pull-up variants
   - **Mobility**: MOBILITY_QUALITY from mobility category only
+  - **Mixed (GPP)**: E2:30 strength from multi-category + EMOM conditioning for general physical preparedness
 - **Duration Extraction** (October 2025):
   - **secondsFromPattern()** helper: Extracts exact durations from pattern titles ("EMOM 14" → 840s, "Every 2:30 x 5" → 750s) for precise header durations
   - **Warm-Up Rounding**: Warm-up item durations rounded to nearest 30s with 30s minimum for consistent UI display
