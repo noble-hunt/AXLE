@@ -1,0 +1,43 @@
+Guarantee normalization in the actual mounted route
+
+We’ll add a tiny middleware and use it in the route that is actually mounted. We’ll also stamp headers so we can see it live.
+
+Add file: server/middleware/normalizeStyle.ts
+
+// server/middleware/normalizeStyle.ts
+import { Request, Response, NextFunction } from 'express';
+import { normalizeStyle } from '../lib/style';
+
+export function normalizeStyleMiddleware(req: Request, res: Response, next: NextFunction) {
+  const style = normalizeStyle((req.body as any)?.style ?? (req.body as any)?.goal ?? (req.body as any)?.focus);
+  (req as any).body = { ...(req.body as any), style, goal: style, focus: style };
+  res.setHeader('X-AXLE-Route', 'generate@normalizeStyle');
+  res.setHeader('X-AXLE-Style-Normalized', style);
+  next();
+}
+
+
+Edit: server/routes.ts (this file definitely mounts your routes)
+
+Find the current registration of /api/workouts/generate. Replace it so it uses the middleware and your orchestrator. If a different file (e.g., server/routes/workout-generate.ts) is mounted, ensure routes.ts references that handler. The point is: the handler that Express actually uses must run the middleware below.
+
+// server/routes.ts
+import { normalizeStyleMiddleware } from './middleware/normalizeStyle';
+import { generateWorkout, GENERATOR_STAMP } from './workoutGenerator';
+
+app.post('/api/workouts/generate', normalizeStyleMiddleware, async (req, res, next) => {
+  try {
+    const workout = await generateWorkout(req.body);
+    res.setHeader('X-AXLE-Orchestrator', GENERATOR_STAMP);
+    res.setHeader('X-AXLE-Generator', workout?.meta?.generator || 'unknown');
+    res.setHeader('X-AXLE-Style', workout?.meta?.style || req.body?.style || 'unknown');
+    return res.json({ ok: true, workout });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+
+If you previously created server/routes/workout-generate.ts but it isn’t mounted, you can either mount it or keep everything in routes.ts. The critical part is that the active route includes normalizeStyleMiddleware.
+
+Do the same normalization for /api/workouts/preview if you use that path too.

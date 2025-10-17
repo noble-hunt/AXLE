@@ -16,7 +16,7 @@ export const SUPPORTED_STYLES = [
 
 export type SupportedStyle = typeof SUPPORTED_STYLES[number];
 
-export function normalizeStyle(input: any): SupportedStyle {
+export function normalizeStyle(input: unknown): SupportedStyle {
   const raw = String(input ?? '').trim().toLowerCase();
   const map: Record<string, SupportedStyle> = {
     crossfit: 'crossfit',
@@ -26,9 +26,9 @@ export function normalizeStyle(input: any): SupportedStyle {
     olympic_weightlifting: 'olympic_weightlifting',
     powerlifting: 'powerlifting',
     pl: 'powerlifting',
-    bbfull: 'bb_full_body',
-    'bb full body': 'bb_full_body',
     bb_full_body: 'bb_full_body',
+    'bb full body': 'bb_full_body',
+    bbfull: 'bb_full_body',
     bb_upper: 'bb_upper',
     bb_lower: 'bb_lower',
     aerobic: 'aerobic',
@@ -41,11 +41,7 @@ export function normalizeStyle(input: any): SupportedStyle {
   };
 
   if (map[raw]) return map[raw];
-
-  // Some common typos/variants
   if (raw.includes('olympic')) return 'olympic_weightlifting';
-  if (raw === 'bb' || raw.includes('bodybuilding')) return 'bb_full_body';
-
-  // Default: mixed (but NEVER 'none')
-  return 'mixed';
+  if (raw.includes('bodybuilding')) return 'bb_full_body';
+  return 'mixed'; // NEVER return "none"
 }
