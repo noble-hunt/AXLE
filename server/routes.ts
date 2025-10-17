@@ -40,6 +40,7 @@ import storageRouter from "./routes/storage";
 import { router as healthzRouter } from "./routes/healthz";
 import { suggest } from "./routes/suggest";
 import debugStyleRouter from "./routes/_debug-style";
+import debugTraceRouter from "./routes/_debug-trace";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize workout block library
@@ -47,6 +48,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Debug route for style normalization
   app.use(debugStyleRouter);
+  
+  // Debug route for trace diagnostics
+  app.use(debugTraceRouter);
   
   // Dev route for testing workout library
   app.get("/api/dev/workouts/library", (req, res) => {
