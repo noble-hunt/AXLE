@@ -9,7 +9,7 @@ import registryData from '../../data/movements.registry.json';
 import { STYLE_POLICIES } from '../config/stylePolicies';
 import type { StylePolicy } from '../config/stylePolicies';
 import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL, PREMIUM_STRICT } from '../../config/env';
-import { SUPPORTED_STYLES } from '../../lib/style';
+import { normalizeStyle, SUPPORTED_STYLES } from '../../lib/style';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -2566,23 +2566,26 @@ export async function generatePremiumWorkout(
   retryCount: number = 0
 ): Promise<PremiumWorkout> {
   try {
-    // Premium pack guard: ensure style is supported
-    const requestStyle = String((request as any).style || '').toLowerCase();
-    if (!(SUPPORTED_STYLES as readonly string[]).includes(requestStyle)) {
-      const e: any = new Error(`style_unsupported:${requestStyle || 'empty'}`);
+    // Premium entry: enforce and log style
+    const raw = (request as any)?.style ?? (request as any)?.goal ?? (request as any)?.focus ?? (request as any)?.meta?.style ?? '';
+    const style = normalizeStyle(raw);
+
+    if (!(SUPPORTED_STYLES as readonly string[]).includes(style)) {
+      const e: any = new Error(`style_unsupported:${raw || 'empty'}`);
       e.code = 'style_unsupported';
-      e.details = { style: requestStyle, supported: SUPPORTED_STYLES };
+      e.details = { received: raw, normalized: style, supported: SUPPORTED_STYLES };
       throw e;
     }
 
     // Ensure seed is set
     const workoutSeed = seed || (request as any).seed || `${Date.now()}-${Math.random()}`;
     
+    console.warn('[PREMIUM] entry', { style, seed: workoutSeed, retryCount });
+    
     // Propagate seed through request for deterministic sampling
     (request as any).seed = workoutSeed;
     
     // ===== HOBH: Style-aware builder routing =====
-    const style = (request as any).style;
     
     if (style) {
       console.log(`🎨 Using style-aware builder for: ${style} | seed: ${workoutSeed}`);
