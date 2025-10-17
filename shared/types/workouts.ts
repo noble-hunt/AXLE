@@ -10,7 +10,18 @@ import { z } from "zod";
  * Changing nonce or focus changes the result in a predictable way.
  */
 
-// Local copy of supported styles to avoid server import cycles
+/**
+ * Style Normalization (Shared Schema Copy)
+ * 
+ * CANONICAL SOURCE: server/lib/style.ts
+ * 
+ * This is a necessary duplicate to avoid circular imports:
+ * - Shared code runs in both client and server contexts
+ * - Cannot import from server/ without breaking client builds
+ * - Schema transforms need normalization at validation time
+ * 
+ * Keep this in sync with server/lib/style.ts
+ */
 const SUPPORTED_STYLES = [
   'crossfit', 'olympic_weightlifting', 'powerlifting', 'bb_full_body', 'bb_upper',
   'bb_lower', 'aerobic', 'conditioning', 'strength', 'endurance', 'gymnastics', 'mobility', 'mixed'
@@ -18,7 +29,7 @@ const SUPPORTED_STYLES = [
 
 const StyleEnum = z.enum(SUPPORTED_STYLES);
 
-// Normalize helper to ensure valid style
+// Normalize helper - mirrors server/lib/style.ts normalizeStyle()
 function normalizeToStyle(raw: string): typeof SUPPORTED_STYLES[number] {
   const lower = raw.toLowerCase();
   
@@ -35,7 +46,7 @@ function normalizeToStyle(raw: string): typeof SUPPORTED_STYLES[number] {
   if (lower.includes('olympic')) return 'olympic_weightlifting';
   if (lower.includes('bodybuilding')) return 'bb_full_body';
   
-  // Safe default
+  // Safe default (never return "none" or invalid values)
   return 'mixed';
 }
 

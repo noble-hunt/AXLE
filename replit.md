@@ -28,8 +28,9 @@ Preferred communication style: Simple, everyday language.
   - `DEBUG_PREMIUM_STAMP=1`: Adds debug headers (`X-AXLE-Generator`, `X-AXLE-Style`) for verification
   - Routes `/api/workouts/generate` and `/api/workouts/simulate` enforce these constraints with clear 502 error responses
 - **Multi-Layer Style Normalization** (October 2025):
+  - **Canonical Source**: `server/lib/style.ts` - single source of truth for `SUPPORTED_STYLES` and `normalizeStyle()` function
   - **Defense-in-Depth**: Four layers of style normalization prevent invalid style errors
-  - **Schema Transform**: Zod schemas auto-normalize any style variant (oly→olympic_weightlifting, cf→crossfit) using dedicated `normalizeToStyle()` helper with `.transform()` pattern
+  - **Schema Transform**: Zod schemas auto-normalize any style variant (oly→olympic_weightlifting, cf→crossfit) using dedicated `normalizeToStyle()` helper with `.transform()` pattern (documented duplicate in `shared/types/workouts.ts` to avoid circular imports)
   - **Route Middleware**: `normalizeStyleMiddleware` guarantees normalization on every request, sets `X-AXLE-Route` and `X-AXLE-Style-Normalized` headers
   - **Orchestrator Backstop**: Secondary normalization in orchestrator (WG-ORCH@1.0.4) with stamped logging
   - **Premium Guard**: Final validation in `generatePremiumWorkout()` multi-field extraction (style/goal/focus/meta.style) ensures only supported styles reach builders
