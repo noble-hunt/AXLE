@@ -8,7 +8,7 @@ import { DISABLE_SIMPLE, DISABLE_MOCK, FORCE_PREMIUM } from './config/env';
 import { normalizeStyle } from './lib/style';
 
 // Orchestrator version stamp for debugging
-export const GENERATOR_STAMP = 'WG-ORCH@1.0.4';
+export const GENERATOR_STAMP = 'WG-ORCH@1.0.5';
 
 // Canonical style resolver - normalizes goal/style/focus to pattern pack keys
 function resolveStyle(input: any): string {
