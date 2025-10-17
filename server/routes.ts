@@ -39,10 +39,14 @@ import cronWeeklyRouter from "./routes/cron-weekly";
 import storageRouter from "./routes/storage";
 import { router as healthzRouter } from "./routes/healthz";
 import { suggest } from "./routes/suggest";
+import debugStyleRouter from "./routes/_debug-style";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize workout block library
   initializeBlockLibrary();
+  
+  // Debug route for style normalization
+  app.use(debugStyleRouter);
   
   // Dev route for testing workout library
   app.get("/api/dev/workouts/library", (req, res) => {
