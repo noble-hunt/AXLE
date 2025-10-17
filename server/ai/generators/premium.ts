@@ -2566,21 +2566,22 @@ export async function generatePremiumWorkout(
   retryCount: number = 0
 ): Promise<PremiumWorkout> {
   try {
-    // Premium entry: enforce and log style
+    // Premium entry: validate style against pattern pack keys
     const raw = (request as any)?.style ?? (request as any)?.goal ?? (request as any)?.focus ?? (request as any)?.meta?.style ?? '';
     const style = normalizeStyle(raw);
+    const pack = PACKS[style];
 
-    if (!(SUPPORTED_STYLES as readonly string[]).includes(style)) {
+    console.warn('[PREMIUM] entry', { raw, style, hasPack: !!pack, seed: seed || 'auto', retryCount });
+
+    if (!pack) {
       const e: any = new Error(`style_unsupported:${raw || 'empty'}`);
       e.code = 'style_unsupported';
-      e.details = { received: raw, normalized: style, supported: SUPPORTED_STYLES };
+      e.details = { received: raw, normalized: style, available: Object.keys(PACKS) };
       throw e;
     }
 
     // Ensure seed is set
     const workoutSeed = seed || (request as any).seed || `${Date.now()}-${Math.random()}`;
-    
-    console.warn('[PREMIUM] entry', { style, seed: workoutSeed, retryCount });
     
     // Propagate seed through request for deterministic sampling
     (request as any).seed = workoutSeed;
