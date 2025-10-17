@@ -30,24 +30,36 @@ const SUPPORTED_STYLES = [
 const StyleEnum = z.enum(SUPPORTED_STYLES);
 
 // Normalize helper - mirrors server/lib/style.ts normalizeStyle()
+// STRICT: throws error for truly unsupported styles instead of silent fallback
 function normalizeToStyle(raw: string): typeof SUPPORTED_STYLES[number] {
-  const lower = raw.toLowerCase();
+  if (!raw || raw.trim() === '') {
+    // Empty input defaults to mixed (valid use case for wizard)
+    return 'mixed';
+  }
+  
+  const lower = raw.toLowerCase().trim();
   
   // Direct match
   if (SUPPORTED_STYLES.includes(lower as any)) return lower as any;
   
   // Common aliases
-  if (lower === 'cf') return 'crossfit';
-  if (lower === 'oly' || lower === 'olympic') return 'olympic_weightlifting';
-  if (lower === 'pl') return 'powerlifting';
-  if (lower === 'bbfull' || lower === 'bb full body') return 'bb_full_body';
+  const aliases: Record<string, typeof SUPPORTED_STYLES[number]> = {
+    'cf': 'crossfit',
+    'oly': 'olympic_weightlifting',
+    'olympic': 'olympic_weightlifting',
+    'pl': 'powerlifting',
+    'bbfull': 'bb_full_body',
+    'bb full body': 'bb_full_body',
+  };
+  
+  if (aliases[lower]) return aliases[lower];
   
   // Fuzzy matches
   if (lower.includes('olympic')) return 'olympic_weightlifting';
   if (lower.includes('bodybuilding')) return 'bb_full_body';
   
-  // Safe default (never return "none" or invalid values)
-  return 'mixed';
+  // STRICT: throw error instead of silent fallback
+  throw new Error(`Unsupported workout style: "${raw}". Supported: ${SUPPORTED_STYLES.join(', ')}`);
 }
 
 export type GenerationSeed = {
@@ -90,6 +102,12 @@ export const generatePayloadSchema = z.object({
 }).transform((d) => {
   const raw = (d.style ?? d.goal ?? d.focus ?? d.archetype ?? '').toString();
   const style = normalizeToStyle(raw);
+  
+  // STRICT: Validate normalized result is in supported styles
+  if (!SUPPORTED_STYLES.includes(style)) {
+    throw new Error(`Invalid normalized style: "${style}" from input "${raw}"`);
+  }
+  
   return { ...d, archetype: style, style, goal: style, focus: style };
 });
 
@@ -117,6 +135,12 @@ export const simulatePayloadSchema = z.object({
 }).transform((d) => {
   const raw = (d.style ?? d.goal ?? d.focus ?? d.archetype ?? '').toString();
   const style = normalizeToStyle(raw);
+  
+  // STRICT: Validate normalized result is in supported styles
+  if (!SUPPORTED_STYLES.includes(style)) {
+    throw new Error(`Invalid normalized style: "${style}" from input "${raw}"`);
+  }
+  
   return { ...d, archetype: style, style, goal: style, focus: style };
 });
 

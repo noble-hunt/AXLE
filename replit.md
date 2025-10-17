@@ -30,7 +30,7 @@ Preferred communication style: Simple, everyday language.
 - **Multi-Layer Style Normalization** (October 2025):
   - **Canonical Source**: `server/lib/style.ts` - single source of truth for `SUPPORTED_STYLES` and `normalizeStyle()` function
   - **Defense-in-Depth**: Four layers of style normalization prevent invalid style errors
-  - **Schema Transform**: Zod schemas auto-normalize any style variant (oly→olympic_weightlifting, cf→crossfit) using dedicated `normalizeToStyle()` helper with `.transform()` pattern (documented duplicate in `shared/types/workouts.ts` to avoid circular imports)
+  - **Schema Transform**: Zod schemas auto-normalize any style variant (oly→olympic_weightlifting, cf→crossfit) using **STRICT** `normalizeToStyle()` helper that throws errors for unsupported styles instead of silent fallback (documented duplicate in `shared/types/workouts.ts` to avoid circular imports)
   - **Route Middleware**: `normalizeStyleMiddleware` guarantees normalization on every request, sets `X-AXLE-Route` and `X-AXLE-Style-Normalized` headers
   - **Orchestrator Backstop**: Secondary normalization in orchestrator (WG-ORCH@1.0.4) with stamped logging
   - **Premium Guard**: Final validation in `generatePremiumWorkout()` multi-field extraction (style/goal/focus/meta.style) ensures only supported styles reach builders
@@ -38,6 +38,7 @@ Preferred communication style: Simple, everyday language.
   - **Debug Headers**: `X-AXLE-Route`, `X-AXLE-Style-Normalized`, `X-AXLE-Orchestrator`, `X-AXLE-Generator`, `X-AXLE-Style` for full tracing
   - **Entry Logging**: Premium generator logs `[PREMIUM] entry { style, seed, retryCount }` for complete visibility
   - **13 Supported Styles**: crossfit, olympic_weightlifting, powerlifting, bb_full_body, bb_upper, bb_lower, aerobic, conditioning, strength, endurance, gymnastics, mobility, mixed
+  - **Strict Validation**: Schema enforces all 13 styles with no silent fallback - unsupported styles throw clear errors at validation time
 - **Registry-First Architecture** (October 2025):
   - **Movement Selection**: 100% deterministic via pattern packs + movement registry (1,105 movements)
   - **AI Role**: Relegated to coaching notes generation only via `generateCoachingNotes()` helper
