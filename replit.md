@@ -29,12 +29,13 @@ Preferred communication style: Simple, everyday language.
   - Routes `/api/workouts/generate` and `/api/workouts/simulate` enforce these constraints with clear 502 error responses
 - **Multi-Layer Style Normalization** (October 2025):
   - **Defense-in-Depth**: Four layers of style normalization prevent invalid style errors
-  - **Schema Transform**: Zod schemas auto-normalize any style variant (oly→olympic_weightlifting, cf→crossfit) with `.transform()` and `.refine()`
+  - **Schema Transform**: Zod schemas auto-normalize any style variant (oly→olympic_weightlifting, cf→crossfit) using dedicated `normalizeToStyle()` helper with `.transform()` pattern
   - **Route Middleware**: `normalizeStyleMiddleware` guarantees normalization on every request, sets `X-AXLE-Route` and `X-AXLE-Style-Normalized` headers
   - **Orchestrator Backstop**: Secondary normalization in orchestrator (WG-ORCH@1.0.4) with stamped logging
-  - **Premium Guard**: Final validation in `generatePremiumWorkout()` ensures only supported styles reach builders
-  - **Friendly Errors**: Invalid styles throw structured errors `{code: 'style_unsupported', details: {style, supported}}` instead of "none" errors
+  - **Premium Guard**: Final validation in `generatePremiumWorkout()` multi-field extraction (style/goal/focus/meta.style) ensures only supported styles reach builders
+  - **Friendly Errors**: Invalid styles throw structured errors `{code: 'style_unsupported', details: {received, normalized, supported}}` with clear context
   - **Debug Headers**: `X-AXLE-Route`, `X-AXLE-Style-Normalized`, `X-AXLE-Orchestrator`, `X-AXLE-Generator`, `X-AXLE-Style` for full tracing
+  - **Entry Logging**: Premium generator logs `[PREMIUM] entry { style, seed, retryCount }` for complete visibility
   - **13 Supported Styles**: crossfit, olympic_weightlifting, powerlifting, bb_full_body, bb_upper, bb_lower, aerobic, conditioning, strength, endurance, gymnastics, mobility, mixed
 - **Registry-First Architecture** (October 2025):
   - **Movement Selection**: 100% deterministic via pattern packs + movement registry (1,105 movements)
