@@ -7,9 +7,9 @@
 
 import type { Express } from "express";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
+import { normalizeStyleMiddleware } from "../middleware/normalizeStyle";
 import { generatePayloadSchema } from "../../shared/types/workouts";
 import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator";
-import { normalizeStyle } from "../lib/style";
 
 export function registerGenerateRoutes(app: Express) {
   /**
@@ -18,20 +18,10 @@ export function registerGenerateRoutes(app: Express) {
    * Generate and save workout to database
    * Used for final generation in the workout generator wizard
    */
-  app.post("/api/workouts/generate", requireAuth, async (req, res, next) => {
+  app.post("/api/workouts/generate", requireAuth, normalizeStyleMiddleware, async (req, res, next) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
-      
-      // Normalize style early so downstream never sees "none" or invalid variants
-      const normalizedStyle = normalizeStyle(req.body?.style ?? req.body?.goal ?? req.body?.focus ?? req.body?.archetype);
-      req.body = { 
-        ...req.body, 
-        archetype: normalizedStyle,
-        style: normalizedStyle, 
-        goal: normalizedStyle, 
-        focus: normalizedStyle 
-      };
       
       // Validate request body (now with normalized style)
       const validatedData = generatePayloadSchema.parse(req.body);
@@ -59,9 +49,9 @@ export function registerGenerateRoutes(app: Express) {
       const meta = (generatedWorkout as any)?.meta || {};
       
       // Set debug headers for easy tracing (always visible in DevTools)
-      res.setHeader('X-AXLE-Generator', meta.generator || 'unknown');
-      res.setHeader('X-AXLE-Style', meta.style || validatedData.archetype || 'unknown');
       res.setHeader('X-AXLE-Orchestrator', GENERATOR_STAMP);
+      res.setHeader('X-AXLE-Generator', meta.generator || 'unknown');
+      res.setHeader('X-AXLE-Style', meta.style || req.body?.style || 'unknown');
       
       // Save to database
       const { insertWorkout } = await import("../dal/workouts");
