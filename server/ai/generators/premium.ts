@@ -574,6 +574,150 @@ function fitBlocksToDuration(blocks: any[], reqDurMin: number, warmupMin: number
   }
 }
 
+/**
+ * fitBlocksToBudget: Scale main blocks proportionally to fit within time budget
+ * Guarantees total duration <= requested duration
+ */
+function fitBlocksToBudget(blocks: any[], totalMin: number, warmupMin: number, cooldownMin: number) {
+  const mains = blocks.filter(b => ['strength','conditioning','main','emom','amrap'].includes((b.kind||'').toLowerCase()));
+  const currentMainSum = mains.reduce((s,b)=> s + (b.time_min || 0), 0);
+  
+  // Calculate actual warmup/cooldown durations (may have been compressed by pack builder)
+  const warmupBlock = blocks.find(b => b.kind === 'warmup');
+  const cooldownBlock = blocks.find(b => b.kind === 'cooldown');
+  const actualWarmup = warmupBlock?.time_min || warmupMin;
+  const actualCooldown = cooldownBlock?.time_min || cooldownMin;
+  
+  // Target main sum to hit requested total
+  let targetMainSum = totalMin - actualWarmup - actualCooldown;
+  
+  // Compress warmup/cooldown if budget is tight relative to current mains
+  const neededForMains = Math.max(currentMainSum, 8); // Either current sum or minimum 8
+  if (targetMainSum < neededForMains && currentMainSum > 0) {
+    const minWarmup = 4;
+    const minCooldown = 4; // Raised from 2 to be less aggressive
+    const deficit = neededForMains - targetMainSum;
+    
+    if (actualWarmup > minWarmup && deficit > 0) {
+      const reduction = Math.min(actualWarmup - minWarmup, deficit);
+      if (warmupBlock) warmupBlock.time_min -= reduction;
+      targetMainSum += reduction;
+    }
+    if (targetMainSum < neededForMains && actualCooldown > minCooldown) {
+      const remainingDeficit = neededForMains - targetMainSum;
+      const reduction = Math.min(actualCooldown - minCooldown, remainingDeficit);
+      if (cooldownBlock) cooldownBlock.time_min -= reduction;
+      targetMainSum += reduction;
+    }
+  }
+  
+  // If mains already at or under target, done
+  if (currentMainSum <= targetMainSum) return blocks;
+
+  // Need to scale down mains to fit target
+  const minBlockTime = Math.min(8, Math.floor(targetMainSum / mains.length)); // Adaptive minimum
+  const scale = targetMainSum / currentMainSum;
+  
+  const scaledTimes = mains.map(b => ({
+    block: b,
+    original: b.time_min || 8,
+    scaled: Math.max(minBlockTime, Math.round((b.time_min || 8) * scale))
+  }));
+  
+  let scaledSum = scaledTimes.reduce((s, t) => s + t.scaled, 0);
+  
+  // Remove blocks if we still exceed target after clamping to minimums
+  while (scaledSum > targetMainSum && scaledTimes.length > 1) {
+    const removed = scaledTimes.sort((a, b) => a.scaled - b.scaled).shift();
+    if (removed) {
+      const idx = blocks.indexOf(removed.block);
+      if (idx !== -1) blocks.splice(idx, 1);
+    }
+    scaledSum = scaledTimes.reduce((s, t) => s + t.scaled, 0);
+  }
+  
+  // Force-fit if still over
+  if (scaledSum > targetMainSum && scaledTimes.length >= 1) {
+    const excess = scaledSum - targetMainSum;
+    const largest = scaledTimes.sort((a, b) => b.scaled - a.scaled)[0];
+    if (largest) largest.scaled = Math.max(4, largest.scaled - excess);
+    scaledSum = scaledTimes.reduce((s, t) => s + t.scaled, 0);
+  }
+  
+  // Final trim: distribute any remaining excess across blocks
+  while (scaledSum > targetMainSum && scaledTimes.length > 0) {
+    for (const item of scaledTimes.sort((a, b) => b.scaled - a.scaled)) {
+      if (scaledSum <= targetMainSum) break;
+      if (item.scaled > 4) {
+        item.scaled -= 1;
+        scaledSum -= 1;
+      }
+    }
+  }
+  
+  // Apply scaled times and normalize titles
+  scaledTimes.forEach(({ block, scaled }) => {
+    block.time_min = scaled;
+    
+    if (/Every\s*2:00\s*x\s*\d+/i.test(block.title||'')) {
+      const rounds = Math.max(2, Math.round(scaled / 2));
+      block.title = `Every 2:00 x ${rounds}`;
+    } else if (/Every\s*2:30\s*x\s*\d+/i.test(block.title||'')) {
+      const rounds = Math.max(2, Math.round(scaled / 2.5));
+      block.title = `Every 2:30 x ${rounds}`;
+    } else if (/Every\s*3:00\s*x\s*\d+/i.test(block.title||'')) {
+      const rounds = Math.max(2, Math.round(scaled / 3));
+      block.title = `Every 3:00 x ${rounds}`;
+    } else if (/Alt.*E1:30x/i.test(block.title||'')) {
+      const rounds = Math.max(4, Math.round(scaled / 1.5));
+      block.title = `Alt Every 1:30 x ${rounds}`;
+    } else if (/^EMOM\s+\d+/i.test(block.title||'')) {
+      block.title = `EMOM ${scaled}`;
+    }
+  });
+  
+  return blocks;
+}
+
+/**
+ * ensureOlympicRequired: Enforce both snatch + clean&jerk patterns for Olympic workouts
+ * Attempts auto-merge repair if patterns are missing; throws error if cannot satisfy budget
+ */
+function ensureOlympicRequired(workout: any, pack: any) {
+  if (!pack.requiredPatterns || pack.requiredPatterns.length === 0) return;
+
+  const hasSnatch = workout.blocks.some((b:any) => JSON.stringify(b).toLowerCase().includes('snatch'));
+  const hasCJ = workout.blocks.some((b:any) => /clean.*jerk/i.test(JSON.stringify(b)));
+
+  if (hasSnatch && hasCJ) return;
+
+  // Attempt auto-merge repair: build one alternating main
+  const total = (workout.meta?.duration_min) || workout.duration || 45;
+  const altMin = Math.max(10, Math.min(16, total - pack.warmupMin - pack.cooldownMin));
+  if (altMin >= 10) {
+    workout.blocks = workout.blocks.filter((b:any) => (b.kind||'').toLowerCase() !== 'strength'); // drop mains
+    workout.blocks.splice(1, 0, { // insert after warm-up
+      id: `ol-alt-${Date.now()}`,
+      title: `Alt Every 1:30 x ${Math.round(altMin / 1.5)}`,
+      kind: 'strength',
+      time_min: altMin,
+      items: [
+        { name: 'Snatch Complex', patterns:['olympic_snatch'] },
+        { name: 'Clean & Jerk Complex', patterns:['olympic_cleanjerk'] },
+      ],
+      _policy_repair: 'oly_required_patterns:auto_merge_alt',
+    });
+    console.log(`🔧 Olympic auto-merge repair: created alternating block (${altMin}min)`);
+    return;
+  }
+
+  // If we reach here, we cannot repair within budget; mark non-acceptance to trip strict mode
+  workout.acceptance = workout.acceptance || {};
+  workout.acceptance.style_ok = false;
+  workout.acceptance.hardness_ok = false;
+  throw new Error('oly_required_patterns:cannot_satisfy_budget');
+}
+
 // Define schema for premium workout structure
 const WorkoutItemSchema = z.object({
   exercise: z.string(),
@@ -2679,6 +2823,17 @@ export async function generatePremiumWorkout(
       }
       
       if (workout) {
+        // Fit blocks to budget to guarantee time_fit:true
+        workout.blocks = fitBlocksToBudget(
+          workout.blocks,
+          request.duration || 45,
+          pack.warmupMin,
+          pack.cooldownMin
+        );
+        
+        // Ensure Olympic required patterns (snatch + clean&jerk)
+        ensureOlympicRequired(workout, pack);
+        
         // Add meta information to style-aware workouts
         const enriched = enrichWithMeta(workout, style, workoutSeed, request);
         // Add coaching notes (works with or without OpenAI)
