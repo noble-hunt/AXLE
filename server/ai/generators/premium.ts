@@ -2637,7 +2637,7 @@ function buildAerobic(req: WorkoutGenerationRequest): PremiumWorkout {
 function buildEndurance(req: WorkoutGenerationRequest, pack?: BuilderPatternPack | PatternPack): PremiumWorkout {
   const duration = req.duration || 45;
   const intensity = req.intensity || 6;
-  const equipment = req.equipment || [];
+  const equipment = req.context?.equipment || [];
   
   const blocks = [];
   
@@ -2650,52 +2650,36 @@ function buildEndurance(req: WorkoutGenerationRequest, pack?: BuilderPatternPack
   for (const mainBlock of endurancePack.mainBlocks) {
     const exercises = [];
     
-    // Pick cyclical movement from registry based on equipment
-    const cyclicals = queryMovements({
-      categories: mainBlock.select.categories,
-      patterns: mainBlock.select.patterns,
-      equipment: equipment.length > 0 ? equipment : ['bodyweight', 'cardio_machine'],
-      excludeBannedMains: true,
-      limit: 5,
-      seed: `endurance-${mainBlock.pattern}`
-    });
+    // Extract concrete modality name from the block title (set by pickCyclical in pack builder)
+    // Title format: "Steady Row Z2–Z3", "Cruise Intervals Bike Z3–Z4", "VO2 Repeats Run Z4–Z5"
+    const titleMatch = mainBlock.title?.match(/(Row|Bike|Run|Ski Erg|Jump Rope)/i);
+    const modalityName = titleMatch ? titleMatch[1] : 'Row';  // Default to Row if not found
     
-    if (cyclicals.length > 0) {
-      const selected = cyclicals[0];
-      
-      // Build interval structure based on intensity
-      let target = '';
-      if (intensity >= 8) {
-        // VO2 intervals
-        target = `10 x 1:00 @ Z4-Z5 (85-95% max HR)`;
-        exercises.push({
-          exercise: selected.name,
-          target,
-          notes: '1:00 easy between intervals'
-        });
-      } else if (intensity >= 6) {
-        // Tempo/cruise intervals
-        target = `5 x 4:00 @ Z3-Z4 (75-85% max HR)`;
-        exercises.push({
-          exercise: selected.name,
-          target,
-          notes: '2:00 easy between intervals'
-        });
-      } else {
-        // Steady state
-        target = `${mainBlock.minutes}:00 @ Z2-Z3 (65-75% max HR)`;
-        exercises.push({
-          exercise: selected.name,
-          target,
-          notes: 'Steady sustainable pace'
-        });
-      }
-    } else {
-      // Fallback to generic cardio
+    // Build interval structure based on intensity
+    let target = '';
+    if (intensity >= 8) {
+      // VO2 intervals
+      target = `10 x 1:00 @ Z4-Z5 (85-95% max HR)`;
       exercises.push({
-        exercise: 'Bike/Row/Run',
-        target: `${mainBlock.minutes}:00 @ moderate effort`,
-        notes: 'Choose any cyclical modality'
+        exercise: modalityName,
+        target,
+        notes: '1:00 easy between intervals'
+      });
+    } else if (intensity >= 6) {
+      // Tempo/cruise intervals
+      target = `5 x 4:00 @ Z3-Z4 (75-85% max HR)`;
+      exercises.push({
+        exercise: modalityName,
+        target,
+        notes: '2:00 easy between intervals'
+      });
+    } else {
+      // Steady state
+      target = `${mainBlock.minutes}:00 @ Z2-Z3 (65-75% max HR)`;
+      exercises.push({
+        exercise: modalityName,
+        target,
+        notes: 'Steady sustainable pace'
       });
     }
     

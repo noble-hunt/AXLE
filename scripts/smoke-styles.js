@@ -48,6 +48,7 @@ async function checkEndurance() {
   const j = await r.json();
   const txt = JSON.stringify(j.workout?.sets || []).toLowerCase();
   const meta = j.workout?.meta || {};
+  const first12 = (j.workout?.sets || []).slice(0, 12).map(s => ({ hdr: s.is_header, ex: s.exercise }));
   console.log('STYLE=endurance gen=%s time_fit=%s style_ok=%s hardness_ok=%s', 
     meta.generator, 
     meta.acceptance?.time_fit,
@@ -58,7 +59,9 @@ async function checkEndurance() {
   assert(meta.generator === 'premium', 'Expected premium generator');
   assert(meta.acceptance?.time_fit === true, 'time_fit must be true');
   
-  // Assert the two critical fixes: style validation and hardness scoring
+  // Assert no generic names and both flags are true
+  const mains = first12.filter(x => !x.hdr).map(x => (x.ex || '').toLowerCase());
+  if (mains.find(n => /bike\/row\/run/.test(n))) process.exit(1);
   if (meta.acceptance?.style_ok !== true) process.exit(1);
   if (meta.acceptance?.hardness_ok !== true) process.exit(1);
   
