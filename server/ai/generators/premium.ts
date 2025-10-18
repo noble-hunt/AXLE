@@ -3007,7 +3007,8 @@ export async function generatePremiumWorkout(
     if (style === 'olympic_weightlifting') {
       pack = buildOlympicPack(request.duration || 45);
     } else if (style === 'endurance') {
-      pack = buildEndurancePack(request.duration || 45, request.intensity || 6, request.equipment || []);
+      const eq = (request.equipment || []).map(x => String(x).toLowerCase());
+      pack = buildEndurancePack(request.duration || 45, request.intensity || 6, eq);
     } else {
       // Fall back to existing static packs
       const base = PACKS[style] || PACKS['crossfit'];
