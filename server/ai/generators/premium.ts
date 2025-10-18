@@ -2835,7 +2835,7 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
   if (style === 'olympic_weightlifting') {
     pack = buildOlympicPack(req?.duration || 45);
   } else if (style === 'endurance') {
-    pack = buildEndurancePack(req?.duration || 45, req?.intensity || 6);
+    pack = buildEndurancePack(req?.duration || 45, req?.intensity || 6, req?.equipment || []);
   } else {
     const base = PACKS[style] || PACKS['crossfit'];
     pack = { ...base };
@@ -3004,7 +3004,7 @@ export async function generatePremiumWorkout(
     if (style === 'olympic_weightlifting') {
       pack = buildOlympicPack(request.duration || 45);
     } else if (style === 'endurance') {
-      pack = buildEndurancePack(request.duration || 45, request.intensity || 6);
+      pack = buildEndurancePack(request.duration || 45, request.intensity || 6, request.equipment || []);
     } else {
       // Fall back to existing static packs
       const base = PACKS[style] || PACKS['crossfit'];

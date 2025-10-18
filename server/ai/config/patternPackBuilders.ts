@@ -25,6 +25,18 @@ export type PatternPack = {
 // Helper to clamp a value within bounds
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
+// Helper to pick the best available cardio modality from equipment
+function pickCyclical(equipment: string[] = []): { name: string; patterns: string[] } {
+  const eq = (equipment || []).map(e => String(e).toLowerCase());
+  if (eq.includes('rower')) return { name: 'Row', patterns: ['row', 'erg', 'cyclical'] };
+  if (eq.includes('bike') || eq.includes('air_bike') || eq.includes('assault_bike'))
+    return { name: 'Bike', patterns: ['bike', 'erg', 'cyclical'] };
+  if (eq.includes('treadmill')) return { name: 'Run', patterns: ['run', 'cyclical'] };
+  if (eq.includes('ski_erg')) return { name: 'Ski Erg', patterns: ['ski', 'erg', 'cyclical'] };
+  // fallback
+  return { name: 'Jump Rope', patterns: ['jump_rope', 'cyclical'] };
+}
+
 // ---- OLYMPIC WEIGHTLIFTING ----
 export function buildOlympicPack(totalMin: number): PatternPack {
   // Default mins; compress if budget is tight
@@ -102,10 +114,13 @@ export function buildOlympicPack(totalMin: number): PatternPack {
 }
 
 // ---- ENDURANCE ----
-export function buildEndurancePack(totalMin: number, requestedIntensity = 6): PatternPack {
+export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equipment?: string[]): PatternPack {
   const warmup = totalMin >= 40 ? 8 : totalMin >= 30 ? 6 : 5;
   const cooldown = totalMin >= 40 ? 6 : totalMin >= 30 ? 4 : 3;
   const budget = Math.max(10, totalMin - warmup - cooldown);
+
+  // Pick the best available cardio modality
+  const mod = pickCyclical(equipment);
 
   // Translate 1–10 to zones/structure:
   // 4–5 → steady Z2/Z3, 6–7 → tempo / cruise intervals, 8+ → VO2 short repeats.
@@ -124,11 +139,11 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6): Pa
       kind: 'aerobic',
       select: {
         categories: ["endurance","aerobic"],
-        patterns: ["cyclical","cardio","run","row","bike","erg","ski","swim","jump_rope"],
+        patterns: mod.patterns,
         modality: ["aerobic"],
         items: 1
       },
-      title: "Steady Z2–Z3",
+      title: `Steady ${mod.name} Z2–Z3`,
     });
   } else if (isTempo) {
     // Cruise intervals e.g., 3 x 6' @ Z3/4 with 2' easy
@@ -138,25 +153,25 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6): Pa
       kind: 'aerobic',
       select: {
         categories: ["endurance","aerobic"],
-        patterns: ["cyclical","cardio","run","row","bike","erg","ski","swim"],
+        patterns: mod.patterns,
         modality: ["aerobic"],
         items: 1
       },
-      title: "Cruise Intervals Z3–Z4",
+      title: `Cruise Intervals ${mod.name} Z3–Z4`,
     });
   } else if (isVO2) {
     // VO2 repeats e.g., 10 x 1' hard / 1' easy
     mainBlocks.push({
-      pattern: "INTERVALS",
+      pattern: "VO2",
       minutes: budget,
       kind: 'aerobic',
       select: {
         categories: ["endurance","aerobic"],
-        patterns: ["cyclical","cardio","run","row","bike","erg","ski"],
+        patterns: mod.patterns,
         modality: ["aerobic"],
         items: 1
       },
-      title: "VO2 Repeats Z4–Z5",
+      title: `VO2 Repeats ${mod.name} Z4–Z5`,
     });
   }
 
