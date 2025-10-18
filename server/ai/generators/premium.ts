@@ -10,6 +10,8 @@ import type { Movement } from '../../types/movements';
 import registryData from '../../data/movements.registry.json';
 import { STYLE_POLICIES } from '../config/stylePolicies';
 import type { StylePolicy } from '../config/stylePolicies';
+import { STYLE_SPECS } from '../config/styleSpecs';
+import type { StyleSpec } from '../config/styleSpecs';
 import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL, PREMIUM_STRICT } from '../../config/env';
 import { normalizeStyle, SUPPORTED_STYLES } from '../../lib/style';
 
@@ -305,6 +307,81 @@ function seedRandom(seed: string) {
     hash = (hash * 9301 + 49297) % 233280;
     return hash / 233280;
   };
+}
+
+/**
+ * Helper: Compute ratio of blocks matching a predicate
+ */
+function ratioOf(predicate: (s: any) => boolean, sets: any[]) {
+  const mins = (x: any) => (x.duration || x.time_min || 0) / 60;
+  const tot = sets.reduce((s, x) => s + mins(x), 0) || 1;
+  const ok = sets.filter(predicate).reduce((s, x) => s + mins(x), 0);
+  return ok / tot;
+}
+
+/**
+ * Helper: Check if block contains any of the given patterns (case-insensitive)
+ */
+function hasPattern(s: any, pats: string[]) {
+  const txt = JSON.stringify(s).toLowerCase();
+  return pats.some(p => txt.includes(p.toLowerCase()));
+}
+
+/**
+ * Validate workout against style specifications
+ * - Enforces banned patterns in main blocks
+ * - Enforces required patterns
+ * - Checks cyclical/loaded ratios
+ * - Hard-fails in strict mode
+ */
+function validateStyleAgainstSpec(style: string, workout: any, strict: boolean) {
+  const spec: StyleSpec | undefined = STYLE_SPECS[style as keyof typeof STYLE_SPECS];
+  if (!spec) return;
+
+  const sets = workout.sets || workout.blocks || [];
+
+  // BAN: no banned patterns in mains
+  const mains = sets.filter((b: any): boolean => b.is_header !== true);
+  if (spec.banMainPatterns && spec.banMainPatterns.length) {
+    const bad = mains.find((b: any) => hasPattern(b, spec.banMainPatterns!));
+    if (bad) {
+      workout.meta = workout.meta || {};
+      workout.meta.acceptance = workout.meta.acceptance || {};
+      workout.meta.acceptance.style_ok = false;
+      if (strict) throw new Error(`style_banned_pattern:${style}`);
+    }
+  }
+
+  // REQUIRE: patterns
+  if (spec.requirePatterns && spec.requirePatterns.length) {
+    const txt = JSON.stringify(sets).toLowerCase();
+    const miss = spec.requirePatterns.find(p => !txt.includes(p.toLowerCase()));
+    if (miss) {
+      workout.meta = workout.meta || {};
+      workout.meta.acceptance = workout.meta.acceptance || {};
+      workout.meta.acceptance.style_ok = false;
+      if (strict) throw new Error(`style_required_missing:${style}:${miss}`);
+    }
+  }
+
+  // RATIO checks (cyclical share / loaded share)
+  if (spec.minCyclicalRatio || spec.maxLoadedRatio !== undefined) {
+    const cycPats = ["cyclical", "cardio", "run", "row", "bike", "erg", "ski", "swim", "jump_rope"];
+    const loadedPats = ["barbell", "dumbbell", "kettlebell", "thruster", "clean", "jerk", "snatch", "deadlift", "squat", "press", "pull", "bench"];
+    const cycRatio = ratioOf((x) => hasPattern(x, cycPats), mains);
+    const loadedRatio = ratioOf((x) => hasPattern(x, loadedPats), mains);
+
+    workout.meta = workout.meta || {};
+    workout.meta.acceptance = workout.meta.acceptance || {};
+    if (spec.minCyclicalRatio && cycRatio < spec.minCyclicalRatio) {
+      workout.meta.acceptance.style_ok = false;
+      if (strict) throw new Error(`style_min_cyclical_ratio_fail:${cycRatio}`);
+    }
+    if (spec.maxLoadedRatio !== undefined && loadedRatio > spec.maxLoadedRatio) {
+      workout.meta.acceptance.style_ok = false;
+      if (strict) throw new Error(`style_max_loaded_ratio_fail:${loadedRatio}`);
+    }
+  }
 }
 
 // Registry-aware sanitizer: enforce "no banned in mains", hardness floors, and style fidelity
@@ -2946,6 +3023,11 @@ export async function generatePremiumWorkout(
         
         // Add meta information to style-aware workouts
         const enriched = enrichWithMeta(workout, style, workoutSeed, request);
+        
+        // Validate against style specifications (ban patterns, require patterns, ratios)
+        const strict = PREMIUM_STRICT;
+        validateStyleAgainstSpec(style, enriched, strict);
+        
         // Add coaching notes (works with or without OpenAI)
         return await enrichWithNotes(enriched);
       }
