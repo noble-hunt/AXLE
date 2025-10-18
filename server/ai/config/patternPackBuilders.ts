@@ -12,6 +12,7 @@ export type PatternBlock = {
     requireLoaded?: boolean;
   };
   title?: string;         // optional explicit title
+  notes?: string;         // optional coaching notes/scheme
 };
 export type PatternPack = {
   name: string;
@@ -132,7 +133,7 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equ
   const mainBlocks: PatternBlock[] = [];
 
   if (isSteady) {
-    // One steady block
+    // One steady block - continuous effort
     mainBlocks.push({
       pattern: "STEADY",
       minutes: budget,
@@ -144,9 +145,13 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equ
         items: 1
       },
       title: `Steady ${mod.name} Z2–Z3`,
+      notes: `Steady ${budget}:00 continuous @ Z2–Z3. Maintain conversational pace, nasal breathing.`,
     });
   } else if (isTempo) {
     // Cruise intervals e.g., 3 x 6' @ Z3/4 with 2' easy
+    const rounds = budget >= 20 ? 4 : 3;
+    const workMin = Math.floor((budget * 0.7) / rounds);
+    const restMin = Math.floor((budget * 0.3) / rounds);
     mainBlocks.push({
       pattern: "INTERVALS",
       minutes: budget,
@@ -158,9 +163,13 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equ
         items: 1
       },
       title: `Cruise Intervals ${mod.name} Z3–Z4`,
+      notes: `${rounds} x ${workMin}:00 @ Z3–Z4, ${restMin}:00 easy. Comfortably hard, sustainable effort.`,
     });
   } else if (isVO2) {
     // VO2 repeats e.g., 10 x 1' hard / 1' easy
+    const rounds = budget >= 20 ? 12 : budget >= 16 ? 10 : 8;
+    const workSec = 60;
+    const restSec = Math.floor((budget * 60 - rounds * workSec) / rounds);
     mainBlocks.push({
       pattern: "VO2",
       minutes: budget,
@@ -172,6 +181,7 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equ
         items: 1
       },
       title: `VO2 Repeats ${mod.name} Z4–Z5`,
+      notes: `${rounds} x ${workSec}s ON / ${restSec}s OFF @ Z4–Z5. Hard effort, stay smooth. Pace by HR/respiration, not all-out.`,
     });
   }
 
