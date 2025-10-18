@@ -2673,6 +2673,16 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     ...acceptance 
   };
   
+  // Strict mode: reject workouts that don't meet quality standards
+  if (process.env.HOBH_PREMIUM_STRICT === 'true') {
+    if (sanitizedWorkout.acceptance_flags.time_fit === false) {
+      throw new Error('premium_reject:time_fit_false');
+    }
+    if (sanitizedWorkout.acceptance_flags.style_ok === false) {
+      throw new Error('premium_reject:style_invalid');
+    }
+  }
+  
   // Compute main-only loaded ratio (excluding warmup/cooldown)
   const mainLoadedRatio = loadedRatioMainOnly(sanitizedWorkout.blocks, REG);
   
