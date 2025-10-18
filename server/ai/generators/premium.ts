@@ -462,10 +462,12 @@ export function sanitizeWorkout(workout: any, req: any, pack: PatternPack, seed:
   
   // 2) Hardness floor per style
   const lowReady = Boolean(req?.wearable_snapshot?.sleep_score && req.wearable_snapshot.sleep_score < 60);
-  const floor = hasGear && !lowReady ? (pack.hardnessFloor || 0.85) : (lowReady ? 0.55 : 0.75);
+  // Always respect pack's hardnessFloor first, then apply recovery override or defaults
+  const baseFloor = pack.hardnessFloor ?? (hasGear ? 0.85 : 0.75);
+  const floor = lowReady ? 0.55 : baseFloor;
   
   // 3) Bonus for loaded mains; penalty for BW-only mains with gear
-  let score = computeHardness(workout, equip, pack);
+  let score = computeHardness(workout, equip, pack, req);
   for (const b of mains) {
     const loaded = (b.items || []).filter((it: any) => {
       const mv = REG.get(it.registry_id || '');
@@ -1392,7 +1394,7 @@ function validatePatternsAndBW(workout: PremiumWorkout, equipment: string[]): vo
 }
 
 // Hardness calculation function - uses movement registry metadata
-export function computeHardness(workout: PremiumWorkout, equipmentAvailable?: string[], pack?: PatternPack): number {
+export function computeHardness(workout: PremiumWorkout, equipmentAvailable?: string[], pack?: PatternPack, req?: any): number {
   let h = 0;
   const hasGear = (equipmentAvailable || []).length > 0;
   const hasBarbell = (equipmentAvailable || []).some(e => /barbell/i.test(e));
@@ -1475,7 +1477,7 @@ export function computeHardness(workout: PremiumWorkout, equipmentAvailable?: st
     if (/steady/i.test(text)) { h += 0.12; patternBonus += 0.12; }  // Z2–Z3 aerobic base
     
     // Intensity assist (make 7+ map to harder structures)
-    const targetI = (workout as any).intensity || (workout as any).meta?.intensity;
+    const targetI = req?.intensity || (workout as any).intensity || (workout as any).meta?.intensity;
     let intensityBonus = 0;
     if (targetI >= 7) { h += 0.06; intensityBonus += 0.06; }
     if (targetI >= 8) { h += 0.10; intensityBonus += 0.10; }
@@ -2953,6 +2955,7 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     goal: req?.category || style,
     title: sanitizedWorkout.title || pack.name,
     equipment: req?.context?.equipment || [],
+    intensity: req?.intensity,  // Store intensity for hardness calculation
     seed,
     acceptance: sanitizedWorkout.acceptance_flags,
     selectionTrace,

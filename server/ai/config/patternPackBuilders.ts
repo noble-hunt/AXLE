@@ -189,7 +189,7 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equ
     name: "Endurance",
     warmupMin: warmup,
     cooldownMin: cooldown,
-    hardnessFloor: 0.80,
+    hardnessFloor: 0.50,  // Lower floor for cardio-only workouts (no loaded movements)
     mainBlocks,
   };
 }

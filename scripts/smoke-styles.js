@@ -48,10 +48,19 @@ async function checkEndurance() {
   const j = await r.json();
   const txt = JSON.stringify(j.workout?.sets || []).toLowerCase();
   const meta = j.workout?.meta || {};
-  console.log('STYLE=endurance gen=%s time_fit=%s', meta.generator, meta.acceptance?.time_fit);
+  console.log('STYLE=endurance gen=%s time_fit=%s style_ok=%s hardness_ok=%s', 
+    meta.generator, 
+    meta.acceptance?.time_fit,
+    meta.acceptance?.style_ok,
+    meta.acceptance?.hardness_ok
+  );
   
   assert(meta.generator === 'premium', 'Expected premium generator');
   assert(meta.acceptance?.time_fit === true, 'time_fit must be true');
+  
+  // Assert the two critical fixes: style validation and hardness scoring
+  if (meta.acceptance?.style_ok !== true) process.exit(1);
+  if (meta.acceptance?.hardness_ok !== true) process.exit(1);
   
   // must be cardio/cyclical dominant
   const hasCyc = /(run|row|bike|erg|ski|swim|jump)/.test(txt);
