@@ -1,7 +1,7 @@
 export type PatternPack = {
   name: string;
   mainBlocks: Array<{
-    pattern: 'E2:00x'|'E2:30x'|'E3:00x'|'EMOM'|'AMRAP'|'FOR_TIME_21_15_9'|'CHIPPER_40_30_20_10'|'INTERVALS'|'STEADY'|'MOBILITY_QUALITY';
+    pattern: 'E2:00x'|'E2:30x'|'E3:00x'|'EMOM'|'AMRAP'|'FOR_TIME_21_15_9'|'CHIPPER_40_30_20_10'|'INTERVALS'|'STEADY'|'CRUISE'|'VO2'|'MOBILITY_QUALITY';
     kind: 'strength'|'conditioning'|'skill'|'aerobic'|'mobility'; // block type
     minutes: number;          // approximate block time
     select: {
@@ -11,6 +11,8 @@ export type PatternPack = {
       items: number;          // how many unique movements to pick
       requireLoaded?: boolean;// at least N loaded when equipment present
     };
+    title?: string;           // optional explicit title
+    notes?: string;           // optional coaching notes/scheme
   }>;
   warmupMin: number;
   cooldownMin: number;

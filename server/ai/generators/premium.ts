@@ -432,6 +432,48 @@ function validateStyleAgainstSpec(style: string, workout: any, strict: boolean) 
   }
 }
 
+/**
+ * Rewrite generic endurance names (e.g., "Bike/Row/Run") to the chosen modality
+ */
+function rewriteEnduranceGenericNames(workout: any) {
+  const style = (workout.meta?.style || workout.style || '').toLowerCase();
+  if (style !== 'endurance' && style !== 'aerobic') return;
+
+  const sets = workout.sets || [];
+  let currentHeader = null;
+  let chosenHeaderMod: string | null = null;
+
+  for (const s of sets) {
+    if (s.is_header) {
+      currentHeader = s;
+      // infer chosen modality from the header text
+      const t = String(s.title || s.exercise || '').toLowerCase();
+      if (/row/.test(t)) chosenHeaderMod = 'Row';
+      else if (/bike/.test(t)) chosenHeaderMod = 'Bike';
+      else if (/\brun\b/.test(t)) chosenHeaderMod = 'Run';
+      else if (/ski/.test(t)) chosenHeaderMod = 'Ski Erg';
+      else if (/jump rope/.test(t)) chosenHeaderMod = 'Jump Rope';
+      else chosenHeaderMod = null;
+      continue;
+    }
+    // only touch items under an endurance main header
+    if (currentHeader && /steady|cruise|vo2|intervals|endurance|aerobic/i.test(currentHeader.title || currentHeader.exercise || '')) {
+      const name = String(s.exercise || s.name || '').toLowerCase();
+      if (/bike\/row\/run/.test(name) || /cyclical/i.test(name) || /modality/i.test(name)) {
+        if (chosenHeaderMod) {
+          s.exercise = chosenHeaderMod;
+          // optional: hint a registry id string for clarity; harmless if unknown
+          if (chosenHeaderMod === 'Row') s.registry_id = 'row';
+          if (chosenHeaderMod === 'Bike') s.registry_id = 'bike';
+          if (chosenHeaderMod === 'Run') s.registry_id = 'run';
+          if (chosenHeaderMod === 'Ski Erg') s.registry_id = 'ski';
+          if (chosenHeaderMod === 'Jump Rope') s.registry_id = 'jump_rope';
+        }
+      }
+    }
+  }
+}
+
 // Registry-aware sanitizer: enforce "no banned in mains", hardness floors, and style fidelity
 export function sanitizeWorkout(workout: any, req: any, pack: PatternPack, seed: string) {
   const equip = (req.equipment || []).map((e: string) => e.toLowerCase());
@@ -489,6 +531,11 @@ export function sanitizeWorkout(workout: any, req: any, pack: PatternPack, seed:
   };
   
   console.log(`🎯 SANITIZE | Style: ${pack.name} | Hardness: ${score.toFixed(2)} (floor: ${floor.toFixed(2)}) | Banned found: ${bannedFound}`);
+  
+  // Rewrite generic endurance names to concrete modality
+  if (workout.meta?.style === 'endurance' || workout.meta?.style === 'aerobic') {
+    rewriteEnduranceGenericNames(workout);
+  }
   
   return workout;
 }
@@ -2579,7 +2626,7 @@ function buildAerobic(req: WorkoutGenerationRequest): PremiumWorkout {
 function buildEndurance(req: WorkoutGenerationRequest, pack?: BuilderPatternPack | PatternPack): PremiumWorkout {
   const duration = req.duration || 45;
   const intensity = req.intensity || 6;
-  const equipment = req.context?.equipment || [];
+  const equipment = req.equipment || [];
   
   const blocks = [];
   
@@ -2837,7 +2884,8 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
   if (style === 'olympic_weightlifting') {
     pack = buildOlympicPack(req?.duration || 45);
   } else if (style === 'endurance') {
-    pack = buildEndurancePack(req?.duration || 45, req?.intensity || 6, req?.equipment || []);
+    const eq = ((req as any)?.equipment || []).map((x: any) => String(x).toLowerCase());
+    pack = buildEndurancePack(req?.duration || 45, req?.intensity || 6, eq);
   } else {
     const base = PACKS[style] || PACKS['crossfit'];
     pack = { ...base };
@@ -3007,7 +3055,7 @@ export async function generatePremiumWorkout(
     if (style === 'olympic_weightlifting') {
       pack = buildOlympicPack(request.duration || 45);
     } else if (style === 'endurance') {
-      const eq = ((request as any).equipment || []).map((x: any) => String(x).toLowerCase());
+      const eq = ((request as any).context?.equipment || []).map((x: any) => String(x).toLowerCase());
       pack = buildEndurancePack(request.duration || 45, request.intensity || 6, eq);
     } else {
       // Fall back to existing static packs
