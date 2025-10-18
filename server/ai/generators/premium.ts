@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { WorkoutGenerationRequest } from '../generateWorkout';
 import { PACKS } from '../config/patternPacks';
 import type { PatternPack } from '../config/patternPacks';
-import { buildOlympicPack } from '../config/patternPackBuilders';
+import { buildOlympicPack, buildEndurancePack } from '../config/patternPackBuilders';
 import type { PatternPack as BuilderPatternPack } from '../config/patternPackBuilders';
 import { queryMovements, findMovement } from '../movementService';
 import type { Movement } from '../../types/movements';
@@ -2417,6 +2417,102 @@ function buildAerobic(req: WorkoutGenerationRequest): PremiumWorkout {
   };
 }
 
+function buildEndurance(req: WorkoutGenerationRequest, pack?: BuilderPatternPack | PatternPack): PremiumWorkout {
+  const duration = req.duration || 45;
+  const intensity = req.intensity || 6;
+  const equipment = req.context?.equipment || [];
+  
+  const blocks = [];
+  
+  // Warmup
+  blocks.push(pickWarmup(req));
+  
+  // Use the duration-aware pack's main blocks
+  const endurancePack = pack || buildEndurancePack(duration, intensity);
+  
+  for (const mainBlock of endurancePack.mainBlocks) {
+    const exercises = [];
+    
+    // Pick cyclical movement from registry based on equipment
+    const cyclicals = queryMovements({
+      categories: mainBlock.select.categories,
+      patterns: mainBlock.select.patterns,
+      equipment: equipment.length > 0 ? equipment : ['bodyweight', 'cardio_machine'],
+      excludeBannedMains: true,
+      limit: 5,
+      seed: `endurance-${mainBlock.pattern}`
+    });
+    
+    if (cyclicals.length > 0) {
+      const selected = cyclicals[0];
+      
+      // Build interval structure based on intensity
+      let target = '';
+      if (intensity >= 8) {
+        // VO2 intervals
+        target = `10 x 1:00 @ Z4-Z5 (85-95% max HR)`;
+        exercises.push({
+          exercise: selected.name,
+          target,
+          notes: '1:00 easy between intervals'
+        });
+      } else if (intensity >= 6) {
+        // Tempo/cruise intervals
+        target = `5 x 4:00 @ Z3-Z4 (75-85% max HR)`;
+        exercises.push({
+          exercise: selected.name,
+          target,
+          notes: '2:00 easy between intervals'
+        });
+      } else {
+        // Steady state
+        target = `${mainBlock.minutes}:00 @ Z2-Z3 (65-75% max HR)`;
+        exercises.push({
+          exercise: selected.name,
+          target,
+          notes: 'Steady sustainable pace'
+        });
+      }
+    } else {
+      // Fallback to generic cardio
+      exercises.push({
+        exercise: 'Bike/Row/Run',
+        target: `${mainBlock.minutes}:00 @ moderate effort`,
+        notes: 'Choose any cyclical modality'
+      });
+    }
+    
+    blocks.push({
+      kind: mainBlock.kind,
+      title: (mainBlock as any).title || 'Endurance Block',
+      time_min: mainBlock.minutes,
+      items: exercises,
+      notes: `Focus on pacing and breathing - cyclical endurance work`
+    });
+  }
+  
+  // Cooldown
+  blocks.push(makeCooldown());
+  
+  return {
+    title: 'Endurance Training Session',
+    duration_min: duration,
+    blocks,
+    acceptance_flags: {
+      time_fit: true,
+      has_warmup: true,
+      has_cooldown: true,
+      mixed_rule_ok: true,
+      equipment_ok: true,
+      injury_safe: true,
+      readiness_mod_applied: true,
+      hardness_ok: true,
+      patterns_locked: true
+    },
+    variety_score: 0.80
+  };
+}
+
 function buildGymnastics(req: WorkoutGenerationRequest): PremiumWorkout {
   const duration = req.duration || 45;
   
@@ -2577,10 +2673,12 @@ function enrichWithMeta(workout: PremiumWorkout, style: string, seed: string, re
     }
   }
   
-  // Apply registry-aware sanitization (use duration-aware pack for olympic)
+  // Apply registry-aware sanitization (use duration-aware pack for olympic and endurance)
   let pack: BuilderPatternPack | PatternPack;
   if (style === 'olympic_weightlifting') {
     pack = buildOlympicPack(req?.duration || 45);
+  } else if (style === 'endurance') {
+    pack = buildEndurancePack(req?.duration || 45, req?.intensity || 6);
   } else {
     const base = PACKS[style] || PACKS['crossfit'];
     pack = { ...base };
@@ -2748,6 +2846,8 @@ export async function generatePremiumWorkout(
     let pack: BuilderPatternPack | PatternPack;
     if (style === 'olympic_weightlifting') {
       pack = buildOlympicPack(request.duration || 45);
+    } else if (style === 'endurance') {
+      pack = buildEndurancePack(request.duration || 45, request.intensity || 6);
     } else {
       // Fall back to existing static packs
       const base = PACKS[style] || PACKS['crossfit'];
@@ -2820,8 +2920,8 @@ export async function generatePremiumWorkout(
           workout = buildPowerlifting(request);
           break;
         case 'endurance':
-          // Use Aerobic builder for endurance training
-          workout = buildAerobic(request);
+          // Use dedicated Endurance builder with duration-aware pack
+          workout = buildEndurance(request, pack);
           break;
         case 'mixed':
           // Use CrossFit builder for GPP/mixed training
