@@ -357,6 +357,10 @@ function extractMains(sets: any[]) {
   const viaSource = sets.filter(s => (s._source === 'main' || s.source === 'main'));
   if (viaSource.length) return viaSource;
 
+  // Second: try kind-based filtering (for blocks with kind property)
+  const viaKind = sets.filter(s => s.kind && !['warmup', 'cooldown'].includes(s.kind));
+  if (viaKind.length) return viaKind;
+
   // Fallback: positional scan between headers
   let mains: any[] = [];
   let inMain = false;
@@ -461,7 +465,7 @@ export function sanitizeWorkout(workout: any, req: any, pack: PatternPack, seed:
   const floor = hasGear && !lowReady ? (pack.hardnessFloor || 0.85) : (lowReady ? 0.55 : 0.75);
   
   // 3) Bonus for loaded mains; penalty for BW-only mains with gear
-  let score = computeHardness(workout);
+  let score = computeHardness(workout, equip, pack);
   for (const b of mains) {
     const loaded = (b.items || []).filter((it: any) => {
       const mv = REG.get(it.registry_id || '');
@@ -1388,7 +1392,7 @@ function validatePatternsAndBW(workout: PremiumWorkout, equipment: string[]): vo
 }
 
 // Hardness calculation function - uses movement registry metadata
-export function computeHardness(workout: PremiumWorkout, equipmentAvailable?: string[]): number {
+export function computeHardness(workout: PremiumWorkout, equipmentAvailable?: string[], pack?: PatternPack): number {
   let h = 0;
   const hasGear = (equipmentAvailable || []).length > 0;
   const hasBarbell = (equipmentAvailable || []).some(e => /barbell/i.test(e));
@@ -1446,6 +1450,38 @@ export function computeHardness(workout: PremiumWorkout, equipmentAvailable?: st
     // Penalty: ≥2 bodyweight movements in main block when gear is available
     if (isMainBlock && hasGear && bodyweightCount >= 2) {
       h -= 0.10;
+    }
+  }
+  
+  // Endurance/Aerobic scoring signals
+  const text = JSON.stringify(workout.blocks || []);
+  const styleLower = (pack?.name || '').toLowerCase();
+  
+  if (styleLower.includes('endurance') || styleLower.includes('aerobic')) {
+    // Credit time spent in cardio mains
+    const mains = extractMains(workout.blocks || []);
+    const mainMinutes = mains.reduce((s, x) => {
+      // duration is in seconds, time_min is in minutes
+      const mins = x.time_min || (x.duration ? x.duration / 60 : 0);
+      return s + mins;
+    }, 0);
+    const timeBonus = Math.min(0.35, mainMinutes * 0.02);
+    h += timeBonus; // up to +0.35 for ≥17.5 min of continuous cardio
+    
+    // Pattern/structure bonuses
+    let patternBonus = 0;
+    if (/vo2/i.test(text)) { h += 0.25; patternBonus += 0.25; }  // short hard repeats
+    if (/cruise/i.test(text)) { h += 0.18; patternBonus += 0.18; }  // threshold/tempo work
+    if (/steady/i.test(text)) { h += 0.12; patternBonus += 0.12; }  // Z2–Z3 aerobic base
+    
+    // Intensity assist (make 7+ map to harder structures)
+    const targetI = (workout as any).intensity || (workout as any).meta?.intensity;
+    let intensityBonus = 0;
+    if (targetI >= 7) { h += 0.06; intensityBonus += 0.06; }
+    if (targetI >= 8) { h += 0.10; intensityBonus += 0.10; }
+    
+    if (process.env.DEBUG_ENDURANCE_HARDNESS === '1') {
+      console.log(`🏃 Endurance hardness: time=${timeBonus.toFixed(2)} (${mainMinutes.toFixed(1)}min) pattern=${patternBonus.toFixed(2)} intensity=${intensityBonus.toFixed(2)} total=${h.toFixed(2)}`);
     }
   }
   

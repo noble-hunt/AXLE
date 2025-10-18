@@ -26,7 +26,7 @@ Preferred communication style: Simple, everyday language.
 - **Style-Specific Content Policies**: Enforces strict content policies per workout style (e.g., required patterns, banned exercises, loaded ratio requirements) with auto-fix attempts.
 - **Duration-Aware Pack Builders**: Dynamically adapts workout structures and block durations based on total time budget.
 - **Budget Fitting & Pattern Enforcement**: Scales main blocks to fit time budgets and enforces required patterns with auto-repair logic. The `extractMains()` helper correctly isolates main work blocks by excluding warm-up and cooldown sections, ensuring cyclical/loaded ratio calculations are accurate.
-- **Hardness & Ratio Enforcement**: Scores workout hardness and tracks main loaded ratio, with auto-upgrades for CrossFit if needed.
+- **Hardness & Ratio Enforcement**: Scores workout hardness and tracks main loaded ratio, with auto-upgrades for CrossFit if needed. Endurance/aerobic workouts receive proper hardness credit based on time in main work, pattern type (VO2/cruise/steady), and intensity level, ensuring they pass hardness floor checks.
 
 ### Data Layer
 - **Database**: PostgreSQL with Drizzle ORM.
