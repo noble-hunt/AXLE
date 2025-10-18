@@ -1,0 +1,84 @@
+Fix mains detection in the style validator
+
+Goal: Only evaluate the main work for cyclical/loaded ratios. Ignore warm-up & cooldown items.
+
+Edit server/ai/generators/premium.ts – replace the validator’s “mains” logic with the version below.
+
+// --- within premium.ts (where validateStyleAgainstSpec is defined) ---
+
+function isWarmupHeader(x:any){ return x.is_header && /warm-?up/i.test(x.exercise || x.title); }
+function isCooldownHeader(x:any){ return x.is_header && /cool-?down/i.test(x.exercise || x.title); }
+function isHeader(x:any){ return x && x.is_header === true; }
+
+/**
+ * Extract only the "main" items between the first non-warmup header
+ * and the next cooldown header. Falls back to _source/source tags if present.
+ */
+function extractMains(sets:any[]){
+  // First try explicit source flags (most reliable if present)
+  const viaSource = sets.filter(s => (s._source === 'main' || s.source === 'main'));
+  if (viaSource.length) return viaSource;
+
+  // Fallback: positional scan between headers
+  let mains:any[] = [];
+  let inMain = false;
+  for (const s of sets){
+    if (isWarmupHeader(s)) { inMain = false; continue; }
+    if (isCooldownHeader(s)) { inMain = false; continue; }
+    if (isHeader(s) && !isWarmupHeader(s) && !isCooldownHeader(s)) { inMain = true; continue; }
+    if (inMain && !isHeader(s)) mains.push(s);
+  }
+  return mains;
+}
+
+function validateStyleAgainstSpec(style:string, workout:any, strict:boolean) {
+  const spec = STYLE_SPECS[style as any];
+  if (!spec) return;
+  const sets = workout.sets || workout.blocks || [];
+
+  // compute mains correctly
+  const mains = extractMains(sets);
+
+  // BAN: patterns forbidden in mains
+  if (spec.banMainPatterns?.length){
+    const bad = mains.find(b => hasPattern(b, spec.banMainPatterns!));
+    if (bad){
+      workout.meta = workout.meta || {};
+      workout.meta.acceptance = workout.meta.acceptance || {};
+      workout.meta.acceptance.style_ok = false;
+      if (strict) throw new Error(`style_banned_pattern:${style}`);
+    }
+  }
+
+  // REQUIRE: patterns
+  if (spec.requirePatterns?.length){
+    const txt = JSON.stringify(mains).toLowerCase();
+    const miss = spec.requirePatterns.find(p => !txt.includes(p.toLowerCase()));
+    if (miss){
+      workout.meta.acceptance = workout.meta.acceptance || {};
+      workout.meta.acceptance.style_ok = false;
+      if (strict) throw new Error(`style_required_missing:${style}:${miss}`);
+    }
+  }
+
+  // RATIO checks computed on mains only
+  if (spec.minCyclicalRatio || spec.maxLoadedRatio !== undefined){
+    const cycPats = ["cyclical","cardio","run","row","bike","erg","ski","swim","jump_rope"];
+    const loadedPats = ["barbell","dumbbell","kettlebell","thruster","clean","jerk","snatch","deadlift","squat","press","pull","bench"];
+    const cycRatio = ratioOf((x)=>hasPattern(x,cycPats), mains);
+    const loadedRatio = ratioOf((x)=>hasPattern(x,loadedPats), mains);
+
+    workout.meta.acceptance = workout.meta.acceptance || {};
+    if (spec.minCyclicalRatio && cycRatio < spec.minCyclicalRatio){
+      workout.meta.acceptance.style_ok = false;
+      if (strict) throw new Error(`style_min_cyclical_ratio_fail:${cycRatio.toFixed(2)}`);
+    }
+    if (spec.maxLoadedRatio !== undefined && loadedRatio > spec.maxLoadedRatio){
+      workout.meta.acceptance.style_ok = false;
+      if (strict) throw new Error(`style_max_loaded_ratio_fail:${loadedRatio.toFixed(2)}`);
+    }
+  }
+}
+
+
+Why: your JSON shows a clean cardio main, but our old logic counted warm-up/cooldown items as “mains,” tanking the cyc ratio → style_ok:false.

@@ -328,6 +328,48 @@ function hasPattern(s: any, pats: string[]) {
 }
 
 /**
+ * Helper: Check if item is a warm-up header
+ */
+function isWarmupHeader(x: any) {
+  return x.is_header && /warm-?up/i.test(x.exercise || x.title);
+}
+
+/**
+ * Helper: Check if item is a cooldown header
+ */
+function isCooldownHeader(x: any) {
+  return x.is_header && /cool-?down/i.test(x.exercise || x.title);
+}
+
+/**
+ * Helper: Check if item is any header
+ */
+function isHeader(x: any) {
+  return x && x.is_header === true;
+}
+
+/**
+ * Extract only the "main" items between the first non-warmup header
+ * and the next cooldown header. Falls back to _source/source tags if present.
+ */
+function extractMains(sets: any[]) {
+  // First try explicit source flags (most reliable if present)
+  const viaSource = sets.filter(s => (s._source === 'main' || s.source === 'main'));
+  if (viaSource.length) return viaSource;
+
+  // Fallback: positional scan between headers
+  let mains: any[] = [];
+  let inMain = false;
+  for (const s of sets) {
+    if (isWarmupHeader(s)) { inMain = false; continue; }
+    if (isCooldownHeader(s)) { inMain = false; continue; }
+    if (isHeader(s) && !isWarmupHeader(s) && !isCooldownHeader(s)) { inMain = true; continue; }
+    if (inMain && !isHeader(s)) mains.push(s);
+  }
+  return mains;
+}
+
+/**
  * Validate workout against style specifications
  * - Enforces banned patterns in main blocks
  * - Enforces required patterns
@@ -340,8 +382,10 @@ function validateStyleAgainstSpec(style: string, workout: any, strict: boolean) 
 
   const sets = workout.sets || workout.blocks || [];
 
-  // BAN: no banned patterns in mains
-  const mains = sets.filter((b: any): boolean => b.is_header !== true);
+  // Compute mains correctly (exclude warm-up and cooldown)
+  const mains = extractMains(sets);
+
+  // BAN: patterns forbidden in mains
   if (spec.banMainPatterns && spec.banMainPatterns.length) {
     const bad = mains.find((b: any) => hasPattern(b, spec.banMainPatterns!));
     if (bad) {
@@ -354,7 +398,7 @@ function validateStyleAgainstSpec(style: string, workout: any, strict: boolean) 
 
   // REQUIRE: patterns
   if (spec.requirePatterns && spec.requirePatterns.length) {
-    const txt = JSON.stringify(sets).toLowerCase();
+    const txt = JSON.stringify(mains).toLowerCase();
     const miss = spec.requirePatterns.find(p => !txt.includes(p.toLowerCase()));
     if (miss) {
       workout.meta = workout.meta || {};
@@ -364,7 +408,7 @@ function validateStyleAgainstSpec(style: string, workout: any, strict: boolean) 
     }
   }
 
-  // RATIO checks (cyclical share / loaded share)
+  // RATIO checks computed on mains only
   if (spec.minCyclicalRatio || spec.maxLoadedRatio !== undefined) {
     const cycPats = ["cyclical", "cardio", "run", "row", "bike", "erg", "ski", "swim", "jump_rope"];
     const loadedPats = ["barbell", "dumbbell", "kettlebell", "thruster", "clean", "jerk", "snatch", "deadlift", "squat", "press", "pull", "bench"];
@@ -375,11 +419,11 @@ function validateStyleAgainstSpec(style: string, workout: any, strict: boolean) 
     workout.meta.acceptance = workout.meta.acceptance || {};
     if (spec.minCyclicalRatio && cycRatio < spec.minCyclicalRatio) {
       workout.meta.acceptance.style_ok = false;
-      if (strict) throw new Error(`style_min_cyclical_ratio_fail:${cycRatio}`);
+      if (strict) throw new Error(`style_min_cyclical_ratio_fail:${cycRatio.toFixed(2)}`);
     }
     if (spec.maxLoadedRatio !== undefined && loadedRatio > spec.maxLoadedRatio) {
       workout.meta.acceptance.style_ok = false;
-      if (strict) throw new Error(`style_max_loaded_ratio_fail:${loadedRatio}`);
+      if (strict) throw new Error(`style_max_loaded_ratio_fail:${loadedRatio.toFixed(2)}`);
     }
   }
 }

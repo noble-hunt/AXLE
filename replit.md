@@ -25,7 +25,7 @@ Preferred communication style: Simple, everyday language.
 - **Workout Focus Categories**: Supports 13 workout focus types (e.g., CrossFit, Olympic Weightlifting), each with specialized builders and hardness enforcement.
 - **Style-Specific Content Policies**: Enforces strict content policies per workout style (e.g., required patterns, banned exercises, loaded ratio requirements) with auto-fix attempts.
 - **Duration-Aware Pack Builders**: Dynamically adapts workout structures and block durations based on total time budget.
-- **Budget Fitting & Pattern Enforcement**: Scales main blocks to fit time budgets and enforces required patterns with auto-repair logic.
+- **Budget Fitting & Pattern Enforcement**: Scales main blocks to fit time budgets and enforces required patterns with auto-repair logic. The `extractMains()` helper correctly isolates main work blocks by excluding warm-up and cooldown sections, ensuring cyclical/loaded ratio calculations are accurate.
 - **Hardness & Ratio Enforcement**: Scores workout hardness and tracks main loaded ratio, with auto-upgrades for CrossFit if needed.
 
 ### Data Layer
