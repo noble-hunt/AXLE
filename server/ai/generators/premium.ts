@@ -430,6 +430,17 @@ function validateStyleAgainstSpec(style: string, workout: any, strict: boolean) 
       if (strict) throw new Error(`style_max_loaded_ratio_fail:${loadedRatio.toFixed(2)}`);
     }
   }
+
+  // BAN: generic names in endurance/aerobic mains
+  if (style === 'endurance' || style === 'aerobic') {
+    const generic = mains.find((x: any) => /bike\/row\/run/i.test(String(x.exercise || '')));
+    if (generic) {
+      workout.meta = workout.meta || {};
+      workout.meta.acceptance = workout.meta.acceptance || {};
+      workout.meta.acceptance.style_ok = false;
+      if (strict) throw new Error('endurance_generic_name');
+    }
+  }
 }
 
 /**
