@@ -1,7 +1,7 @@
 // Duration-aware pattern pack builders.
 // Each builder returns the same shape as the old static pack.
 export type PatternBlock = {
-  pattern: 'E2:00x' | 'E2:30x' | 'E3:00x' | 'EMOM' | 'AMRAP' | 'FOR_TIME_21_15_9' | 'CHIPPER_40_30_20_10' | 'INTERVALS' | 'STEADY' | 'MOBILITY_QUALITY';
+  pattern: 'E2:00x' | 'E2:30x' | 'E3:00x' | 'EMOM' | 'AMRAP' | 'FOR_TIME_21_15_9' | 'CHIPPER_40_30_20_10' | 'INTERVALS' | 'STEADY' | 'CRUISE' | 'VO2' | 'MOBILITY_QUALITY';
   minutes: number;        // target minutes for this block
   kind: 'strength' | 'conditioning' | 'skill' | 'aerobic' | 'mobility';  // block type
   select: {
@@ -27,15 +27,16 @@ export type PatternPack = {
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
 // Helper to pick the best available cardio modality from equipment
-function pickCyclical(equipment: string[] = []): { name: string; patterns: string[] } {
+function pickCyclical(equipment: string[] = []): { name: string; patterns: string[]; registryIdHint?: string } {
   const eq = (equipment || []).map(e => String(e).toLowerCase());
-  if (eq.includes('rower')) return { name: 'Row', patterns: ['row', 'erg', 'cyclical'] };
+  if (eq.includes('rower'))        return { name: 'Row',      patterns: ['row','erg','cyclical'], registryIdHint: 'row' };
   if (eq.includes('bike') || eq.includes('air_bike') || eq.includes('assault_bike'))
-    return { name: 'Bike', patterns: ['bike', 'erg', 'cyclical'] };
-  if (eq.includes('treadmill')) return { name: 'Run', patterns: ['run', 'cyclical'] };
-  if (eq.includes('ski_erg')) return { name: 'Ski Erg', patterns: ['ski', 'erg', 'cyclical'] };
-  // fallback
-  return { name: 'Jump Rope', patterns: ['jump_rope', 'cyclical'] };
+                                   return { name: 'Bike',     patterns: ['bike','erg','cyclical'], registryIdHint: 'bike' };
+  if (eq.includes('treadmill'))    return { name: 'Run',      patterns: ['run','cyclical'],        registryIdHint: 'run' };
+  if (eq.includes('ski_erg'))      return { name: 'Ski Erg',  patterns: ['ski','erg','cyclical'],  registryIdHint: 'ski' };
+  if (eq.includes('jump_rope'))    return { name: 'Jump Rope',patterns: ['jump_rope','cyclical'],  registryIdHint: 'jump_rope' };
+  // Fallback if nothing cyclical present
+  return { name: 'Jump Rope',      patterns: ['jump_rope','cyclical'], registryIdHint: 'jump_rope' };
 }
 
 // ---- OLYMPIC WEIGHTLIFTING ----
@@ -123,14 +124,11 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equ
   // Pick the best available cardio modality
   const mod = pickCyclical(equipment);
 
-  // Translate 1–10 to zones/structure:
-  // 4–5 → steady Z2/Z3, 6–7 → tempo / cruise intervals, 8+ → VO2 short repeats.
-  const i = Math.max(1, Math.min(10, requestedIntensity));
-  const isSteady = i <= 5;
-  const isTempo = i >= 6 && i <= 7;
-  const isVO2   = i >= 8;
-
   const mainBlocks: PatternBlock[] = [];
+
+  // Choose structure by intensity (Steady / Cruise / VO2)
+  const isSteady = requestedIntensity <= 6;
+  const isTempo  = requestedIntensity === 7;
 
   if (isSteady) {
     // One steady block - continuous effort
@@ -145,15 +143,14 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equ
         items: 1
       },
       title: `Steady ${mod.name} Z2–Z3`,
-      notes: `Steady ${budget}:00 continuous @ Z2–Z3. Maintain conversational pace, nasal breathing.`,
+      notes: `Continuous ${budget}:00 @ Z2–Z3. Nose-breathing pace.`,
     });
   } else if (isTempo) {
-    // Cruise intervals e.g., 3 x 6' @ Z3/4 with 2' easy
-    const rounds = budget >= 20 ? 4 : 3;
-    const workMin = Math.floor((budget * 0.7) / rounds);
-    const restMin = Math.floor((budget * 0.3) / rounds);
+    // Cruise intervals
+    const workMin = Math.floor(budget / 3);
+    const restMin = Math.max(2, Math.round(budget / 9));
     mainBlocks.push({
-      pattern: "INTERVALS",
+      pattern: "CRUISE",
       minutes: budget,
       kind: 'aerobic',
       select: {
@@ -163,13 +160,10 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equ
         items: 1
       },
       title: `Cruise Intervals ${mod.name} Z3–Z4`,
-      notes: `${rounds} x ${workMin}:00 @ Z3–Z4, ${restMin}:00 easy. Comfortably hard, sustainable effort.`,
+      notes: `3 x ${workMin}:00 @ Z3–Z4, ${restMin}:00 easy between.`,
     });
-  } else if (isVO2) {
-    // VO2 repeats e.g., 10 x 1' hard / 1' easy
-    const rounds = budget >= 20 ? 12 : budget >= 16 ? 10 : 8;
-    const workSec = 60;
-    const restSec = Math.floor((budget * 60 - rounds * workSec) / rounds);
+  } else {
+    // VO2 repeats
     mainBlocks.push({
       pattern: "VO2",
       minutes: budget,
@@ -181,7 +175,7 @@ export function buildEndurancePack(totalMin: number, requestedIntensity = 6, equ
         items: 1
       },
       title: `VO2 Repeats ${mod.name} Z4–Z5`,
-      notes: `${rounds} x ${workSec}s ON / ${restSec}s OFF @ Z4–Z5. Hard effort, stay smooth. Pace by HR/respiration, not all-out.`,
+      notes: `10 x 1:00 hard / 1:00 easy. Even effort; don't sprint the first reps.`,
     });
   }
 
