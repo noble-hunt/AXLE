@@ -2644,82 +2644,87 @@ function buildEndurance(req: WorkoutGenerationRequest, pack?: BuilderPatternPack
   // Warmup
   blocks.push(pickWarmup(req));
   
-  // Use the duration-aware pack's main blocks
-  const endurancePack = pack || buildEndurancePack(duration, intensity);
+  // HYROX-style endurance: Alternating cardio + functional movements
+  // Determine cardio modality from available equipment
+  const hasRower = equipment.some(e => /rower|row/i.test(e));
+  const hasBike = equipment.some(e => /bike/i.test(e));
+  const hasTreadmill = equipment.some(e => /treadmill|run/i.test(e));
+  const hasSkiErg = equipment.some(e => /ski/i.test(e));
   
-  for (const mainBlock of endurancePack.mainBlocks) {
-    const exercises = [];
-    
-    // Extract concrete modality name from the block title (set by pickCyclical in pack builder)
-    // Title format: "Steady Row Z2–Z3", "Cruise Intervals Bike Z3–Z4", "VO2 Repeats Run Z4–Z5"
-    const titleMatch = mainBlock.title?.match(/(Row|Bike|Run|Ski Erg|Jump Rope)/i);
-    const modalityName = titleMatch ? titleMatch[1] : 'Row';
-    
-    // Modality-specific distance scaling factors (meters per minute of work)
-    const distancePerMin: Record<string, number> = {
-      'Row': 100,        // ~100m/min at moderate pace
-      'Bike': 150,       // ~150m/min on bike erg
-      'Run': 75,         // ~75m/min running
-      'Ski Erg': 90,     // ~90m/min skiing
-      'Jump Rope': 0     // Jump rope uses time, not distance
-    };
-    
-    const baseRate = distancePerMin[modalityName] || 100;
-    const blockMinutes = mainBlock.minutes;
-    
-    // Build distance-based intervals based on intensity
-    if (intensity >= 8) {
-      // VO2 intervals: 8-12 short repeats with equal rest
-      const numSets = 10;
-      const distancePerSet = Math.round((blockMinutes * baseRate * 0.4) / numSets / 100) * 100; // Round to nearest 100m
-      exercises.push({
-        exercise: modalityName,
-        scheme: {
-          distance_m: distancePerSet,
-          rest_s: 60,
-          sets: numSets
-        },
-        notes: `${numSets} x ${distancePerSet}m @ Z4–Z5 (85-95% max HR), 1:00 rest`
-      });
-    } else if (intensity >= 6) {
-      // Tempo/cruise intervals: 3-5 medium repeats
-      const numSets = intensity >= 7 ? 5 : 3;
-      const distancePerSet = Math.round((blockMinutes * baseRate * 0.5) / numSets / 100) * 100;
-      exercises.push({
-        exercise: modalityName,
-        scheme: {
-          distance_m: distancePerSet,
-          rest_s: 120,
-          sets: numSets
-        },
-        notes: `${numSets} x ${distancePerSet}m @ Z3–Z4 (75-85% max HR), 2:00 rest`
-      });
-    } else {
-      // Steady state: single continuous effort
-      const totalDistance = Math.round(blockMinutes * baseRate * 0.8 / 500) * 500; // Round to nearest 500m
-      exercises.push({
-        exercise: modalityName,
-        scheme: {
-          distance_m: totalDistance
-        },
-        notes: `${totalDistance}m @ Z2–Z3 (65-75% max HR), steady sustainable pace`
-      });
-    }
-    
-    blocks.push({
-      kind: mainBlock.kind,
-      title: (mainBlock as any).title || 'Intervals',
-      time_min: mainBlock.minutes,
-      items: exercises,
-      notes: `Focus on pacing and breathing - cyclical endurance work`
-    });
+  // Pick primary cardio modality based on available equipment
+  let cardioModality = 'Running';
+  if (hasRower) {
+    cardioModality = 'Row';
+  } else if (hasBike) {
+    cardioModality = 'Bike';
+  } else if (hasSkiErg) {
+    cardioModality = 'Ski Erg';
+  } else if (hasTreadmill || !hasRower && !hasBike && !hasSkiErg) {
+    cardioModality = 'Running';
   }
+  
+  // Calculate work time (total - warmup - cooldown)
+  const mainTime = duration - 14; // 8min warmup + 6min cooldown
+  
+  // Functional movement patterns for endurance circuits (HYROX-style)
+  const functionalPatterns = [
+    ['jump', 'bodyweight'],    // Burpees, box jumps
+    ['squat', 'throw'],        // Wall balls, thrusters  
+    ['hinge', 'ballistic'],    // KB swings, DB snatches
+    ['lunge', 'carry'],        // Lunges, farmer carries
+    ['push', 'bodyweight'],    // Push-ups, burpees
+  ];
+  
+  // Build main circuit: alternating cardio + functional movements
+  const exercises = [];
+  const numStations = Math.min(5, Math.floor(mainTime / 4)); // 4-5 stations
+  
+  for (let i = 0; i < numStations; i++) {
+    // Cardio station with distance
+    const cardioDistance = intensity >= 7 ? 1000 : 800; // Higher intensity = longer distance
+    exercises.push({
+      exercise: cardioModality,
+      scheme: {
+        distance_m: cardioDistance
+      },
+      notes: `${cardioDistance}m @ moderate pace`
+    });
+    
+    // Functional movement station
+    if (i < numStations - 1) { // Don't add after last cardio
+      const patterns = functionalPatterns[i % functionalPatterns.length];
+      const results = queryMovements({
+        patterns,
+        equipment,
+        limit: 1
+      });
+      if (results.length > 0) {
+        const reps = intensity >= 7 ? 50 : 40;
+        exercises.push({
+          exercise: results[0].name,
+          registry_id: results[0].id,
+          scheme: {
+            reps: reps
+          },
+          notes: `${reps} reps for quality`
+        });
+      }
+    }
+  }
+  
+  blocks.push({
+    kind: 'main',
+    title: 'HYROX-Style Circuit',
+    time_min: mainTime,
+    items: exercises,
+    notes: `Alternate between cardio and functional movements - maintain steady pace throughout`
+  });
   
   // Cooldown
   blocks.push(makeCooldown());
   
   return {
-    title: 'Endurance Training Session',
+    title: 'Endurance Circuit Training',
     duration_min: duration,
     blocks,
     acceptance_flags: {
