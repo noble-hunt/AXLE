@@ -2653,39 +2653,62 @@ function buildEndurance(req: WorkoutGenerationRequest, pack?: BuilderPatternPack
     // Extract concrete modality name from the block title (set by pickCyclical in pack builder)
     // Title format: "Steady Row Z2–Z3", "Cruise Intervals Bike Z3–Z4", "VO2 Repeats Run Z4–Z5"
     const titleMatch = mainBlock.title?.match(/(Row|Bike|Run|Ski Erg|Jump Rope)/i);
-    const modalityName = titleMatch ? titleMatch[1] : 'Row';  // Default to Row if not found
+    const modalityName = titleMatch ? titleMatch[1] : 'Row';
     
-    // Build interval structure based on intensity
-    let target = '';
+    // Modality-specific distance scaling factors (meters per minute of work)
+    const distancePerMin: Record<string, number> = {
+      'Row': 100,        // ~100m/min at moderate pace
+      'Bike': 150,       // ~150m/min on bike erg
+      'Run': 75,         // ~75m/min running
+      'Ski Erg': 90,     // ~90m/min skiing
+      'Jump Rope': 0     // Jump rope uses time, not distance
+    };
+    
+    const baseRate = distancePerMin[modalityName] || 100;
+    const blockMinutes = mainBlock.minutes;
+    
+    // Build distance-based intervals based on intensity
     if (intensity >= 8) {
-      // VO2 intervals
-      target = `10 x 1:00 @ Z4-Z5 (85-95% max HR)`;
+      // VO2 intervals: 8-12 short repeats with equal rest
+      const numSets = 10;
+      const distancePerSet = Math.round((blockMinutes * baseRate * 0.4) / numSets / 100) * 100; // Round to nearest 100m
       exercises.push({
         exercise: modalityName,
-        target,
-        notes: '1:00 easy between intervals'
+        scheme: {
+          distance_m: distancePerSet,
+          rest_s: 60,
+          sets: numSets
+        },
+        notes: `${numSets} x ${distancePerSet}m @ Z4–Z5 (85-95% max HR), 1:00 rest`
       });
     } else if (intensity >= 6) {
-      // Tempo/cruise intervals
-      target = `5 x 4:00 @ Z3-Z4 (75-85% max HR)`;
+      // Tempo/cruise intervals: 3-5 medium repeats
+      const numSets = intensity >= 7 ? 5 : 3;
+      const distancePerSet = Math.round((blockMinutes * baseRate * 0.5) / numSets / 100) * 100;
       exercises.push({
         exercise: modalityName,
-        target,
-        notes: '2:00 easy between intervals'
+        scheme: {
+          distance_m: distancePerSet,
+          rest_s: 120,
+          sets: numSets
+        },
+        notes: `${numSets} x ${distancePerSet}m @ Z3–Z4 (75-85% max HR), 2:00 rest`
       });
     } else {
-      // Steady state
-      target = `${mainBlock.minutes}:00 @ Z2-Z3 (65-75% max HR)`;
+      // Steady state: single continuous effort
+      const totalDistance = Math.round(blockMinutes * baseRate * 0.8 / 500) * 500; // Round to nearest 500m
       exercises.push({
         exercise: modalityName,
-        target,
-        notes: 'Steady sustainable pace'
+        scheme: {
+          distance_m: totalDistance
+        },
+        notes: `${totalDistance}m @ Z2–Z3 (65-75% max HR), steady sustainable pace`
       });
     }
     
     blocks.push({
       kind: mainBlock.kind,
-      title: (mainBlock as any).title || 'Endurance Block',
+      title: (mainBlock as any).title || 'Intervals',
       time_min: mainBlock.minutes,
       items: exercises,
       notes: `Focus on pacing and breathing - cyclical endurance work`

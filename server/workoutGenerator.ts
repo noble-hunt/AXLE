@@ -257,6 +257,8 @@ function addItemFromMovement(sets: any[], it: any, extraNote?: string) {
     registry_id: it.registry_id || it.id || null,
     reps: it.scheme?.reps ?? undefined,
     duration: undefined,
+    distance_m: it.scheme?.distance_m ?? undefined,
+    num_sets: it.scheme?.sets ?? undefined,
     notes: [it.notes, extraNote].filter(Boolean).join(' ').trim() || undefined,
     rest_s: it.scheme?.rest_s ?? undefined,
     percent_1rm: it.scheme?.percent_1rm ?? undefined,
