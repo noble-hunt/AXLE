@@ -6,6 +6,7 @@ import { generatePremiumWorkout, computeHardness } from "./ai/generators/premium
 import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
 import { DISABLE_SIMPLE, DISABLE_MOCK, FORCE_PREMIUM } from './config/env';
 import { normalizeStyle } from './lib/style';
+import { MOVEMENTS } from './workouts/movements';
 
 // Orchestrator version stamp for debugging
 export const GENERATOR_STAMP = 'WG-ORCH@1.0.5';
@@ -343,90 +344,152 @@ export function convertPremiumToGenerated(premium: any): any {
   };
 }
 
-export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
-  // Normalize goal/style/focus to canonical style (backstop defense-in-depth)
-  const req = request as any;
-  const style = normalizeStyle(req?.style ?? req?.goal ?? req?.focus);
-  const normalizedRequest = { ...request, style, goal: style, focus: style };
+// Simplified OpenAI generator with movement library
+async function generateWithOpenAI(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
+  const category = request.category || 'mixed';
+  const style = (request as any).style || category;
+  const equipment = (request as any).equipment || [];
   
-  console.warn('[WG] start', { 
-    stamp: GENERATOR_STAMP, 
-    style, 
-    minutes: (normalizedRequest as any).durationMin || normalizedRequest.duration,
-    category: normalizedRequest.category,
-    intensity: normalizedRequest.intensity
+  // Filter movements by available equipment (if specified)
+  const availableMovements = equipment.length > 0
+    ? MOVEMENTS.filter(m => 
+        m.equipment.some(e => equipment.includes(e)) || 
+        m.equipment.includes('bodyweight')
+      )
+    : MOVEMENTS;
+  
+  // Create movement library string for the prompt
+  const movementLibrary = availableMovements
+    .map(m => `- ${m.name} (${m.equipment.join(', ')}) [${m.tags.join(', ')}]`)
+    .join('\n');
+  
+  // Build enhanced prompt with movement library
+  const prompt = `You are AXLE, an expert fitness trainer specializing in ${style} workouts.
+
+WORKOUT REQUEST:
+- Category/Style: ${style}
+- Duration: ${request.duration} minutes
+- Intensity: ${request.intensity}/10
+- Equipment Available: ${equipment.length > 0 ? equipment.join(', ') : 'All equipment'}
+
+MOVEMENT LIBRARY (choose from these ${availableMovements.length} movements):
+${movementLibrary}
+
+INSTRUCTIONS:
+Create a ${style}-specific workout that:
+1. Uses ONLY movements from the library above
+2. Follows ${style} methodology and programming (e.g., CrossFit uses AMRAPs/EMOMs, Olympic Weightlifting focuses on snatches/cleans/jerks, Powerlifting emphasizes squat/bench/deadlift variations)
+3. Includes proper warm-up and cool-down
+4. Scales difficulty to ${request.intensity}/10 intensity
+5. Fits within ${request.duration} minutes total
+6. Provides VARIETY - don't repeat the same movements constantly
+
+CRITICAL: Return ONLY valid JSON matching this exact structure (no markdown, no extra text):
+
+{
+  "title": "Specific workout name reflecting ${style} and intensity",
+  "notes": "Brief workout description",
+  "sets": [
+    {
+      "id": "unique-id-${Date.now()}",
+      "exercise": "Exercise name (MUST match movement library exactly)",
+      "reps": number (if applicable),
+      "duration": number in seconds (if applicable),
+      "distance_m": number in meters (if applicable),
+      "num_sets": number (if applicable),
+      "rest_s": number in seconds (if applicable),
+      "notes": "Form cues or scaling options",
+      "is_header": true (only for section headers like "Warm-up", "Main - AMRAP 12", "Cool-down")
+    }
+  ]
+}
+
+Use "is_header": true for workout sections (Warm-up, Main, Cool-down).
+Match movement names EXACTLY to the library above.`;
+
+  if (!openai) {
+    throw new Error('OpenAI client not initialized');
+  }
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You are AXLE, an expert fitness trainer. Always respond with valid JSON matching the exact schema. No markdown, no extra text."
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 2000,
+    temperature: 0.9, // Higher temperature for more variety
   });
 
-  // Try premium generator first
+  const aiResponse = JSON.parse(response.choices[0].message.content || '{}');
+  
+  // Convert to GeneratedWorkout format
+  const workoutData = {
+    name: aiResponse.title || `${style} Workout`,
+    category: category,
+    description: aiResponse.notes || `A ${request.intensity}/10 intensity ${style} workout`,
+    duration: request.duration,
+    intensity: request.intensity,
+    sets: (aiResponse.sets || []).map((set: any) => ({
+      id: set.id || `set-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      exercise: set.exercise,
+      reps: set.reps || undefined,
+      duration: set.duration || undefined,
+      distance_m: set.distance_m || undefined,
+      num_sets: set.num_sets || undefined,
+      rest_s: set.rest_s || undefined,
+      notes: set.notes || undefined,
+      is_header: set.is_header || false
+    }))
+  };
+
+  const validation = generatedWorkoutSchema.safeParse(workoutData);
+  if (!validation.success) {
+    console.error('[WG] Validation failed', validation.error);
+    throw new Error('OpenAI response validation failed');
+  }
+  
+  return validation.data;
+}
+
+export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
+  // SIMPLIFIED: Direct OpenAI generation with movement registry
+  const category = request.category || 'mixed';
+  const style = (request as any).style || category;
+  
+  console.warn('[WG] OpenAI-first generation', { 
+    stamp: GENERATOR_STAMP, 
+    category,
+    style,
+    duration: request.duration,
+    intensity: request.intensity
+  });
+
+  // Call OpenAI with movement library
   try {
-    const equipment = (normalizedRequest as any).equipment || ['barbell', 'dumbbell', 'kettlebell', 'bike', 'rower'];
-    const premiumRequest: WorkoutGenerationRequest = {
-      category: normalizedRequest.category,
-      duration: normalizedRequest.duration,
-      intensity: normalizedRequest.intensity,
-      context: {
-        yesterday: normalizedRequest.lastWorkouts?.[0] ? {
-          category: normalizedRequest.lastWorkouts[0].category,
-          intensity: normalizedRequest.lastWorkouts[0].intensity
-        } : undefined,
-        health_snapshot: normalizedRequest.todaysReport ? {
-          hrv: undefined,
-          resting_hr: undefined,
-          sleep_score: normalizedRequest.todaysReport.sleep * 10,
-          stress_flag: normalizedRequest.todaysReport.stress > 7
-        } : undefined,
-        equipment,
-        constraints: [],
-        goals: ['general_fitness'],
-        focus: style,
-        categories_for_mixed: (normalizedRequest as any).categories_for_mixed
-      }
-    };
+    if (!openai) throw new Error('OpenAI API key not configured');
     
-    const premiumWorkout = await generatePremiumWorkout(premiumRequest, (normalizedRequest as any).seed);
-    
-    // Apply intensity upgrader (post-generation, pre-conversion)
-    const readiness = { sleep_score: normalizedRequest.todaysReport?.sleep ? normalizedRequest.todaysReport.sleep * 10 : undefined };
-    const upgradedWorkout = upgradeIntensity(premiumWorkout, equipment, readiness);
-    
-    const result = convertPremiumToGenerated(upgradedWorkout);
-    result.meta = upgradedWorkout.meta || result.meta || {};
-    
-    console.warn('[WG] premium ok', { stamp: GENERATOR_STAMP, style });
+    const result = await generateWithOpenAI(request);
+    console.warn('[WG] OpenAI success', { stamp: GENERATOR_STAMP, category, style });
     return result;
-  } catch (e: any) {
-    console.error('[WG] premium_failed', { stamp: GENERATOR_STAMP, style, err: String(e?.message || e) });
+  } catch (err: any) {
+    console.error('[WG] OpenAI failed', { stamp: GENERATOR_STAMP, category, err: String(err?.message || err) });
     
-    // Convert to a recognizable error for the error middleware
-    if (DISABLE_SIMPLE || DISABLE_MOCK || FORCE_PREMIUM) {
-      const err: any = new Error(`premium_failed:${e?.message || 'unknown'}`);
-      err.code = 'premium_failed';
-      err.hint = 'Premium was forced; fallbacks are disabled in development.';
-      err.details = e?.details || undefined;
-      throw err;
+    // Fallback to mock only if OpenAI fails
+    if (!DISABLE_MOCK) {
+      console.warn('[WG] → mock_fallback', { stamp: GENERATOR_STAMP, category });
+      return generateMockWorkout(request);
     }
+    
+    throw err;
   }
-
-  // Fallback to simple generator if allowed
-  if (!DISABLE_SIMPLE) {
-    try {
-      console.warn('[WG] → simple', { stamp: GENERATOR_STAMP, style });
-      const result = await generateSimpleFallback(normalizedRequest);
-      console.warn('[WG] simple ok', { stamp: GENERATOR_STAMP, style });
-      return result;
-    } catch (err: any) {
-      console.error('[WG] simple_failed', { stamp: GENERATOR_STAMP, style, err: String(err?.message || err) });
-    }
-  }
-
-  // Final fallback to mock if allowed
-  if (!DISABLE_MOCK) {
-    console.warn('[WG] → mock_fallback', { stamp: GENERATOR_STAMP, style });
-    return generateMockWorkout(normalizedRequest);
-  }
-
-  throw new Error('no_generator_available');
-  // ===== END selection =====
 }
 
 // Simple fallback generator
