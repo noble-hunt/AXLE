@@ -447,16 +447,44 @@ async function generateWithOpenAI(request: EnhancedWorkoutRequest): Promise<Gene
   // Style-specific programming guidelines
   const styleGuidelines: Record<string, string> = {
     'crossfit': `
-CROSSFIT STRUCTURE:
-- Warm-up (5-8 min): Dynamic movements, mobility
-- Strength/Skill (optional, 10-15 min): Focus on one lift or skill
-- Main WOD (10-20 min): AMRAP, EMOM, For Time, or Chipper format
-  * AMRAP example: "AMRAP 12: 5 Pull-ups, 10 Push-ups, 15 Air Squats"
-  * EMOM example: "EMOM 10: Odd: 10 KB Swings, Even: 10 Burpees"
-  * For Time example: "21-15-9: Thrusters, Pull-ups"
-- Cool-down (3-5 min): Stretching, breathing
+CROSSFIT WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Include Rx (prescribed) and Rx+ (advanced) scaling options in notes.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up Flow" or "General Prep"
+- Duration: 5-8 min
+- Format: "2:00 Cardio Choice" followed by "2 rounds of:" with 4-5 dynamic movements
+- Coaching cues: "Prepare joints and elevate heart rate. Scale: reduce rounds or movement complexity."
+- Example movements: Inchworm, Arm Circles, Leg Swings, Cat-Cow, Jumping Jacks
+
+SECTION 2 - MAIN WOD (MUST have creative title):
+- Creative Title: Generate a fun, memorable name in ALL CAPS with quotes (examples: "FRUIT LOOPS IN MY ORANGE JUICE", "THE THREE WISE WITCHES", "HOT DOG TREASURE CHEST")
+- Score Type: MUST be one of these formats:
+  * "For Time" (with time cap like "13:00 time cap!")
+  * "AMRAP" (e.g., "15:00 AMRAP", "4:00 AMRAP")
+  * "EMOM" (e.g., "28:00 EMOM", "Every 2:00 x 6 Sets")
+  * "Intervals" (e.g., "Every 5:00 for 4 rounds", "2:00 on 1:00 off for 5 rounds")
+- Duration: 10-20 min (majority of workout time)
+- Coaching cues: Brief goal statement (e.g., "Hold consistent pacing and movement quality across all seven rounds. Scale: Reduce load to maintain form, or substitute ring rows for pull-ups.")
+- Scaling notes: Quick suggestions embedded in coaching cues (lighter weights, easier variations, reduced complexity)
+- Format examples:
+  * For Time: "21-15-9\\nThrusters @ 95/65#\\nPull-ups"
+  * AMRAP 15: "19 Calorie Row\\n19 Wall Balls @ 20/14#"
+  * EMOM: "minute 1: 3 Wall Walks\\nminute 2: 6 Shuttle Runs\\nminute 3: 15/12 Calorie Row"
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Recovery"
+- Duration: 3-5 min
+- Format: Static stretches, breathing, light movement
+- Coaching cues: "Focus on recovery. Scale: Hold stretches based on comfort level."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Include time notation (12:35, 15:00, etc.) where relevant  
+- Use @ symbol for weights (e.g., @ 95/65#, @ 50/35#)
+- Specify "For Time", "AMRAP", "EMOM", or interval format clearly
+- Keep coaching cues SHORT (1-2 sentences max)
+- Embed scaling suggestions in coaching cues, not separate section`,
     
     'olympic_weightlifting': `
 OLYMPIC LIFTING STRUCTURE:
@@ -647,13 +675,22 @@ CRITICAL: Return ONLY valid JSON matching this exact structure (no markdown, no 
       "num_sets": number (if applicable),
       "rest_s": number in seconds (if applicable),
       "notes": "Form cues or scaling options",
-      "is_header": true (only for section headers like "Warm-up", "Main - AMRAP 12", "Cool-down")
+      "is_header": true (only for section headers like "Warm-up", "Main - AMRAP 12", "Cool-down"),
+      "workoutTitle": "Creative title in ALL CAPS with quotes (ONLY for main section, e.g., \\"FRUIT LOOPS IN MY ORANGE JUICE\\")",
+      "scoreType": "Score format (ONLY for main section: 'For Time', 'AMRAP', 'EMOM', 'Intervals')",
+      "coachingCues": "Short goal statement with scaling suggestions (1-2 sentences, ONLY for main section)",
+      "scalingNotes": "Quick scaling suggestions embedded in coachingCues (ONLY for main section)"
     }
   ]
 }
 
-Use "is_header": true for workout sections (Warm-up, Main, Cool-down).
-Match movement names EXACTLY to the library above.`;
+IMPORTANT RULES:
+- Use "is_header": true for section headers (Warm-up, Main, Cool-down)
+- ONLY add workoutTitle, scoreType, and coachingCues to the MAIN section header
+- Warm-up and Cool-down should NOT have workoutTitle or scoreType
+- Match movement names EXACTLY to the library above
+- Keep coaching cues brief (1-2 sentences max)
+- Embed scaling suggestions IN the coaching cues, don't create separate scalingNotes field`;
 
   if (!openai) {
     throw new Error('OpenAI client not initialized');
