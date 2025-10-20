@@ -29,21 +29,38 @@ workouts.post("/preview", async (req, res) => {
     const { focus, durationMin, equipment, intensity, seed } = parsed.data;
     const workoutSeed = seed ?? Math.random().toString(16).slice(2).toUpperCase();
     
-    // Use the new generator to create actual workouts with real movements
-    const generatedPlan = generatePlan({
-      focus,
-      durationMin,
-      intensity,
-      equipment,
+    // Use the OpenAI-first generator for maximum variety
+    const { generateWorkout } = await import('../workoutGenerator');
+    
+    console.log('[WORKOUTS ROUTER /preview] OpenAI-first generation:', {
+      style: focus,
+      duration: durationMin,
+      equipment: equipment.length,
       seed: workoutSeed
     });
     
-    return res.json({ ok: true, preview: generatedPlan, seed: generatedPlan.seed });
+    const generatedPlan = await generateWorkout({
+      category: focus,
+      style: focus,
+      goal: focus,
+      focus: focus,
+      durationMin,
+      duration: durationMin,
+      intensity,
+      equipment,
+      seed: workoutSeed
+    } as any);
+    
+    console.log('[WORKOUTS ROUTER /preview] Generated successfully');
+    
+    return res.json({ ok: true, preview: generatedPlan, seed: workoutSeed });
   } catch (err: any) {
     req.log?.error({ err }, "preview failed");
     
     // If validation error, capture to Sentry and return readable message
     const message = err instanceof Error ? err.message : "Failed to generate valid workout plan";
+    
+    console.error('[WORKOUTS ROUTER /preview] Generation error:', message);
     
     // TODO: Add Sentry capture when available
     // Sentry.captureException(err);
