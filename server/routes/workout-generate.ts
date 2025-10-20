@@ -32,13 +32,14 @@ export function registerGenerateRoutes(app: Express) {
       }
       
       // Call the orchestrator (handles all generator selection and fallback logic)
+      // Pass through normalized fields from Zod schema (all set to same normalized value)
       const generatedWorkout = await generateWorkout({
         category: validatedData.archetype,
         duration: validatedData.minutes,
         intensity: validatedData.intensity,
-        goal: validatedData.archetype,
-        focus: validatedData.archetype,
-        style: validatedData.archetype,
+        goal: validatedData.goal,
+        focus: validatedData.focus,
+        style: validatedData.style,
         equipment: validatedData.equipment,
         seed: seedString,
         durationMin: validatedData.minutes
