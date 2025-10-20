@@ -344,58 +344,181 @@ export function convertPremiumToGenerated(premium: any): any {
   };
 }
 
+// Equipment normalization map - handles variations in equipment naming
+const EQUIPMENT_SYNONYMS: Record<string, string[]> = {
+  'pullup-bar': ['pull-up bar', 'pullup bar', 'pull up bar', 'pullupbar'],
+  'dip-bar': ['dip bar', 'dipbar', 'dip bars'],
+  'barbell': ['bar', 'barbell', 'bb'],
+  'dumbbell': ['dumbbells', 'dumbbell', 'db', 'dbs'],
+  'kettlebell': ['kettlebells', 'kettlebell', 'kb', 'kbs'],
+  'resistance_band': ['resistance band', 'resistance bands', 'band', 'bands'],
+  'medicine_ball': ['medicine ball', 'med ball', 'medball', 'wall ball', 'wallball'],
+  'bodyweight': ['bodyweight', 'bw', 'body weight'],
+  'bike': ['bike', 'assault bike', 'air bike', 'airbike', 'stationary bike'],
+  'rower': ['rower', 'rowing machine', 'erg', 'c2', 'concept2'],
+  'ski': ['ski', 'ski erg', 'skierg', 'skier'],
+  'treadmill': ['treadmill', 'tread', 'running'],
+};
+
+function normalizeEquipment(userEquipment: string[]): string[] {
+  const normalized = new Set<string>();
+  
+  for (const item of userEquipment) {
+    const lower = item.toLowerCase().trim();
+    let matched = false;
+    
+    // Check each canonical equipment type
+    for (const [canonical, synonyms] of Object.entries(EQUIPMENT_SYNONYMS)) {
+      if (synonyms.some(syn => lower.includes(syn))) {
+        normalized.add(canonical);
+        matched = true;
+        break;
+      }
+    }
+    
+    // If no match, add the lowercase version
+    if (!matched) {
+      normalized.add(lower);
+    }
+  }
+  
+  return Array.from(normalized);
+}
+
 // Simplified OpenAI generator with movement library
 async function generateWithOpenAI(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
   const category = request.category || 'mixed';
   const style = (request as any).style || category;
-  const equipment = (request as any).equipment || [];
+  const userEquipment = (request as any).equipment || [];
+  
+  // Normalize equipment names to handle variations
+  const normalizedEquipment = normalizeEquipment(userEquipment);
   
   // Filter movements by available equipment (if specified)
-  const availableMovements = equipment.length > 0
-    ? MOVEMENTS.filter(m => 
-        m.equipment.some(e => equipment.includes(e)) || 
-        m.equipment.includes('bodyweight')
-      )
-    : MOVEMENTS;
+  // Always include bodyweight movements as fallback
+  let availableMovements = MOVEMENTS;
+  if (normalizedEquipment.length > 0) {
+    const filtered = MOVEMENTS.filter(m => 
+      m.equipment.some(e => normalizedEquipment.includes(e)) || 
+      m.equipment.includes('bodyweight')
+    );
+    
+    // Only use filtered list if it has meaningful content (>10 movements)
+    if (filtered.length > 10) {
+      availableMovements = filtered;
+    } else {
+      console.warn('[WG] Equipment filter too restrictive, using full library', { 
+        userEquipment, 
+        normalizedEquipment, 
+        filteredCount: filtered.length 
+      });
+    }
+  }
   
   // Create movement library string for the prompt
   const movementLibrary = availableMovements
     .map(m => `- ${m.name} (${m.equipment.join(', ')}) [${m.tags.join(', ')}]`)
     .join('\n');
   
-  // Build enhanced prompt with movement library
+  // Style-specific programming guidelines
+  const styleGuidelines: Record<string, string> = {
+    'crossfit': `
+CROSSFIT STRUCTURE:
+- Warm-up (5-8 min): Dynamic movements, mobility
+- Strength/Skill (optional, 10-15 min): Focus on one lift or skill
+- Main WOD (10-20 min): AMRAP, EMOM, For Time, or Chipper format
+  * AMRAP example: "AMRAP 12: 5 Pull-ups, 10 Push-ups, 15 Air Squats"
+  * EMOM example: "EMOM 10: Odd: 10 KB Swings, Even: 10 Burpees"
+  * For Time example: "21-15-9: Thrusters, Pull-ups"
+- Cool-down (3-5 min): Stretching, breathing
+
+CRITICAL: Include Rx (prescribed) and Rx+ (advanced) scaling options in notes.`,
+    
+    'olympic_weightlifting': `
+OLYMPIC LIFTING STRUCTURE:
+- Warm-up (8-10 min): Joint mobility, light cardio, empty bar practice
+- Skill/Technique (10-15 min): Positional work (snatch/clean pulls, hang variations)
+- Main Lifts (15-20 min): Build to heavy single or work sets
+  * Focus on: Snatch, Clean & Jerk, variations (Hang, Power, Split)
+  * Format: "Build to heavy single" or "5 sets @ 80%"
+- Accessory (5-10 min): Squats, pulls, overhead work
+- Cool-down (3-5 min): Stretching
+
+CRITICAL: Use proper Olympic lift names from the library.`,
+    
+    'powerlifting': `
+POWERLIFTING STRUCTURE:
+- Warm-up (5-8 min): Dynamic stretching, activation exercises
+- Main Lift (20-25 min): Focus on one of the big three (Squat, Bench, Deadlift)
+  * Format: "5x5 @ 75%" or "3x3 @ 85%" or "Work up to 1RM"
+- Accessory Work (10-15 min): Variations and supporting movements
+  * Squat accessories: Front Squat, Bulgarian Split Squat, Leg Press
+  * Bench accessories: DB Bench, Dips, Tricep work
+  * Deadlift accessories: RDLs, Rows, Good Mornings
+- Cool-down (3-5 min)
+
+CRITICAL: Emphasize progressive overload and percentage-based programming.`,
+    
+    'endurance': `
+ENDURANCE/HYROX STRUCTURE:
+- Warm-up (5-8 min): Easy cardio, dynamic movements
+- Main Circuit (20-30 min): Alternating cardio + functional stations
+  * Station 1: Distance-based cardio (Row, Bike, Ski, Run) using distance_m field
+  * Station 2: Functional movement (Burpees, Wall Balls, KB Swings) with reps
+  * Station 3: Different cardio modality with distance_m
+  * Station 4: Different functional movement
+  * 4-5 total stations
+- Cool-down (3-5 min): Easy movement, stretching
+
+CRITICAL: Use distance_m (800-1000m) for cardio, NOT duration. Vary cardio modalities.`,
+    
+    'strength': `
+STRENGTH TRAINING STRUCTURE:
+- Warm-up (5-8 min): Movement prep, activation
+- Main Lift (15-20 min): Compound movement with progressive loading
+  * Format: "4x6 @ 75%" or "5x5 building" or "3x8-10"
+- Supplemental (10-15 min): Secondary compound or heavy accessory
+- Accessory (5-10 min): Isolation or weak point work
+- Cool-down (3-5 min)
+
+CRITICAL: Focus on load progression and proper rest intervals (2-3 min for main lifts).`,
+  };
+
+  const styleGuide = styleGuidelines[style.toLowerCase()] || styleGuidelines['crossfit'];
+
+  // Build enhanced prompt with movement library and style-specific structure
   const prompt = `You are AXLE, an expert fitness trainer specializing in ${style} workouts.
 
 WORKOUT REQUEST:
 - Category/Style: ${style}
 - Duration: ${request.duration} minutes
 - Intensity: ${request.intensity}/10
-- Equipment Available: ${equipment.length > 0 ? equipment.join(', ') : 'All equipment'}
+- Equipment Available: ${normalizedEquipment.length > 0 ? normalizedEquipment.join(', ') : 'All equipment'}
 
 MOVEMENT LIBRARY (choose from these ${availableMovements.length} movements):
 ${movementLibrary}
 
-INSTRUCTIONS:
-Create a ${style}-specific workout that:
-1. Uses ONLY movements from the library above
-2. Follows ${style} methodology and programming (e.g., CrossFit uses AMRAPs/EMOMs, Olympic Weightlifting focuses on snatches/cleans/jerks, Powerlifting emphasizes squat/bench/deadlift variations)
-3. Includes proper warm-up and cool-down
-4. Scales difficulty to ${request.intensity}/10 intensity
-5. Fits within ${request.duration} minutes total
-6. Provides VARIETY - don't repeat the same movements constantly
+${styleGuide}
+
+GENERAL INSTRUCTIONS:
+1. Uses ONLY movements from the library above - match names EXACTLY
+2. Follow the ${style} structure guidelines above
+3. Scale difficulty to ${request.intensity}/10 intensity
+4. Fit within ${request.duration} minutes total
+5. Provide VARIETY - don't repeat the same movements
 
 CRITICAL: Return ONLY valid JSON matching this exact structure (no markdown, no extra text):
 
 {
   "title": "Specific workout name reflecting ${style} and intensity",
-  "notes": "Brief workout description",
+  "notes": "Brief workout description with scaling options",
   "sets": [
     {
       "id": "unique-id-${Date.now()}",
-      "exercise": "Exercise name (MUST match movement library exactly)",
+      "exercise": "Exercise name (MUST match movement library EXACTLY)",
       "reps": number (if applicable),
       "duration": number in seconds (if applicable),
-      "distance_m": number in meters (if applicable),
+      "distance_m": number in meters (for cardio - use 800-1000m),
       "num_sets": number (if applicable),
       "rest_s": number in seconds (if applicable),
       "notes": "Form cues or scaling options",
@@ -430,6 +553,80 @@ Match movement names EXACTLY to the library above.`;
 
   const aiResponse = JSON.parse(response.choices[0].message.content || '{}');
   
+  // Create a map of valid movement names (case-insensitive for matching)
+  const validMovementNames = new Set(
+    availableMovements.map(m => m.name.toLowerCase())
+  );
+  
+  // Validate and map exercises to ensure they exist in the movement library
+  const validatedSets = (aiResponse.sets || []).map((set: any) => {
+    // Skip headers
+    if (set.is_header) {
+      return {
+        id: set.id || `header-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        exercise: set.exercise,
+        is_header: true,
+        notes: set.notes
+      };
+    }
+    
+    // Validate exercise name against movement library
+    const exerciseLower = (set.exercise || '').toLowerCase().trim();
+    
+    // Try to find exact match
+    const exactMatch = availableMovements.find(m => m.name.toLowerCase() === exerciseLower);
+    
+    if (exactMatch) {
+      return {
+        id: set.id || `set-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        exercise: exactMatch.name, // Use canonical name from library
+        reps: set.reps || undefined,
+        duration: set.duration || undefined,
+        distance_m: set.distance_m || undefined,
+        num_sets: set.num_sets || undefined,
+        rest_s: set.rest_s || undefined,
+        notes: set.notes || undefined,
+        is_header: false
+      };
+    }
+    
+    // Try fuzzy match (contains)
+    const fuzzyMatch = availableMovements.find(m => 
+      m.name.toLowerCase().includes(exerciseLower) || 
+      exerciseLower.includes(m.name.toLowerCase())
+    );
+    
+    if (fuzzyMatch) {
+      console.warn('[WG] Fuzzy matched exercise', { 
+        aiGenerated: set.exercise, 
+        matched: fuzzyMatch.name 
+      });
+      return {
+        id: set.id || `set-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        exercise: fuzzyMatch.name, // Use canonical name from library
+        reps: set.reps || undefined,
+        duration: set.duration || undefined,
+        distance_m: set.distance_m || undefined,
+        num_sets: set.num_sets || undefined,
+        rest_s: set.rest_s || undefined,
+        notes: set.notes || undefined,
+        is_header: false
+      };
+    }
+    
+    // No match found - log error and skip
+    console.error('[WG] Invalid exercise generated by AI (not in library)', { 
+      exercise: set.exercise,
+      availableCount: availableMovements.length 
+    });
+    return null;
+  }).filter(Boolean); // Remove nulls
+  
+  // Ensure we have at least some valid exercises
+  if (validatedSets.length === 0) {
+    throw new Error('OpenAI generated no valid exercises from the movement library');
+  }
+  
   // Convert to GeneratedWorkout format
   const workoutData = {
     name: aiResponse.title || `${style} Workout`,
@@ -437,17 +634,7 @@ Match movement names EXACTLY to the library above.`;
     description: aiResponse.notes || `A ${request.intensity}/10 intensity ${style} workout`,
     duration: request.duration,
     intensity: request.intensity,
-    sets: (aiResponse.sets || []).map((set: any) => ({
-      id: set.id || `set-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      exercise: set.exercise,
-      reps: set.reps || undefined,
-      duration: set.duration || undefined,
-      distance_m: set.distance_m || undefined,
-      num_sets: set.num_sets || undefined,
-      rest_s: set.rest_s || undefined,
-      notes: set.notes || undefined,
-      is_header: set.is_header || false
-    }))
+    sets: validatedSets
   };
 
   const validation = generatedWorkoutSchema.safeParse(workoutData);
