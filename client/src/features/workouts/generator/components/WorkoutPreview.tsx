@@ -238,7 +238,7 @@ export function WorkoutPreview({
             </div>
           </div>
 
-          {/* Detailed Block Breakdown */}
+          {/* Wodify-Style Workout Blocks */}
           <div className="space-y-4">
             <h4 className="text-sm font-medium text-foreground">Workout Details</h4>
             <div className="space-y-4">
@@ -246,14 +246,39 @@ export function WorkoutPreview({
                 <Card key={`${block.key}-${blockIndex}`} className="p-4">
                   <div className="space-y-3">
                     {/* Block Header */}
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {block.key}
-                      </Badge>
-                      <h5 className="text-sm font-medium text-foreground">{block.title}</h5>
-                      <span className="text-xs text-muted-foreground ml-auto">
-                        {Math.round(block.targetSeconds / 60)}min
-                      </span>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {block.key}
+                        </Badge>
+                        <h5 className="text-sm font-medium text-foreground">{block.title}</h5>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {Math.round(block.targetSeconds / 60)}min
+                        </span>
+                      </div>
+                      
+                      {/* Wodify-Style: Creative Title for Main Section */}
+                      {block.workoutTitle && (
+                        <h3 className="text-lg font-bold text-primary tracking-wide">
+                          {block.workoutTitle}
+                        </h3>
+                      )}
+                      
+                      {/* Wodify-Style: Score Type (italicized) */}
+                      {block.scoreType && (
+                        <p className="text-sm text-muted-foreground italic">
+                          {block.scoreType}
+                        </p>
+                      )}
+                      
+                      {/* Wodify-Style: Coaching Cues */}
+                      {block.coachingCues && (
+                        <div className="bg-muted/30 rounded-lg p-3 border-l-2 border-primary">
+                          <p className="text-sm text-foreground leading-relaxed">
+                            {block.coachingCues}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     
                     {/* Empty Block Error */}
@@ -277,6 +302,23 @@ export function WorkoutPreview({
                         </div>
                       ))}
                     </div>
+                    
+                    {/* Wodify-Style: Add Result Button (only for main sections with scoreType) */}
+                    {block.scoreType && (
+                      <Button 
+                        variant="secondary" 
+                        className="w-full mt-3"
+                        onClick={() => {
+                          toast({
+                            title: "Score Entry",
+                            description: "Score entry feature coming soon!",
+                          });
+                        }}
+                        data-testid={`button-add-result-${blockIndex}`}
+                      >
+                        Add result
+                      </Button>
+                    )}
                   </div>
                 </Card>
               ))}
