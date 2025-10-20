@@ -19,7 +19,8 @@ Preferred communication style: Simple, everyday language.
 - **Server**: Express.js with a RESTful API in TypeScript.
 - **Modularity**: Abstracted storage interface (`IStorage`).
 - **API Validation**: Zod schemas for request validation.
-- **Workout Generation**: Features a three-tier fallback (premium → simple → mock) orchestrator with a registry-first architecture for deterministic movement selection. AI is primarily used for generating coaching notes. Includes premium-only enforcement via environment kill switches and multi-layer style normalization with strict validation and auto-normalization.
+- **Workout Generation**: Features a three-tier fallback (premium → simple → mock) orchestrator with a registry-first architecture for deterministic movement selection. AI is primarily used for generating coaching notes. Includes premium-only enforcement via environment kill switches and single-point style normalization (Zod schema transform) with strict validation and auto-normalization.
+- **Style Normalization**: Uses single normalization point in Zod schema (`generatePayloadSchema`/`simulatePayloadSchema` transforms). The transform takes the first available field (style ?? goal ?? focus ?? archetype), normalizes it using `normalizeStyle()`, and sets all four fields (archetype, style, goal, focus) to the same normalized value. Route handlers pass through these normalized fields directly to the orchestrator, which routes to the appropriate builder (endurance → buildEndurance, crossfit → buildCrossFitCF, etc.).
 - **Deterministic Generation**: Uses `mulberry32` RNG and seeding for reproducible workouts.
 - **Movement Service**: Integrates a comprehensive Movement Registry (1,105 movements) and pattern packs for intelligent movement selection based on equipment, style, and constraints.
 - **Workout Focus Categories**: Supports 13 workout focus types (e.g., CrossFit, Olympic Weightlifting), each with specialized builders and hardness enforcement.
