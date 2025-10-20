@@ -388,7 +388,9 @@ function normalizeEquipment(userEquipment: string[]): string[] {
 // Simplified OpenAI generator with movement library
 async function generateWithOpenAI(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
   const category = request.category || 'mixed';
-  const style = (request as any).style || category;
+  // Normalize style using existing normalizeStyle function to handle aliases
+  const rawStyle = (request as any).style || (request as any).goal || (request as any).focus || category;
+  const style = normalizeStyle(rawStyle);
   const userEquipment = (request as any).equipment || [];
   
   // Normalize equipment names to handle variations
@@ -545,6 +547,44 @@ MIXED/GENERAL FITNESS STRUCTURE:
 - Cool-down (3-5 min)
 
 CRITICAL: Provide variety across strength, cardio, and functional movements for general fitness development.`,
+    
+    'aerobic': `
+AEROBIC/CARDIO STRUCTURE:
+- Warm-up (5 min): Easy cardio, dynamic stretching
+- Main Cardio (25-30 min): Sustained aerobic work
+  * Zone 2 (60-70% max HR): Steady-state cardio (Row, Bike, Ski, Run)
+  * Use distance_m for rowing/skiing (2000-5000m based on intensity)
+  * Use duration for sustained efforts (10-20 min blocks)
+  * Can include intervals: 5min on, 1min easy x 4
+- Active Recovery (3-5 min): Easy movement
+- Cool-down (3-5 min): Stretching
+
+CRITICAL: Focus on maintaining conversational pace for aerobic base building.`,
+    
+    'conditioning': `
+CONDITIONING/METCON STRUCTURE:
+- Warm-up (5-8 min): Dynamic movements, cardio ramp
+- Main Conditioning (20-25 min): High-intensity metabolic work
+  * HIIT format: Work:rest intervals (30:30, 40:20, Tabata 20:10)
+  * Circuit format: 3-5 movements, 3-4 rounds for time
+  * AMRAP format: Maximum rounds in set time
+  * Mix cardio + functional movements (Burpees, KB Swings, Box Jumps, Row, Bike)
+- Cool-down (5 min): Easy movement, breathing
+
+CRITICAL: Emphasize work capacity, high heart rate, minimal rest between movements.`,
+    
+    'gymnastics': `
+GYMNASTICS/BODYWEIGHT SKILL STRUCTURE:
+- Warm-up (8-10 min): Joint mobility, wrist prep, shoulder activation
+- Skill Work (15-20 min): Technical practice
+  * Focus: Pull-ups, Push-ups, Dips, Plank variations
+  * Format: Quality reps, short sets with full recovery
+  * Progressions: Negatives, holds, partial ROM, assisted variations
+- Strength/Conditioning (10-12 min): Bodyweight circuit
+  * Format: EMOM or AMRAP with gymnastics movements
+- Cool-down (5 min): Stretching, mobility
+
+CRITICAL: Prioritize movement quality and control over volume. Include progressions and regressions.`,
   };
 
   const styleGuide = styleGuidelines[style.toLowerCase()] || styleGuidelines['crossfit'];
