@@ -660,37 +660,46 @@ GENERAL INSTRUCTIONS:
 4. Fit within ${request.duration} minutes total
 5. Provide VARIETY - don't repeat the same movements
 
-CRITICAL: Return ONLY valid JSON matching this exact structure (no markdown, no extra text):
+CRITICAL: Return ONLY valid JSON matching this EXACT structure (no markdown, no extra text):
 
+EXAMPLE OUTPUT FOR CROSSFIT:
 {
-  "title": "Specific workout name reflecting ${style} and intensity",
-  "notes": "Brief workout description with scaling options",
+  "title": "CrossFit High-Intensity Workout",
+  "notes": "A challenging bodyweight CrossFit session focusing on cardio and strength",
   "sets": [
     {
-      "id": "unique-id-${Date.now()}",
-      "exercise": "Exercise name (MUST match movement library EXACTLY)",
-      "reps": number (if applicable),
-      "duration": number in seconds (if applicable),
-      "distance_m": number in meters (for cardio - use 800-1000m),
-      "num_sets": number (if applicable),
-      "rest_s": number in seconds (if applicable),
-      "notes": "Form cues or scaling options",
-      "is_header": true (only for section headers like "Warm-up", "Main - AMRAP 12", "Cool-down"),
-      "workoutTitle": "Creative title in ALL CAPS with quotes (ONLY for main section, e.g., \\"FRUIT LOOPS IN MY ORANGE JUICE\\")",
-      "scoreType": "Score format (ONLY for main section: 'For Time', 'AMRAP', 'EMOM', 'Intervals')",
-      "coachingCues": "Short goal statement with scaling suggestions (1-2 sentences, ONLY for main section)",
-      "scalingNotes": "Quick scaling suggestions embedded in coachingCues (ONLY for main section)"
-    }
+      "id": "unique-id-1",
+      "exercise": "Warm-Up",
+      "is_header": true
+    },
+    { "id": "unique-id-2", "exercise": "Inchworm", "reps": 5 },
+    { "id": "unique-id-3", "exercise": "Arm Circle", "reps": 10 },
+    {
+      "id": "unique-id-4",
+      "exercise": "Main - AMRAP 15",
+      "is_header": true,
+      "workoutTitle": "\\"THE RELENTLESS CRUSHER\\"",
+      "scoreType": "15:00 AMRAP",
+      "coachingCues": "Maintain steady pacing throughout all 15 minutes. Scale: reduce reps to 15-20-25 or substitute knee push-ups for standard push-ups."
+    },
+    { "id": "unique-id-5", "exercise": "Push-up", "reps": 20 },
+    { "id": "unique-id-6", "exercise": "Air Squat", "reps": 30 },
+    { "id": "unique-id-7", "exercise": "Burpee", "reps": 40 },
+    {
+      "id": "unique-id-8",
+      "exercise": "Cool Down",
+      "is_header": true
+    },
+    { "id": "unique-id-9", "exercise": "Cat-Cow", "reps": 10 }
   ]
 }
 
-IMPORTANT RULES:
-- Use "is_header": true for section headers (Warm-up, Main, Cool-down)
-- ONLY add workoutTitle, scoreType, and coachingCues to the MAIN section header
-- Warm-up and Cool-down should NOT have workoutTitle or scoreType
-- Match movement names EXACTLY to the library above
-- Keep coaching cues brief (1-2 sentences max)
-- Embed scaling suggestions IN the coaching cues, don't create separate scalingNotes field`;
+YOUR RESPONSE MUST:
+1. Include 3 headers with is_header:true (Warm-Up, Main, Cool Down)
+2. ONLY the MAIN header gets workoutTitle, scoreType, and coachingCues
+3. Creative title in workoutTitle must be ALL CAPS with quotes (e.g., "\\"THE RELENTLESS CRUSHER\\"")
+4. Exercise names must EXACTLY match the movement library above
+5. Keep coaching cues to 1-2 sentences max with embedded scaling suggestions`;
 
   if (!openai) {
     throw new Error('OpenAI client not initialized');
@@ -740,6 +749,20 @@ IMPORTANT RULES:
   let aiResponse;
   try {
     aiResponse = JSON.parse(response.choices[0].message.content);
+    
+    // Find ALL header sets to debug Wodify fields
+    const headers = aiResponse.sets?.filter((s: any) => s.is_header) || [];
+    console.log('[WG] OpenAI response parsed successfully', {
+      title: aiResponse.title,
+      setsCount: aiResponse.sets?.length,
+      headersCount: headers.length,
+      allHeaders: headers.map((h: any) => ({
+        exercise: h.exercise,
+        workoutTitle: h.workoutTitle,
+        scoreType: h.scoreType,
+        coachingCues: h.coachingCues
+      }))
+    });
   } catch (err) {
     console.error('[WG] Failed to parse OpenAI JSON response', {
       content: response.choices[0].message.content?.slice(0, 200)
@@ -753,14 +776,14 @@ IMPORTANT RULES:
   );
   
   // Validate and map exercises to ensure they exist in the movement library
-  const validatedSets = (aiResponse.sets || []).map((set: any) => {
-    // Skip headers
+  const validatedSets = (aiResponse.sets || []).map((set: any, index: number) => {
+    // Headers are just for structure - keep them simple with required fields only
     if (set.is_header) {
       return {
-        id: set.id || `header-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        id: set.id || `header-${Date.now()}-${index}`,
         exercise: set.exercise,
-        is_header: true,
-        notes: set.notes
+        notes: set.notes || undefined,
+        is_header: true
       };
     }
     
@@ -780,15 +803,13 @@ IMPORTANT RULES:
     
     if (exactMatch) {
       return {
-        id: set.id || `set-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        id: set.id || `set-${Date.now()}-${index}`,
         exercise: exactMatch.name, // Use canonical name from library
         reps: set.reps || undefined,
         duration: set.duration || undefined,
-        distance_m: set.distance_m || undefined,
-        num_sets: set.num_sets || undefined,
-        rest_s: set.rest_s || undefined,
-        notes: set.notes || undefined,
-        is_header: false
+        distance: set.distance_m || undefined, // Map distance_m -> distance
+        restTime: set.rest_s || undefined, // Map rest_s -> restTime
+        notes: set.notes || undefined
       };
     }
     
@@ -805,15 +826,13 @@ IMPORTANT RULES:
           matched: fuzzyMatch.name 
         });
         return {
-          id: set.id || `set-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          id: set.id || `set-${Date.now()}-${index}`,
           exercise: fuzzyMatch.name, // Use canonical name from library
           reps: set.reps || undefined,
           duration: set.duration || undefined,
-          distance_m: set.distance_m || undefined,
-          num_sets: set.num_sets || undefined,
-          rest_s: set.rest_s || undefined,
-          notes: set.notes || undefined,
-          is_header: false
+          distance: set.distance_m || undefined, // Map distance_m -> distance
+          restTime: set.rest_s || undefined, // Map rest_s -> restTime
+          notes: set.notes || undefined
         };
       }
     }

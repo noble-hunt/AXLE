@@ -472,7 +472,8 @@ export const workoutSetSchema = z.object({
   duration: z.number().optional(),
   distance: z.number().optional(),
   restTime: z.number().optional(),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  is_header: z.boolean().optional()
 });
 
 export const generatedWorkoutSchema = z.object({
