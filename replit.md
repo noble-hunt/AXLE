@@ -19,15 +19,18 @@ Preferred communication style: Simple, everyday language.
 - **Server**: Express.js with a RESTful API in TypeScript.
 - **Modularity**: Abstracted storage interface (`IStorage`).
 - **API Validation**: Zod schemas for request validation.
-- **Workout Generation**: Features a three-tier fallback (premium → simple → mock) orchestrator with a registry-first architecture for deterministic movement selection. AI is primarily used for generating coaching notes. Includes premium-only enforcement via environment kill switches and single-point style normalization (Zod schema transform) with strict validation and auto-normalization.
-- **Style Normalization**: Uses single normalization point in Zod schema (`generatePayloadSchema`/`simulatePayloadSchema` transforms). The transform takes the first available field (style ?? goal ?? focus ?? archetype), normalizes it using `normalizeStyle()`, and sets all four fields (archetype, style, goal, focus) to the same normalized value. Route handlers pass through these normalized fields directly to the orchestrator, which routes to the appropriate builder (endurance → buildEndurance, crossfit → buildCrossFitCF, etc.).
-- **Deterministic Generation**: Uses `mulberry32` RNG and seeding for reproducible workouts.
-- **Movement Service**: Integrates a comprehensive Movement Registry (1,105 movements) and pattern packs for intelligent movement selection based on equipment, style, and constraints.
-- **Workout Focus Categories**: Supports 13 workout focus types (e.g., CrossFit, Olympic Weightlifting), each with specialized builders and hardness enforcement.
-- **Style-Specific Content Policies**: Enforces strict content policies per workout style (e.g., required patterns, banned exercises, loaded ratio requirements) with auto-fix attempts.
-- **HYROX-Style Endurance Workouts**: Endurance workouts now generate HYROX-race-inspired circuits that alternate between distance-based cardio stations (Row, Bike, Running, Ski Erg) and functional movement stations (burpees, wall balls, KB swings, box jumps, thrusters, etc.). The `buildEndurance()` function creates 4-5 stations with equipment-aware cardio modality selection (rower → bike → ski erg → treadmill → running as fallback). All cardio stations use proper `distance_m` fields (800-1000m based on intensity) instead of time-based prescriptions. Functional movements are selected from the registry using pattern matching (jump+bodyweight, squat+throw, hinge+ballistic, lunge+carry, push+bodyweight) with rep-based schemes (40-50 reps based on intensity).
-- **Budget Fitting & Pattern Enforcement**: Scales main blocks to fit time budgets and enforces required patterns with auto-repair logic. The `extractMains()` helper correctly isolates main work blocks by excluding warm-up and cooldown sections, ensuring cyclical/loaded ratio calculations are accurate.
-- **Hardness & Ratio Enforcement**: Scores workout hardness and tracks main loaded ratio, with auto-upgrades for CrossFit if needed. Endurance/aerobic workouts receive proper hardness credit based on time in main work, pattern type (VO2/cruise/steady), and intensity level, ensuring they pass hardness floor checks.
+- **Workout Generation (Simplified OpenAI-First)**: Simplified architecture using direct OpenAI generation with movement registry context for maximum variety and style-specific programming.
+  - **OpenAI-First Approach**: Calls OpenAI (gpt-4o) directly with comprehensive movement library (~90 movements) and style-specific instructions
+  - **Movement Registry**: Curated movement library at `server/workouts/movements.ts` with ~90 movements tagged by equipment, body region, and movement pattern
+  - **Equipment-Aware Filtering**: Automatically filters movement library based on user's available equipment
+  - **Style-Specific Programming**: Prompt engineering guides OpenAI to follow proper methodology for each style (CrossFit AMRAPs/EMOMs, Olympic Weightlifting focus on cleans/snatches, Powerlifting emphasis on squat/bench/deadlift, etc.)
+  - **High Temperature (0.9)**: Configured for maximum workout variety - each generation produces unique programming
+  - **Fallback**: Falls back to mock workout if OpenAI fails (mock generator only used as last resort)
+  - **Recent Changes (Oct 20, 2025)**: 
+    - Removed complex deterministic builders (buildCrossFitCF, buildOly, buildPowerlifting, etc.) that were causing routing bugs
+    - Eliminated triple normalization bug by removing premium generator routing layer
+    - Simplified from 3-tier fallback (premium → simple → mock) to OpenAI-first (OpenAI → mock)
+    - Provides better workout variety than previous deterministic approach
 
 ### Data Layer
 - **Database**: PostgreSQL with Drizzle ORM.
