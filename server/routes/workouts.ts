@@ -5,7 +5,7 @@ import { adaptToPlanV1 } from "../workouts/adapter";
 import { generatePlan } from "../workouts/generate";
 export const workouts = Router();
 
-// Helper function to transform sets to blocks
+// Helper function to transform sets to blocks (Wodify-style)
 function transformSetsToBlocks(sets: any[], durationMin: number) {
   const blocks: any[] = [];
   let currentBlock: any = null;
@@ -17,12 +17,26 @@ function transformSetsToBlocks(sets: any[], durationMin: number) {
         blocks.push(currentBlock);
       }
       
-      // Start new block
+      // Determine block key based on section
+      const exerciseLower = set.exercise.toLowerCase();
+      let blockKey = 'main';
+      if (exerciseLower.includes('warm')) {
+        blockKey = 'warmup';
+      } else if (exerciseLower.includes('cool')) {
+        blockKey = 'cooldown';
+      }
+      
+      // Start new block with Wodify-style fields
       currentBlock = {
-        key: set.exercise.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+        key: blockKey,
         title: set.exercise,
         targetSeconds: set.duration || 300,
-        items: []
+        items: [],
+        // Wodify-style enhancements (only for main section)
+        workoutTitle: set.workoutTitle || undefined,
+        scoreType: set.scoreType || undefined,
+        coachingCues: set.coachingCues || undefined,
+        scalingNotes: set.scalingNotes || undefined,
       };
     } else if (currentBlock) {
       // Add item to current block
