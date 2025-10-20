@@ -41,6 +41,8 @@ export const workouts = pgTable("workouts", {
   criticScore: integer("critic_score"), // 0-100 critic score
   criticIssues: text("critic_issues").array(), // Array of identified issues
   rawWorkoutJson: jsonb("raw_workout_json"), // Full AI-generated workout JSON for debugging
+  // User score tracking
+  userScore: jsonb("user_score"), // { value: string, type: 'time'|'weight'|'rounds'|'reps', blockKey: string }
 });
 
 // WORKOUT FEEDBACK - RPE and satisfaction feedback from users

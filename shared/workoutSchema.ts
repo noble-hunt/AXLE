@@ -32,6 +32,11 @@ export const BlockZ = z.object({
   items: z.array(BlockItemZ).min(1),   // never empty
   targetSeconds: z.number().int().min(60), // planned time for block
   style: z.enum(["straight-sets","emom","amrap","interval","circuit"]).optional(),
+  // Wodify-style enhancements
+  workoutTitle: z.string().optional(),  // Creative name for main blocks (e.g., "FRUIT LOOPS IN MY ORANGE JUICE")
+  scoreType: z.string().optional(),     // "For Time", "AMRAP", "EMOM", "Score Weight", "Score Rounds", etc.
+  coachingCues: z.string().optional(),  // Short goal-oriented description with workout intent
+  scalingNotes: z.string().optional(),  // Quick scaling suggestions (lighter weight, reduced complexity, etc.)
 });
 
 export const WorkoutPlanZ = z.object({
