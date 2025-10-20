@@ -318,73 +318,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
 
-  // POST /api/workouts/preview - Generate workout preview using new engine (no auth required)
+  // POST /api/workouts/preview - Generate workout preview using OpenAI-first generator
   app.post("/api/workouts/preview", async (req, res) => {
     res.type('application/json');
     
     try {
-      const { focus, durationMin, intensity, equipment, seed: providedSeed } = req.body ?? {};
+      const { focus, durationMin, intensity, equipment, seed: providedSeed, archetype, style, goal } = req.body ?? {};
       
-      if (!focus || !durationMin || !intensity) {
+      if (!durationMin || !intensity) {
         return res.status(400).json({ 
           ok: false, 
-          error: { code: 'BAD_INPUT', message: 'Missing required fields: focus, durationMin, intensity' } 
+          error: { code: 'BAD_INPUT', message: 'Missing required fields: durationMin, intensity' } 
         });
       }
       
-      // Import new workout generation engine
-      const { generateWorkoutPlan } = await import('./workouts/engine');
+      // Use the new OpenAI-first generator
+      const { generateWorkout } = await import('./workoutGenerator');
       const { generateSeed } = await import('./lib/seededRandom');
       
       const equipmentList = equipment || ['bodyweight'];
       const workoutSeed = providedSeed || generateSeed();
+      const workoutStyle = style || focus || goal || archetype || 'crossfit';
       
-      // Build WorkoutRequest for the new engine
-      const workoutRequest: any = {
-        date: new Date().toISOString(),
-        userId: 'preview-user', // Preview mode - no user ID
-        goal: 'general_fitness',
-        availableMinutes: durationMin,
+      // Build request for the OpenAI-first generator
+      const generatorRequest = {
+        category: archetype || workoutStyle,
+        duration: durationMin,
+        intensity,
+        goal: workoutStyle,
+        focus: workoutStyle,
+        style: workoutStyle,
         equipment: equipmentList,
-        experienceLevel: 'intermediate' as const,
-        injuries: [],
-        preferredDays: [],
-        recentHistory: [],
-        metricsSnapshot: {
-          vitality: 65,
-          performancePotential: 70,
-          circadianAlignment: 75,
-          fatigueScore: 30,
-          hrv: undefined,
-          rhr: undefined,
-          sleepScore: 70
-        },
-        intensityFeedback: []
+        seed: workoutSeed,
+        durationMin
       };
       
-      // Generate workout plan using the new deterministic engine
-      const workoutPlan = generateWorkoutPlan(
-        workoutRequest,
-        [], // No history for preview
-        [], // No progression states
-        {
-          performancePotential: 70,
-          vitality: 65,
-          sleepScore: 70,
-          hrv: undefined,
-          restingHR: undefined
-        },
-        undefined // No energy systems history
-      );
+      console.log('[AXLE /preview] OpenAI-first generation:', {
+        style: workoutStyle,
+        duration: durationMin,
+        equipment: equipmentList.length
+      });
       
-      // Return the WorkoutPlan directly with seed
+      // Generate workout using OpenAI-first approach
+      const generatedWorkout = await generateWorkout(generatorRequest as any);
+      const meta = (generatedWorkout as any)?.meta || {};
+      
+      // Return the generated workout with seed
       res.json({ 
         ok: true, 
-        preview: workoutPlan,
-        seed: workoutSeed
+        preview: generatedWorkout,
+        seed: workoutSeed,
+        meta
       });
     } catch (e: any) {
-      console.error('[preview] err', e);
+      console.error('[AXLE][preview] Error:', e);
       res.status(500).json({ 
         ok: false, 
         error: { code: 'INTERNAL', message: e?.message || 'Preview generation failed' } 
