@@ -7,7 +7,6 @@
 
 import type { Express } from "express";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
-import { normalizeStyleMiddleware } from "../middleware/normalizeStyle";
 import { generatePayloadSchema } from "../../shared/types/workouts";
 import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator";
 
@@ -18,7 +17,7 @@ export function registerGenerateRoutes(app: Express) {
    * Generate and save workout to database
    * Used for final generation in the workout generator wizard
    */
-  app.post("/api/workouts/generate", requireAuth, normalizeStyleMiddleware, async (req, res, next) => {
+  app.post("/api/workouts/generate", requireAuth, async (req, res, next) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;

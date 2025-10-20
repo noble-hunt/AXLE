@@ -8,7 +8,6 @@
 
 import type { Express } from "express";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
-import { normalizeStyleMiddleware } from "../middleware/normalizeStyle";
 import { simulatePayloadSchema } from "../../shared/types/workouts";
 import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator";
 
@@ -19,7 +18,7 @@ export function registerSimulateRoutes(app: Express) {
    * Simulate workout generation without persisting to database
    * Used for preview in the workout generator wizard
    */
-  app.post("/api/workouts/simulate", requireAuth, normalizeStyleMiddleware, async (req, res, next) => {
+  app.post("/api/workouts/simulate", requireAuth, async (req, res, next) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
