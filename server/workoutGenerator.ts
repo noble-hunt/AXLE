@@ -482,6 +482,69 @@ STRENGTH TRAINING STRUCTURE:
 - Cool-down (3-5 min)
 
 CRITICAL: Focus on load progression and proper rest intervals (2-3 min for main lifts).`,
+    
+    'bb_upper': `
+BODYBUILDING UPPER BODY STRUCTURE:
+- Warm-up (5 min): Shoulder circles, band pull-aparts, light cardio
+- Primary (12-15 min): Compound upper push or pull (DB Bench, DB Row, DB Shoulder Press)
+  * Format: "3x8-10" or "4x6-8" with controlled tempo
+- Secondary (10-12 min): Another compound (opposite pattern from primary)
+- Accessory (8-10 min): 2-3 isolation movements (DB Bicep Curl, Tricep Extension, Lateral Raise)
+  * Format: "3x12-15" or "3x10-12"
+- Cool-down (3 min): Stretching
+
+CRITICAL: Emphasize muscle-mind connection, time under tension, and balanced push/pull work.`,
+    
+    'bb_lower': `
+BODYBUILDING LOWER BODY STRUCTURE:
+- Warm-up (5 min): Leg swings, hip circles, bodyweight squats
+- Primary (12-15 min): Main compound (Goblet Squat, DB RDL, DB Lunge)
+  * Format: "4x8-10" or "3x10-12" with controlled tempo
+- Secondary (10-12 min): Another compound or unilateral (Step-ups, Bulgarian Split Squats)
+- Accessory (8-10 min): Isolation work (Calf Raises, Single-Leg Glute Bridge)
+  * Format: "3x12-15" or "3x15-20"
+- Cool-down (3 min): Stretching, foam rolling
+
+CRITICAL: Focus on full range of motion, controlled eccentrics, and balanced quad/hamstring/glute work.`,
+    
+    'bb_full_body': `
+BODYBUILDING FULL BODY STRUCTURE:
+- Warm-up (5 min): Dynamic movements, light cardio
+- Upper Push (8-10 min): DB Bench, DB Shoulder Press, or Push-ups
+  * Format: "3x8-10"
+- Lower (8-10 min): Goblet Squat, DB Lunge, or DB RDL
+  * Format: "3x8-10"
+- Upper Pull (8-10 min): DB Row, Pull-ups, or DB Reverse Fly
+  * Format: "3x8-10"
+- Accessory Circuit (8-10 min): 2-3 exercises targeting weak points
+  * Format: "3 rounds: 12-15 reps each"
+- Cool-down (3 min)
+
+CRITICAL: Balance upper/lower and push/pull movements for complete development.`,
+    
+    'mobility': `
+MOBILITY & RECOVERY STRUCTURE:
+- Breathing & Centering (3-5 min): Deep breathing, body scan
+- Dynamic Mobility (10-12 min): Joint circles, leg/arm swings, Cat-Cow, Inchworms
+  * Focus on major joints: hips, shoulders, spine, ankles
+- Active Stretching (10-15 min): Controlled movements through full ROM
+  * Cossack Squats, Hip Circles, Bird Dogs, Dead Bugs
+- Static Stretching (8-10 min): Gentle holds (30-60 sec each)
+- Cool-down (3-5 min): Relaxation, breathing
+
+CRITICAL: Emphasize quality of movement over quantity. No forced or ballistic stretching.`,
+    
+    'mixed': `
+MIXED/GENERAL FITNESS STRUCTURE:
+- Warm-up (5-8 min): Dynamic movements, light cardio
+- Block 1 (10-12 min): Strength focus (compound lifts)
+  * Format: "3-4 sets" of main movements
+- Block 2 (10-12 min): Conditioning/cardio circuit
+  * Format: Interval or circuit style with 3-5 movements
+- Block 3 (8-10 min): Accessory or skill work
+- Cool-down (3-5 min)
+
+CRITICAL: Provide variety across strength, cardio, and functional movements for general fitness development.`,
   };
 
   const styleGuide = styleGuidelines[style.toLowerCase()] || styleGuidelines['crossfit'];
@@ -573,6 +636,14 @@ Match movement names EXACTLY to the library above.`;
     // Validate exercise name against movement library
     const exerciseLower = (set.exercise || '').toLowerCase().trim();
     
+    // Reject empty or too-short exercise names (prevents fuzzy matching "" to everything)
+    if (!exerciseLower || exerciseLower.length < 3) {
+      console.error('[WG] Invalid exercise: empty or too short', { 
+        exercise: set.exercise 
+      });
+      return null;
+    }
+    
     // Try to find exact match
     const exactMatch = availableMovements.find(m => m.name.toLowerCase() === exerciseLower);
     
@@ -590,41 +661,45 @@ Match movement names EXACTLY to the library above.`;
       };
     }
     
-    // Try fuzzy match (contains)
-    const fuzzyMatch = availableMovements.find(m => 
-      m.name.toLowerCase().includes(exerciseLower) || 
-      exerciseLower.includes(m.name.toLowerCase())
-    );
-    
-    if (fuzzyMatch) {
-      console.warn('[WG] Fuzzy matched exercise', { 
-        aiGenerated: set.exercise, 
-        matched: fuzzyMatch.name 
-      });
-      return {
-        id: set.id || `set-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        exercise: fuzzyMatch.name, // Use canonical name from library
-        reps: set.reps || undefined,
-        duration: set.duration || undefined,
-        distance_m: set.distance_m || undefined,
-        num_sets: set.num_sets || undefined,
-        rest_s: set.rest_s || undefined,
-        notes: set.notes || undefined,
-        is_header: false
-      };
+    // Try fuzzy match (contains) - only for reasonable length strings
+    if (exerciseLower.length >= 4) {
+      const fuzzyMatch = availableMovements.find(m => 
+        m.name.toLowerCase().includes(exerciseLower) || 
+        exerciseLower.includes(m.name.toLowerCase())
+      );
+      
+      if (fuzzyMatch) {
+        console.warn('[WG] Fuzzy matched exercise', { 
+          aiGenerated: set.exercise, 
+          matched: fuzzyMatch.name 
+        });
+        return {
+          id: set.id || `set-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          exercise: fuzzyMatch.name, // Use canonical name from library
+          reps: set.reps || undefined,
+          duration: set.duration || undefined,
+          distance_m: set.distance_m || undefined,
+          num_sets: set.num_sets || undefined,
+          rest_s: set.rest_s || undefined,
+          notes: set.notes || undefined,
+          is_header: false
+        };
+      }
     }
     
     // No match found - log error and skip
     console.error('[WG] Invalid exercise generated by AI (not in library)', { 
       exercise: set.exercise,
+      exerciseLower,
       availableCount: availableMovements.length 
     });
     return null;
   }).filter(Boolean); // Remove nulls
   
-  // Ensure we have at least some valid exercises
-  if (validatedSets.length === 0) {
-    throw new Error('OpenAI generated no valid exercises from the movement library');
+  // Ensure we have at least one non-header exercise
+  const nonHeaderSets = validatedSets.filter((s: any) => !s.is_header);
+  if (nonHeaderSets.length === 0) {
+    throw new Error('OpenAI generated no valid non-header exercises from the movement library');
   }
   
   // Convert to GeneratedWorkout format
