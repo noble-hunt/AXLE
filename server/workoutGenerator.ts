@@ -637,24 +637,56 @@ Match movement names EXACTLY to the library above.`;
     throw new Error('OpenAI client not initialized');
   }
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: "You are AXLE, an expert fitness trainer. Always respond with valid JSON matching the exact schema. No markdown, no extra text."
-      },
-      {
-        role: "user",
-        content: prompt
-      }
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 2000,
-    temperature: 0.9, // Higher temperature for more variety
+  // Add timeout wrapper to prevent hanging
+  const timeoutMs = 25000; // 25 second timeout
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('OpenAI request timed out after 25s')), timeoutMs);
   });
 
-  const aiResponse = JSON.parse(response.choices[0].message.content || '{}');
+  let response;
+  try {
+    response = await Promise.race([
+      openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are AXLE, an expert fitness trainer. Always respond with valid JSON matching the exact schema. No markdown, no extra text."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 2000,
+        temperature: 0.9, // Higher temperature for more variety
+      }),
+      timeoutPromise
+    ]) as any;
+  } catch (err: any) {
+    console.error('[WG] OpenAI API call failed', {
+      error: err?.message || String(err),
+      code: err?.code,
+      status: err?.status,
+      type: err?.type
+    });
+    throw new Error(`OpenAI API failed: ${err?.message || 'Unknown error'}`);
+  }
+
+  if (!response?.choices?.[0]?.message?.content) {
+    throw new Error('OpenAI returned empty response');
+  }
+
+  let aiResponse;
+  try {
+    aiResponse = JSON.parse(response.choices[0].message.content);
+  } catch (err) {
+    console.error('[WG] Failed to parse OpenAI JSON response', {
+      content: response.choices[0].message.content?.slice(0, 200)
+    });
+    throw new Error('OpenAI returned invalid JSON');
+  }
   
   // Create a map of valid movement names (case-insensitive for matching)
   const validMovementNames = new Set(

@@ -57,18 +57,36 @@ workouts.post("/preview", async (req, res) => {
   } catch (err: any) {
     req.log?.error({ err }, "preview failed");
     
-    // If validation error, capture to Sentry and return readable message
+    // Extract meaningful error message
     const message = err instanceof Error ? err.message : "Failed to generate valid workout plan";
+    const errorCode = err?.code || 'UNKNOWN_ERROR';
+    const errorStatus = err?.status || 500;
     
-    console.error('[WORKOUTS ROUTER /preview] Generation error:', message);
+    console.error('[WORKOUTS ROUTER /preview] Generation error:', {
+      message,
+      code: errorCode,
+      status: errorStatus,
+      stack: err?.stack?.split('\n').slice(0, 3).join('\n')
+    });
     
     // TODO: Add Sentry capture when available
     // Sentry.captureException(err);
     
+    // Return user-friendly error message
+    let userMessage = message;
+    if (message.includes('timed out')) {
+      userMessage = 'Workout generation took too long. Please try again with simpler settings.';
+    } else if (message.includes('API key') || message.includes('not configured')) {
+      userMessage = 'OpenAI API configuration error. Please check your API key.';
+    } else if (message.includes('rate limit')) {
+      userMessage = 'Too many requests. Please wait a moment and try again.';
+    }
+    
     return res.status(500).json({ 
       ok: false, 
       error: "preview_failed", 
-      message: `Workout generation failed: ${message}` 
+      message: userMessage,
+      details: message
     });
   }
 });
