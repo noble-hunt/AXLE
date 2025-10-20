@@ -90,6 +90,13 @@ export const MOVEMENTS: Movement[] = [
   { id:"med-ball-slam", name:"Medicine Ball Slam", equipment:["medicine_ball"], tags:["full","power","conditioning"] },
   { id:"med-ball-throw", name:"Medicine Ball Throw", equipment:["medicine_ball"], tags:["full","power","core"] },
   
+  // Cardio Equipment
+  { id:"row", name:"Row", equipment:["bodyweight"], tags:["cardio","conditioning","full"] },
+  { id:"bike", name:"Bike", equipment:["bodyweight"], tags:["cardio","conditioning","lower"] },
+  { id:"ski-erg", name:"Ski Erg", equipment:["bodyweight"], tags:["cardio","conditioning","full"] },
+  { id:"run", name:"Run", equipment:["bodyweight"], tags:["cardio","conditioning","lower"] },
+  { id:"assault-bike", name:"Assault Bike", equipment:["bodyweight"], tags:["cardio","conditioning","full"] },
+  
   // Mobility/Warmup
   { id:"arm-circle", name:"Arm Circle", equipment:["bodyweight"], tags:["mobility","warmup","upper"] },
   { id:"leg-swing", name:"Leg Swing", equipment:["bodyweight"], tags:["mobility","warmup","lower"] },

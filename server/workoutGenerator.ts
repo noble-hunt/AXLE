@@ -385,11 +385,33 @@ function normalizeEquipment(userEquipment: string[]): string[] {
   return Array.from(normalized);
 }
 
+// Map lowercase categories to proper Category enum values
+function normalizeCategoryToEnum(rawCategory: string): Category {
+  const normalized = rawCategory.toLowerCase().trim();
+  
+  const categoryMap: Record<string, Category> = {
+    'crossfit': Category.CROSSFIT,
+    'strength': Category.STRENGTH,
+    'hiit': Category.HIIT,
+    'cardio': Category.CARDIO,
+    'powerlifting': Category.POWERLIFTING,
+    'olympic lifting': Category.OLYMPIC_LIFTING,
+    'olympic': Category.OLYMPIC_LIFTING,
+    'oly': Category.OLYMPIC_LIFTING,
+    'mixed': Category.CROSSFIT,  // Default to CrossFit for mixed
+  };
+  
+  return categoryMap[normalized] || Category.CROSSFIT;
+}
+
 // Simplified OpenAI generator with movement library
 async function generateWithOpenAI(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
-  const category = request.category || 'mixed';
+  // Normalize category to match Category enum
+  const rawCategory = request.category || (request as any).style || 'mixed';
+  const category = normalizeCategoryToEnum(rawCategory);
+  
   // Normalize style using existing normalizeStyle function to handle aliases
-  const rawStyle = (request as any).style || (request as any).goal || (request as any).focus || category;
+  const rawStyle = (request as any).style || (request as any).goal || (request as any).focus || rawCategory;
   const style = normalizeStyle(rawStyle);
   const userEquipment = (request as any).equipment || [];
   
@@ -795,12 +817,14 @@ Match movement names EXACTLY to the library above.`;
 
 export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<GeneratedWorkout> {
   // SIMPLIFIED: Direct OpenAI generation with movement registry
-  const category = request.category || 'mixed';
-  const style = (request as any).style || category;
+  const rawCategory = request.category || 'mixed';
+  const category = normalizeCategoryToEnum(rawCategory);
+  const style = (request as any).style || rawCategory;
   
   console.warn('[WG] OpenAI-first generation', { 
     stamp: GENERATOR_STAMP, 
     category,
+    rawCategory,
     style,
     duration: request.duration,
     intensity: request.intensity

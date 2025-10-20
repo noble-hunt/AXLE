@@ -5,6 +5,78 @@ import { adaptToPlanV1 } from "../workouts/adapter";
 import { generatePlan } from "../workouts/generate";
 export const workouts = Router();
 
+// Helper function to transform sets to blocks
+function transformSetsToBlocks(sets: any[], durationMin: number) {
+  const blocks: any[] = [];
+  let currentBlock: any = null;
+  
+  for (const set of sets) {
+    if (set.is_header) {
+      // Save previous block if exists
+      if (currentBlock && currentBlock.items.length > 0) {
+        blocks.push(currentBlock);
+      }
+      
+      // Start new block
+      currentBlock = {
+        key: set.exercise.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+        title: set.exercise,
+        targetSeconds: set.duration || 300,
+        items: []
+      };
+    } else if (currentBlock) {
+      // Add item to current block
+      const prescription: any = {
+        type: set.distance_m ? 'distance' : set.duration ? 'time' : set.reps ? 'reps' : 'reps',
+        sets: set.num_sets || 1,
+        restSec: set.rest_s || 0
+      };
+      
+      if (set.distance_m) {
+        prescription.distanceMeters = set.distance_m;
+      } else if (set.duration) {
+        prescription.seconds = set.duration;
+      } else if (set.reps) {
+        prescription.reps = set.reps;
+      }
+      
+      currentBlock.items.push({
+        movementId: set.id,
+        name: set.exercise,
+        prescription,
+        notes: set.notes
+      });
+    }
+  }
+  
+  // Add last block
+  if (currentBlock && currentBlock.items.length > 0) {
+    blocks.push(currentBlock);
+  }
+  
+  // If no blocks created, create minimal structure
+  if (blocks.length === 0) {
+    blocks.push({
+      key: 'main',
+      title: 'Main Workout',
+      targetSeconds: durationMin * 60,
+      items: sets.filter(s => !s.is_header).map(set => ({
+        movementId: set.id,
+        name: set.exercise,
+        prescription: {
+          type: set.reps ? 'reps' : 'time',
+          sets: set.num_sets || 1,
+          reps: set.reps,
+          seconds: set.duration,
+          restSec: set.rest_s || 0
+        }
+      }))
+    });
+  }
+  
+  return blocks;
+}
+
 const PreviewSchema = z.object({
   focus: z.enum([
     "strength", "conditioning", "mixed", "endurance",
@@ -53,7 +125,23 @@ workouts.post("/preview", async (req, res) => {
     
     console.log('[WORKOUTS ROUTER /preview] Generated successfully');
     
-    return res.json({ ok: true, preview: generatedPlan, seed: workoutSeed });
+    // Transform GeneratedWorkout (sets) to WorkoutPlan (blocks)
+    const transformedPlan = {
+      seed: workoutSeed,
+      focus: focus,
+      durationMin,
+      intensity,
+      equipment,
+      blocks: transformSetsToBlocks(generatedPlan.sets, durationMin),
+      totalSeconds: durationMin * 60,
+      summary: generatedPlan.description || `${focus} workout`,
+      version: 1 as const,
+    };
+    
+    // Use adapter to ensure valid WorkoutPlan
+    const validatedPlan = adaptToPlanV1(transformedPlan);
+    
+    return res.json({ ok: true, preview: validatedPlan, seed: workoutSeed });
   } catch (err: any) {
     req.log?.error({ err }, "preview failed");
     
