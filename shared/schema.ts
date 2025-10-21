@@ -471,6 +471,7 @@ export const workoutSetSchema = z.object({
   reps: z.number().optional(),
   duration: z.number().optional(),
   distance: z.number().optional(),
+  calories: z.number().optional(), // For cardio exercises (alternative to distance)
   restTime: z.number().optional(),
   notes: z.string().optional(),
   is_header: z.boolean().optional(),

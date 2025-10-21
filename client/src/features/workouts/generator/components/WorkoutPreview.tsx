@@ -176,9 +176,7 @@ export function WorkoutPreview({
     }
     
     // For cardio with calories: Show "15 Cal Bike"
-    // @ts-ignore - calories field exists in the data but may not be in type yet
     if (prescription.calories) {
-      // @ts-ignore
       return `${prescription.calories} Cal ${name}`;
     }
     
