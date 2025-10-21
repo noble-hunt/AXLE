@@ -660,6 +660,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Action-based Profiles endpoint (for Vercel compatibility)
+  app.post("/api/profiles", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const action = req.body?.action || 'update';
+
+      // ACTION: get - Get profile data
+      if (action === 'get') {
+        const { getProfile } = await import("./dal/profiles");
+        const profile = await getProfile(authReq.user.id);
+        if (!profile) return res.status(404).json({ message: 'Profile not found' });
+        return res.status(200).json({ profile });
+      }
+
+      // ACTION: providers - Get or update auth providers
+      if (action === 'providers') {
+        const { provider } = req.body;
+        
+        // Get providers if no provider specified
+        if (!provider) {
+          const { getProfile } = await import("./dal/profiles");
+          const profile = await getProfile(authReq.user.id);
+          return res.status(200).json({ profile: profile || { providers: [] } });
+        }
+
+        // Link new provider
+        const allowedProviders = ['google'] as const;
+        if (!allowedProviders.includes(provider)) {
+          return res.status(400).json({ message: "Invalid provider" });
+        }
+
+        const { updateProfileProviders } = await import("./dal/profiles");
+        const updatedProfile = await updateProfileProviders(authReq.user.id, provider);
+        if (!updatedProfile) return res.status(500).json({ message: 'Failed to link provider' });
+        return res.status(200).json({ profile: updatedProfile });
+      }
+
+      // ACTION: upsert - Upsert profile
+      if (action === 'upsert') {
+        const validatedData = upsertProfileSchema.parse(req.body);
+        const { updateProfile, getProfile } = await import("./dal/profiles");
+        
+        let profile = await getProfile(authReq.user.id);
+        if (!profile) {
+          profile = await updateProfile(authReq.user.id, validatedData);
+        } else {
+          profile = await updateProfile(authReq.user.id, validatedData);
+        }
+        
+        if (!profile) return res.status(500).json({ message: 'Failed to save profile' });
+        return res.status(200).json({ profile });
+      }
+
+      // ACTION: update - Update profile (default)
+      if (action === 'update') {
+        const validatedData = updateProfileSchema.parse(req.body);
+        const { updateProfile } = await import("./dal/profiles");
+        
+        const profile = await updateProfile(authReq.user.id, validatedData);
+        if (!profile) return res.status(500).json({ message: 'Failed to update profile' });
+        return res.status(200).json({ profile });
+      }
+
+      res.status(400).json({ message: 'Invalid action' });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      console.error('Profile action error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // POST /api/workouts - Create a new workout
   app.post("/api/workouts", requireAuth, async (req, res) => {
     try {
@@ -1002,7 +1075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Personal Records routes
+  // Personal Records routes (legacy RESTful)
   app.get("/api/personal-records", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
@@ -1061,7 +1134,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Achievements routes
+  // Action-based PRs endpoint (for Vercel compatibility)
+  app.post("/api/prs", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const action = req.body?.action || 'list';
+
+      if (action === 'list') {
+        const prs = await listPRs(authReq.user.id);
+        return res.json(prs);
+      }
+
+      if (action === 'create') {
+        const validatedData = insertPRSchema.parse({
+          movement: req.body.exercise || req.body.movement,
+          category: req.body.category || req.body.movementCategory,
+          weightKg: req.body.unit === 'LBS' ? req.body.weight / 2.20462 : req.body.weight,
+          repMax: req.body.reps || req.body.repMax,
+          date: req.body.date
+        });
+        
+        const { insertPR } = await import("./dal/prs");
+        const pr = await insertPR({
+          userId: authReq.user.id,
+          category: validatedData.category,
+          movement: validatedData.movement,
+          repMax: validatedData.repMax as 1 | 3 | 5 | 10,
+          weightKg: Number(validatedData.weightKg),
+          date: validatedData.date ? new Date(validatedData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+        });
+        
+        return res.json(pr);
+      }
+
+      if (action === 'delete') {
+        const { id } = req.body;
+        if (!id) return res.status(400).json({ message: 'PR ID required' });
+
+        const { deletePR } = await import("./dal/prs");
+        const success = await deletePR(authReq.user.id, id);
+        if (!success) return res.status(404).json({ message: "PR not found" });
+        return res.json({ message: "PR deleted successfully" });
+      }
+
+      res.status(400).json({ message: 'Invalid action' });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid PR data", errors: error.issues });
+      }
+      console.error("PRs action error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Achievements routes (legacy)
   app.get("/api/achievements", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
@@ -1105,6 +1231,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Failed to batch update achievements:", error);
       res.status(500).json({ message: "Failed to update achievements" });
+    }
+  });
+
+  // Action-based Health endpoint (for Vercel compatibility)
+  app.post("/api/health", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const action = req.body?.action || 'sync';
+
+      // ACTION: sync - Sync health data from provider
+      if (action === 'sync') {
+        // Delegate to the health sync route
+        return res.status(501).json({ message: 'Use /api/health/sync endpoint' });
+      }
+
+      // ACTION: reports - Get health reports
+      if (action === 'reports') {
+        const days = parseInt(req.body.days) || 14;
+        const { listReports } = await import("./dal/reports");
+        const reports = await listReports(authReq.user.id, { days });
+        return res.json(reports);
+      }
+
+      // ACTION: metrics - Get health metrics
+      if (action === 'metrics') {
+        const days = parseInt(req.body.days) || 14;
+        const { listReports } = await import("./dal/reports");
+        const reports = await listReports(authReq.user.id, { days });
+        
+        // Compute aggregated metrics from reports
+        const metrics = reports.map(report => ({
+          date: report.date,
+          hrv: report.metrics?.hrv,
+          restingHR: report.metrics?.restingHR,
+          sleepScore: report.metrics?.sleepScore,
+          fatigueScore: report.fatigueScore
+        }));
+        
+        return res.json(metrics);
+      }
+
+      res.status(400).json({ message: 'Invalid action' });
+    } catch (error) {
+      console.error('Health action error:', error);
+      res.status(500).json({ message: 'Internal server error' });
     }
   });
 
