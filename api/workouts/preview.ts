@@ -1,6 +1,8 @@
 // api/workouts/preview.ts (Vercel serverless function)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { admin } from '../../lib/api-helpers/supabase';
+import { generateWorkout } from '../../server/workoutGenerator';
+import { generateSeed } from '../../server/lib/seededRandom';
 
 export const config = { runtime: 'nodejs' };
 
@@ -56,33 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
     
-    console.log('[preview] Starting import of workout generator');
-    
-    // Import the workout generator with detailed error logging
-    let generateWorkout, generateSeed;
-    try {
-      const generatorModule = await import('../../server/workoutGenerator');
-      generateWorkout = generatorModule.generateWorkout;
-      console.log('[preview] Successfully imported generateWorkout');
-    } catch (importError: any) {
-      console.error('[preview] Failed to import workoutGenerator:', importError.message, importError.stack);
-      return res.status(500).json({ 
-        ok: false, 
-        error: { code: 'IMPORT_ERROR', message: `Failed to load workout generator: ${importError.message}` } 
-      });
-    }
-    
-    try {
-      const seedModule = await import('../../server/lib/seededRandom');
-      generateSeed = seedModule.generateSeed;
-      console.log('[preview] Successfully imported generateSeed');
-    } catch (importError: any) {
-      console.error('[preview] Failed to import seededRandom:', importError.message);
-      return res.status(500).json({ 
-        ok: false, 
-        error: { code: 'IMPORT_ERROR', message: `Failed to load seed generator: ${importError.message}` } 
-      });
-    }
+    console.log('[preview] Generating workout preview');
     
     const equipmentList = equipment || ['bodyweight'];
     const workoutSeed = providedSeed || generateSeed();

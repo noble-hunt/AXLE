@@ -5,14 +5,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store')
   
   try {
+    console.log('[groups] Validating environment variables');
+    
     // Validate environment variables
     validateEnvForUser()
     
+    console.log('[groups] Environment validated, checking auth');
     const adminClient = admin()
     const token = bearer(req)
     const { data: userData, error: authErr } = await adminClient.auth.getUser(token)
-    if (authErr || !userData?.user) return res.status(401).json({ message: 'Unauthorized' })
+    
+    if (authErr || !userData?.user) {
+      console.error('[groups] Auth failed:', authErr);
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    
     const userId = userData.user.id
+    console.log(`[groups] User authenticated: ${userId}`);
 
     // Use user client for RLS
     const supa = userClient(token)
@@ -41,9 +50,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .order('created_at', { ascending: false })
         
         if (groupsError) {
-          console.error('Failed to fetch user groups:', groupsError)
-          return res.status(500).json({ message: 'Unable to fetch your groups' })
+          console.error('[groups] Supabase query error:', {
+            code: groupsError.code,
+            message: groupsError.message,
+            details: groupsError.details,
+            hint: groupsError.hint
+          });
+          return res.status(500).json({ 
+            message: 'Unable to fetch your groups',
+            debug: process.env.NODE_ENV === 'development' ? groupsError.message : undefined
+          });
         }
+        
+        console.log(`[groups] Found ${userGroups?.length || 0} groups for user ${userId}`);
 
         // Transform to match expected response format
         const transformedGroups = userGroups?.map(group => ({
@@ -135,17 +154,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).json({ message: 'Method Not Allowed' })
     
-  } catch (error) {
-    console.error('Error in /api/groups:', error)
+  } catch (error: any) {
+    console.error('[groups] Unexpected error:', {
+      message: error?.message,
+      stack: error?.stack,
+      code: error?.code
+    });
     
     // Handle environment validation errors
     if (error instanceof Error && error.message.includes('Missing required environment variables')) {
-      return res.status(500).json({ message: 'Server configuration error' })
+      console.error('[groups] Environment validation failed:', error.message);
+      return res.status(500).json({ 
+        message: 'Server configuration error',
+        debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
     
     return res.status(500).json({ 
       message: 'Internal server error',
-      error: 'An unexpected error occurred.'
+      error: 'An unexpected error occurred.',
+      debug: process.env.NODE_ENV === 'development' ? error?.message : undefined
     })
   }
 }

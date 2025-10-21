@@ -6,13 +6,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');
   
   try {
+    console.log('[profiles] Validating environment');
     validateEnvForUser();
     
+    console.log('[profiles] Checking auth');
     const adminClient = admin();
     const token = bearer(req);
     const { data: userData, error: authErr } = await adminClient.auth.getUser(token);
-    if (authErr || !userData?.user) return res.status(401).json({ message: 'Unauthorized' });
+    
+    if (authErr || !userData?.user) {
+      console.error('[profiles] Auth failed:', authErr);
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    
     const userId = userData.user.id;
+    console.log(`[profiles] User authenticated: ${userId}, action: ${req.body?.action || req.query?.action || 'default'}`);
     const supa = userClient(token);
 
     // Action-based routing - support both body and query parameter
@@ -27,10 +35,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .single();
 
       if (error) {
-        console.error('Failed to fetch profile:', error);
-        return res.status(404).json({ message: 'Profile not found' });
+        console.error('[profiles] Failed to fetch profile:', {
+          code: error.code,
+          message: error.message,
+          details: error.details
+        });
+        return res.status(404).json({ 
+          message: 'Profile not found',
+          debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
       }
 
+      console.log(`[profiles] Profile fetched for user ${userId}`);
       return res.status(200).json({ profile });
     }
 
@@ -129,7 +145,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(400).json({ message: 'Invalid action' });
   } catch (error: any) {
-    console.error('Profiles error:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error('[profiles] Unexpected error:', {
+      message: error?.message,
+      stack: error?.stack,
+      code: error?.code
+    });
+    
+    // Handle environment validation errors
+    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
+      console.error('[profiles] Environment validation failed:', error.message);
+      return res.status(500).json({ 
+        message: 'Server configuration error',
+        debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
+    return res.status(500).json({ 
+      message: 'Internal server error',
+      debug: process.env.NODE_ENV === 'development' ? error?.message : undefined
+    });
   }
 }
