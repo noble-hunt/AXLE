@@ -473,7 +473,11 @@ export const workoutSetSchema = z.object({
   distance: z.number().optional(),
   restTime: z.number().optional(),
   notes: z.string().optional(),
-  is_header: z.boolean().optional()
+  is_header: z.boolean().optional(),
+  // Wodify-style fields for header sets
+  workoutTitle: z.string().optional(),
+  scoreType: z.string().optional(),
+  coachingCues: z.string().optional(),
 });
 
 export const generatedWorkoutSchema = z.object({
