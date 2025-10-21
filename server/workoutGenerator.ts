@@ -705,10 +705,93 @@ YOUR RESPONSE MUST:
     throw new Error('OpenAI client not initialized');
   }
 
+  // Define strict JSON schema for Wodify-style workouts
+  const workoutSchema = {
+    name: "workout_structure",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        notes: { type: "string" },
+        sets: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              exercise: { type: "string" },
+              is_header: { type: "boolean" },
+              reps: { 
+                anyOf: [
+                  { type: "number" },
+                  { type: "null" }
+                ]
+              },
+              duration: { 
+                anyOf: [
+                  { type: "number" },
+                  { type: "null" }
+                ]
+              },
+              distance_m: { 
+                anyOf: [
+                  { type: "number" },
+                  { type: "null" }
+                ]
+              },
+              num_sets: { 
+                anyOf: [
+                  { type: "number" },
+                  { type: "null" }
+                ]
+              },
+              rest_s: { 
+                anyOf: [
+                  { type: "number" },
+                  { type: "null" }
+                ]
+              },
+              notes: { 
+                anyOf: [
+                  { type: "string" },
+                  { type: "null" }
+                ]
+              },
+              workoutTitle: { 
+                anyOf: [
+                  { type: "string" },
+                  { type: "null" }
+                ]
+              },
+              scoreType: { 
+                anyOf: [
+                  { type: "string" },
+                  { type: "null" }
+                ]
+              },
+              coachingCues: { 
+                anyOf: [
+                  { type: "string" },
+                  { type: "null" }
+                ]
+              }
+            },
+            required: ["id", "exercise", "is_header", "reps", "duration", "distance_m", "num_sets", "rest_s", "notes", "workoutTitle", "scoreType", "coachingCues"],
+            additionalProperties: false
+          }
+        }
+      },
+      required: ["title", "notes", "sets"],
+      additionalProperties: false
+    }
+  };
+
   // Add timeout wrapper to prevent hanging
-  const timeoutMs = 25000; // 25 second timeout
+  // Structured outputs need more time than regular JSON generation
+  const timeoutMs = 45000; // 45 second timeout for structured outputs
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('OpenAI request timed out after 25s')), timeoutMs);
+    setTimeout(() => reject(new Error('OpenAI request timed out after 45s')), timeoutMs);
   });
 
   let response;
@@ -719,14 +802,17 @@ YOUR RESPONSE MUST:
         messages: [
           {
             role: "system",
-            content: "You are AXLE, an expert fitness trainer. Always respond with valid JSON matching the exact schema. No markdown, no extra text."
+            content: "You are AXLE, an expert fitness trainer creating Wodify-style workouts. Follow the JSON schema EXACTLY - especially workoutTitle, scoreType, and coachingCues for the MAIN section header."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        response_format: { type: "json_object" },
+        response_format: { 
+          type: "json_schema",
+          json_schema: workoutSchema
+        },
         max_tokens: 2000,
         temperature: 0.9, // Higher temperature for more variety
       }),
@@ -777,13 +863,17 @@ YOUR RESPONSE MUST:
   
   // Validate and map exercises to ensure they exist in the movement library
   const validatedSets = (aiResponse.sets || []).map((set: any, index: number) => {
-    // Headers are just for structure - keep them simple with required fields only
+    // Headers include Wodify fields (workoutTitle, scoreType, coachingCues)
     if (set.is_header) {
       return {
         id: set.id || `header-${Date.now()}-${index}`,
         exercise: set.exercise,
         notes: set.notes || undefined,
-        is_header: true
+        is_header: true,
+        // Preserve Wodify fields for main section
+        workoutTitle: set.workoutTitle || undefined,
+        scoreType: set.scoreType || undefined,
+        coachingCues: set.coachingCues || undefined,
       };
     }
     

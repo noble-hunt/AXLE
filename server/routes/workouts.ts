@@ -155,6 +155,15 @@ workouts.post("/preview", async (req, res) => {
     // Use adapter to ensure valid WorkoutPlan
     const validatedPlan = adaptToPlanV1(transformedPlan);
     
+    // DEBUG: Log Wodify fields in blocks
+    console.log('[PREVIEW DEBUG] Blocks with Wodify fields:', validatedPlan.blocks.map((b: any) => ({
+      key: b.key,
+      title: b.title,
+      workoutTitle: b.workoutTitle,
+      scoreType: b.scoreType,
+      coachingCues: b.coachingCues
+    })));
+    
     return res.json({ ok: true, preview: validatedPlan, seed: workoutSeed });
   } catch (err: any) {
     req.log?.error({ err }, "preview failed");

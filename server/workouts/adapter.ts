@@ -1,5 +1,25 @@
 import { WorkoutPlanZ } from "../../shared/workoutSchema";
 
+// Helper to coerce numeric values for schema validation
+function coerceNumber(value: any, options: { min?: number, requireInt?: boolean } = {}): number | null {
+  if (value === null || value === undefined) return null;
+  
+  let num = typeof value === 'number' ? value : parseFloat(value);
+  if (isNaN(num)) return null;
+  
+  // Round to integer if required
+  if (options.requireInt) {
+    num = Math.round(num);
+  }
+  
+  // Return null if below minimum (for optional fields)
+  if (options.min !== undefined && num < options.min) {
+    return null;
+  }
+  
+  return num;
+}
+
 export function adaptToPlanV1(raw: any): any {
   // try to coerce older shapes; ensure blocks[].items present
   // add conservative defaults if missing
@@ -51,15 +71,41 @@ export function adaptToPlanV1(raw: any): any {
         ...block,
         key: block.key || block.type || "main",
         title: block.title || block.notes || `${block.type || "main"} block`,
-        targetSeconds: block.targetSeconds || (block.minutes ? block.minutes * 60 : 300),
-        items: block.items && block.items.length > 0 ? block.items : [
+        targetSeconds: coerceNumber(block.targetSeconds || (block.minutes ? block.minutes * 60 : 300), { requireInt: true, min: 60 }) || 300,
+        items: block.items && block.items.length > 0 ? block.items.map((item: any) => {
+          // Build prescription object, only including non-null values
+          const prescription: any = {
+            type: item.prescription?.type || 'reps',
+            sets: coerceNumber(item.prescription?.sets, { requireInt: true, min: 1 }) || 1,
+            restSec: coerceNumber(item.prescription?.restSec, { requireInt: true, min: 0 }) || 0,
+          };
+          
+          // Only add optional fields if they have valid values
+          const reps = coerceNumber(item.prescription?.reps, { requireInt: true, min: 1 });
+          if (reps !== null) prescription.reps = reps;
+          
+          const seconds = coerceNumber(item.prescription?.seconds, { requireInt: true, min: 5 });
+          if (seconds !== null) prescription.seconds = seconds;
+          
+          const meters = coerceNumber(item.prescription?.meters, { requireInt: true, min: 10 });
+          if (meters !== null) prescription.meters = meters;
+          
+          if (item.prescription?.load) prescription.load = item.prescription.load;
+          if (item.prescription?.tempo) prescription.tempo = item.prescription.tempo;
+          if (item.prescription?.notes) prescription.notes = item.prescription.notes;
+          
+          return {
+            ...item,
+            prescription
+          };
+        }) : [
           {
             movementId: "default",
             name: block.notes || "Default exercise",
             prescription: {
               type: "time" as const,
               sets: 1,
-              seconds: block.targetSeconds || (block.minutes ? block.minutes * 60 : 300),
+              seconds: coerceNumber(block.targetSeconds || (block.minutes ? block.minutes * 60 : 300), { requireInt: true, min: 5 }) || 300,
               restSec: 0,
             }
           }
