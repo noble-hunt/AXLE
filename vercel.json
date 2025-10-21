@@ -10,5 +10,10 @@
     }
   ],
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "functions": {
+    "api/**/*.ts": {
+      "includeFiles": "server/**"
+    }
+  }
 }

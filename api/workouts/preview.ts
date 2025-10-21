@@ -51,9 +51,42 @@ export default async function handler(req: Request) {
   }
 
   try {
-    // Import the workout generator
-    const { generateWorkout } = await import('../../server/workoutGenerator');
-    const { generateSeed } = await import('../../server/lib/seededRandom');
+    // Validate OPENAI_API_KEY is available
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('[preview] OPENAI_API_KEY not found in environment');
+      return json({ 
+        ok: false, 
+        error: { code: 'CONFIG_ERROR', message: 'OpenAI API key not configured' } 
+      }, 500);
+    }
+    
+    console.log('[preview] Starting import of workout generator');
+    
+    // Import the workout generator with detailed error logging
+    let generateWorkout, generateSeed;
+    try {
+      const generatorModule = await import('../../server/workoutGenerator');
+      generateWorkout = generatorModule.generateWorkout;
+      console.log('[preview] Successfully imported generateWorkout');
+    } catch (importError: any) {
+      console.error('[preview] Failed to import workoutGenerator:', importError.message, importError.stack);
+      return json({ 
+        ok: false, 
+        error: { code: 'IMPORT_ERROR', message: `Failed to load workout generator: ${importError.message}` } 
+      }, 500);
+    }
+    
+    try {
+      const seedModule = await import('../../server/lib/seededRandom');
+      generateSeed = seedModule.generateSeed;
+      console.log('[preview] Successfully imported generateSeed');
+    } catch (importError: any) {
+      console.error('[preview] Failed to import seededRandom:', importError.message);
+      return json({ 
+        ok: false, 
+        error: { code: 'IMPORT_ERROR', message: `Failed to load seed generator: ${importError.message}` } 
+      }, 500);
+    }
     
     const equipmentList = equipment || ['bodyweight'];
     const workoutSeed = providedSeed || generateSeed();
@@ -91,9 +124,10 @@ export default async function handler(req: Request) {
     }, 200);
   } catch (e: any) {
     console.error('[AXLE][preview] Error:', e);
+    console.error('[AXLE][preview] Stack:', e?.stack);
     return json({ 
       ok: false, 
-      error: { code: 'INTERNAL', message: e?.message || 'Preview generation failed' } 
+      error: { code: 'INTERNAL', message: e?.message || 'Preview generation failed', stack: e?.stack?.split('\n')[0] } 
     }, 500);
   }
 }
