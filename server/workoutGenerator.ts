@@ -1238,10 +1238,11 @@ YOUR RESPONSE MUST:
       return {
         id: set.id || `set-${Date.now()}-${index}`,
         exercise: exactMatch.name, // Use canonical name from library
+        num_sets: set.num_sets || undefined, // CRITICAL: Capture number of sets for bodybuilding/strength workouts
         reps: set.reps || undefined,
         duration: set.duration || undefined,
         distance: set.distance_m || undefined, // Map distance_m -> distance
-        restTime: set.rest_s || undefined, // Map rest_s -> restTime
+        rest_s: set.rest_s || undefined, // Keep original field name for transformation
         notes: set.notes || undefined
       };
     }
@@ -1261,10 +1262,11 @@ YOUR RESPONSE MUST:
         return {
           id: set.id || `set-${Date.now()}-${index}`,
           exercise: fuzzyMatch.name, // Use canonical name from library
+          num_sets: set.num_sets || undefined, // CRITICAL: Capture number of sets for bodybuilding/strength workouts
           reps: set.reps || undefined,
           duration: set.duration || undefined,
           distance: set.distance_m || undefined, // Map distance_m -> distance
-          restTime: set.rest_s || undefined, // Map rest_s -> restTime
+          rest_s: set.rest_s || undefined, // Keep original field name for transformation
           notes: set.notes || undefined
         };
       }

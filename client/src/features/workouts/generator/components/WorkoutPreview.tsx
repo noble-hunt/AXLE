@@ -156,11 +156,22 @@ export function WorkoutPreview({
 
   const ArchetypeIcon = getArchetypeIcon(wizardState.archetype);
 
-  // Helper to format exercise display name (e.g., "15 Air Squats", "400m Run")
+  // Helper to format exercise display name with set/rep schemes
   const formatExerciseName = (item: BlockItem): string => {
     const { name, prescription } = item;
+    const parts: string[] = [];
     
-    // Format with reps/time/distance prefix
+    // For strength/bodybuilding: Show "Exercise Name 4x8" or "Exercise Name 4x8-10"
+    if (prescription.type === "reps" && prescription.reps && prescription.sets > 1) {
+      parts.push(name);
+      parts.push(`${prescription.sets}x${prescription.reps}`);
+      if (prescription.load) {
+        parts.push(`- ${prescription.load}`);
+      }
+      return parts.join(" ");
+    }
+    
+    // For single-set exercises or conditioning: Show "15 Air Squats"
     if (prescription.type === "reps" && prescription.reps) {
       return `${prescription.reps} ${name}`;
     } else if (prescription.type === "time" && prescription.seconds) {
