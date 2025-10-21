@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { fadeIn } from "@/lib/motion-variants"
-import { Heart, Activity, Calendar, TrendingUp, Clock, Zap, Brain, BatteryLow, Link } from "lucide-react"
+import { Heart, Activity, Calendar, TrendingUp, Clock, Zap, Brain, BatteryLow, Link, RefreshCw } from "lucide-react"
 import { Card } from "@/components/swift/card"
 import { StatBadge } from "@/components/swift/stat-badge"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ export default function Health() {
   } = useAppStore()
   
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   
   // Load health data on mount
   useEffect(() => {
@@ -40,6 +41,21 @@ export default function Health() {
     }
     loadHealthData()
   }, [fetchReports, fetchConnections, loadHealthCharts])
+  
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await Promise.all([
+        fetchReports(),
+        fetchConnections(),
+        loadHealthCharts()
+      ])
+    } catch (error) {
+      console.error('Failed to refresh health data:', error)
+    } finally {
+      setRefreshing(false)
+    }
+  }
   
   const latestReport = getLatestReport()
   const recentReports = getRecentReports(14)
@@ -101,8 +117,20 @@ export default function Health() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-heading font-bold text-foreground">Health Analytics</h1>
-        <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <Heart className="w-5 h-5 text-primary" />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            data-testid="button-refresh-health"
+            className="w-10 h-10 rounded-2xl"
+          >
+            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Heart className="w-5 h-5 text-primary" />
+          </div>
         </div>
       </div>
 
