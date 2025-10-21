@@ -59,7 +59,7 @@ function QuickStats() {
   )
 }
 
-// Health Insights Component  
+// Health Insights Component - Shows zeroed out data when no health data is available
 function HealthInsights() {
   return (
     <div className="space-y-3">
@@ -71,10 +71,10 @@ function HealthInsights() {
             </div>
             <div>
               <p className="text-body font-medium text-foreground">Resting Heart Rate</p>
-              <p className="text-caption text-muted-foreground">↓ 3 bpm this week</p>
+              <p className="text-caption text-muted-foreground">No data</p>
             </div>
           </div>
-          <p className="text-subheading font-bold text-accent">62 bpm</p>
+          <p className="text-subheading font-bold text-accent">--</p>
         </div>
       </Card>
       
@@ -86,10 +86,10 @@ function HealthInsights() {
             </div>
             <div>
               <p className="text-body font-medium text-foreground">Recovery Score</p>
-              <p className="text-caption text-muted-foreground">Good recovery</p>
+              <p className="text-caption text-muted-foreground">No data</p>
             </div>
           </div>
-          <p className="text-subheading font-bold text-info">85%</p>
+          <p className="text-subheading font-bold text-info">--</p>
         </div>
       </Card>
     </div>
