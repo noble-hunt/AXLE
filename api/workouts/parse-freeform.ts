@@ -1,5 +1,5 @@
-import { openai } from '../_openai';
-import { supabaseFromReq } from '../_supabase';
+import { openai } from '../../lib/api-helpers/openai';
+import { supabaseFromReq } from '../../lib/api-helpers/supabase';
 
 export const config = { runtime: 'nodejs' };
 

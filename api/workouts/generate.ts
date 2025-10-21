@@ -1,6 +1,6 @@
 // api/workouts/generate.ts  (Vercel serverless, Node runtime)
-import { openai } from '../_openai';
-import { admin } from '../_supabase';
+import { openai } from '../../lib/api-helpers/openai';
+import { admin } from '../../lib/api-helpers/supabase';
 
 export const config = { runtime: 'nodejs' };
 

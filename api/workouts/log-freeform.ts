@@ -1,4 +1,4 @@
-import { supabaseFromReq } from '../_supabase';
+import { supabaseFromReq } from '../../lib/api-helpers/supabase';
 
 export const config = { runtime: 'nodejs' };
 

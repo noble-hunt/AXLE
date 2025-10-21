@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { admin, userClient, bearer, validateEnvForUser } from '../_supabase'
+import { admin, userClient, bearer, validateEnvForUser } from '../../lib/api-helpers/supabase'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method Not Allowed' })

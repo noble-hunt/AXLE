@@ -1,7 +1,7 @@
 // api/cron/health-sync.ts
 // Call via Vercel Cron (Project → Settings → Cron Jobs)
 // e.g., "0 5 * * *" (05:00 UTC) → GET https://<site>/api/cron/health-sync
-import { supabaseAdmin } from '../_supabaseAdmin';
+import { supabaseAdmin } from '../../lib/api-helpers/supabaseAdmin';
 import { getProviderRegistry } from '../../server/providers/health';
 
 export const config = { runtime: 'nodejs' };
