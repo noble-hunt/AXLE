@@ -20,7 +20,7 @@ Preferred communication style: Simple, everyday language.
 - **Modularity**: Abstracted storage interface (`IStorage`).
 - **API Validation**: Zod schemas for request validation.
 - **Workout Generation (Simplified OpenAI-First)**: Simplified architecture using direct OpenAI generation with movement registry context for maximum variety and style-specific programming.
-  - **OpenAI-First Approach**: Calls OpenAI (gpt-4o) directly with comprehensive movement library (~90 movements) and style-specific instructions
+  - **OpenAI-First Approach**: Calls OpenAI (gpt-4o-mini) directly with comprehensive movement library (~90 movements) and style-specific instructions for fast, cost-effective generation
   - **Movement Registry**: Curated movement library at `server/workouts/movements.ts` with ~90 movements tagged by equipment, body region, and movement pattern
   - **Equipment-Aware Filtering**: Automatically filters movement library based on user's available equipment
   - **Style-Specific Programming**: Prompt engineering guides OpenAI to follow proper methodology for each style (CrossFit AMRAPs/EMOMs, Olympic Weightlifting focus on cleans/snatches, Powerlifting emphasis on squat/bench/deadlift, etc.)

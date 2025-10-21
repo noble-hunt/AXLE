@@ -156,26 +156,26 @@ export function WorkoutPreview({
 
   const ArchetypeIcon = getArchetypeIcon(wizardState.archetype);
 
-  // Helper to format prescription text
-  const formatPrescription = (item: BlockItem): string => {
+  // Helper to format exercise display name (e.g., "15 Air Squats", "400m Run")
+  const formatExerciseName = (item: BlockItem): string => {
+    const { name, prescription } = item;
+    
+    // Format with reps/time/distance prefix
+    if (prescription.type === "reps" && prescription.reps) {
+      return `${prescription.reps} ${name}`;
+    } else if (prescription.type === "time" && prescription.seconds) {
+      return `${prescription.seconds}s ${name}`;
+    } else if (prescription.type === "distance" && prescription.meters) {
+      return `${prescription.meters}m ${name}`;
+    }
+    
+    return name;
+  };
+
+  // Helper to format additional prescription details (load, rest)
+  const formatPrescriptionDetails = (item: BlockItem): string | null => {
     const { prescription } = item;
     const parts: string[] = [];
-    
-    // Sets
-    if (prescription.sets > 1) {
-      parts.push(`${prescription.sets} sets`);
-    } else {
-      parts.push(`${prescription.sets} set`);
-    }
-
-    // Reps/Time/Distance
-    if (prescription.type === "reps" && prescription.reps) {
-      parts.push(`x ${prescription.reps} reps`);
-    } else if (prescription.type === "time" && prescription.seconds) {
-      parts.push(`x ${prescription.seconds}s`);
-    } else if (prescription.type === "distance" && prescription.meters) {
-      parts.push(`x ${prescription.meters}m`);
-    }
 
     // Load
     if (prescription.load) {
@@ -187,7 +187,7 @@ export function WorkoutPreview({
       parts.push(`Rest ${prescription.restSec}s`);
     }
 
-    return parts.join(", ");
+    return parts.length > 0 ? parts.join(", ") : null;
   };
 
   return (
@@ -293,14 +293,19 @@ export function WorkoutPreview({
                     
                     {/* Block Items */}
                     <div className="space-y-2">
-                      {block.items.map((item: BlockItem, itemIndex: number) => (
-                        <div key={`${item.movementId}-${itemIndex}`} className="flex items-start gap-3 p-2 bg-muted/20 rounded-lg">
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{formatPrescription(item)}</p>
+                      {block.items.map((item: BlockItem, itemIndex: number) => {
+                        const details = formatPrescriptionDetails(item);
+                        return (
+                          <div key={`${item.movementId}-${itemIndex}`} className="flex items-start gap-3 p-2 bg-muted/20 rounded-lg">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-foreground">{formatExerciseName(item)}</p>
+                              {details && (
+                                <p className="text-xs text-muted-foreground">{details}</p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     
                     {/* Wodify-Style: Add Result Button (only for main sections with scoreType) */}

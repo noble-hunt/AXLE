@@ -36,7 +36,7 @@ function resolveStyle(input: any): string {
   return map[raw] || raw;
 }
 
-// Using gpt-4o model for reliable workout generation. Do not change this unless explicitly requested by the user
+// Using gpt-4o-mini for fast, cost-effective workout generation with excellent quality
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
@@ -798,7 +798,7 @@ YOUR RESPONSE MUST:
   try {
     response = await Promise.race([
       openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -1002,7 +1002,7 @@ async function generateSimpleFallback(request: EnhancedWorkoutRequest): Promise<
   
   const prompt = createPromptTemplate(request);
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     messages: [
       {
         role: "system", 
