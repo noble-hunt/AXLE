@@ -453,9 +453,10 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up Flow" or "General Prep"
 - Duration: 5-8 min
+- MUST include 4-6 exercises: Start with cardio, then dynamic movements
 - Format: "2:00 Cardio Choice" followed by "2 rounds of:" with 4-5 dynamic movements
+- Example: 2 min Row, then 2 rounds of: 5 Inchworm, 10 Arm Circle, 10 Leg Swing, 5 Cat-Cow, 10 Jumping Jack
 - Coaching cues: "Prepare joints and elevate heart rate. Scale: reduce rounds or movement complexity."
-- Example movements: Inchworm, Arm Circles, Leg Swings, Cat-Cow, Jumping Jacks
 
 SECTION 2 - MAIN WOD (MUST have creative title):
 - Creative Title: Generate a fun, memorable name in ALL CAPS with quotes (examples: "FRUIT LOOPS IN MY ORANGE JUICE", "THE THREE WISE WITCHES", "HOT DOG TREASURE CHEST")
@@ -465,17 +466,21 @@ SECTION 2 - MAIN WOD (MUST have creative title):
   * "EMOM" (e.g., "28:00 EMOM", "Every 2:00 x 6 Sets")
   * "Intervals" (e.g., "Every 5:00 for 4 rounds", "2:00 on 1:00 off for 5 rounds")
 - Duration: 10-20 min (majority of workout time)
+- CRITICAL: Main WOD should include 3-5 exercises (varies by format):
+  * For Time chipper: 3-5 movements
+  * AMRAP: 3-4 movements per round
+  * EMOM: 1-3 movements per minute
 - Coaching cues: Brief goal statement (e.g., "Hold consistent pacing and movement quality across all seven rounds. Scale: Reduce load to maintain form, or substitute ring rows for pull-ups.")
-- Scaling notes: Quick suggestions embedded in coaching cues (lighter weights, easier variations, reduced complexity)
 - Format examples:
   * For Time: "21-15-9\\nThrusters @ 95/65#\\nPull-ups"
-  * AMRAP 15: "19 Calorie Row\\n19 Wall Balls @ 20/14#"
+  * AMRAP 15: "19 Calorie Row\\n19 Wall Balls @ 20/14#\\n15 Push-ups"
   * EMOM: "minute 1: 3 Wall Walks\\nminute 2: 6 Shuttle Runs\\nminute 3: 15/12 Calorie Row"
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Recovery"
 - Duration: 3-5 min
-- Format: Static stretches, breathing, light movement
+- MUST include 3-4 exercises: Static stretches, breathing, light movement
+- Example: Child's Pose 1 min, Pigeon Stretch 1 min each, Cat-Cow 10 reps, Deep Breathing 1 min
 - Coaching cues: "Focus on recovery. Scale: Hold stretches based on comfort level."
 
 CRITICAL FORMATTING RULES:
@@ -493,28 +498,44 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 8-10 min
-- Format: Joint mobility, light cardio, empty bar practice
+- MUST include 3-5 exercises: Joint mobility, light cardio, empty bar practice
+- Example: PVC Pass Through 10 reps, Wrist Circles, Empty Bar Snatch Balance 8 reps, Overhead Squat 5 reps
 - Coaching cues: "Prepare joints and practice positions. Scale: Use PVC pipe or reduce rounds."
 
 SECTION 2 - MAIN LIFTS (MUST have creative title):
-- Creative Title: Generate a fun, powerful name in ALL CAPS with quotes (examples: "IRON SUMMIT", "THE BARBELL SYMPHONY", "WEIGHTLIFTING MASTERCLASS")
+- Creative Title: Generate a fun, powerful name in ALL CAPS with quotes (examples: "IRON SUMMIT", "THE BARBELL SYMPHONY", "OLYMPIC DOMINATION")
 - Score Type: "Score Weight" or "Heavy Single" or "Work Sets"
-- Duration: 15-20 min (majority of workout time)
-- Focus on: Snatch, Clean & Jerk, variations (Hang, Power, Split)
-- Format examples:
-  * "Build to Heavy Single Snatch"
-  * "5 Sets: 2 Power Cleans @ 80%"
-  * "EMOM 12: 1 Clean + 1 Jerk"
-- Coaching cues: Brief technique focus (e.g., "Focus on speed under the bar and stable catch position. Scale: Reduce weight or use hang variations.")
+- Duration: 25-30 min (majority of workout time)
+- CRITICAL: MUST include 5-7 exercises total with percentage-based programming:
+  1. Primary Olympic lift (REQUIRED - e.g., "Power Snatch 4x1 @ 85% of 1RM" or "Snatch 5x1 @ 80%")
+  2. Secondary Olympic lift or variation (REQUIRED - e.g., "Clean & Jerk 3x2 @ 80% of 3RM" or "Hang Clean 4x2 @ 75%")
+  3. Squat variation (REQUIRED - e.g., "Back Squat 5RM @ RPE 8" or "Front Squat 4x3 @ 85%")
+  4. Pulling movement (REQUIRED - e.g., "Clean Pull 3x3 @ 90%" or "Snatch Pull 4x2 @ 95%")
+  5. Accessory movement 1 (REQUIRED - e.g., "BTN Jerk 3x2 @ 70% of 3RM" or "Overhead Squat 3x3")
+  6. Accessory movement 2 (REQUIRED - e.g., "Rear Foot Elevated Split Squat 4x6 each" or "Bulgarian Split Squat 3x8 each")
+  7. Optional core/stability work (e.g., "Hollow Hold 3x30 sec" or "Plank 3x45 sec")
+- Format example with multiple exercises:
+  * "Power Snatch 4x1 @ 85% of 1RM"
+  * "Clean & Jerk 3x2 @ 80%"
+  * "Back Squat 4x3 @ 85%"
+  * "Snatch Pull 3x3 @ 95%"
+  * "BTN Jerk 3x2 @ 70%"
+  * "Walking Lunge 3x10 each"
+  * "Hollow Hold 3x30 sec"
+- Coaching cues: Brief technique focus (e.g., "Maintain speed under the bar and stable catch positions across all lifts. Scale: Reduce percentages by 10% or use hang variations for technique work.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Recovery"
 - Duration: 3-5 min
-- Format: Stretching, mobility work
+- MUST include 3-4 exercises: Static stretching, mobility work, breathing
+- Example: Couch Stretch 2 min each, Thoracic Rotations, Child's Pose, Deep Breathing 2 min
 - Coaching cues: "Focus on hip and shoulder mobility. Scale: Hold stretches based on comfort."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 5-7 exercises minimum (mirror screenshot example!)
+- Use percentage-based programming (e.g., "@ 85% of 1RM", "@ RPE 8", "5RM")
+- Include Olympic lifts (Snatch, Clean, Jerk variations) + Squats + Accessories
 - Score type is typically "Score Weight" for maximal efforts
 - Keep coaching cues SHORT (1-2 sentences max)
 - Embed scaling suggestions in coaching cues`,
@@ -526,29 +547,40 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5-8 min
-- Format: Dynamic stretching, activation exercises (band work, light movements)
+- MUST include 3-5 exercises: Dynamic stretching, activation exercises (band work, light movements)
+- Example: 10 Hip Circle, 10 Air Squat, 10 Arm Circle, 10 Leg Swing
 - Coaching cues: "Activate key muscle groups and prepare for heavy loads. Scale: Adjust based on mobility."
 
 SECTION 2 - MAIN LIFT (MUST have creative title):
-- Creative Title: Generate a powerful, strength-focused name in ALL CAPS with quotes (examples: "IRON THRONE", "THE BIG THREE GAUNTLET", "POWERHOUSE SESSION")
+- Creative Title: Generate a powerful, strength-focused name in ALL CAPS with quotes (examples: "IRON THRONE", "THE BIG THREE GAUNTLET", "THE STEEL BEHEMOTH")
 - Score Type: "Score Weight" or "Heavy Set" or "Max Effort"
 - Duration: 20-25 min (majority of workout time)
-- Focus on: One of the big three (Squat, Bench Press, Deadlift)
-- Format examples:
-  * "Build to Heavy 3 Rep Back Squat"
-  * "5x5 Bench Press @ 75%"
-  * "Work up to 1RM Deadlift"
-- Coaching cues: Brief focus on technique and intensity (e.g., "Maintain tight core and drive through heels. Scale: Reduce weight or volume while maintaining quality form.")
+- CRITICAL: MUST include 4-6 exercises total:
+  1. Primary lift from big three with sets/reps (REQUIRED - e.g., "Back Squat 5x5 @ 75%" or "Build to Heavy 3 Rep Back Squat")
+  2. Secondary compound movement with sets/reps (REQUIRED - e.g., "Romanian Deadlift 3x8" or "Front Squat 4x6")
+  3. Accessory movement 1 (REQUIRED - e.g., "Walking Lunge 3x10 each" or "Leg Press 3x12")
+  4. Accessory movement 2 (REQUIRED - e.g., "GHD Back Extension 3x12" or "Plank Hold 3x45 sec")
+  5-6. Optional additional accessories (e.g., "Hamstring Curl 3x10", "Core Work 3 sets")
+- Format example with multiple exercises:
+  * "Back Squat 5x3 @ 80%"
+  * "Romanian Deadlift 3x8"
+  * "Bulgarian Split Squat 3x10 each"
+  * "GHD Back Extension 3x12"
+  * "Plank 3x45 sec"
+- Coaching cues: Brief focus on technique and intensity (e.g., "Build to heavy loads with proper form and full depth. Scale: Reduce weight or volume while maintaining quality movement.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Recovery"
 - Duration: 3-5 min
-- Format: Light stretching, mobility
+- MUST include 3-4 exercises: Static stretches, foam rolling, breathing work
+- Example: Foam Roll Quads 2 min, Pigeon Stretch 1 min each, Child's Pose 1 min
 - Coaching cues: "Focus on recovery and flexibility. Scale: Based on comfort level."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 4-6 exercises minimum (not just 1!)
 - Score type is typically "Score Weight" for max efforts
+- Each exercise needs sets x reps format (e.g., "5x3", "3x8", "4x10 each")
 - Emphasize progressive overload and percentage-based programming
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
@@ -559,28 +591,33 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5-8 min
-- Format: Easy cardio, dynamic movements
+- MUST include 3-5 exercises: Easy cardio, dynamic movements, mobility
+- Example: Easy Row 3 min, Leg Swing 10 each, Arm Circle 10, Inchworm 5, Jumping Jack 20
 - Coaching cues: "Gradually elevate heart rate. Scale: Adjust pace based on readiness."
 
 SECTION 2 - MAIN CIRCUIT (MUST have creative title):
 - Creative Title: Generate an endurance-focused name in ALL CAPS with quotes (examples: "THE MARATHON GRIND", "CARDIO CRUSHER", "ENDURANCE ODYSSEY")
 - Score Type: "For Time" or "Score Rounds" or "Total Distance"
 - Duration: 20-30 min (majority of workout time)
+- CRITICAL: MUST include 4-6 stations alternating cardio + functional movements:
+  1. Station 1: Distance-based cardio (REQUIRED - e.g., "1000m Row" or "800m Bike")
+  2. Station 2: Functional movement (REQUIRED - e.g., "20 Burpees" or "30 Wall Balls")
+  3. Station 3: Different cardio modality (REQUIRED - e.g., "1000m Ski" or "800m Run")
+  4. Station 4: Different functional movement (REQUIRED - e.g., "25 KB Swings" or "20 Box Jumps")
+  5-6. Optional additional cardio/functional pairs
 - Format: Alternating cardio + functional stations
-  * Station 1: Distance-based cardio (Row, Bike, Ski, Run) using distance_m field (800-1000m)
-  * Station 2: Functional movement (Burpees, Wall Balls, KB Swings) with reps
-  * Station 3: Different cardio modality with distance_m
-  * Station 4: Different functional movement
 - Coaching cues: Brief pacing strategy (e.g., "Maintain steady effort across all stations. Scale: Reduce distance by 25% or substitute lower-impact cardio.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Active Recovery"
 - Duration: 3-5 min
-- Format: Easy movement, stretching
+- MUST include 3-4 exercises: Easy movement, stretching, breathing
+- Example: Easy Walk 2 min, Quad Stretch 1 min each, Hip Stretch 1 min each, Deep Breathing 1 min
 - Coaching cues: "Bring heart rate down gradually. Scale: Based on recovery needs."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 4-6 stations minimum
 - Use distance_m for cardio, NOT duration
 - Vary cardio modalities across stations
 - Keep coaching cues SHORT (1-2 sentences max)`,
@@ -592,28 +629,38 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5-8 min
-- Format: Movement prep, activation exercises
+- MUST include 3-5 exercises: Movement prep, activation exercises, mobility
+- Example: Hip Circle 10, Air Squat 10, Arm Circle 10, Band Pull-Apart 15, Light Cardio 2 min
 - Coaching cues: "Prepare muscles and joints for loading. Scale: Adjust based on mobility needs."
 
 SECTION 2 - MAIN LIFT (MUST have creative title):
 - Creative Title: Generate a strength-focused name in ALL CAPS with quotes (examples: "THE IRON GAUNTLET", "STRENGTH FORTRESS", "POWER BUILDER")
 - Score Type: "Score Weight" or "Heavy Sets" or "Total Volume"
-- Duration: 15-20 min (majority of workout time)
-- Focus: Compound movement with progressive loading (Squat, Deadlift, Bench, Press, Row)
-- Format examples:
-  * "4x6 Back Squat @ 75%"
-  * "5x5 Building to Heavy Set"
-  * "3x8-10 Bench Press"
-- Coaching cues: Brief technique and effort cues (e.g., "Maintain braced core and controlled tempo. Scale: Reduce load or reps while keeping quality movement.")
+- Duration: 20-25 min (majority of workout time)
+- CRITICAL: MUST include 4-6 exercises total:
+  1. Primary compound lift (REQUIRED - e.g., "Back Squat 5x5 @ 75%" or "Deadlift 4x6 @ 80%")
+  2. Secondary compound (REQUIRED - e.g., "Front Squat 3x8" or "Romanian Deadlift 3x8")
+  3. Accessory movement 1 (REQUIRED - e.g., "Walking Lunge 3x10 each" or "Leg Press 3x12")
+  4. Accessory movement 2 (REQUIRED - e.g., "Core Work 3 sets" or "Plank 3x45 sec")
+  5-6. Optional additional accessories
+- Format example with multiple exercises:
+  * "Back Squat 5x5 @ 75%"
+  * "Romanian Deadlift 3x8"
+  * "Walking Lunge 3x10 each"
+  * "Leg Press 3x12"
+  * "Plank 3x45 sec"
+- Coaching cues: Brief technique and effort cues (e.g., "Maintain braced core and controlled tempo on all lifts. Scale: Reduce load or reps while keeping quality movement.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Recovery"
 - Duration: 3-5 min
-- Format: Light stretching, mobility
+- MUST include 3-4 exercises: Stretching, foam rolling, breathing
+- Example: Foam Roll 2 min, Hip Stretch 1 min each, Deep Breathing 2 min
 - Coaching cues: "Focus on recovery. Scale: Based on comfort level."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 4-6 exercises minimum
 - Focus on load progression and proper rest intervals (2-3 min for main lifts)
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
@@ -624,26 +671,44 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5 min
-- Format: Shoulder circles, band pull-aparts, light cardio
+- MUST include 3-5 exercises: Shoulder circles, band pull-aparts, light cardio, scapular activation
+- Example: Arm Circles 20 reps, Band Pull-Aparts 15 reps, Push-Up 10 reps, Scap Pull-Ups 8 reps
 - Coaching cues: "Activate upper body muscles. Scale: Adjust intensity based on readiness."
 
 SECTION 2 - MAIN WORK (MUST have creative title):
-- Creative Title: Generate a bodybuilding-focused name in ALL CAPS with quotes (examples: "THE UPPER BODY SCULPTOR", "CHEST & BACK BUILDER", "AESTHETIC GAINS")
+- Creative Title: Generate a bodybuilding-focused name in ALL CAPS with quotes (examples: "THE UPPER BODY SCULPTOR", "CHEST & BACK BUILDER", "PUSH PULL PERFECTION")
 - Score Type: "Total Volume" or "Score Reps" or "For Quality"
-- Duration: 20-25 min (majority of workout time)
-- Focus: Compound upper push/pull (DB Bench, DB Row, DB Shoulder Press) + accessories
-- Format: "3x8-10" or "4x6-8" with controlled tempo, followed by isolation work
-- Coaching cues: Brief form and tempo focus (e.g., "Focus on mind-muscle connection and controlled tempo. Scale: Reduce weight or reps while maintaining quality contraction.")
+- Duration: 25-30 min (majority of workout time)
+- CRITICAL: MUST include 4-6 exercises total with detailed set/rep schemes (MIRROR SCREENSHOT EXAMPLE):
+  1. Primary compound push (REQUIRED - e.g., "DB Bench Press 4x8 Each Side - Heavy" or "DB Shoulder Press 3x10-12")
+  2. Primary compound pull (REQUIRED - e.g., "Single Arm DB Row 4x8 Each Side - Heavy" or "Pull Ups 3x10-12")
+  3. Secondary push or accessory (REQUIRED - e.g., "DB Fly 3x12" or "Cable Chest Fly 3x15")
+  4. Secondary pull or accessory (REQUIRED - e.g., "Cable Row (Pronated Grip) 3x8" or "Lat Pull Down 3x10")
+  5. Isolation work 1 (REQUIRED - e.g., "GHD Back Extension 3x Max Hold" or "Lateral Raise 3x15")
+  6. Isolation work 2 (optional - e.g., "Bicep Curl 3x12" or "Tricep Extension 3x12")
+- Format example with multiple exercises:
+  * "DB Bench Press 4x8 Each Side - Heavy"
+  * "Single Arm DB Row 4x8 Each Side - Heavy"
+  * "GHD Back Extension 3x Max Hold"
+  * "Pull Ups 3x10-12"
+  * "Cable Row (Pronated Grip) 3x8"
+  * "Lateral Raise 3x15"
+- Coaching cues: Brief form and tempo focus (e.g., "Emphasize mind-muscle connection with controlled tempo on all movements. Scale: Reduce weight to maintain 2-3 second eccentrics and full contraction at peak.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Recovery"
-- Duration: 3 min
-- Format: Stretching, mobility
+- Duration: 3-5 min
+- MUST include 3-4 exercises: Upper body stretches, foam rolling, breathing
+- Example: Doorway Pec Stretch 1 min each, Lat Stretch 1 min each, Foam Roll Upper Back 2 min
 - Coaching cues: "Focus on flexibility. Scale: Based on comfort level."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
-- Emphasize muscle-mind connection, time under tension, balanced push/pull
+- Main section MUST have 4-6 exercises minimum (mirror screenshot example!)
+- Each exercise needs detailed format: "4x8 Each Side - Heavy" or "3x10-12"
+- Include both compound movements AND accessories
+- Balance push/pull exercises
+- Emphasize muscle-mind connection, time under tension
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
     'bb_lower': `
@@ -653,25 +718,41 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5 min
-- Format: Leg swings, hip circles, bodyweight squats
+- MUST include 3-5 exercises: Leg swings, hip circles, bodyweight squats, ankle mobility
+- Example: Leg Swing 10 each, Hip Circle 10 each, Air Squat 15 reps, Glute Bridge 15 reps
 - Coaching cues: "Prepare lower body for loading. Scale: Adjust range of motion based on mobility."
 
 SECTION 2 - MAIN WORK (MUST have creative title):
 - Creative Title: Generate a leg-focused name in ALL CAPS with quotes (examples: "THE LEG DAY DESTROYER", "GLUTE & QUAD FORGE", "LOWER BODY DOMINATION")
 - Score Type: "Total Volume" or "Score Reps" or "For Quality"
-- Duration: 20-25 min (majority of workout time)
-- Focus: Main compound (Goblet Squat, DB RDL, DB Lunge) + accessories
-- Format: "4x8-10" or "3x10-12" with controlled tempo
-- Coaching cues: Brief technique focus (e.g., "Emphasize full range of motion and controlled eccentrics. Scale: Reduce weight or reps while maintaining form.")
+- Duration: 25-30 min (majority of workout time)
+- CRITICAL: MUST include 4-6 exercises total with detailed set/rep schemes:
+  1. Primary compound (REQUIRED - e.g., "Goblet Squat 4x10 - Heavy" or "DB RDL 4x8-10")
+  2. Secondary compound (REQUIRED - e.g., "DB Walking Lunge 3x10 each" or "Bulgarian Split Squat 3x8 each")
+  3. Quad-focused movement (REQUIRED - e.g., "Leg Extension 3x12" or "Goblet Squat Pause 3x8")
+  4. Hamstring-focused movement (REQUIRED - e.g., "DB RDL 3x10" or "Leg Curl 3x12")
+  5. Glute/accessory work 1 (REQUIRED - e.g., "Hip Thrust 3x12" or "Glute Bridge 3x15")
+  6. Calf/core work (optional - e.g., "Calf Raise 3x15" or "Plank 3x45 sec")
+- Format example with multiple exercises:
+  * "Goblet Squat 4x10 - Heavy"
+  * "DB RDL 4x8-10"
+  * "Walking Lunge 3x10 each"
+  * "Leg Curl 3x12"
+  * "Hip Thrust 3x12"
+  * "Calf Raise 3x15"
+- Coaching cues: Brief technique focus (e.g., "Emphasize full range of motion and controlled tempo on all movements. Scale: Reduce weight to maintain 3-second eccentrics and full stretch at bottom.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Recovery"
-- Duration: 3 min
-- Format: Stretching, foam rolling
+- Duration: 3-5 min
+- MUST include 3-4 exercises: Lower body stretches, foam rolling, breathing
+- Example: Foam Roll Quads 2 min, Pigeon Stretch 1 min each, Hamstring Stretch 1 min each
 - Coaching cues: "Focus on flexibility and recovery. Scale: Based on comfort level."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 4-6 exercises minimum
+- Each exercise needs detailed format: "4x10 - Heavy" or "3x8-10"
 - Focus on full ROM, controlled eccentrics, balanced quad/hamstring/glute work
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
@@ -682,26 +763,36 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5 min
-- Format: Dynamic movements, light cardio
+- MUST include 3-5 exercises: Dynamic movements, light cardio, joint mobility
+- Example: Arm Circles, Leg Swings, Air Squat 10 reps, Push-Up 8 reps, Jumping Jack 20 reps
 - Coaching cues: "Prepare entire body for training. Scale: Adjust based on readiness."
 
 SECTION 2 - MAIN WORK (MUST have creative title):
 - Creative Title: Generate a full-body name in ALL CAPS with quotes (examples: "THE TOTAL BODY TRANSFORMATION", "HEAD TO TOE GAINS", "COMPLETE PHYSIQUE")
 - Score Type: "Total Volume" or "Score Reps" or "For Quality"
 - Duration: 25-30 min (majority of workout time)
-- Focus: Balanced upper/lower and push/pull movements
-- Format: Upper Push → Lower → Upper Pull → Accessory Circuit
-- Coaching cues: Brief balance focus (e.g., "Balance push/pull and upper/lower for complete development. Scale: Adjust weight or reps to maintain quality.")
+- CRITICAL: MUST include 5-6 exercises total with balanced upper/lower and push/pull:
+  1. Upper push compound (REQUIRED - e.g., "DB Bench Press 4x8" or "DB Shoulder Press 3x10")
+  2. Lower compound (REQUIRED - e.g., "Goblet Squat 4x10" or "DB RDL 3x10")
+  3. Upper pull compound (REQUIRED - e.g., "DB Row 4x8 each" or "Pull Ups 3x8-10")
+  4. Lower accessory (REQUIRED - e.g., "Walking Lunge 3x10 each" or "Bulgarian Split Squat 3x8 each")
+  5. Upper accessory (REQUIRED - e.g., "DB Curl 3x12" or "Tricep Extension 3x12")
+  6. Core work (optional - e.g., "Plank 3x45 sec" or "Dead Bug 3x10 each")
+- Format: Upper Push → Lower → Upper Pull → Lower Accessory → Upper Accessory → Core
+- Coaching cues: Brief balance focus (e.g., "Balance push/pull and upper/lower movements for complete development. Scale: Adjust weight or reps to maintain quality form throughout.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down"
-- Duration: 3 min
-- Format: Stretching
+- Duration: 3-5 min
+- MUST include 3-4 exercises: Full body stretching, foam rolling
+- Example: Cat-Cow 10 reps, Child's Pose 1 min, Foam Roll Back 2 min
 - Coaching cues: "Focus on recovery. Scale: Based on comfort level."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 5-6 exercises minimum
 - Balance upper/lower and push/pull movements
+- Each exercise needs format: "4x8" or "3x10-12"
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
     'mobility': `
@@ -711,25 +802,32 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Centering" or "Breathing Prep"
 - Duration: 3-5 min
-- Format: Deep breathing, body scan
+- MUST include 3-4 exercises: Deep breathing, body scan, gentle movements
+- Example: Box Breathing 2 min, Body Scan 1 min, Gentle Neck Circles 10 each, Shoulder Rolls 10
 - Coaching cues: "Center your mind and body. Scale: Adjust breath depth based on comfort."
 
 SECTION 2 - MAIN MOBILITY (MUST have creative title):
 - Creative Title: Generate a mobility-focused name in ALL CAPS with quotes (examples: "THE FLEXIBILITY FLOW", "MOBILITY MASTERY", "MOVEMENT MEDICINE")
 - Score Type: "For Quality" or "Time-Based Flow"
 - Duration: 20-25 min (majority of workout time)
-- Focus: Dynamic mobility → Active stretching → Static holds
+- CRITICAL: MUST include 5-8 movements with progression (dynamic → active → static):
+  1-2. Dynamic mobility (REQUIRED - e.g., "Hip Circles 10 each direction", "Arm Circles 10 each")
+  3-4. Active stretching (REQUIRED - e.g., "Cat-Cow 10 reps", "90/90 Hip Rotation 5 each")
+  5-6. Static holds (REQUIRED - e.g., "Pigeon Pose 1 min each", "Child's Pose 2 min")
+  7-8. Additional gentle stretches (optional - e.g., "Couch Stretch 1 min each", "Spinal Twist 1 min each")
 - Format: Joint circles, full ROM movements, gentle holds (30-60s each)
 - Coaching cues: Brief quality focus (e.g., "Emphasize quality over quantity, no forced stretching. Scale: Reduce hold times or range of motion based on comfort.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Relaxation" or "Recovery"
 - Duration: 3-5 min
-- Format: Gentle breathing, final relaxation
+- MUST include 2-3 exercises: Gentle breathing, final relaxation, meditation
+- Example: Savasana 3 min, Deep Breathing 2 min
 - Coaching cues: "Relax and integrate. Scale: Based on comfort level."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 5-8 movements
 - No forced or ballistic stretching
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
@@ -740,25 +838,31 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5-8 min
-- Format: Dynamic movements, light cardio
+- MUST include 3-5 exercises: Dynamic movements, light cardio, mobility
+- Example: Easy Row 2 min, Inchworm 5, Leg Swing 10 each, Arm Circle 10, Jumping Jack 20
 - Coaching cues: "Prepare for varied work. Scale: Adjust based on readiness."
 
 SECTION 2 - MAIN WORKOUT (MUST have creative title):
 - Creative Title: Generate a fitness-focused name in ALL CAPS with quotes (examples: "THE FITNESS FUSION", "MIXED MODALITIES", "TOTAL FITNESS")
 - Score Type: "For Time" or "AMRAP" or "Score Rounds" or "Total Volume"
 - Duration: 20-25 min (majority of workout time)
-- Focus: Strength block + Conditioning circuit + Accessory/Skill work
+- CRITICAL: MUST include 4-6 movements with variety:
+  1-2. Strength block (REQUIRED - e.g., "Back Squat 3x8" or "DB Bench Press 3x10")
+  3-4. Conditioning circuit (REQUIRED - e.g., "500m Row" or "20 Burpees")
+  5-6. Accessory/Skill work (optional - e.g., "Pull-Ups 3x8" or "Plank 3x30 sec")
 - Format: Variety across strength, cardio, and functional movements
 - Coaching cues: Brief variety focus (e.g., "Maintain quality across all modalities. Scale: Reduce complexity or volume as needed.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down"
 - Duration: 3-5 min
-- Format: Light movement, stretching
+- MUST include 3-4 exercises: Light movement, stretching, breathing
+- Example: Easy Walk 2 min, Cat-Cow 10, Child's Pose 1 min, Deep Breathing 1 min
 - Coaching cues: "Focus on recovery. Scale: Based on comfort level."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 4-6 movements
 - Provide variety across strength, cardio, and functional movements
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
@@ -769,13 +873,19 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Easy Start"
 - Duration: 5 min
-- Format: Easy cardio, dynamic stretching
+- MUST include 3-4 exercises: Easy cardio, dynamic stretching, mobility
+- Example: Easy Row 3 min, Leg Swing 10 each, Arm Circle 10, Inchworm 5
 - Coaching cues: "Gradually elevate heart rate. Scale: Adjust pace based on readiness."
 
 SECTION 2 - MAIN CARDIO (MUST have creative title):
 - Creative Title: Generate a cardio-focused name in ALL CAPS with quotes (examples: "THE AEROBIC ENGINE", "ZONE 2 JOURNEY", "CARDIO FOUNDATION")
 - Score Type: "Total Distance" or "For Time" or "Sustained Effort"
 - Duration: 25-30 min (majority of workout time)
+- CRITICAL: MUST include 3-5 cardio blocks/intervals:
+  1. Primary cardio block (REQUIRED - e.g., "2000m Row @ Zone 2" or "15 min Bike @ conversational pace")
+  2. Secondary cardio or interval (REQUIRED - e.g., "1500m Ski @ Zone 2" or "10 min Run @ steady pace")
+  3. Additional cardio variation (optional - e.g., "1000m Row" or "8 min Bike")
+  4-5. Optional interval work or mixed cardio
 - Focus: Zone 2 (60-70% max HR) steady-state or intervals
 - Format: Sustained cardio (Row, Bike, Ski, Run) with distance_m (2000-5000m) or duration (10-20min blocks)
 - Coaching cues: Brief pacing focus (e.g., "Maintain conversational pace for aerobic development. Scale: Reduce duration or distance by 25%.")
@@ -783,11 +893,13 @@ SECTION 2 - MAIN CARDIO (MUST have creative title):
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Active Recovery"
 - Duration: 3-5 min
-- Format: Easy movement, stretching
+- MUST include 3-4 exercises: Easy movement, stretching, breathing
+- Example: Easy Walk 2 min, Quad Stretch 1 min each, Deep Breathing 2 min
 - Coaching cues: "Bring heart rate down gradually. Scale: Based on recovery needs."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 3-5 cardio blocks/intervals
 - Focus on maintaining conversational pace
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
@@ -798,28 +910,34 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5-8 min
-- Format: Dynamic movements, cardio ramp
+- MUST include 3-5 exercises: Dynamic movements, cardio ramp, mobility
+- Example: Easy Row 2 min, Inchworm 5, Jumping Jack 20, High Knees 20, Butt Kicks 20
 - Coaching cues: "Elevate heart rate and prepare for high intensity. Scale: Reduce complexity or pace."
 
 SECTION 2 - MAIN CONDITIONING (MUST have creative title):
 - Creative Title: Generate a high-intensity name in ALL CAPS with quotes (examples: "THE METABOLIC INFERNO", "HEART RATE HAVOC", "CONDITIONING CHAOS")
 - Score Type: "For Time" or "AMRAP" or "Intervals" or "Score Rounds"
 - Duration: 20-25 min (majority of workout time)
-- Format options:
-  * HIIT: Work:rest intervals (30:30, 40:20, Tabata 20:10)
-  * Circuit: 3-5 movements, 3-4 rounds for time
-  * AMRAP: Maximum rounds in set time
+- CRITICAL: MUST include 3-5 movements (varies by format):
+  * HIIT Intervals: 3-4 movements with work:rest (30:30, 40:20, Tabata 20:10)
+  * Circuit: 4-5 movements, 3-4 rounds for time
+  * AMRAP: 3-4 movements, maximum rounds in set time
   * Mix cardio + functional movements (Burpees, KB Swings, Box Jumps, Row, Bike)
+- Format example:
+  * "AMRAP 20: 15 Burpees, 20 KB Swings, 25 Box Jumps, 30 Air Squats"
+  * "4 Rounds For Time: 400m Run, 20 Burpees, 30 Wall Balls"
 - Coaching cues: Brief intensity guidance (e.g., "Push hard during work intervals, recover fully during rest. Scale: Reduce intensity or extend rest periods.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Active Recovery"
 - Duration: 5 min
-- Format: Easy movement, breathing exercises
+- MUST include 3-4 exercises: Easy movement, stretching, breathing exercises
+- Example: Easy Walk 2 min, Cat-Cow 10 reps, Child's Pose 1 min, Deep Breathing 2 min
 - Coaching cues: "Bring heart rate down safely. Scale: Based on recovery needs."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 3-5 movements
 - Emphasize work capacity and high heart rate
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
@@ -830,25 +948,33 @@ You MUST create a workout with this EXACT 3-section structure:
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 8-10 min
-- Format: Joint mobility, wrist prep, shoulder activation
+- MUST include 4-5 exercises: Joint mobility, wrist prep, shoulder activation, scapular work
+- Example: Wrist Circles 20, Scap Pull-Up 10, Hollow Hold 30 sec, Arch Hold 30 sec, Cat-Cow 10 reps
 - Coaching cues: "Prepare joints for bodyweight loading. Scale: Adjust range of motion based on mobility."
 
 SECTION 2 - MAIN SKILL WORK (MUST have creative title):
 - Creative Title: Generate a skill-focused name in ALL CAPS with quotes (examples: "THE CALISTHENICS CHALLENGE", "BODYWEIGHT MASTERY", "GYMNAST'S CRUCIBLE")
 - Score Type: "For Quality" or "EMOM" or "AMRAP" or "Score Rounds"
 - Duration: 15-20 min (majority of workout time)
-- Focus: Pull-ups, Push-ups, Dips, Plank variations, Handstand work
+- CRITICAL: MUST include 3-5 movements:
+  1. Pull movement (REQUIRED - e.g., "Pull-Ups 5x5" or "Ring Rows 4x8")
+  2. Push movement (REQUIRED - e.g., "Push-Ups 5x10" or "Dips 4x6")
+  3. Core/Hold (REQUIRED - e.g., "Hollow Hold 4x30 sec" or "Plank 4x45 sec")
+  4. Skill work (optional - e.g., "Handstand Hold Practice 5x15 sec" or "L-Sit 4x10 sec")
+  5. Additional movement (optional - e.g., "Pike Push-Up 3x8")
 - Format: Quality reps, short sets with full recovery OR EMOM/AMRAP with gymnastics movements
-- Coaching cues: Brief movement quality focus (e.g., "Prioritize strict form and full range of motion. Scale: Use bands, negatives, or reduce volume.")
+- Coaching cues: Brief movement quality focus (e.g., "Prioritize strict form and full range of motion on all movements. Scale: Use bands, negatives, or reduce volume while maintaining quality.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Recovery"
 - Duration: 5 min
-- Format: Stretching, mobility work
+- MUST include 3-4 exercises: Stretching, mobility work, relaxation
+- Example: Shoulder Stretch 1 min each, Pike Stretch 2 min, Wrist Stretch 1 min, Deep Breathing 1 min
 - Coaching cues: "Focus on flexibility and recovery. Scale: Based on comfort level."
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- Main section MUST have 3-5 movements
 - Prioritize movement quality and control over volume
 - Include progressions and regressions in coaching cues
 - Keep coaching cues SHORT (1-2 sentences max)`,
