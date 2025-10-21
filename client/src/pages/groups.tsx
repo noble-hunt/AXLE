@@ -38,7 +38,7 @@ export default function Groups() {
     async function loadGroups() {
       try {
         setLoading(true);
-        const response = await authFetch("/api/groups/mine");
+        const response = await authFetch("/api/groups");
         if (response.ok) {
           const groupsData = await response.json();
           // Add mock last activity and unread counts for demo

@@ -19,7 +19,7 @@ export function GroupsShortcutCard() {
   const { isAuthenticated } = useAppStore();
 
   const { data: groups = [], isLoading, error } = useQuery<UserGroup[]>({
-    queryKey: ['/api/groups/mine'],
+    queryKey: ['/api/groups'],
     enabled: isAuthenticated,
     retry: 1,
     staleTime: 5 * 60 * 1000 // 5 minutes

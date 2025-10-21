@@ -1088,7 +1088,7 @@ export default function GroupFeedPage() {
 
       if (response.ok) {
         // Invalidate group queries - align with actual query keys used in the app
-        queryClient.invalidateQueries({ queryKey: ['/api/groups/mine'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/groups'] });
         queryClient.invalidateQueries({ queryKey: ['/api/groups', groupId] });
         queryClient.invalidateQueries({ queryKey: ['/api/groups', groupId, 'feed'] });
         
@@ -1126,7 +1126,7 @@ export default function GroupFeedPage() {
 
       if (response.ok) {
         // Invalidate group queries - align with actual query keys used in the app
-        queryClient.invalidateQueries({ queryKey: ['/api/groups/mine'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/groups'] });
         queryClient.invalidateQueries({ queryKey: ['/api/groups', groupId] });
         queryClient.invalidateQueries({ queryKey: ['/api/groups', groupId, 'feed'] });
         
@@ -1169,7 +1169,7 @@ export default function GroupFeedPage() {
 
   const loadAvailableGroups = async () => {
     try {
-      const response = await authFetch("/api/groups/mine");
+      const response = await authFetch("/api/groups");
       if (response.ok) {
         const groups = await response.json();
         setAvailableGroups(groups.filter((g: Group) => g.id !== groupId));
