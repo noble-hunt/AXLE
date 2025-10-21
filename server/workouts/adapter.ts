@@ -67,6 +67,14 @@ export function adaptToPlanV1(raw: any): any {
       ];
     } else {
       // Adapt existing blocks, ensure each has items
+      console.log('[ADAPTER] Input blocks:', rawBlocks.map((b: any) => ({ 
+        key: b.key, 
+        title: b.title,
+        workoutTitle: b.workoutTitle,
+        scoreType: b.scoreType,
+        coachingCues: b.coachingCues
+      })));
+      
       adaptedBlocks = rawBlocks.map((block: any) => ({
         ...block,
         key: block.key || block.type || "main",
@@ -111,6 +119,14 @@ export function adaptToPlanV1(raw: any): any {
           }
         ]
       }));
+      
+      console.log('[ADAPTER] Output blocks:', adaptedBlocks.map((b: any) => ({ 
+        key: b.key, 
+        title: b.title,
+        workoutTitle: b.workoutTitle,
+        scoreType: b.scoreType,
+        coachingCues: b.coachingCues
+      })));
     }
 
     // If we still don't have at least 2 blocks, add a minimal second block

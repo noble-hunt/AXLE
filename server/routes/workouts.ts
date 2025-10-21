@@ -7,6 +7,13 @@ export const workouts = Router();
 
 // Helper function to transform sets to blocks (Wodify-style)
 function transformSetsToBlocks(sets: any[], durationMin: number) {
+  console.log('[TRANSFORM] Input sets headers:', sets.filter((s: any) => s.is_header).map((s: any) => ({
+    exercise: s.exercise,
+    workoutTitle: s.workoutTitle,
+    scoreType: s.scoreType,
+    coachingCues: s.coachingCues
+  })));
+  
   const blocks: any[] = [];
   let currentBlock: any = null;
   
