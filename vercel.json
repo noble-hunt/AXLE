@@ -13,7 +13,7 @@
   "trailingSlash": false,
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": "server/**"
+      "includeFiles": "{server/**,lib/**}"
     }
   }
 }
