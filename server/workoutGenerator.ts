@@ -1215,6 +1215,22 @@ YOUR RESPONSE MUST:
         coachingCues: h.coachingCues
       }))
     });
+    
+    // DEBUG: Log first 5 cardio exercises to check distance_m and calories
+    const cardioNames = ['run', 'row', 'bike', 'ski', 'assault'];
+    const cardioSets = aiResponse.sets?.filter((s: any) => {
+      const name = (s.exercise || '').toLowerCase();
+      return cardioNames.some(c => name.includes(c));
+    }) || [];
+    if (cardioSets.length > 0) {
+      console.log('[WG] DEBUG: Cardio exercises from OpenAI:', cardioSets.slice(0, 5).map((s: any) => ({
+        exercise: s.exercise,
+        distance_m: s.distance_m,
+        calories: s.calories,
+        duration: s.duration,
+        reps: s.reps
+      })));
+    }
   } catch (err) {
     console.error('[WG] Failed to parse OpenAI JSON response', {
       content: response.choices[0].message.content?.slice(0, 200)

@@ -168,18 +168,46 @@ export function WorkoutPreview({
       if (prescription.load) {
         parts.push(`- ${prescription.load}`);
       }
+      // Append weight specs from notes if present
+      if (prescription.notes?.includes('@')) {
+        parts.push(prescription.notes);
+      }
       return parts.join(" ");
+    }
+    
+    // For cardio with calories: Show "15 Cal Bike"
+    // @ts-ignore - calories field exists in the data but may not be in type yet
+    if (prescription.calories) {
+      // @ts-ignore
+      return `${prescription.calories} Cal ${name}`;
+    }
+    
+    // For cardio with distance: Show "1000m Row"
+    if (prescription.type === "distance" && prescription.meters) {
+      const displayName = `${prescription.meters}m ${name}`;
+      // Append weight specs from notes if present (e.g., "@ 24/16kg")
+      if (prescription.notes?.includes('@')) {
+        return `${displayName} ${prescription.notes}`;
+      }
+      return displayName;
     }
     
     // For single-set exercises or conditioning: Show "15 Air Squats"
     if (prescription.type === "reps" && prescription.reps) {
-      return `${prescription.reps} ${name}`;
+      const displayName = `${prescription.reps} ${name}`;
+      // Append weight specs from notes if present (e.g., "@ 24/16kg")
+      if (prescription.notes?.includes('@')) {
+        return `${displayName} ${prescription.notes}`;
+      }
+      return displayName;
     } else if (prescription.type === "time" && prescription.seconds) {
       return `${prescription.seconds}s ${name}`;
-    } else if (prescription.type === "distance" && prescription.meters) {
-      return `${prescription.meters}m ${name}`;
     }
     
+    // Fallback: just the name, but append weight specs if present
+    if (prescription.notes?.includes('@')) {
+      return `${name} ${prescription.notes}`;
+    }
     return name;
   };
 

@@ -48,16 +48,26 @@ function transformSetsToBlocks(sets: any[], durationMin: number) {
     } else if (currentBlock) {
       // Add item to current block
       const prescription: any = {
-        type: set.distance_m ? 'distance' : set.duration ? 'time' : set.reps ? 'reps' : 'reps',
+        type: (set.distance_m || set.distance) ? 'distance' : (set.calories) ? 'distance' : (set.duration) ? 'time' : (set.reps) ? 'reps' : 'reps',
         sets: set.num_sets || 1,
         restSec: set.rest_s || 0
       };
       
-      if (set.distance_m) {
-        prescription.distanceMeters = set.distance_m;
-      } else if (set.duration) {
+      // Handle distance (meters) - accept both distance_m and distance fields
+      // Map to 'meters' field that adapter expects
+      if (set.distance_m || set.distance) {
+        prescription.meters = set.distance_m || set.distance;
+      } 
+      // Handle calories (alternative to meters for cardio)
+      else if (set.calories) {
+        prescription.calories = set.calories;
+      }
+      // Handle duration (time-based)
+      else if (set.duration) {
         prescription.seconds = set.duration;
-      } else if (set.reps) {
+      } 
+      // Handle reps (rep-based)
+      else if (set.reps) {
         prescription.reps = set.reps;
       }
       

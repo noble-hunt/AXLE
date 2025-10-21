@@ -14,6 +14,7 @@ export const PrescriptionZ = z.object({
   reps: z.number().int().min(1).optional(), // if type="reps"
   seconds: z.number().int().min(5).optional(), // if type="time"
   meters: z.number().int().min(10).optional(), // if type="distance"
+  calories: z.number().int().min(1).optional(), // if type="distance" (alternative to meters for cardio)
   load: z.string().optional(),              // "2x20lb", "bodyweight", "RPE 8"
   restSec: z.number().int().min(0).default(0),
   tempo: z.string().optional(),             // "30X1"

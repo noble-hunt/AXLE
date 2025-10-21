@@ -98,6 +98,10 @@ export function adaptToPlanV1(raw: any): any {
           const meters = coerceNumber(item.prescription?.meters, { requireInt: true, min: 10 });
           if (meters !== null) prescription.meters = meters;
           
+          // Handle calories field for cardio (e.g., "15 Cal Bike")
+          const calories = coerceNumber(item.prescription?.calories, { requireInt: true, min: 1 });
+          if (calories !== null) prescription.calories = calories;
+          
           if (item.prescription?.load) prescription.load = item.prescription.load;
           if (item.prescription?.tempo) prescription.tempo = item.prescription.tempo;
           if (item.prescription?.notes) prescription.notes = item.prescription.notes;
