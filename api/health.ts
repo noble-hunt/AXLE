@@ -1,4 +1,4 @@
-// api/health.ts - Health tracking handler
+// api/health.ts - Health tracking handler (action-based routing)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { admin, userClient, bearer, validateEnvForUser } from '../lib/api-helpers/supabase';
 
@@ -15,8 +15,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = userData.user.id;
     const supa = userClient(token);
 
-    // POST /api/health/sync - Sync health data
-    if (req.url?.includes('/sync') && req.method === 'POST') {
+    // Action-based routing
+    const action = req.body?.action || (req.method === 'GET' ? 'healthcheck' : 'sync');
+
+    // ACTION: sync - Sync health data
+    if (action === 'sync') {
       const { metrics, date } = req.body;
       if (!metrics || !date) {
         return res.status(400).json({ message: 'Metrics and date required' });
@@ -41,9 +44,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true, data });
     }
 
-    // GET /api/health/reports - Get health reports
-    if (req.url?.includes('/reports') && req.method === 'GET') {
-      const days = parseInt(req.query.days as string) || 14;
+    // ACTION: reports - Get health reports
+    if (action === 'reports') {
+      const days = parseInt(req.body?.days as string) || 14;
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
@@ -62,9 +65,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data || []);
     }
 
-    // GET /api/health/metrics - Get health metrics
-    if (req.url?.includes('/metrics') && req.method === 'GET') {
-      const days = parseInt(req.query.days as string) || 30;
+    // ACTION: metrics - Get health metrics
+    if (action === 'metrics') {
+      const days = parseInt(req.body?.days as string) || 30;
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
@@ -83,12 +86,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data || []);
     }
 
-    // GET /api/health/supabase - Health check
-    if (req.url?.includes('/supabase') && req.method === 'GET') {
+    // ACTION: healthcheck - Health check (supabase connection test)
+    if (action === 'healthcheck') {
       return res.status(200).json({ status: 'ok', supabase: 'connected' });
     }
 
-    return res.status(404).json({ message: 'Not Found' });
+    return res.status(400).json({ message: 'Invalid action' });
   } catch (error: any) {
     console.error('Health error:', error);
     return res.status(500).json({ message: 'Internal server error' });

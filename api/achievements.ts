@@ -1,4 +1,4 @@
-// api/achievements.ts - Achievements handler
+// api/achievements.ts - Achievements handler (action-based routing)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { admin, userClient, bearer, validateEnvForUser } from '../lib/api-helpers/supabase';
 import { z } from 'zod';
@@ -16,8 +16,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = userData.user.id;
     const supa = userClient(token);
 
-    // GET /api/achievements - List all achievements
-    if (req.method === 'GET') {
+    // Action-based routing
+    const action = req.body?.action || 'list';
+
+    // ACTION: list - Get all achievements
+    if (action === 'list') {
       const { data, error } = await supa
         .from('achievements')
         .select('*')
@@ -32,8 +35,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data || []);
     }
 
-    // PUT /api/achievements/batch - Batch update achievements
-    if (req.url?.includes('/batch') && req.method === 'PUT') {
+    // ACTION: update - Update single achievement
+    if (action === 'update') {
+      const { id, progress, unlocked } = req.body;
+      if (!id) return res.status(400).json({ message: 'Achievement ID required' });
+
+      const updates: any = {};
+      if (progress !== undefined) updates.progress = progress;
+      if (unlocked !== undefined) updates.unlocked = unlocked;
+
+      const { data, error } = await supa
+        .from('achievements')
+        .update(updates)
+        .eq('user_id', userId)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to update achievement:', error);
+        return res.status(500).json({ message: 'Failed to update achievement' });
+      }
+
+      return res.status(200).json(data);
+    }
+
+    // ACTION: batch - Batch update achievements
+    if (action === 'batch') {
       const achievementBatchSchema = z.object({
         achievements: z.array(z.object({
           id: z.string(),
@@ -72,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(results.filter(r => r !== null));
     }
 
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return res.status(400).json({ message: 'Invalid action' });
   } catch (error: any) {
     console.error('Achievements error:', error);
     if (error.name === 'ZodError') {
