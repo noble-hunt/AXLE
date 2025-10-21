@@ -454,8 +454,8 @@ SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up Flow" or "General Prep"
 - Duration: 5-8 min
 - MUST include 4-6 exercises: Start with cardio, then dynamic movements
-- Format: "2:00 Cardio Choice" followed by "2 rounds of:" with 4-5 dynamic movements
-- Example: 2 min Row, then 2 rounds of: 5 Inchworm, 10 Arm Circle, 10 Leg Swing, 5 Cat-Cow, 10 Jumping Jack
+- Format: "Cardio Choice" followed by "2 rounds of:" with 4-5 dynamic movements
+- Example: 300m Row, then 2 rounds of: 5 Inchworm, 10 Arm Circle, 10 Leg Swing, 5 Cat-Cow, 10 Jumping Jack
 - Coaching cues: "Prepare joints and elevate heart rate. Scale: reduce rounds or movement complexity."
 
 SECTION 2 - MAIN WOD (MUST have creative title):
@@ -470,11 +470,12 @@ SECTION 2 - MAIN WOD (MUST have creative title):
   * For Time chipper: 3-5 movements
   * AMRAP: 3-4 movements per round
   * EMOM: 1-3 movements per minute
+- **MANDATORY**: ALL cardio MUST include distance/calories (e.g., "500m Row", "15 Cal Bike"), ALL weighted movements MUST include M/F weight (e.g., "@ 95/65lb", "@ 24/16kg")
 - Coaching cues: Brief goal statement (e.g., "Hold consistent pacing and movement quality across all seven rounds. Scale: Reduce load to maintain form, or substitute ring rows for pull-ups.")
 - Format examples:
-  * For Time: "21-15-9\\nThrusters @ 95/65#\\nPull-ups"
-  * AMRAP 15: "19 Calorie Row\\n19 Wall Balls @ 20/14#\\n15 Push-ups"
-  * EMOM: "minute 1: 3 Wall Walks\\nminute 2: 6 Shuttle Runs\\nminute 3: 15/12 Calorie Row"
+  * For Time: "21-15-9\\nThrusters @ 95/65lb\\nPull-ups"
+  * AMRAP 15: "19 Cal Row\\n19 Wall Ball @ 20/14lb\\n15 Push-ups"
+  * EMOM: "minute 1: 3 Wall Walks\\nminute 2: 200m Run\\nminute 3: 15/12 Cal Row"
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Recovery"
@@ -485,6 +486,8 @@ SECTION 3 - COOL-DOWN (no creative title):
 
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
+- **MANDATORY**: ALL cardio MUST include distance in meters or calories (e.g., "500m Row", "15 Cal Bike", "800m Run")
+- **MANDATORY**: ALL weighted movements MUST include M/F weight (e.g., "@ 95/65lb", "@ 24/16kg", "@ 20/14lb")
 - Include time notation (12:35, 15:00, etc.) where relevant  
 - Use @ symbol for weights (e.g., @ 95/65#, @ 50/35#)
 - Specify "For Time", "AMRAP", "EMOM", or interval format clearly
@@ -585,28 +588,32 @@ CRITICAL FORMATTING RULES:
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
     'endurance': `
-ENDURANCE/HYROX WODIFY-STYLE STRUCTURE:
+HYROX-STYLE ENDURANCE TRAINING WODIFY STRUCTURE:
+**CRITICAL**: Generate this workout like a HYROX training session - combining running/cardio with functional fitness movements in a circuit format.
+
 You MUST create a workout with this EXACT 3-section structure:
 
 SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5-8 min
-- MUST include 3-5 exercises: Easy cardio, dynamic movements, mobility
-- Example: Easy Row 3 min, Leg Swing 10 each, Arm Circle 10, Inchworm 5, Jumping Jack 20
+- MUST include 3-5 exercises: Easy cardio with distance, dynamic movements, mobility
+- Example: 500m Easy Row, Leg Swing 10 each, Arm Circle 10, Inchworm 5, Jumping Jack 20
 - Coaching cues: "Gradually elevate heart rate. Scale: Adjust pace based on readiness."
 
 SECTION 2 - MAIN CIRCUIT (MUST have creative title):
-- Creative Title: Generate an endurance-focused name in ALL CAPS with quotes (examples: "THE MARATHON GRIND", "CARDIO CRUSHER", "ENDURANCE ODYSSEY")
+- Creative Title: Generate a HYROX/endurance-focused name in ALL CAPS with quotes (examples: "THE MARATHON GRIND", "HYROX SIMULATOR", "ENDURANCE ODYSSEY")
 - Score Type: "For Time" or "Score Rounds" or "Total Distance"
 - Duration: 20-30 min (majority of workout time)
-- CRITICAL: MUST include 4-6 stations alternating cardio + functional movements:
-  1. Station 1: Distance-based cardio (REQUIRED - e.g., "1000m Row" or "800m Bike")
-  2. Station 2: Functional movement (REQUIRED - e.g., "20 Burpees" or "30 Wall Balls")
-  3. Station 3: Different cardio modality (REQUIRED - e.g., "1000m Ski" or "800m Run")
-  4. Station 4: Different functional movement (REQUIRED - e.g., "25 KB Swings" or "20 Box Jumps")
-  5-6. Optional additional cardio/functional pairs
-- Format: Alternating cardio + functional stations
-- Coaching cues: Brief pacing strategy (e.g., "Maintain steady effort across all stations. Scale: Reduce distance by 25% or substitute lower-impact cardio.")
+- CRITICAL: MUST include 4-6 stations alternating cardio + functional movements in HYROX style:
+  1. Station 1: Distance-based cardio (REQUIRED - MUST include meters OR calories: "1000m Row" or "15 Cal Bike" or "800m Run")
+  2. Station 2: Functional movement with weight if applicable (REQUIRED - e.g., "20 Burpees" or "25 KB Swing @ 24/16kg")
+  3. Station 3: Different cardio modality (REQUIRED - MUST include meters OR calories: "1000m Ski" or "15 Cal Row" or "1500m Bike" or "400m Run")
+  4. Station 4: Different functional movement with weight (REQUIRED - e.g., "30 Wall Ball @ 20/14lb" or "20 Box Jump @ 24/20in")
+  5-6. Optional additional cardio/functional pairs (ALWAYS include distance OR calories for cardio, weight for weighted movements)
+- **CARDIO RULES**: ALL cardio (Row/Run/Bike/Ski) MUST include distance in meters OR calories (e.g., "1000m Row", "15 Cal Bike", "800m Run", "20 Cal Row")
+- **WEIGHT RULES**: ALL weighted movements MUST include male/female weight specs (e.g., "KB Swing @ 24/16kg", "Wall Ball @ 20/14lb", "DB @ 50/35lb")
+- Format: Alternating cardio + functional stations like HYROX competition
+- Coaching cues: Brief pacing strategy (e.g., "Maintain steady effort across all stations like a HYROX race. Scale: Reduce distance by 25% or substitute lower-impact cardio.")
 
 SECTION 3 - COOL-DOWN (no creative title):
 - Title: "Cool Down" or "Active Recovery"
@@ -618,8 +625,10 @@ SECTION 3 - COOL-DOWN (no creative title):
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
 - Main section MUST have 4-6 stations minimum
-- Use distance_m for cardio, NOT duration
-- Vary cardio modalities across stations
+- **MANDATORY**: ALL cardio exercises MUST include distance in meters OR calories (e.g., "1000m Row", "15 Cal Bike", "800m Run", "20 Cal Row")
+- **MANDATORY**: ALL weighted movements MUST include weight in M/F format (e.g., "@ 24/16kg", "@ 50/35lb")
+- Vary cardio modalities across stations (Row, Run, Bike, Ski)
+- Program like HYROX: alternating cardio + functional fitness
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
     'strength': `
@@ -839,7 +848,7 @@ SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5-8 min
 - MUST include 3-5 exercises: Dynamic movements, light cardio, mobility
-- Example: Easy Row 2 min, Inchworm 5, Leg Swing 10 each, Arm Circle 10, Jumping Jack 20
+- Example: 300m Easy Row, Inchworm 5, Leg Swing 10 each, Arm Circle 10, Jumping Jack 20
 - Coaching cues: "Prepare for varied work. Scale: Adjust based on readiness."
 
 SECTION 2 - MAIN WORKOUT (MUST have creative title):
@@ -847,9 +856,10 @@ SECTION 2 - MAIN WORKOUT (MUST have creative title):
 - Score Type: "For Time" or "AMRAP" or "Score Rounds" or "Total Volume"
 - Duration: 20-25 min (majority of workout time)
 - CRITICAL: MUST include 4-6 movements with variety:
-  1-2. Strength block (REQUIRED - e.g., "Back Squat 3x8" or "DB Bench Press 3x10")
+  1-2. Strength block (REQUIRED - e.g., "Back Squat 3x8" or "DB Bench Press 3x10 @ 50/35lb")
   3-4. Conditioning circuit (REQUIRED - e.g., "500m Row" or "20 Burpees")
   5-6. Accessory/Skill work (optional - e.g., "Pull-Ups 3x8" or "Plank 3x30 sec")
+- **MANDATORY**: ALL cardio MUST include distance/calories (e.g., "500m Row", "400m Run"), ALL weighted movements MUST include M/F weight where applicable (e.g., "@ 50/35lb", "@ 24/16kg")
 - Format: Variety across strength, cardio, and functional movements
 - Coaching cues: Brief variety focus (e.g., "Maintain quality across all modalities. Scale: Reduce complexity or volume as needed.")
 
@@ -863,6 +873,8 @@ SECTION 3 - COOL-DOWN (no creative title):
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
 - Main section MUST have 4-6 movements
+- **MANDATORY**: ALL cardio MUST include distance/calories (e.g., "500m Row", "400m Run", "15 Cal Bike")
+- **MANDATORY**: ALL weighted movements MUST include M/F weight where applicable (e.g., "@ 50/35lb", "@ 24/16kg")
 - Provide variety across strength, cardio, and functional movements
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
@@ -874,7 +886,7 @@ SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Easy Start"
 - Duration: 5 min
 - MUST include 3-4 exercises: Easy cardio, dynamic stretching, mobility
-- Example: Easy Row 3 min, Leg Swing 10 each, Arm Circle 10, Inchworm 5
+- Example: 400m Easy Row, Leg Swing 10 each, Arm Circle 10, Inchworm 5
 - Coaching cues: "Gradually elevate heart rate. Scale: Adjust pace based on readiness."
 
 SECTION 2 - MAIN CARDIO (MUST have creative title):
@@ -882,12 +894,12 @@ SECTION 2 - MAIN CARDIO (MUST have creative title):
 - Score Type: "Total Distance" or "For Time" or "Sustained Effort"
 - Duration: 25-30 min (majority of workout time)
 - CRITICAL: MUST include 3-5 cardio blocks/intervals:
-  1. Primary cardio block (REQUIRED - e.g., "2000m Row @ Zone 2" or "15 min Bike @ conversational pace")
-  2. Secondary cardio or interval (REQUIRED - e.g., "1500m Ski @ Zone 2" or "10 min Run @ steady pace")
-  3. Additional cardio variation (optional - e.g., "1000m Row" or "8 min Bike")
+  1. Primary cardio block (REQUIRED - e.g., "2000m Row @ Zone 2" or "3000m Bike @ conversational pace")
+  2. Secondary cardio or interval (REQUIRED - e.g., "1500m Ski @ Zone 2" or "1600m Run @ steady pace")
+  3. Additional cardio variation (optional - e.g., "1000m Row" or "2000m Bike")
   4-5. Optional interval work or mixed cardio
 - Focus: Zone 2 (60-70% max HR) steady-state or intervals
-- Format: Sustained cardio (Row, Bike, Ski, Run) with distance_m (2000-5000m) or duration (10-20min blocks)
+- Format: Sustained cardio (Row, Bike, Ski, Run) with distance in meters (2000-5000m)
 - Coaching cues: Brief pacing focus (e.g., "Maintain conversational pace for aerobic development. Scale: Reduce duration or distance by 25%.")
 
 SECTION 3 - COOL-DOWN (no creative title):
@@ -911,7 +923,7 @@ SECTION 1 - WARM-UP (no creative title):
 - Title: "Warm-Up" or "Movement Prep"
 - Duration: 5-8 min
 - MUST include 3-5 exercises: Dynamic movements, cardio ramp, mobility
-- Example: Easy Row 2 min, Inchworm 5, Jumping Jack 20, High Knees 20, Butt Kicks 20
+- Example: 300m Easy Row, Inchworm 5, Jumping Jack 20, High Knees 20, Butt Kicks 20
 - Coaching cues: "Elevate heart rate and prepare for high intensity. Scale: Reduce complexity or pace."
 
 SECTION 2 - MAIN CONDITIONING (MUST have creative title):
@@ -923,9 +935,10 @@ SECTION 2 - MAIN CONDITIONING (MUST have creative title):
   * Circuit: 4-5 movements, 3-4 rounds for time
   * AMRAP: 3-4 movements, maximum rounds in set time
   * Mix cardio + functional movements (Burpees, KB Swings, Box Jumps, Row, Bike)
+- **MANDATORY**: ALL cardio MUST include distance/calories (e.g., "500m Row", "400m Run", "15 Cal Bike"), ALL weighted movements MUST include M/F weight (e.g., "KB Swing @ 24/16kg", "Wall Ball @ 20/14lb")
 - Format example:
-  * "AMRAP 20: 15 Burpees, 20 KB Swings, 25 Box Jumps, 30 Air Squats"
-  * "4 Rounds For Time: 400m Run, 20 Burpees, 30 Wall Balls"
+  * "AMRAP 20: 15 Burpees, 20 KB Swing @ 24/16kg, 25 Box Jump @ 24/20in, 30 Air Squats"
+  * "4 Rounds For Time: 400m Run, 20 Burpees, 30 Wall Ball @ 20/14lb"
 - Coaching cues: Brief intensity guidance (e.g., "Push hard during work intervals, recover fully during rest. Scale: Reduce intensity or extend rest periods.")
 
 SECTION 3 - COOL-DOWN (no creative title):
@@ -938,6 +951,8 @@ SECTION 3 - COOL-DOWN (no creative title):
 CRITICAL FORMATTING RULES:
 - Main section MUST have creative title in quotes and capitals
 - Main section MUST have 3-5 movements
+- **MANDATORY**: ALL cardio MUST include distance in meters or calories (e.g., "500m Row", "400m Run", "15 Cal Bike")
+- **MANDATORY**: ALL weighted movements MUST include M/F weight (e.g., "@ 24/16kg", "@ 20/14lb", "@ 50/35lb")
 - Emphasize work capacity and high heart rate
 - Keep coaching cues SHORT (1-2 sentences max)`,
     
@@ -1041,8 +1056,10 @@ YOUR RESPONSE MUST:
 1. Include 3 headers with is_header:true (Warm-Up, Main, Cool Down)
 2. ONLY the MAIN header gets workoutTitle, scoreType, and coachingCues
 3. Creative title in workoutTitle must be ALL CAPS with quotes (e.g., "\\"THE RELENTLESS CRUSHER\\"")
-4. Exercise names must EXACTLY match the movement library above
-5. Keep coaching cues to 1-2 sentences max with embedded scaling suggestions`;
+4. Exercise names must EXACTLY match the movement library above (e.g., "Row", "Run", "Bike" - NOT "1000m Row" or "15 Cal Bike")
+5. **CRITICAL**: For cardio exercises, put distance in meters in the distance_m field (e.g., {"exercise": "Row", "distance_m": 1000}) OR calories in the calories field (e.g., {"exercise": "Bike", "calories": 15})
+6. **CRITICAL**: For weighted movements, include weight specifications in the notes field (e.g., {"exercise": "KB Swing", "notes": "@ 24/16kg"})
+7. Keep coaching cues to 1-2 sentences max with embedded scaling suggestions`;
 
   if (!openai) {
     throw new Error('OpenAI client not initialized');
@@ -1078,6 +1095,12 @@ YOUR RESPONSE MUST:
                 ]
               },
               distance_m: { 
+                anyOf: [
+                  { type: "number" },
+                  { type: "null" }
+                ]
+              },
+              calories: { 
                 anyOf: [
                   { type: "number" },
                   { type: "null" }
@@ -1120,7 +1143,7 @@ YOUR RESPONSE MUST:
                 ]
               }
             },
-            required: ["id", "exercise", "is_header", "reps", "duration", "distance_m", "num_sets", "rest_s", "notes", "workoutTitle", "scoreType", "coachingCues"],
+            required: ["id", "exercise", "is_header", "reps", "duration", "distance_m", "calories", "num_sets", "rest_s", "notes", "workoutTitle", "scoreType", "coachingCues"],
             additionalProperties: false
           }
         }
@@ -1242,6 +1265,7 @@ YOUR RESPONSE MUST:
         reps: set.reps || undefined,
         duration: set.duration || undefined,
         distance: set.distance_m || undefined, // Map distance_m -> distance
+        calories: set.calories || undefined, // Map calories field
         rest_s: set.rest_s || undefined, // Keep original field name for transformation
         notes: set.notes || undefined
       };
@@ -1266,6 +1290,7 @@ YOUR RESPONSE MUST:
           reps: set.reps || undefined,
           duration: set.duration || undefined,
           distance: set.distance_m || undefined, // Map distance_m -> distance
+          calories: set.calories || undefined, // Map calories field
           rest_s: set.rest_s || undefined, // Keep original field name for transformation
           notes: set.notes || undefined
         };

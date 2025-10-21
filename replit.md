@@ -28,6 +28,9 @@ Preferred communication style: Simple, everyday language.
   - **Fallback**: Falls back to mock workout if OpenAI fails (mock generator only used as last resort)
   - **Recent Changes (Oct 21, 2025)**: 
     - **Exercise Volume Requirements Added**: ALL categories now require appropriate exercise counts (warm-up: 3-5 exercises, cool-down: 3-4 exercises, main: 3-7 exercises depending on category) based on user-provided workout examples
+    - **Cardio Distance/Calorie Requirements**: ALL cardio (Row, Bike, Run, Ski) MUST include distance in meters or calories (e.g., "500m Row", "15 Cal Bike", "800m Run")
+    - **Weight Specifications**: ALL weighted movements MUST include M/F weight in format "@ weight_male/weight_female" (e.g., "KB Swing @ 24/16kg", "Wall Ball @ 20/14lb", "DB @ 50/35lb")
+    - **HYROX-Style Endurance**: Endurance category specifically generates HYROX training workouts with alternating cardio + functional movements
     - **Powerlifting**: Main section now requires 4-6 exercises (primary lift + secondary compound + accessories) instead of just 1
     - **Olympic Weightlifting**: Main section requires 5-7 exercises with percentage-based programming (Oly lifts + squats + pulling + accessories)
     - **Bodybuilding Upper**: Main section requires 4-6 exercises with detailed set/rep schemes ("4x8 Each Side - Heavy")
