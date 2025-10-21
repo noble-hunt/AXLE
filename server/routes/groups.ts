@@ -30,6 +30,23 @@ import { z } from "zod";
 
 export function registerGroupRoutes(app: Express) {
   
+  // GET /api/groups → groups I belong to (with role) - matches frontend expectation
+  app.get("/api/groups", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+
+      const groups = await getUserGroups(userId);
+      res.json(groups);
+    } catch (error) {
+      console.error("Error fetching user groups:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch groups",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // POST /api/groups → create group + add creator as owner
   app.post("/api/groups", requireAuth, async (req, res) => {
     try {

@@ -1,4 +1,5 @@
 // api/workouts/preview.ts (Vercel serverless function)
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { admin } from '../../lib/api-helpers/supabase';
 
 export const config = { runtime: 'nodejs' };
@@ -14,15 +15,15 @@ type PreviewInput = {
   goal?: string;
 };
 
-export default async function handler(req: Request) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    return json({ error: 'Method Not Allowed' }, 405);
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   // Extract and verify auth token
-  const authHeader = req.headers.get('Authorization');
+  const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return json({ ok: false, error: { message: 'Unauthorized - missing auth token' } }, 401);
+    return res.status(401).json({ ok: false, error: { message: 'Unauthorized - missing auth token' } });
   }
 
   const token = authHeader.substring(7);
@@ -31,33 +32,28 @@ export default async function handler(req: Request) {
   const { data: { user }, error: authError } = await admin().auth.getUser(token);
   if (authError || !user) {
     console.error('[preview] auth error:', authError);
-    return json({ ok: false, error: { message: 'Unauthorized - invalid token' } }, 401);
+    return res.status(401).json({ ok: false, error: { message: 'Unauthorized - invalid token' } });
   }
 
-  let payload: PreviewInput;
-  try { 
-    payload = await req.json(); 
-  } catch { 
-    return json({ ok: false, error: { code: 'BAD_INPUT', message: 'Invalid JSON body' } }, 400); 
-  }
+  const payload: PreviewInput = req.body;
 
   const { focus, durationMin, intensity, equipment, seed: providedSeed, archetype, style, goal } = payload;
   
   if (!durationMin || !intensity) {
-    return json({ 
+    return res.status(400).json({ 
       ok: false, 
       error: { code: 'BAD_INPUT', message: 'Missing required fields: durationMin, intensity' } 
-    }, 400);
+    });
   }
 
   try {
     // Validate OPENAI_API_KEY is available
     if (!process.env.OPENAI_API_KEY) {
       console.error('[preview] OPENAI_API_KEY not found in environment');
-      return json({ 
+      return res.status(500).json({ 
         ok: false, 
         error: { code: 'CONFIG_ERROR', message: 'OpenAI API key not configured' } 
-      }, 500);
+      });
     }
     
     console.log('[preview] Starting import of workout generator');
@@ -70,10 +66,10 @@ export default async function handler(req: Request) {
       console.log('[preview] Successfully imported generateWorkout');
     } catch (importError: any) {
       console.error('[preview] Failed to import workoutGenerator:', importError.message, importError.stack);
-      return json({ 
+      return res.status(500).json({ 
         ok: false, 
         error: { code: 'IMPORT_ERROR', message: `Failed to load workout generator: ${importError.message}` } 
-      }, 500);
+      });
     }
     
     try {
@@ -82,10 +78,10 @@ export default async function handler(req: Request) {
       console.log('[preview] Successfully imported generateSeed');
     } catch (importError: any) {
       console.error('[preview] Failed to import seededRandom:', importError.message);
-      return json({ 
+      return res.status(500).json({ 
         ok: false, 
         error: { code: 'IMPORT_ERROR', message: `Failed to load seed generator: ${importError.message}` } 
-      }, 500);
+      });
     }
     
     const equipmentList = equipment || ['bodyweight'];
@@ -116,25 +112,18 @@ export default async function handler(req: Request) {
     const meta = (generatedWorkout as any)?.meta || {};
     
     // Return the generated workout with seed
-    return json({ 
+    return res.status(200).json({ 
       ok: true, 
       preview: generatedWorkout,
       seed: workoutSeed,
       meta
-    }, 200);
+    });
   } catch (e: any) {
     console.error('[AXLE][preview] Error:', e);
     console.error('[AXLE][preview] Stack:', e?.stack);
-    return json({ 
+    return res.status(500).json({ 
       ok: false, 
       error: { code: 'INTERNAL', message: e?.message || 'Preview generation failed', stack: e?.stack?.split('\n')[0] } 
-    }, 500);
+    });
   }
-}
-
-function json(x: any, status = 200) {
-  return new Response(JSON.stringify(x), {
-    status, 
-    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' }
-  });
 }
