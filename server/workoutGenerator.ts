@@ -487,154 +487,371 @@ CRITICAL FORMATTING RULES:
 - Embed scaling suggestions in coaching cues, not separate section`,
     
     'olympic_weightlifting': `
-OLYMPIC LIFTING STRUCTURE:
-- Warm-up (8-10 min): Joint mobility, light cardio, empty bar practice
-- Skill/Technique (10-15 min): Positional work (snatch/clean pulls, hang variations)
-- Main Lifts (15-20 min): Build to heavy single or work sets
-  * Focus on: Snatch, Clean & Jerk, variations (Hang, Power, Split)
-  * Format: "Build to heavy single" or "5 sets @ 80%"
-- Accessory (5-10 min): Squats, pulls, overhead work
-- Cool-down (3-5 min): Stretching
+OLYMPIC LIFTING WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Use proper Olympic lift names from the library.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 8-10 min
+- Format: Joint mobility, light cardio, empty bar practice
+- Coaching cues: "Prepare joints and practice positions. Scale: Use PVC pipe or reduce rounds."
+
+SECTION 2 - MAIN LIFTS (MUST have creative title):
+- Creative Title: Generate a fun, powerful name in ALL CAPS with quotes (examples: "IRON SUMMIT", "THE BARBELL SYMPHONY", "WEIGHTLIFTING MASTERCLASS")
+- Score Type: "Score Weight" or "Heavy Single" or "Work Sets"
+- Duration: 15-20 min (majority of workout time)
+- Focus on: Snatch, Clean & Jerk, variations (Hang, Power, Split)
+- Format examples:
+  * "Build to Heavy Single Snatch"
+  * "5 Sets: 2 Power Cleans @ 80%"
+  * "EMOM 12: 1 Clean + 1 Jerk"
+- Coaching cues: Brief technique focus (e.g., "Focus on speed under the bar and stable catch position. Scale: Reduce weight or use hang variations.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Recovery"
+- Duration: 3-5 min
+- Format: Stretching, mobility work
+- Coaching cues: "Focus on hip and shoulder mobility. Scale: Hold stretches based on comfort."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Score type is typically "Score Weight" for maximal efforts
+- Keep coaching cues SHORT (1-2 sentences max)
+- Embed scaling suggestions in coaching cues`,
     
     'powerlifting': `
-POWERLIFTING STRUCTURE:
-- Warm-up (5-8 min): Dynamic stretching, activation exercises
-- Main Lift (20-25 min): Focus on one of the big three (Squat, Bench, Deadlift)
-  * Format: "5x5 @ 75%" or "3x3 @ 85%" or "Work up to 1RM"
-- Accessory Work (10-15 min): Variations and supporting movements
-  * Squat accessories: Front Squat, Bulgarian Split Squat, Leg Press
-  * Bench accessories: DB Bench, Dips, Tricep work
-  * Deadlift accessories: RDLs, Rows, Good Mornings
-- Cool-down (3-5 min)
+POWERLIFTING WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Emphasize progressive overload and percentage-based programming.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 5-8 min
+- Format: Dynamic stretching, activation exercises (band work, light movements)
+- Coaching cues: "Activate key muscle groups and prepare for heavy loads. Scale: Adjust based on mobility."
+
+SECTION 2 - MAIN LIFT (MUST have creative title):
+- Creative Title: Generate a powerful, strength-focused name in ALL CAPS with quotes (examples: "IRON THRONE", "THE BIG THREE GAUNTLET", "POWERHOUSE SESSION")
+- Score Type: "Score Weight" or "Heavy Set" or "Max Effort"
+- Duration: 20-25 min (majority of workout time)
+- Focus on: One of the big three (Squat, Bench Press, Deadlift)
+- Format examples:
+  * "Build to Heavy 3 Rep Back Squat"
+  * "5x5 Bench Press @ 75%"
+  * "Work up to 1RM Deadlift"
+- Coaching cues: Brief focus on technique and intensity (e.g., "Maintain tight core and drive through heels. Scale: Reduce weight or volume while maintaining quality form.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Recovery"
+- Duration: 3-5 min
+- Format: Light stretching, mobility
+- Coaching cues: "Focus on recovery and flexibility. Scale: Based on comfort level."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Score type is typically "Score Weight" for max efforts
+- Emphasize progressive overload and percentage-based programming
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'endurance': `
-ENDURANCE/HYROX STRUCTURE:
-- Warm-up (5-8 min): Easy cardio, dynamic movements
-- Main Circuit (20-30 min): Alternating cardio + functional stations
-  * Station 1: Distance-based cardio (Row, Bike, Ski, Run) using distance_m field
+ENDURANCE/HYROX WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
+
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 5-8 min
+- Format: Easy cardio, dynamic movements
+- Coaching cues: "Gradually elevate heart rate. Scale: Adjust pace based on readiness."
+
+SECTION 2 - MAIN CIRCUIT (MUST have creative title):
+- Creative Title: Generate an endurance-focused name in ALL CAPS with quotes (examples: "THE MARATHON GRIND", "CARDIO CRUSHER", "ENDURANCE ODYSSEY")
+- Score Type: "For Time" or "Score Rounds" or "Total Distance"
+- Duration: 20-30 min (majority of workout time)
+- Format: Alternating cardio + functional stations
+  * Station 1: Distance-based cardio (Row, Bike, Ski, Run) using distance_m field (800-1000m)
   * Station 2: Functional movement (Burpees, Wall Balls, KB Swings) with reps
   * Station 3: Different cardio modality with distance_m
   * Station 4: Different functional movement
-  * 4-5 total stations
-- Cool-down (3-5 min): Easy movement, stretching
+- Coaching cues: Brief pacing strategy (e.g., "Maintain steady effort across all stations. Scale: Reduce distance by 25% or substitute lower-impact cardio.")
 
-CRITICAL: Use distance_m (800-1000m) for cardio, NOT duration. Vary cardio modalities.`,
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Active Recovery"
+- Duration: 3-5 min
+- Format: Easy movement, stretching
+- Coaching cues: "Bring heart rate down gradually. Scale: Based on recovery needs."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Use distance_m for cardio, NOT duration
+- Vary cardio modalities across stations
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'strength': `
-STRENGTH TRAINING STRUCTURE:
-- Warm-up (5-8 min): Movement prep, activation
-- Main Lift (15-20 min): Compound movement with progressive loading
-  * Format: "4x6 @ 75%" or "5x5 building" or "3x8-10"
-- Supplemental (10-15 min): Secondary compound or heavy accessory
-- Accessory (5-10 min): Isolation or weak point work
-- Cool-down (3-5 min)
+STRENGTH TRAINING WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Focus on load progression and proper rest intervals (2-3 min for main lifts).`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 5-8 min
+- Format: Movement prep, activation exercises
+- Coaching cues: "Prepare muscles and joints for loading. Scale: Adjust based on mobility needs."
+
+SECTION 2 - MAIN LIFT (MUST have creative title):
+- Creative Title: Generate a strength-focused name in ALL CAPS with quotes (examples: "THE IRON GAUNTLET", "STRENGTH FORTRESS", "POWER BUILDER")
+- Score Type: "Score Weight" or "Heavy Sets" or "Total Volume"
+- Duration: 15-20 min (majority of workout time)
+- Focus: Compound movement with progressive loading (Squat, Deadlift, Bench, Press, Row)
+- Format examples:
+  * "4x6 Back Squat @ 75%"
+  * "5x5 Building to Heavy Set"
+  * "3x8-10 Bench Press"
+- Coaching cues: Brief technique and effort cues (e.g., "Maintain braced core and controlled tempo. Scale: Reduce load or reps while keeping quality movement.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Recovery"
+- Duration: 3-5 min
+- Format: Light stretching, mobility
+- Coaching cues: "Focus on recovery. Scale: Based on comfort level."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Focus on load progression and proper rest intervals (2-3 min for main lifts)
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'bb_upper': `
-BODYBUILDING UPPER BODY STRUCTURE:
-- Warm-up (5 min): Shoulder circles, band pull-aparts, light cardio
-- Primary (12-15 min): Compound upper push or pull (DB Bench, DB Row, DB Shoulder Press)
-  * Format: "3x8-10" or "4x6-8" with controlled tempo
-- Secondary (10-12 min): Another compound (opposite pattern from primary)
-- Accessory (8-10 min): 2-3 isolation movements (DB Bicep Curl, Tricep Extension, Lateral Raise)
-  * Format: "3x12-15" or "3x10-12"
-- Cool-down (3 min): Stretching
+BODYBUILDING UPPER BODY WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Emphasize muscle-mind connection, time under tension, and balanced push/pull work.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 5 min
+- Format: Shoulder circles, band pull-aparts, light cardio
+- Coaching cues: "Activate upper body muscles. Scale: Adjust intensity based on readiness."
+
+SECTION 2 - MAIN WORK (MUST have creative title):
+- Creative Title: Generate a bodybuilding-focused name in ALL CAPS with quotes (examples: "THE UPPER BODY SCULPTOR", "CHEST & BACK BUILDER", "AESTHETIC GAINS")
+- Score Type: "Total Volume" or "Score Reps" or "For Quality"
+- Duration: 20-25 min (majority of workout time)
+- Focus: Compound upper push/pull (DB Bench, DB Row, DB Shoulder Press) + accessories
+- Format: "3x8-10" or "4x6-8" with controlled tempo, followed by isolation work
+- Coaching cues: Brief form and tempo focus (e.g., "Focus on mind-muscle connection and controlled tempo. Scale: Reduce weight or reps while maintaining quality contraction.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Recovery"
+- Duration: 3 min
+- Format: Stretching, mobility
+- Coaching cues: "Focus on flexibility. Scale: Based on comfort level."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Emphasize muscle-mind connection, time under tension, balanced push/pull
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'bb_lower': `
-BODYBUILDING LOWER BODY STRUCTURE:
-- Warm-up (5 min): Leg swings, hip circles, bodyweight squats
-- Primary (12-15 min): Main compound (Goblet Squat, DB RDL, DB Lunge)
-  * Format: "4x8-10" or "3x10-12" with controlled tempo
-- Secondary (10-12 min): Another compound or unilateral (Step-ups, Bulgarian Split Squats)
-- Accessory (8-10 min): Isolation work (Calf Raises, Single-Leg Glute Bridge)
-  * Format: "3x12-15" or "3x15-20"
-- Cool-down (3 min): Stretching, foam rolling
+BODYBUILDING LOWER BODY WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Focus on full range of motion, controlled eccentrics, and balanced quad/hamstring/glute work.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 5 min
+- Format: Leg swings, hip circles, bodyweight squats
+- Coaching cues: "Prepare lower body for loading. Scale: Adjust range of motion based on mobility."
+
+SECTION 2 - MAIN WORK (MUST have creative title):
+- Creative Title: Generate a leg-focused name in ALL CAPS with quotes (examples: "THE LEG DAY DESTROYER", "GLUTE & QUAD FORGE", "LOWER BODY DOMINATION")
+- Score Type: "Total Volume" or "Score Reps" or "For Quality"
+- Duration: 20-25 min (majority of workout time)
+- Focus: Main compound (Goblet Squat, DB RDL, DB Lunge) + accessories
+- Format: "4x8-10" or "3x10-12" with controlled tempo
+- Coaching cues: Brief technique focus (e.g., "Emphasize full range of motion and controlled eccentrics. Scale: Reduce weight or reps while maintaining form.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Recovery"
+- Duration: 3 min
+- Format: Stretching, foam rolling
+- Coaching cues: "Focus on flexibility and recovery. Scale: Based on comfort level."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Focus on full ROM, controlled eccentrics, balanced quad/hamstring/glute work
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'bb_full_body': `
-BODYBUILDING FULL BODY STRUCTURE:
-- Warm-up (5 min): Dynamic movements, light cardio
-- Upper Push (8-10 min): DB Bench, DB Shoulder Press, or Push-ups
-  * Format: "3x8-10"
-- Lower (8-10 min): Goblet Squat, DB Lunge, or DB RDL
-  * Format: "3x8-10"
-- Upper Pull (8-10 min): DB Row, Pull-ups, or DB Reverse Fly
-  * Format: "3x8-10"
-- Accessory Circuit (8-10 min): 2-3 exercises targeting weak points
-  * Format: "3 rounds: 12-15 reps each"
-- Cool-down (3 min)
+BODYBUILDING FULL BODY WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Balance upper/lower and push/pull movements for complete development.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 5 min
+- Format: Dynamic movements, light cardio
+- Coaching cues: "Prepare entire body for training. Scale: Adjust based on readiness."
+
+SECTION 2 - MAIN WORK (MUST have creative title):
+- Creative Title: Generate a full-body name in ALL CAPS with quotes (examples: "THE TOTAL BODY TRANSFORMATION", "HEAD TO TOE GAINS", "COMPLETE PHYSIQUE")
+- Score Type: "Total Volume" or "Score Reps" or "For Quality"
+- Duration: 25-30 min (majority of workout time)
+- Focus: Balanced upper/lower and push/pull movements
+- Format: Upper Push → Lower → Upper Pull → Accessory Circuit
+- Coaching cues: Brief balance focus (e.g., "Balance push/pull and upper/lower for complete development. Scale: Adjust weight or reps to maintain quality.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down"
+- Duration: 3 min
+- Format: Stretching
+- Coaching cues: "Focus on recovery. Scale: Based on comfort level."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Balance upper/lower and push/pull movements
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'mobility': `
-MOBILITY & RECOVERY STRUCTURE:
-- Breathing & Centering (3-5 min): Deep breathing, body scan
-- Dynamic Mobility (10-12 min): Joint circles, leg/arm swings, Cat-Cow, Inchworms
-  * Focus on major joints: hips, shoulders, spine, ankles
-- Active Stretching (10-15 min): Controlled movements through full ROM
-  * Cossack Squats, Hip Circles, Bird Dogs, Dead Bugs
-- Static Stretching (8-10 min): Gentle holds (30-60 sec each)
-- Cool-down (3-5 min): Relaxation, breathing
+MOBILITY & RECOVERY WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Emphasize quality of movement over quantity. No forced or ballistic stretching.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Centering" or "Breathing Prep"
+- Duration: 3-5 min
+- Format: Deep breathing, body scan
+- Coaching cues: "Center your mind and body. Scale: Adjust breath depth based on comfort."
+
+SECTION 2 - MAIN MOBILITY (MUST have creative title):
+- Creative Title: Generate a mobility-focused name in ALL CAPS with quotes (examples: "THE FLEXIBILITY FLOW", "MOBILITY MASTERY", "MOVEMENT MEDICINE")
+- Score Type: "For Quality" or "Time-Based Flow"
+- Duration: 20-25 min (majority of workout time)
+- Focus: Dynamic mobility → Active stretching → Static holds
+- Format: Joint circles, full ROM movements, gentle holds (30-60s each)
+- Coaching cues: Brief quality focus (e.g., "Emphasize quality over quantity, no forced stretching. Scale: Reduce hold times or range of motion based on comfort.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Relaxation" or "Recovery"
+- Duration: 3-5 min
+- Format: Gentle breathing, final relaxation
+- Coaching cues: "Relax and integrate. Scale: Based on comfort level."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- No forced or ballistic stretching
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'mixed': `
-MIXED/GENERAL FITNESS STRUCTURE:
-- Warm-up (5-8 min): Dynamic movements, light cardio
-- Block 1 (10-12 min): Strength focus (compound lifts)
-  * Format: "3-4 sets" of main movements
-- Block 2 (10-12 min): Conditioning/cardio circuit
-  * Format: Interval or circuit style with 3-5 movements
-- Block 3 (8-10 min): Accessory or skill work
-- Cool-down (3-5 min)
+MIXED/GENERAL FITNESS WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Provide variety across strength, cardio, and functional movements for general fitness development.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 5-8 min
+- Format: Dynamic movements, light cardio
+- Coaching cues: "Prepare for varied work. Scale: Adjust based on readiness."
+
+SECTION 2 - MAIN WORKOUT (MUST have creative title):
+- Creative Title: Generate a fitness-focused name in ALL CAPS with quotes (examples: "THE FITNESS FUSION", "MIXED MODALITIES", "TOTAL FITNESS")
+- Score Type: "For Time" or "AMRAP" or "Score Rounds" or "Total Volume"
+- Duration: 20-25 min (majority of workout time)
+- Focus: Strength block + Conditioning circuit + Accessory/Skill work
+- Format: Variety across strength, cardio, and functional movements
+- Coaching cues: Brief variety focus (e.g., "Maintain quality across all modalities. Scale: Reduce complexity or volume as needed.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down"
+- Duration: 3-5 min
+- Format: Light movement, stretching
+- Coaching cues: "Focus on recovery. Scale: Based on comfort level."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Provide variety across strength, cardio, and functional movements
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'aerobic': `
-AEROBIC/CARDIO STRUCTURE:
-- Warm-up (5 min): Easy cardio, dynamic stretching
-- Main Cardio (25-30 min): Sustained aerobic work
-  * Zone 2 (60-70% max HR): Steady-state cardio (Row, Bike, Ski, Run)
-  * Use distance_m for rowing/skiing (2000-5000m based on intensity)
-  * Use duration for sustained efforts (10-20 min blocks)
-  * Can include intervals: 5min on, 1min easy x 4
-- Active Recovery (3-5 min): Easy movement
-- Cool-down (3-5 min): Stretching
+AEROBIC/CARDIO WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Focus on maintaining conversational pace for aerobic base building.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Easy Start"
+- Duration: 5 min
+- Format: Easy cardio, dynamic stretching
+- Coaching cues: "Gradually elevate heart rate. Scale: Adjust pace based on readiness."
+
+SECTION 2 - MAIN CARDIO (MUST have creative title):
+- Creative Title: Generate a cardio-focused name in ALL CAPS with quotes (examples: "THE AEROBIC ENGINE", "ZONE 2 JOURNEY", "CARDIO FOUNDATION")
+- Score Type: "Total Distance" or "For Time" or "Sustained Effort"
+- Duration: 25-30 min (majority of workout time)
+- Focus: Zone 2 (60-70% max HR) steady-state or intervals
+- Format: Sustained cardio (Row, Bike, Ski, Run) with distance_m (2000-5000m) or duration (10-20min blocks)
+- Coaching cues: Brief pacing focus (e.g., "Maintain conversational pace for aerobic development. Scale: Reduce duration or distance by 25%.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Active Recovery"
+- Duration: 3-5 min
+- Format: Easy movement, stretching
+- Coaching cues: "Bring heart rate down gradually. Scale: Based on recovery needs."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Focus on maintaining conversational pace
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'conditioning': `
-CONDITIONING/METCON STRUCTURE:
-- Warm-up (5-8 min): Dynamic movements, cardio ramp
-- Main Conditioning (20-25 min): High-intensity metabolic work
-  * HIIT format: Work:rest intervals (30:30, 40:20, Tabata 20:10)
-  * Circuit format: 3-5 movements, 3-4 rounds for time
-  * AMRAP format: Maximum rounds in set time
-  * Mix cardio + functional movements (Burpees, KB Swings, Box Jumps, Row, Bike)
-- Cool-down (5 min): Easy movement, breathing
+CONDITIONING/METCON WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Emphasize work capacity, high heart rate, minimal rest between movements.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 5-8 min
+- Format: Dynamic movements, cardio ramp
+- Coaching cues: "Elevate heart rate and prepare for high intensity. Scale: Reduce complexity or pace."
+
+SECTION 2 - MAIN CONDITIONING (MUST have creative title):
+- Creative Title: Generate a high-intensity name in ALL CAPS with quotes (examples: "THE METABOLIC INFERNO", "HEART RATE HAVOC", "CONDITIONING CHAOS")
+- Score Type: "For Time" or "AMRAP" or "Intervals" or "Score Rounds"
+- Duration: 20-25 min (majority of workout time)
+- Format options:
+  * HIIT: Work:rest intervals (30:30, 40:20, Tabata 20:10)
+  * Circuit: 3-5 movements, 3-4 rounds for time
+  * AMRAP: Maximum rounds in set time
+  * Mix cardio + functional movements (Burpees, KB Swings, Box Jumps, Row, Bike)
+- Coaching cues: Brief intensity guidance (e.g., "Push hard during work intervals, recover fully during rest. Scale: Reduce intensity or extend rest periods.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Active Recovery"
+- Duration: 5 min
+- Format: Easy movement, breathing exercises
+- Coaching cues: "Bring heart rate down safely. Scale: Based on recovery needs."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Emphasize work capacity and high heart rate
+- Keep coaching cues SHORT (1-2 sentences max)`,
     
     'gymnastics': `
-GYMNASTICS/BODYWEIGHT SKILL STRUCTURE:
-- Warm-up (8-10 min): Joint mobility, wrist prep, shoulder activation
-- Skill Work (15-20 min): Technical practice
-  * Focus: Pull-ups, Push-ups, Dips, Plank variations
-  * Format: Quality reps, short sets with full recovery
-  * Progressions: Negatives, holds, partial ROM, assisted variations
-- Strength/Conditioning (10-12 min): Bodyweight circuit
-  * Format: EMOM or AMRAP with gymnastics movements
-- Cool-down (5 min): Stretching, mobility
+GYMNASTICS/BODYWEIGHT WODIFY-STYLE STRUCTURE:
+You MUST create a workout with this EXACT 3-section structure:
 
-CRITICAL: Prioritize movement quality and control over volume. Include progressions and regressions.`,
+SECTION 1 - WARM-UP (no creative title):
+- Title: "Warm-Up" or "Movement Prep"
+- Duration: 8-10 min
+- Format: Joint mobility, wrist prep, shoulder activation
+- Coaching cues: "Prepare joints for bodyweight loading. Scale: Adjust range of motion based on mobility."
+
+SECTION 2 - MAIN SKILL WORK (MUST have creative title):
+- Creative Title: Generate a skill-focused name in ALL CAPS with quotes (examples: "THE CALISTHENICS CHALLENGE", "BODYWEIGHT MASTERY", "GYMNAST'S CRUCIBLE")
+- Score Type: "For Quality" or "EMOM" or "AMRAP" or "Score Rounds"
+- Duration: 15-20 min (majority of workout time)
+- Focus: Pull-ups, Push-ups, Dips, Plank variations, Handstand work
+- Format: Quality reps, short sets with full recovery OR EMOM/AMRAP with gymnastics movements
+- Coaching cues: Brief movement quality focus (e.g., "Prioritize strict form and full range of motion. Scale: Use bands, negatives, or reduce volume.")
+
+SECTION 3 - COOL-DOWN (no creative title):
+- Title: "Cool Down" or "Recovery"
+- Duration: 5 min
+- Format: Stretching, mobility work
+- Coaching cues: "Focus on flexibility and recovery. Scale: Based on comfort level."
+
+CRITICAL FORMATTING RULES:
+- Main section MUST have creative title in quotes and capitals
+- Prioritize movement quality and control over volume
+- Include progressions and regressions in coaching cues
+- Keep coaching cues SHORT (1-2 sentences max)`,
   };
 
   const styleGuide = styleGuidelines[style.toLowerCase()] || styleGuidelines['crossfit'];

@@ -26,11 +26,14 @@ Preferred communication style: Simple, everyday language.
   - **Style-Specific Programming**: Prompt engineering guides OpenAI to follow proper methodology for each style (CrossFit AMRAPs/EMOMs, Olympic Weightlifting focus on cleans/snatches, Powerlifting emphasis on squat/bench/deadlift, etc.)
   - **High Temperature (0.9)**: Configured for maximum workout variety - each generation produces unique programming
   - **Fallback**: Falls back to mock workout if OpenAI fails (mock generator only used as last resort)
-  - **Recent Changes (Oct 20, 2025)**: 
-    - Removed complex deterministic builders (buildCrossFitCF, buildOly, buildPowerlifting, etc.) that were causing routing bugs
-    - Eliminated triple normalization bug by removing premium generator routing layer
-    - Simplified from 3-tier fallback (premium → simple → mock) to OpenAI-first (OpenAI → mock)
-    - Provides better workout variety than previous deterministic approach
+  - **Recent Changes (Oct 21, 2025)**: 
+    - **Wodify-Style Enhancements Applied to ALL Categories**: Every workout category now features creative workout titles (ALL CAPS with quotes), appropriate score types, and coaching cues with embedded scaling suggestions
+    - **Categories Enhanced**: CrossFit, Olympic Weightlifting, Powerlifting, Strength, Endurance/HYROX, Conditioning, Gymnastics, Bodybuilding (Upper/Lower/Full Body), Mobility, Aerobic, Mixed
+    - **Exercise Display Improved**: UI now shows "15 Air Squats" format instead of "sets x reps" display
+    - **Speed Optimization**: Switched from gpt-4o to gpt-4o-mini for 2-3x faster generation
+    - Removed complex deterministic builders (buildCrossFitCF, buildOly, buildPowerlifting, etc.) that were causing routing bugs (Oct 20)
+    - Eliminated triple normalization bug by removing premium generator routing layer (Oct 20)
+    - Simplified from 3-tier fallback (premium → simple → mock) to OpenAI-first (OpenAI → mock) (Oct 20)
 
 ### Data Layer
 - **Database**: PostgreSQL with Drizzle ORM.
