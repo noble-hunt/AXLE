@@ -27,6 +27,11 @@ Preferred communication style: Simple, everyday language.
   - **High Temperature (0.9)**: Configured for maximum workout variety - each generation produces unique programming
   - **Fallback**: Falls back to mock workout if OpenAI fails (mock generator only used as last resort)
   - **Recent Changes (Oct 21, 2025)**: 
+    - **Exercise Volume Requirements Added**: ALL categories now require appropriate exercise counts (warm-up: 3-5 exercises, cool-down: 3-4 exercises, main: 3-7 exercises depending on category) based on user-provided workout examples
+    - **Powerlifting**: Main section now requires 4-6 exercises (primary lift + secondary compound + accessories) instead of just 1
+    - **Olympic Weightlifting**: Main section requires 5-7 exercises with percentage-based programming (Oly lifts + squats + pulling + accessories)
+    - **Bodybuilding Upper**: Main section requires 4-6 exercises with detailed set/rep schemes ("4x8 Each Side - Heavy")
+    - **All Other Categories**: Updated with category-appropriate exercise volume requirements
     - **Wodify-Style Enhancements Applied to ALL Categories**: Every workout category now features creative workout titles (ALL CAPS with quotes), appropriate score types, and coaching cues with embedded scaling suggestions
     - **Categories Enhanced**: CrossFit, Olympic Weightlifting, Powerlifting, Strength, Endurance/HYROX, Conditioning, Gymnastics, Bodybuilding (Upper/Lower/Full Body), Mobility, Aerobic, Mixed
     - **Exercise Display Improved**: UI now shows "15 Air Squats" format instead of "sets x reps" display
