@@ -37,18 +37,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // ACTION: update - Update single achievement
     if (action === 'update') {
-      const { id, progress, unlocked } = req.body;
+      const { id, progress, unlocked, completed, unlockedAt, description } = req.body;
       if (!id) return res.status(400).json({ message: 'Achievement ID required' });
 
       const updates: any = {};
       if (progress !== undefined) updates.progress = progress;
       if (unlocked !== undefined) updates.unlocked = unlocked;
+      if (completed !== undefined) updates.unlocked = completed; // Map completed to unlocked
+      if (unlockedAt !== undefined) updates.unlocked_at = unlockedAt;
+      if (description !== undefined) updates.description = description;
 
       const { data, error } = await supa
         .from('achievements')
         .update(updates)
         .eq('user_id', userId)
-        .eq('id', id)
+        .eq('name', id) // Achievements use 'name' as the identifier
         .select()
         .single();
 
@@ -68,7 +71,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           description: z.string().optional(),
           progress: z.number().min(0).max(100),
           completed: z.boolean().optional(),
-          unlocked: z.boolean().optional()
+          unlocked: z.boolean().optional(),
+          unlockedAt: z.any().optional()
         }))
       });
 
@@ -76,15 +80,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const results = await Promise.all(
         validatedData.achievements.map(async (achievement) => {
+          const upsertData: any = {
+            user_id: userId,
+            name: achievement.id,
+            description: achievement.description || '',
+            progress: achievement.progress,
+            unlocked: achievement.completed || achievement.unlocked || false
+          };
+          
+          // Add unlocked_at if provided
+          if (achievement.unlockedAt) {
+            upsertData.unlocked_at = achievement.unlockedAt;
+          }
+          
           const { data, error } = await supa
             .from('achievements')
-            .upsert({
-              user_id: userId,
-              name: achievement.id,
-              description: achievement.description || '',
-              progress: achievement.progress,
-              unlocked: achievement.completed || achievement.unlocked || false
-            })
+            .upsert(upsertData)
             .select()
             .single();
 

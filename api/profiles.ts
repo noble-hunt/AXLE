@@ -15,8 +15,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = userData.user.id;
     const supa = userClient(token);
 
-    // Action-based routing
-    const action = req.body?.action || 'update';
+    // Action-based routing - support both body and query parameter
+    const action = req.body?.action || (req.query?.action as string) || (req.method === 'GET' ? 'get' : 'update');
+
+    // ACTION: get - Get profile data
+    if (action === 'get') {
+      const { data: profile, error } = await supa
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Failed to fetch profile:', error);
+        return res.status(404).json({ message: 'Profile not found' });
+      }
+
+      return res.status(200).json({ profile });
+    }
 
     // ACTION: providers - Get or update auth providers
     if (action === 'providers') {
@@ -26,11 +42,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!provider) {
         const { data: profile } = await supa
           .from('profiles')
-          .select('providers')
+          .select('*')
           .eq('user_id', userId)
           .single();
 
-        return res.status(200).json({ providers: profile?.providers || [] });
+        return res.status(200).json({ profile: profile || { providers: [] } });
       }
 
       // Link new provider
@@ -50,10 +66,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .single();
 
         if (error) return res.status(500).json({ message: 'Failed to link provider' });
-        return res.status(200).json(data);
+        return res.status(200).json({ profile: data });
       }
 
-      return res.status(200).json(profile);
+      return res.status(200).json({ profile });
     }
 
     // ACTION: upsert - Upsert profile
@@ -80,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ message: 'Failed to save profile' });
       }
 
-      return res.status(200).json(data);
+      return res.status(200).json({ profile: data });
     }
 
     // ACTION: update - Update profile (default)
@@ -108,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ message: 'Failed to update profile' });
       }
 
-      return res.status(200).json(data);
+      return res.status(200).json({ profile: data });
     }
 
     return res.status(400).json({ message: 'Invalid action' });
