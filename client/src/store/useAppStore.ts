@@ -906,7 +906,7 @@ export const useAppStore = create<AppState>()(
           };
           
           // Upsert profile via server API
-          const result = await apiRequest('POST', '/api/profiles/upsert', profileData);
+          const result = await apiRequest('POST', '/api/profiles', { action: 'upsert', ...profileData });
           const responseData = await result.json();
             
           if (!result.ok) {
@@ -1256,6 +1256,7 @@ export const useAppStore = create<AppState>()(
           try {
             const { apiRequest } = await import('@/lib/queryClient');
             await apiRequest('POST', '/api/prs', {
+              action: 'create',
               exercise: pr.exercise,
               movement: pr.movement,
               movementCategory: pr.movementCategory,
@@ -1295,7 +1296,7 @@ export const useAppStore = create<AppState>()(
         if (isAuthenticated) {
           try {
             const { apiRequest } = await import('@/lib/queryClient');
-            await apiRequest('PUT', `/api/prs/${id}`, updates);
+            await apiRequest('POST', '/api/prs', { action: 'update', id, ...updates });
           } catch (error) {
             console.error('Failed to update PR in database:', error);
             // Rollback optimistic update on error
@@ -1325,7 +1326,7 @@ export const useAppStore = create<AppState>()(
         if (isAuthenticated) {
           try {
             const { apiRequest } = await import('@/lib/queryClient');
-            await apiRequest('DELETE', `/api/prs/${id}`);
+            await apiRequest('POST', '/api/prs', { action: 'delete', id });
           } catch (error) {
             console.error('Failed to delete PR from database:', error);
             // Rollback optimistic update on error
@@ -1415,9 +1416,11 @@ export const useAppStore = create<AppState>()(
         if (isAuthenticated) {
           try {
             const { apiRequest } = await import('@/lib/queryClient');
-            await apiRequest('PUT', `/api/achievements/${id}`, {
-              completed: true,
-              unlockedAt: new Date()
+            await apiRequest('POST', '/api/achievements', {
+              action: 'update',
+              id,
+              progress: 100,
+              unlocked: true
             });
           } catch (error) {
             console.error('Failed to unlock achievement in database:', error);
@@ -1457,7 +1460,8 @@ export const useAppStore = create<AppState>()(
           try {
             const { apiRequest } = await import('@/lib/queryClient');
             // Batch update newly unlocked achievements
-            await apiRequest('PUT', '/api/achievements/batch', {
+            await apiRequest('POST', '/api/achievements', {
+              action: 'batch',
               achievements: newlyUnlocked.map(a => ({
                 id: a.id,
                 completed: true,
@@ -1644,16 +1648,11 @@ export const useAppStore = create<AppState>()(
       syncProviderNow: async (providerId: string, params?: Record<string, any>) => {
         try {
           const { apiRequest } = await import('@/lib/queryClient');
-          const url = new URL('/api/health/sync', window.location.origin);
           
-          // Add query parameters for dev toggles
-          if (params) {
-            Object.entries(params).forEach(([key, value]) => {
-              url.searchParams.append(key, value.toString());
-            });
-          }
-          
-          const response = await apiRequest('POST', url.pathname + url.search);
+          const response = await apiRequest('POST', '/api/health', {
+            action: 'sync',
+            ...params
+          });
           const data = await response.json();
           
           if (data.report) {
@@ -1676,7 +1675,7 @@ export const useAppStore = create<AppState>()(
       fetchReports: async () => {
         try {
           const { apiRequest } = await import('@/lib/queryClient');
-          const response = await apiRequest('GET', '/api/health/reports');
+          const response = await apiRequest('POST', '/api/health', { action: 'reports' });
           const data = await response.json();
           
           const transformedReports = data.map((report: any) => ({
@@ -1845,10 +1844,10 @@ export const useAppStore = create<AppState>()(
 
       loadHealthCharts: async (days = 14) => {
         try {
-          const { authFetch } = await import('@/lib/authFetch');
-          const r = await authFetch(`/api/health/metrics?days=${days}`);
-          if (!r.ok) return;
-          const { points } = await r.json();
+          const { apiRequest } = await import('@/lib/queryClient');
+          const r = await apiRequest('POST', '/api/health', { action: 'metrics', days });
+          const rawData = await r.json();
+          const points = rawData;
           const keys = ["axle_health_score","vitality_score","performance_potential","circadian_alignment","energy_systems_balance","hrv","resting_hr","sleep_score","fatigue_score"];
           const charts: any = {};
           for (const k of keys) charts[k] = points.map((p: any) => ({ date: p.date, value: (p[k] ?? null) }));

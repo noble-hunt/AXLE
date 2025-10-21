@@ -40,7 +40,8 @@ export default function EditProfile() {
       }
 
       // Update via PATCH endpoint that supports all profile fields including avatarUrl
-      const result = await apiRequest('PATCH', '/api/profiles', {
+      const result = await apiRequest('POST', '/api/profiles', {
+        action: 'update',
         firstName: updateData.firstName,
         lastName: updateData.lastName, 
         dateOfBirth: updateData.dateOfBirth
