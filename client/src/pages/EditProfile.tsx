@@ -240,7 +240,7 @@ export default function EditProfile() {
               
               <div className="flex justify-start pt-2">
                 <Button 
-                  variant="outline"
+                  variant="secondary"
                   onClick={handlePasswordReset} 
                   disabled={isResettingPassword || !resetEmail.trim()}
                   className="min-w-[160px]"
