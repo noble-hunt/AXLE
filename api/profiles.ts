@@ -1,4 +1,4 @@
-// api/profiles.ts - Profile management handler
+// api/profiles.ts - Profile management handler (action-based routing)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { admin, userClient, bearer, validateEnvForUser } from '../lib/api-helpers/supabase';
 
@@ -15,22 +15,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = userData.user.id;
     const supa = userClient(token);
 
-    // GET /api/profiles/providers - Get auth providers
-    if (req.url?.includes('/providers') && req.method === 'GET') {
-      const { data: profile } = await supa
-        .from('profiles')
-        .select('providers')
-        .eq('user_id', userId)
-        .single();
+    // Action-based routing
+    const action = req.body?.action || 'update';
 
-      return res.status(200).json({ providers: profile?.providers || [] });
-    }
-
-    // POST /api/profiles/providers - Link auth provider
-    if (req.url?.includes('/providers') && req.method === 'POST') {
+    // ACTION: providers - Get or update auth providers
+    if (action === 'providers') {
       const { provider } = req.body;
-      if (!provider) return res.status(400).json({ message: 'Provider required' });
 
+      // Get providers if no provider specified
+      if (!provider) {
+        const { data: profile } = await supa
+          .from('profiles')
+          .select('providers')
+          .eq('user_id', userId)
+          .single();
+
+        return res.status(200).json({ providers: profile?.providers || [] });
+      }
+
+      // Link new provider
       const { data: profile } = await supa
         .from('profiles')
         .select('providers')
@@ -53,8 +56,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(profile);
     }
 
-    // PATCH /api/profiles - Update profile
-    if (req.method === 'PATCH') {
+    // ACTION: upsert - Upsert profile
+    if (action === 'upsert') {
+      const profileData: any = {
+        user_id: userId
+      };
+
+      if (req.body.username) profileData.username = req.body.username;
+      if (req.body.firstName) profileData.first_name = req.body.firstName;
+      if (req.body.lastName) profileData.last_name = req.body.lastName;
+      if (req.body.avatarUrl) profileData.avatar_url = req.body.avatarUrl;
+      if (req.body.dateOfBirth) profileData.date_of_birth = req.body.dateOfBirth;
+      if (req.body.providers) profileData.providers = req.body.providers;
+
+      const { data, error } = await supa
+        .from('profiles')
+        .upsert(profileData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to upsert profile:', error);
+        return res.status(500).json({ message: 'Failed to save profile' });
+      }
+
+      return res.status(200).json(data);
+    }
+
+    // ACTION: update - Update profile (default)
+    if (action === 'update') {
       const updates: any = {};
       
       if (req.body.username) updates.username = req.body.username;
@@ -81,57 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data);
     }
 
-    // POST /api/profiles/upsert - Upsert profile
-    if (req.url?.includes('/upsert') && req.method === 'POST') {
-      const profileData: any = {
-        user_id: userId
-      };
-
-      if (req.body.username) profileData.username = req.body.username;
-      if (req.body.firstName) profileData.first_name = req.body.firstName;
-      if (req.body.lastName) profileData.last_name = req.body.lastName;
-      if (req.body.avatarUrl) profileData.avatar_url = req.body.avatarUrl;
-      if (req.body.dateOfBirth) profileData.date_of_birth = req.body.dateOfBirth;
-      if (req.body.providers) profileData.providers = req.body.providers;
-
-      const { data, error } = await supa
-        .from('profiles')
-        .upsert(profileData)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Failed to upsert profile:', error);
-        return res.status(500).json({ message: 'Failed to save profile' });
-      }
-
-      return res.status(200).json(data);
-    }
-
-    // PUT /api/profiles - Update profile (alternative endpoint)
-    if (req.method === 'PUT') {
-      const updates: any = {};
-      
-      if (req.body.username) updates.username = req.body.username;
-      if (req.body.firstName) updates.first_name = req.body.firstName;
-      if (req.body.lastName) updates.last_name = req.body.lastName;
-
-      const { data, error } = await supa
-        .from('profiles')
-        .update(updates)
-        .eq('user_id', userId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Failed to update profile:', error);
-        return res.status(500).json({ message: 'Failed to update profile' });
-      }
-
-      return res.status(200).json(data);
-    }
-
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return res.status(400).json({ message: 'Invalid action' });
   } catch (error: any) {
     console.error('Profiles error:', error);
     return res.status(500).json({ message: 'Internal server error' });

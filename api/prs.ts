@@ -1,4 +1,4 @@
-// api/prs.ts - Personal Records handler
+// api/prs.ts - Personal Records handler (action-based routing)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { admin, userClient, bearer, validateEnvForUser } from '../lib/api-helpers/supabase';
 import { z } from 'zod';
@@ -16,8 +16,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = userData.user.id;
     const supa = userClient(token);
 
-    // GET /api/prs - List all personal records
-    if (req.method === 'GET') {
+    // Action-based routing
+    const action = req.body?.action || (req.method === 'GET' ? 'list' : 'create');
+
+    // ACTION: list - Get all personal records
+    if (action === 'list') {
       const { data, error } = await supa
         .from('prs')
         .select('*')
@@ -28,8 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data || []);
     }
 
-    // POST /api/prs - Create new personal record
-    if (req.method === 'POST') {
+    // ACTION: create - Create new personal record
+    if (action === 'create') {
       const prSchema = z.object({
         exercise: z.string().optional(),
         movement: z.string().optional(),
@@ -64,9 +67,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data);
     }
 
-    // PUT /api/prs/:id - Update personal record
-    if (req.method === 'PUT') {
-      const id = req.url?.split('/').pop();
+    // ACTION: update - Update personal record
+    if (action === 'update') {
+      const { id, ...updates } = req.body;
       if (!id) return res.status(400).json({ message: 'PR ID required' });
 
       const updateSchema = z.object({
@@ -76,22 +79,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         date: z.string().optional()
       });
 
-      const validatedData = updateSchema.parse(req.body);
-      const updates: any = {};
+      const validatedData = updateSchema.parse(updates);
+      const dbUpdates: any = {};
 
       if (validatedData.weight !== undefined) {
-        updates.weight_kg = validatedData.unit === 'LBS' ? validatedData.weight / 2.20462 : validatedData.weight;
+        dbUpdates.weight_kg = validatedData.unit === 'LBS' ? validatedData.weight / 2.20462 : validatedData.weight;
       }
       if (validatedData.reps !== undefined) {
-        updates.rep_max = validatedData.reps;
+        dbUpdates.rep_max = validatedData.reps;
       }
       if (validatedData.date) {
-        updates.date = validatedData.date;
+        dbUpdates.date = validatedData.date;
       }
 
       const { data, error } = await supa
         .from('prs')
-        .update(updates)
+        .update(dbUpdates)
         .eq('user_id', userId)
         .eq('id', id)
         .select()
@@ -105,9 +108,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data);
     }
 
-    // DELETE /api/prs/:id - Delete personal record
-    if (req.method === 'DELETE') {
-      const id = req.url?.split('/').pop();
+    // ACTION: delete - Delete personal record
+    if (action === 'delete') {
+      const { id } = req.body;
       if (!id) return res.status(400).json({ message: 'PR ID required' });
 
       const { error } = await supa
@@ -124,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ message: 'Personal record deleted successfully' });
     }
 
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return res.status(400).json({ message: 'Invalid action' });
   } catch (error: any) {
     console.error('PRs error:', error);
     if (error.name === 'ZodError') {
