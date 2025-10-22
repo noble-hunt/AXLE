@@ -11,14 +11,10 @@
       "maxDuration": 30
     }
   },
-  "routes": [
+  "rewrites": [
     { 
-      "src": "/api/(.*)", 
-      "dest": "/api/[...axle]" 
-    },
-    { 
-      "src": "/(.*)", 
-      "dest": "/$1" 
+      "source": "/api/:path*", 
+      "destination": "/api/[...axle]" 
     }
   ],
   "cleanUrls": true,
