@@ -42,6 +42,7 @@ import { suggest } from "./routes/suggest";
 import debugStyleRouter from "./routes/_debug-style";
 import debugTraceRouter from "./routes/_debug-trace";
 import debugParseRouter from "./routes/_debug-parse";
+import debugAiRouter from "./routes/_debug-ai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize workout block library
@@ -153,10 +154,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug endpoint to verify AI configuration and environment flags
-  app.get('/api/_debug/ai', (_req, res) => {
-    res.json({ ok: true, ...ENV_DEBUG });
-  });
+  // Debug routes
+  app.use(debugAiRouter);
+  app.use(debugStyleRouter);
+  app.use(debugTraceRouter);
+  app.use(debugParseRouter);
 
   // Dev route for simulating week workout plans
   app.get("/api/dev/workouts/simulate", async (req, res) => {
@@ -699,18 +701,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // ACTION: upsert - Upsert profile
       if (action === 'upsert') {
-        const validatedData = upsertProfileSchema.parse(req.body);
-        const { updateProfile, getProfile } = await import("./dal/profiles");
-        
-        let profile = await getProfile(authReq.user.id);
-        if (!profile) {
-          profile = await updateProfile(authReq.user.id, validatedData);
-        } else {
-          profile = await updateProfile(authReq.user.id, validatedData);
+        try {
+          const validatedData = upsertProfileSchema.parse(req.body);
+          const { updateProfile, getProfile } = await import("./dal/profiles");
+          
+          let profile = await getProfile(authReq.user.id);
+          if (!profile) {
+            profile = await updateProfile(authReq.user.id, validatedData);
+          } else {
+            profile = await updateProfile(authReq.user.id, validatedData);
+          }
+          
+          if (!profile) return res.status(500).json({ message: 'Failed to save profile' });
+          return res.status(200).json({ profile });
+        } catch (e: any) {
+          console.error('[profile/upsert] error:', { msg: e?.message, stack: e?.stack });
+          return res.status(500).json({
+            ok: false,
+            error: { code: 'PROFILE_UPSERT_FAILED', message: 'Could not upsert profile' }
+          });
         }
-        
-        if (!profile) return res.status(500).json({ message: 'Failed to save profile' });
-        return res.status(200).json({ profile });
       }
 
       // ACTION: update - Update profile (default)

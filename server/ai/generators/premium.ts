@@ -3064,6 +3064,14 @@ export async function generatePremiumWorkout(
   retryCount: number = 0
 ): Promise<PremiumWorkout> {
   try {
+    // Validate OpenAI API key is available
+    if (!process.env.OPENAI_API_KEY) {
+      const e: any = new Error('OPENAI_API_KEY is not set in this environment');
+      e.code = 'NO_OPENAI_KEY';
+      e.httpStatus = 502;
+      throw e;
+    }
+    
     // Premium entry: validate style against pattern pack keys
     // Check multiple locations: direct fields, context, and meta
     const raw = (request as any)?.style ?? 
@@ -3096,9 +3104,10 @@ export async function generatePremiumWorkout(
     console.warn('[PREMIUM] entry', { raw, style, hasPack: !!pack, seed: seed || 'auto', retryCount });
 
     if (!pack) {
-      const e: any = new Error(`style_unsupported:${raw || 'empty'}`);
-      e.code = 'style_unsupported';
-      e.details = { received: raw, normalized: style, available: Object.keys(PACKS) };
+      const e: any = new Error(`Unsupported style "${style}"`);
+      e.code = 'STYLE_UNSUPPORTED';
+      e.httpStatus = 400;
+      e.meta = { style, raw, supported: Object.keys(PACKS) };
       throw e;
     }
 

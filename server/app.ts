@@ -29,6 +29,7 @@ import { suggest } from "./routes/suggest";
 import debugStyleRouter from "./routes/_debug-style";
 import debugTraceRouter from "./routes/_debug-trace";
 import debugParseRouter from "./routes/_debug-parse";
+import debugAiRouter from "./routes/_debug-ai";
 
 // Initialize Sentry error tracking
 initSentry();
@@ -105,6 +106,7 @@ initializeBlockLibrary();
 app.use(debugStyleRouter);
 app.use(debugTraceRouter);
 app.use(debugParseRouter);
+app.use(debugAiRouter);
 
 // Mount the workouts router
 app.use("/api/workouts", workouts);
