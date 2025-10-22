@@ -34,6 +34,5 @@ export default async function (req: VercelRequest, res: VercelResponse) {
 
 // Vercel configuration
 export const config = {
-  runtime: 'nodejs20.x',
   maxDuration: 30,
 };
