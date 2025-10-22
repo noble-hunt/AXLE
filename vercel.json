@@ -1,19 +1,26 @@
 {
+  "version": 2,
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
+  "functions": {
+    "api/[...axle].ts": {
+      "runtime": "nodejs20.x",
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    { 
+      "src": "/api/(.*)", 
+      "dest": "/api/[...axle]" 
+    },
+    { 
+      "src": "/(.*)", 
+      "dest": "/$1" 
     }
   ],
   "cleanUrls": true,
-  "trailingSlash": false,
-  "functions": {
-    "api/**/*.ts": {
-      "includeFiles": "lib/api-helpers/**"
-    }
-  }
+  "trailingSlash": false
 }
