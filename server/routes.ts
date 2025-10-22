@@ -48,15 +48,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize workout block library
   initializeBlockLibrary();
   
-  // Debug route for style normalization
-  app.use(debugStyleRouter);
-  
-  // Debug route for trace diagnostics
-  app.use(debugTraceRouter);
-  
-  // Debug route for schema parsing
-  app.use(debugParseRouter);
-  
   // Dev route for testing workout library
   app.get("/api/dev/workouts/library", (req, res) => {
     try {
