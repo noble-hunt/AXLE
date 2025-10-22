@@ -99,7 +99,7 @@ export async function isPushNotificationsEnabled(): Promise<boolean> {
  */
 export async function sendTestPushNotification(): Promise<boolean> {
   try {
-    const result = await httpJSON('api/push/test', {
+    const result = await httpJSON('/push/test', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ export async function sendTestPushNotification(): Promise<boolean> {
  */
 export async function enableNotificationTopic(topic: string, enabled: boolean = true): Promise<boolean> {
   try {
-    const result = await httpJSON('api/notifications/topics/enable', {
+    const result = await httpJSON('/notifications/topics/enable', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

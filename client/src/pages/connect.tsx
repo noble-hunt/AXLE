@@ -178,11 +178,10 @@ export default function Connect() {
     setBusy(providerId)
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
-      const r = await httpJSON(`api/connect/${providerId}/start`, {
+      const { redirectUrl, error, connected } = await httpJSON(`/connect/${providerId}/start`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token ?? ''}` }
       })
-      const { redirectUrl, error, connected } = await r.json()
       if (error) throw new Error(error)
       
       if (redirectUrl) {
@@ -210,12 +209,10 @@ export default function Connect() {
     setBusy(providerId)
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
-      const r = await httpJSON(`api/connect/${providerId}/disconnect`, {
+      await httpJSON(`/connect/${providerId}/disconnect`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token ?? ''}` }
       })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j?.error || 'disconnect failed')
       
       await loadProviders() // Refresh the list
       toast({
@@ -243,7 +240,7 @@ export default function Connect() {
       } : undefined
       
       const token = (await supabase.auth.getSession()).data.session?.access_token
-      const r = await httpJSON('api/health/sync', {
+      await httpJSON('/health/sync', {
         method: 'POST',
         headers: { 
           'content-type': 'application/json', 
@@ -251,8 +248,6 @@ export default function Connect() {
         },
         body: JSON.stringify({ provider: providerId, ...params })
       })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j?.error || 'sync failed')
       
       await loadProviders() // Refresh to update last sync time
       await fetchReports() // Refresh health dashboard data
@@ -425,11 +420,10 @@ export default function Connect() {
                   setBusy(provider.id)
                   try {
                     const token = (await supabase.auth.getSession()).data.session?.access_token
-                    const r = await httpJSON(`api/connect/${provider.id}/start`, {
+                    const { redirectUrl, error, connected } = await httpJSON(`/connect/${provider.id}/start`, {
                       method: 'POST',
                       headers: { Authorization: `Bearer ${token ?? ''}` }
                     })
-                    const { redirectUrl, error, connected } = await r.json()
                     if (error) throw new Error(error)
                     
                     if (redirectUrl) {
@@ -478,12 +472,10 @@ export default function Connect() {
                   setBusy(provider.id)
                   try {
                     const token = (await supabase.auth.getSession()).data.session?.access_token
-                    const r = await httpJSON(`api/connect/${provider.id}/disconnect`, {
+                    await httpJSON(`/connect/${provider.id}/disconnect`, {
                       method: 'POST',
                       headers: { Authorization: `Bearer ${token ?? ''}` }
                     })
-                    const j = await r.json()
-                    if (!r.ok) throw new Error(j?.error || 'disconnect failed')
                     
                     await loadProviders()
                     toast({
@@ -672,13 +664,15 @@ export default function Connect() {
                 className="btn bg-orange-500 hover:bg-orange-600 text-white"
                 onClick={async () => {
                   try {
-                    const token = (await supabase.auth.getSession()).data.session?.access_token
-                    const r = await fetch('/api/connect/providers', {
-                      headers: { Authorization: `Bearer ${token ?? ''}` }
-                    })
-                    const data = await r.json()
-                    setDebugData(data)
-                    setDebugDialogOpen(true)
+                    const { api } = await import("@/lib/http");
+                    const token = (await supabase.auth.getSession()).data.session?.access_token;
+                    const headers: Record<string, string> = {
+                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    };
+                    const res = await fetch(api('/connect/providers'), { headers });
+                    const data = await res.json();
+                    setDebugData(data);
+                    setDebugDialogOpen(true);
                   } catch (error) {
                     toast({
                       title: "Debug Failed",

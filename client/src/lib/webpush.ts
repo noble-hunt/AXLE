@@ -76,7 +76,7 @@ export async function subscribeToWebPush(vapidPublicKey: string): Promise<WebPus
 
     // Register subscription with server
     try {
-      await httpJSON('api/push/subscribe', {
+      await httpJSON('/push/subscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,7 +119,7 @@ export async function unsubscribeFromWebPush(): Promise<boolean> {
       const subscriptionJson = subscription.toJSON();
       if (subscriptionJson.endpoint) {
         try {
-          await httpJSON('api/push/unsubscribe', {
+          await httpJSON('/push/unsubscribe', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

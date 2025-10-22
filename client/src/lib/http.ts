@@ -10,6 +10,18 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Build an API URL from a relative path.
+ * Uses VITE_API_ORIGIN env var if set, otherwise uses relative /api paths.
+ * 
+ * @example
+ * api('/workouts/preview') // => '/api/workouts/preview' (or https://api.example.com/api/workouts/preview)
+ * api('workouts/preview')  // => '/api/workouts/preview'
+ */
+export function api(path: string): string {
+  return buildApiUrl(path);
+}
+
 function buildApiUrl(resourcePath: string) {
   if (!resourcePath || typeof resourcePath !== "string") {
     throw new HttpError("Invalid API path (empty)", 0);

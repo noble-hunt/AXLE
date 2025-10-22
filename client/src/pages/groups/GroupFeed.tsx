@@ -52,7 +52,7 @@ import { supabase } from "@/lib/supabase";
 
 // Signed upload helper function
 async function getSignedUpload(groupId: string, filename: string) {
-  return await httpJSON('api/storage/group-photos/signed-upload', {
+  return await httpJSON('/storage/group-photos/signed-upload', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ groupId, filename }),
