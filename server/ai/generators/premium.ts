@@ -1093,7 +1093,7 @@ async function generateCoachingNotes(blocks: any[]): Promise<string[]> {
     );
     
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       temperature: 0.2,
       max_tokens: 400,
       response_format: { type: 'json_object' },
