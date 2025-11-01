@@ -1173,10 +1173,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: authReq.user.id,
           movement,
           category,
-          value: Number(value),
+          value: String(value), // Drizzle numeric fields expect strings
           unit: unit.toLowerCase(),
           repMax: req.body.repMax || req.body.reps || null,
-          weightKg: unit.toLowerCase() === 'lbs' ? Number(value) / 2.20462 : Number(value),
+          weightKg: unit.toLowerCase() === 'lbs' ? String(Number(value) / 2.20462) : String(value),
           notes: req.body.notes || null,
           workoutId: req.body.workoutId || null,
           date: req.body.date || new Date().toISOString().split('T')[0]
