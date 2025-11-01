@@ -1257,16 +1257,15 @@ export const useAppStore = create<AppState>()(
             const { apiRequest } = await import('@/lib/queryClient');
             await apiRequest('POST', '/api/prs', {
               action: 'create',
-              exercise: pr.exercise,
-              movement: pr.movement,
-              movementCategory: pr.movementCategory,
-              weight: pr.weight,
-              reps: pr.reps,
-              repMax: pr.repMax,
+              movement: pr.movement || pr.exercise,
+              category: pr.category,
               value: pr.value,
               unit: pr.unit,
-              date: pr.date,
-              notes: pr.notes
+              repMax: pr.repMax,
+              weightKg: pr.weightKg,
+              notes: pr.notes,
+              workoutId: pr.workoutId,
+              date: pr.date
             });
           } catch (error) {
             console.error('Failed to sync PR to database:', error);
