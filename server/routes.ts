@@ -1225,6 +1225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: 'Invalid action' });
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error('ZOD VALIDATION ERROR:', JSON.stringify(error.issues, null, 2));
         return res.status(400).json({ message: "Invalid PR data", errors: error.issues });
       }
       console.error("PRs action error:", error);
