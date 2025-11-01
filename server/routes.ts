@@ -1167,7 +1167,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const value = req.body.value || req.body.weight;
         const unit = req.body.unit || 'lbs';
         
-        const validatedData = insertPRSchema.parse({
+        console.log('PR CREATE REQUEST:', JSON.stringify(req.body, null, 2));
+        
+        const dataToValidate = {
           userId: authReq.user.id,
           movement,
           category,
@@ -1178,7 +1180,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           notes: req.body.notes || null,
           workoutId: req.body.workoutId || null,
           date: req.body.date || new Date().toISOString().split('T')[0]
-        });
+        };
+        
+        console.log('DATA TO VALIDATE:', JSON.stringify(dataToValidate, null, 2));
+        
+        const validatedData = insertPRSchema.parse(dataToValidate);
         
         const { insertPR } = await import("./dal/prs");
         const pr = await insertPR({
