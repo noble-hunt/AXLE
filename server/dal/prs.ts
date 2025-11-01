@@ -4,8 +4,12 @@ export interface InsertPRParams {
   userId: string;
   category: string;
   movement: string;
-  repMax: 1 | 3 | 5 | 10;
-  weightKg: number;
+  value: number;
+  unit: string;
+  repMax?: number | null;
+  weightKg?: number | null;
+  notes?: string | null;
+  workoutId?: string | null;
   date?: string;
 }
 
@@ -21,8 +25,12 @@ export async function insertPR(params: InsertPRParams) {
       user_id: params.userId,
       category: params.category,
       movement: params.movement,
-      rep_max: params.repMax,
-      weight_kg: params.weightKg,
+      value: params.value,
+      unit: params.unit,
+      rep_max: params.repMax || null,
+      weight_kg: params.weightKg || null,
+      notes: params.notes || null,
+      workout_id: params.workoutId || null,
       date: params.date || new Date().toISOString().split('T')[0]
     })
     .select()
@@ -70,4 +78,27 @@ export async function deletePR(userId: string, id: string) {
   }
 
   return true;
+}
+
+// Get PR history for a specific movement (for graphing progress over time)
+export async function getPRHistory(userId: string, movement: string, category?: string) {
+  let query = supabaseAdmin
+    .from('prs')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('movement', movement);
+
+  if (category) {
+    query = query.eq('category', category);
+  }
+
+  const { data, error } = await query
+    .order('date', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to get PR history: ${error.message}`);
+  }
+
+  return data || [];
 }

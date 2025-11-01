@@ -223,25 +223,26 @@ export interface WorkoutRequest {
 
 export interface PR {
   id: string;
-  // Legacy fields for backwards compatibility
-  exercise: string;
-  category: Category;
-  weight: number; // in pounds
-  reps?: number;
+  // Core fields (matching database schema)
+  movement: string | Movement; // Movement name or enum
+  category: string | MovementCategory; // Category as string or enum
+  value: number; // The PR value (weight, time, distance, reps, etc.)
+  unit: string; // Unit: lbs, kg, seconds, meters, reps, calories, etc.
   
-  // New comprehensive movement tracking fields
-  movement?: Movement; // Specific movement from movement enums
-  movementCategory?: MovementCategory; // Powerlifting, Olympic Weightlifting, etc.
-  repMax?: RepMaxType; // 1RM, 3RM, 5RM, 10RM - optional for non-weight based
-  value?: number | string; // number for weight/reps/height, string for time (mm:ss)
-  unit?: Unit; // kg, lbs, reps, time, inches, cm
+  // Optional fields
+  repMax?: number; // Optional: 1,3,5,10 for strength PRs
+  weightKg?: number; // Optional: weight in kg for backward compatibility
   notes?: string; // Additional notes for the PR
+  workoutId?: string; // Link to workout where PR was achieved
+  date: Date | string;
+  createdAt: Date | string;
   
-  // Common fields
-  date: Date;
-  workoutId?: string;
+  // Legacy fields for backwards compatibility (deprecated)
+  exercise?: string;
+  weight?: number; // in pounds
+  reps?: number;
+  movementCategory?: MovementCategory;
   previousPR?: number; // previous weight for comparison
-  createdAt: Date;
 }
 
 // Enhanced PR interface for new movement tracking system

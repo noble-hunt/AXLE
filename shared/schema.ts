@@ -58,15 +58,23 @@ export const workoutFeedback = pgTable("workout_feedback", {
   uniqueUserWorkout: uniqueIndex("workout_feedback_user_workout_unique").on(table.userId, table.workoutId),
 }));
 
-// PRS (Personal Records)
+// PRS (Personal Records) - Historical tracking for all PR types
 export const prs = pgTable("prs", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
   category: text("category").notNull(),
   movement: text("movement").notNull(),
-  repMax: smallint("rep_max").notNull(), // Check constraint: in (1,3,5,10)
-  weightKg: numeric("weight_kg").notNull(),
+  // Flexible PR value system
+  value: numeric("value").notNull(), // The PR value (weight, time, distance, reps, etc.)
+  unit: text("unit").notNull(), // Unit: lbs, kg, seconds, meters, reps, calories, etc.
+  // Legacy fields (optional for backward compatibility)
+  repMax: smallint("rep_max"), // Optional: 1,3,5,10 for strength PRs
+  weightKg: numeric("weight_kg"), // Optional: weight in kg for backward compatibility
+  // Metadata
+  notes: text("notes"),
+  workoutId: uuid("workout_id"), // Optional: link to workout where PR was achieved
   date: date("date").notNull().default(sql`current_date`),
+  createdAt: timestamp("created_at").defaultNow().notNull(), // For historical tracking
 });
 
 // ACHIEVEMENTS
@@ -335,6 +343,14 @@ export const insertWorkoutSchema = createInsertSchema(workouts).omit({
 
 export const insertPRSchema = createInsertSchema(prs).omit({
   id: true,
+  createdAt: true,
+}).extend({
+  // Make optional fields truly optional
+  repMax: z.number().int().min(1).max(10).optional().nullable(),
+  weightKg: z.number().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  workoutId: z.string().uuid().optional().nullable(),
+  date: z.string().optional(), // Optional, defaults to current date
 });
 
 export const insertAchievementSchema = createInsertSchema(achievements).omit({

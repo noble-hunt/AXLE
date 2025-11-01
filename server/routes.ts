@@ -1091,13 +1091,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const authReq = req as AuthenticatedRequest;
       
-      // Validate request body with Zod schema using camelCase fields
+      // Extract values for new flexible schema
+      const movement = req.body.exercise || req.body.movement;
+      const category = req.body.category || req.body.movementCategory;
+      const value = req.body.value || req.body.weight;
+      const unit = req.body.unit || 'lbs';
+      
       const validatedData = insertPRSchema.parse({
-        movement: req.body.exercise || req.body.movement,
-        category: req.body.category || req.body.movementCategory,
-        weightKg: req.body.unit === 'LBS' ? req.body.weight / 2.20462 : req.body.weight,
-        repMax: req.body.reps || req.body.repMax,
-        date: req.body.date
+        userId: authReq.user.id,
+        movement,
+        category,
+        value: Number(value),
+        unit: unit.toLowerCase(),
+        repMax: req.body.repMax || req.body.reps || null,
+        weightKg: unit.toLowerCase() === 'lbs' ? Number(value) / 2.20462 : Number(value),
+        notes: req.body.notes || null,
+        workoutId: req.body.workoutId || null,
+        date: req.body.date || new Date().toISOString().split('T')[0]
       });
       
       const { insertPR } = await import("./dal/prs");
@@ -1105,9 +1115,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: authReq.user.id,
         category: validatedData.category,
         movement: validatedData.movement,
-        repMax: validatedData.repMax as 1 | 3 | 5 | 10,
-        weightKg: Number(validatedData.weightKg),
-        date: validatedData.date ? new Date(validatedData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+        value: Number(validatedData.value),
+        unit: validatedData.unit,
+        repMax: validatedData.repMax,
+        weightKg: validatedData.weightKg,
+        notes: validatedData.notes,
+        workoutId: validatedData.workoutId,
+        date: validatedData.date
       });
       
       res.json(pr);
@@ -1147,12 +1161,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (action === 'create') {
+        // Extract movement and category
+        const movement = req.body.exercise || req.body.movement;
+        const category = req.body.category || req.body.movementCategory;
+        const value = req.body.value || req.body.weight;
+        const unit = req.body.unit || 'lbs';
+        
         const validatedData = insertPRSchema.parse({
-          movement: req.body.exercise || req.body.movement,
-          category: req.body.category || req.body.movementCategory,
-          weightKg: req.body.unit === 'LBS' ? req.body.weight / 2.20462 : req.body.weight,
-          repMax: req.body.reps || req.body.repMax,
-          date: req.body.date
+          userId: authReq.user.id,
+          movement,
+          category,
+          value: Number(value),
+          unit: unit.toLowerCase(),
+          repMax: req.body.repMax || req.body.reps || null,
+          weightKg: unit.toLowerCase() === 'lbs' ? Number(value) / 2.20462 : Number(value),
+          notes: req.body.notes || null,
+          workoutId: req.body.workoutId || null,
+          date: req.body.date || new Date().toISOString().split('T')[0]
         });
         
         const { insertPR } = await import("./dal/prs");
@@ -1160,9 +1185,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: authReq.user.id,
           category: validatedData.category,
           movement: validatedData.movement,
-          repMax: validatedData.repMax as 1 | 3 | 5 | 10,
-          weightKg: Number(validatedData.weightKg),
-          date: validatedData.date ? new Date(validatedData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+          value: Number(validatedData.value),
+          unit: validatedData.unit,
+          repMax: validatedData.repMax,
+          weightKg: validatedData.weightKg,
+          notes: validatedData.notes,
+          workoutId: validatedData.workoutId,
+          date: validatedData.date
         });
         
         return res.json(pr);
@@ -1176,6 +1205,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const success = await deletePR(authReq.user.id, id);
         if (!success) return res.status(404).json({ message: "PR not found" });
         return res.json({ message: "PR deleted successfully" });
+      }
+
+      if (action === 'history') {
+        const { movement, category } = req.body;
+        if (!movement) return res.status(400).json({ message: 'Movement required' });
+
+        const { getPRHistory } = await import("./dal/prs");
+        const history = await getPRHistory(authReq.user.id, movement, category);
+        return res.json(history);
       }
 
       res.status(400).json({ message: 'Invalid action' });
