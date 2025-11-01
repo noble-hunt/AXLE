@@ -1265,7 +1265,7 @@ export const useAppStore = create<AppState>()(
               weightKg: pr.weightKg,
               notes: pr.notes,
               workoutId: pr.workoutId,
-              date: pr.date
+              date: pr.date instanceof Date ? pr.date.toISOString().split('T')[0] : pr.date
             });
           } catch (error) {
             console.error('Failed to sync PR to database:', error);
