@@ -1,4 +1,6 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { db } from "../db";
+import { prs } from "@shared/schema";
+import { eq, and, desc, asc } from "drizzle-orm";
 
 export interface InsertPRParams {
   userId: string;
@@ -19,86 +21,73 @@ export interface ListPRsOptions {
 }
 
 export async function insertPR(params: InsertPRParams) {
-  const { data, error } = await supabaseAdmin
-    .from('prs')
-    .insert({
-      user_id: params.userId,
+  const result = await db
+    .insert(prs)
+    .values({
+      userId: params.userId,
       category: params.category,
       movement: params.movement,
-      value: params.value,
+      value: String(params.value),
       unit: params.unit,
-      rep_max: params.repMax || null,
-      weight_kg: params.weightKg || null,
+      repMax: params.repMax || null,
+      weightKg: params.weightKg ? String(params.weightKg) : null,
       notes: params.notes || null,
-      workout_id: params.workoutId || null,
+      workoutId: params.workoutId || null,
       date: params.date || new Date().toISOString().split('T')[0]
     })
-    .select()
-    .single();
+    .returning();
 
-  if (error) {
-    throw new Error(`Failed to insert PR: ${error.message}`);
+  if (!result || result.length === 0) {
+    throw new Error(`Failed to insert PR`);
   }
 
-  return data;
+  return result[0];
 }
 
 export async function listPRs(userId: string, options: ListPRsOptions = {}) {
-  let query = supabaseAdmin
-    .from('prs')
-    .select('*')
-    .eq('user_id', userId);
+  const conditions = [eq(prs.userId, userId)];
 
   if (options.category) {
-    query = query.eq('category', options.category);
+    conditions.push(eq(prs.category, options.category));
   }
 
   if (options.movement) {
-    query = query.eq('movement', options.movement);
+    conditions.push(eq(prs.movement, options.movement));
   }
 
-  const { data, error } = await query.order('date', { ascending: false });
+  const result = await db
+    .select()
+    .from(prs)
+    .where(and(...conditions))
+    .orderBy(desc(prs.date));
 
-  if (error) {
-    throw new Error(`Failed to list PRs: ${error.message}`);
-  }
-
-  return data || [];
+  return result;
 }
 
 export async function deletePR(userId: string, id: string) {
-  const { error } = await supabaseAdmin
-    .from('prs')
-    .delete()
-    .eq('user_id', userId)
-    .eq('id', id);
-
-  if (error) {
-    throw new Error(`Failed to delete PR: ${error.message}`);
-  }
+  await db
+    .delete(prs)
+    .where(and(eq(prs.userId, userId), eq(prs.id, id)));
 
   return true;
 }
 
 // Get PR history for a specific movement (for graphing progress over time)
 export async function getPRHistory(userId: string, movement: string, category?: string) {
-  let query = supabaseAdmin
-    .from('prs')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('movement', movement);
+  const conditions = [
+    eq(prs.userId, userId),
+    eq(prs.movement, movement)
+  ];
 
   if (category) {
-    query = query.eq('category', category);
+    conditions.push(eq(prs.category, category));
   }
 
-  const { data, error } = await query
-    .order('date', { ascending: true })
-    .order('created_at', { ascending: true });
+  const result = await db
+    .select()
+    .from(prs)
+    .where(and(...conditions))
+    .orderBy(asc(prs.date), asc(prs.createdAt));
 
-  if (error) {
-    throw new Error(`Failed to get PR history: ${error.message}`);
-  }
-
-  return data || [];
+  return result;
 }
