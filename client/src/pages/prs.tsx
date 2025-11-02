@@ -12,6 +12,7 @@ import { Field } from "@/components/swift/field"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
 import { Trophy, TrendingUp, Calendar, Target, Dumbbell, Plus, Award, BarChart3 } from "lucide-react"
+import { MovementCard } from "@/components/common/movement-card"
 
 // Category tab options
 const categoryOptions = [
@@ -238,46 +239,14 @@ export default function PRs() {
           </div>
         ) : (
           <div className="grid gap-4" data-testid="movements-grid">
-            {movements.map((movement) => {
-              const currentPR = categoryPersonalRecords.find(pr => 
-                (pr.movement || pr.exercise) === movement
-              )
-              
-              return (
-                <Card 
-                  key={movement} 
-                  className="p-5"
-                  data-testid={`movement-${movement.toLowerCase().replace(/\s+/g, '-')}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-body font-semibold text-foreground">{movement}</h3>
-                      {currentPR ? (
-                        <div className="flex items-center gap-2 mt-1">
-                          <Chip variant="success" size="sm">
-                            <Award className="w-3 h-3 mr-1" />
-                            {currentPR.value || currentPR.weight} {currentPR.unit || 'lbs'}
-                          </Chip>
-                          <span className="text-caption text-muted-foreground">
-                            {new Date(currentPR.date).toLocaleDateString()}
-                          </span>
-                        </div>
-                      ) : (
-                        <p className="text-caption text-muted-foreground mt-1">No PR set</p>
-                      )}
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleAddPR(movement)}
-                      data-testid={`add-pr-${movement.toLowerCase().replace(/\s+/g, '-')}`}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </Card>
-              )
-            })}
+            {movements.map((movement) => (
+              <MovementCard
+                key={movement}
+                movement={movement}
+                category={activeCategory}
+                onAddPR={handleAddPR}
+              />
+            ))}
           </div>
         )}
       </div>
