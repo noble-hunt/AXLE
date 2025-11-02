@@ -61,13 +61,13 @@ export enum GymnasticsMovement {
 }
 
 export enum AerobicMovement {
-  FOUR_HUNDRED_M = "400m",
-  EIGHT_HUNDRED_M = "800m",
-  ONE_MILE = "1 mile",
-  FIVE_K = "5K",
-  TEN_K = "10K",
-  HALF_MARATHON = "Half Marathon",
-  MARATHON = "Marathon",
+  FOUR_HUNDRED_M = "400m Run",
+  EIGHT_HUNDRED_M = "800m Run",
+  ONE_MILE = "1 mile Run",
+  FIVE_K = "5K Run",
+  TEN_K = "10K Run",
+  HALF_MARATHON = "Half Marathon Run",
+  MARATHON = "Marathon Run",
   ROW_500M = "Row 500m",
   ROW_1K = "Row 1K",
   ROW_2K = "Row 2K",
