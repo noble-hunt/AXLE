@@ -384,19 +384,6 @@ export default function PRs() {
                       Change Movement
                     </Button>
                   </div>
-                ) : customMovement ? (
-                  <div className="space-y-2">
-                    <Chip variant="default">
-                      {customMovement}
-                    </Chip>
-                    <Button 
-                      variant="secondary" 
-                      size="sm"
-                      onClick={() => setCustomMovement("")}
-                    >
-                      Change Movement
-                    </Button>
-                  </div>
                 ) : (
                   <div className="space-y-2">
                     {movements.length > 0 && (
