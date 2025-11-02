@@ -14,6 +14,11 @@ Preferred communication style: Simple, everyday language.
 - **UI Components**: shadcn/ui built on Radix UI, Lucide React for icons, cmdk for command palette.
 - **State Management**: Zustand for client-side, TanStack Query for server-side data.
 - **Error Handling**: Structured `HttpError` objects.
+- **PR Chart Display (Nov 2, 2025)**: 
+  - Unified chart implementation - each movement shows a single "All PR History" chart
+  - Removed duplicate rep-max-specific charts (previously showed separate 1RM/3RM/5RM/10RM charts)
+  - Color-coded dots differentiate rep max variants on the unified chart (Red=1RM, Orange=3RM, Yellow=5RM, Green=10RM)
+  - Chart shows all PR entries sorted chronologically, with "{count} total entries" subtitle
 
 ### Backend Architecture
 - **Server**: Express.js with a RESTful API in TypeScript.
