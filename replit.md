@@ -19,6 +19,12 @@ Preferred communication style: Simple, everyday language.
   - Removed duplicate rep-max-specific charts (previously showed separate 1RM/3RM/5RM/10RM charts)
   - Color-coded dots differentiate rep max variants on the unified chart (Red=1RM, Orange=3RM, Yellow=5RM, Green=10RM)
   - Chart shows all PR entries sorted chronologically, with "{count} total entries" subtitle
+- **Unit Preference System (Nov 2, 2025)**:
+  - Moved unit preference (lbs/kg) from PRs page to global profile setting
+  - Added `preferredUnit` field to profiles table (defaults to "lbs")
+  - Users can set their preferred weight unit in Edit Profile page
+  - PRs page automatically uses profile preference for all PR displays and entries
+  - Removed per-page unit toggles for consistent, user-centric experience
 
 ### Backend Architecture
 - **Server**: Express.js with a RESTful API in TypeScript.
