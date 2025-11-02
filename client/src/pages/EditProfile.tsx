@@ -5,6 +5,7 @@ import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SegmentedControl, Segment } from "@/components/swift/segmented-control"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
@@ -23,6 +24,7 @@ export default function EditProfile() {
   const [firstName, setFirstName] = useState(profile?.firstName || '')
   const [lastName, setLastName] = useState(profile?.lastName || '')
   const [dateOfBirth, setDateOfBirth] = useState(profile?.dateOfBirth || '')
+  const [preferredUnit, setPreferredUnit] = useState<"lbs" | "kg">(profile?.preferredUnit || 'lbs')
   
   // Password reset state
   const [resetEmail, setResetEmail] = useState(user?.email || '')
@@ -36,7 +38,8 @@ export default function EditProfile() {
       const updateData = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        dateOfBirth: dateOfBirth || null
+        dateOfBirth: dateOfBirth || null,
+        preferredUnit
       }
 
       // Update via PATCH endpoint that supports all profile fields including avatarUrl
@@ -44,7 +47,8 @@ export default function EditProfile() {
         action: 'update',
         firstName: updateData.firstName,
         lastName: updateData.lastName, 
-        dateOfBirth: updateData.dateOfBirth
+        dateOfBirth: updateData.dateOfBirth,
+        preferredUnit: updateData.preferredUnit
       })
       const responseData = await result.json()
 
@@ -56,6 +60,7 @@ export default function EditProfile() {
           firstName: responseData.profile.firstName || responseData.profile.first_name,
           lastName: responseData.profile.lastName || responseData.profile.last_name,
           dateOfBirth: responseData.profile.dateOfBirth || responseData.profile.date_of_birth,
+          preferredUnit: responseData.profile.preferredUnit || responseData.profile.preferred_unit || 'lbs',
           username: responseData.profile.username || profile?.username,
           avatarUrl: responseData.profile.avatarUrl || responseData.profile.avatar_url || profile?.avatarUrl,
           providers: responseData.profile.providers || profile?.providers || ['email'],
@@ -192,6 +197,25 @@ export default function EditProfile() {
                   className="mt-2"
                   data-testid="input-date-of-birth"
                 />
+              </div>
+
+              <div>
+                <Label className="text-body font-medium text-foreground">
+                  Preferred Unit
+                </Label>
+                <div className="mt-2">
+                  <SegmentedControl
+                    value={preferredUnit}
+                    onValueChange={(value) => setPreferredUnit(value as "lbs" | "kg")}
+                    data-testid="unit-preference-selector"
+                  >
+                    <Segment value="lbs">lbs</Segment>
+                    <Segment value="kg">kg</Segment>
+                  </SegmentedControl>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Choose your preferred unit for weight measurements
+                </p>
               </div>
             </div>
 

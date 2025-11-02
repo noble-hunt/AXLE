@@ -588,6 +588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     username: z.string().optional(),
     dateOfBirth: z.string().optional().nullable(), // ISO date string or null
     avatarUrl: z.string().optional(),
+    preferredUnit: z.enum(["lbs", "kg"]).optional(),
   });
 
   app.patch("/api/profiles", requireAuth, async (req, res) => {
@@ -622,6 +623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     username: z.string().optional(),
     dateOfBirth: z.string().optional().nullable(),
     avatarUrl: z.string().optional(),
+    preferredUnit: z.enum(["lbs", "kg"]).optional(),
   });
 
   app.post("/api/profiles/upsert", requireAuth, async (req, res) => {

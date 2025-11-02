@@ -35,16 +35,18 @@ const unitOptions = [
 ] as const
 
 export default function PRs() {
-  const { prs: personalRecords, getPRsByCategory, addPR } = useAppStore()
+  const { prs: personalRecords, getPRsByCategory, addPR, profile } = useAppStore()
   const { toast } = useToast()
   const [activeCategory, setActiveCategory] = useState<MovementCategory>(MovementCategory.POWERLIFTING)
   const [showAddPRSheet, setShowAddPRSheet] = useState(false)
   const [selectedMovement, setSelectedMovement] = useState<Movement | undefined>()
   const [customMovement, setCustomMovement] = useState("")
-  const [unit, setUnit] = useState<"lbs" | "kg">("lbs")
   const [value, setValue] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isLoading, setIsLoading] = useState(true)
+  
+  // Get user's preferred unit from profile (default to 'lbs' if not set)
+  const unit = profile?.preferredUnit || 'lbs'
   
   // Simulate loading state for better UX
   useEffect(() => {
@@ -218,23 +220,6 @@ export default function PRs() {
             </SegmentedControl>
           </div>
         </div>
-
-        <div className="space-y-2">
-          <label className="text-body font-medium text-foreground">Units</label>
-          <div className="ml-1">
-            <SegmentedControl
-              value={unit}
-              onValueChange={(value) => setUnit(value as "lbs" | "kg")}
-              data-testid="unit-switch"
-            >
-              {unitOptions.map((option) => (
-                <Segment key={option.value} value={option.value}>
-                  {option.label}
-                </Segment>
-              ))}
-            </SegmentedControl>
-          </div>
-        </div>
       </div>
 
       {/* Movements Grid */}
@@ -387,22 +372,6 @@ export default function PRs() {
               type="number"
               data-testid="pr-value-input"
             />
-
-            {/* Unit Selection */}
-            <div className="flex items-center justify-between gap-4">
-              <label className="text-body font-medium text-foreground h-10 flex items-center">Unit</label>
-              <SegmentedControl
-                value={unit}
-                onValueChange={(value) => setUnit(value as "lbs" | "kg")}
-                data-testid="pr-unit-selector"
-              >
-                {unitOptions.map((option) => (
-                  <Segment key={option.value} value={option.value}>
-                    {option.label}
-                  </Segment>
-                ))}
-              </SegmentedControl>
-            </div>
 
             {/* Date Picker */}
             <div className="space-y-2">
