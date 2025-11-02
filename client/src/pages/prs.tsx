@@ -13,6 +13,7 @@ import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
 import { Trophy, TrendingUp, Calendar, Target, Dumbbell, Plus, Award, BarChart3 } from "lucide-react"
 import { MovementCard } from "@/components/common/movement-card"
+import { celebratePR, celebrateFirstPR } from "@/lib/confetti"
 
 // Category tab options
 const categoryOptions = [
@@ -75,6 +76,12 @@ export default function PRs() {
     }
 
     try {
+      // Check if this is the first PR for this movement
+      const existingPRsForMovement = personalRecords.filter(
+        pr => pr.movement === movementName
+      )
+      const isFirstPR = existingPRsForMovement.length === 0
+
       await addPR({
         movement: movementName as Movement,
         category: activeCategory,
@@ -83,9 +90,28 @@ export default function PRs() {
         date: new Date()
       })
 
+      // Trigger confetti animation!
+      if (isFirstPR) {
+        celebrateFirstPR()
+      } else {
+        celebratePR()
+      }
+
+      // Show congratulatory toast
+      const messages = [
+        "Crushing it! 💪",
+        "Beast mode activated! 🔥",
+        "New record unlocked! 🏆",
+        "Strength gains! 💯",
+        "You're unstoppable! ⚡"
+      ]
+      const randomMessage = messages[Math.floor(Math.random() * messages.length)]
+
       toast({
-        title: "PR Added! 🎉",
-        description: `New ${movementName} PR: ${value}${unit}`,
+        title: randomMessage,
+        description: isFirstPR 
+          ? `First ${movementName} PR recorded: ${value}${unit}!`
+          : `New ${movementName} PR: ${value}${unit}`,
       })
 
       setShowAddPRSheet(false)
