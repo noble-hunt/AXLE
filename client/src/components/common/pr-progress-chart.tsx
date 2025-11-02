@@ -9,6 +9,7 @@ interface PRProgressChartProps {
   prs: PR[]
   repMax?: RepMaxType
   unit: Unit
+  showRepMaxVariants?: boolean
 }
 
 // Helper to convert numeric rep max to RepMaxType enum
@@ -31,15 +32,10 @@ const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | unde
   }
 }
 
-export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChartProps) {
-  // Filter and sort PRs for this movement and rep max
+export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariants = false }: PRProgressChartProps) {
+  // Filter and sort ALL PRs for this movement (no rep max filtering for single unified chart)
   const filteredPRs = prs
-    .filter(pr => {
-      if (pr.movement !== movement) return false
-      if (!repMax) return true
-      const prRepMaxEnum = mapRepMaxToEnum(pr.repMax)
-      return prRepMaxEnum === repMax
-    })
+    .filter(pr => pr.movement === movement)
     .sort((a, b) => {
       const dateA = a.date instanceof Date ? a.date : new Date(a.date)
       const dateB = b.date instanceof Date ? b.date : new Date(b.date)
@@ -64,7 +60,7 @@ export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChart
     )
   }
 
-  // Prepare chart data
+  // Prepare chart data with rep max info if needed
   const chartData = filteredPRs.map((pr, index) => {
     let displayValue: number
     
@@ -83,6 +79,7 @@ export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChart
     }
 
     const prDate = pr.date instanceof Date ? pr.date : new Date(pr.date)
+    const prRepMaxEnum = mapRepMaxToEnum(pr.repMax)
     
     return {
       date: format(prDate, 'MMM dd'),
@@ -90,6 +87,7 @@ export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChart
       originalValue: pr.value,
       fullDate: prDate,
       id: pr.id,
+      repMax: prRepMaxEnum || undefined,
     }
   })
 
@@ -110,9 +108,9 @@ export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChart
     return value.toString()
   }
 
-  // Determine line color based on rep max
-  const getLineColor = () => {
-    switch (repMax) {
+  // Get color for a specific rep max
+  const getRepMaxColor = (rm?: RepMaxType) => {
+    switch (rm) {
       case RepMaxType.ONE_RM:
         return '#ef4444' // red
       case RepMaxType.THREE_RM:
@@ -122,7 +120,7 @@ export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChart
       case RepMaxType.TEN_RM:
         return '#22c55e' // green
       default:
-        return '#3b82f6' // blue
+        return '#3b82f6' // blue (default for non-weight movements)
     }
   }
 
@@ -134,7 +132,7 @@ export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChart
     <Card className="w-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center justify-between">
-          <span>Progress Chart</span>
+          <span>All PR History</span>
           {filteredPRs.length > 1 && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
@@ -142,9 +140,7 @@ export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChart
             </span>
           )}
         </CardTitle>
-        {repMax && (
-          <p className="text-xs text-muted-foreground">{repMax} Progress</p>
-        )}
+        <p className="text-xs text-muted-foreground">{filteredPRs.length} total entries</p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={150}>
@@ -173,9 +169,22 @@ export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChart
             <Line
               type="monotone"
               dataKey="value"
-              stroke={getLineColor()}
+              stroke={getRepMaxColor()}
               strokeWidth={2}
-              dot={{ fill: getLineColor(), strokeWidth: 2, r: 4 }}
+              dot={(props) => {
+                const { cx, cy, payload } = props
+                const color = showRepMaxVariants ? getRepMaxColor(payload.repMax) : getRepMaxColor()
+                return (
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={4}
+                    fill={color}
+                    stroke={color}
+                    strokeWidth={2}
+                  />
+                )
+              }}
               activeDot={{ r: 6, strokeWidth: 2 }}
             />
           </LineChart>

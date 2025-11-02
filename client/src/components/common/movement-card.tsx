@@ -205,40 +205,18 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
                     </div>
                   </div>
 
-                  {/* Progress Charts */}
+                  {/* Progress Chart - Single unified chart for all PR entries */}
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                       <TrendingUp className="w-4 h-4" />
                       Progress Over Time
                     </h4>
-                    {showRepMax ? (
-                      // Show charts for each rep max type that has data
-                      Object.values(RepMaxType).map((repMax) => {
-                        // Filter PRs that match this rep max (handle both numeric and string enum values)
-                        const repMaxPRs = movementPRs.filter(pr => {
-                          const prRepMaxEnum = mapRepMaxToEnum(pr.repMax)
-                          return prRepMaxEnum === repMax
-                        })
-                        if (repMaxPRs.length === 0) return null
-                        
-                        return (
-                          <PRProgressChart
-                            key={`${movement}-${repMax}`}
-                            movement={movement}
-                            prs={movementPRs}
-                            repMax={repMax}
-                            unit={(repMaxPRs[0].unit as Unit) || defaultUnit}
-                          />
-                        )
-                      })
-                    ) : (
-                      // Show single chart for non-weight based movements
-                      <PRProgressChart
-                        movement={movement}
-                        prs={movementPRs}
-                        unit={(movementPRs[0].unit as Unit) || defaultUnit}
-                      />
-                    )}
+                    <PRProgressChart
+                      movement={movement}
+                      prs={movementPRs}
+                      unit={(movementPRs[0].unit as Unit) || defaultUnit}
+                      showRepMaxVariants={showRepMax}
+                    />
                   </div>
                 </motion.div>
               )}
