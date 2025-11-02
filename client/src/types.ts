@@ -15,7 +15,8 @@ export enum MovementCategory {
   OLYMPIC_WEIGHTLIFTING = "Olympic Weightlifting",
   GYMNASTICS = "Gymnastics",
   AEROBIC = "Aerobic",
-  BODYBUILDING = "Bodybuilding"
+  BODYBUILDING = "Bodybuilding",
+  OTHER = "Other"
 }
 
 export enum PowerliftingMovement {
@@ -133,6 +134,8 @@ export const getMovementsByCategory = (category: MovementCategory): Movement[] =
       return Object.values(AerobicMovement);
     case MovementCategory.BODYBUILDING:
       return Object.values(BodybuildingMovement);
+    case MovementCategory.OTHER:
+      return []; // Other movements are custom and don't have a predefined list
     default:
       return [];
   }
@@ -154,13 +157,15 @@ export const getMovementCategory = (movement: Movement): MovementCategory => {
   if (Object.values(BodybuildingMovement).includes(movement as BodybuildingMovement)) {
     return MovementCategory.BODYBUILDING;
   }
-  throw new Error(`Unknown movement: ${movement}`);
+  // Custom movements go into "Other" category
+  return MovementCategory.OTHER;
 };
 
 export const isWeightBasedMovement = (movement: Movement): boolean => {
   const category = getMovementCategory(movement);
   return category === MovementCategory.POWERLIFTING || 
          category === MovementCategory.OLYMPIC_WEIGHTLIFTING ||
+         category === MovementCategory.OTHER || // Custom movements default to weight-based
          movement.includes('Weighted');
 };
 

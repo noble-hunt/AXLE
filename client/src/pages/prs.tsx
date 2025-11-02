@@ -30,7 +30,8 @@ const categoryOptions: { value: CategoryType; label: string }[] = [
   { value: MovementCategory.OLYMPIC_WEIGHTLIFTING, label: 'Olympic Lifting' },
   { value: MovementCategory.GYMNASTICS, label: 'Gymnastics' },
   { value: MovementCategory.AEROBIC, label: 'Cardio' },
-  { value: MovementCategory.BODYBUILDING, label: 'Bodybuilding' }
+  { value: MovementCategory.BODYBUILDING, label: 'Bodybuilding' },
+  { value: MovementCategory.OTHER, label: 'Other' }
 ]
 
 // Unit options
@@ -104,10 +105,10 @@ export default function PRs() {
       )
       const isFirstPR = existingPRsForMovement.length === 0
 
-      // Determine category - if on Favorites, try to infer from movement, otherwise use first available category
+      // Determine category - if on Favorites or All, try to infer from movement, otherwise use active category
       const prCategory = activeCategory !== 'ALL' && activeCategory !== 'FAVORITES'
         ? activeCategory
-        : MovementCategory.POWERLIFTING // Default fallback
+        : MovementCategory.OTHER // Default to Other for custom movements
       
       await addPR({
         movement: movementName as Movement,
@@ -154,17 +155,34 @@ export default function PRs() {
     }
   }
 
+  // Get all predefined movements
+  const allPredefinedMovements = [
+    ...Object.values(MovementCategory)
+      .filter(cat => cat !== MovementCategory.OTHER) // Exclude "Other" category
+      .flatMap(cat => getMovementsByCategory(cat))
+  ]
+  
+  // Get custom movements (movements that exist in PRs but aren't in predefined lists)
+  const customMovements = personalRecords
+    .map(pr => pr.movement)
+    .filter(movement => !allPredefinedMovements.includes(movement as Movement))
+    .filter((movement, index, self) => self.indexOf(movement) === index) as Movement[] // Remove duplicates
+  
   // Get movements and PRs for current category
   const movements = activeCategory === 'ALL'
-    ? Object.values(MovementCategory).flatMap(cat => getMovementsByCategory(cat))
+    ? [...allPredefinedMovements, ...customMovements]
     : activeCategory === 'FAVORITES'
     ? favoriteMovements as Movement[]
+    : activeCategory === MovementCategory.OTHER
+    ? customMovements
     : getMovementsByCategory(activeCategory)
   
   const categoryPersonalRecords = activeCategory === 'ALL'
     ? personalRecords
     : activeCategory === 'FAVORITES'
     ? personalRecords.filter(pr => favoriteMovements.includes(pr.movement as string))
+    : activeCategory === MovementCategory.OTHER
+    ? personalRecords.filter(pr => customMovements.includes(pr.movement as Movement))
     : getPRsByCategory(activeCategory)
 
   if (isLoading) {
