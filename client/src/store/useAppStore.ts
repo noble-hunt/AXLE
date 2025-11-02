@@ -1357,7 +1357,7 @@ export const useAppStore = create<AppState>()(
       },
 
       getPRsByCategory: (category) => {
-        return get().prs.filter((pr) => pr.movementCategory === category);
+        return get().prs.filter((pr) => pr.category === category);
       },
 
       getBestPRByMovement: (movement, repMax) => {
