@@ -11,9 +11,13 @@ import { Sheet } from "@/components/swift/sheet"
 import { Field } from "@/components/swift/field"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
-import { Trophy, TrendingUp, Calendar, Target, Dumbbell, Plus, Award, BarChart3 } from "lucide-react"
+import { Trophy, TrendingUp, Calendar as CalendarIcon, Target, Dumbbell, Plus, Award, BarChart3 } from "lucide-react"
 import { MovementCard } from "@/components/common/movement-card"
 import { celebratePR, celebrateFirstPR } from "@/lib/confetti"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 // Category tab options
 const categoryOptions = [
@@ -39,6 +43,7 @@ export default function PRs() {
   const [customMovement, setCustomMovement] = useState("")
   const [unit, setUnit] = useState<"lbs" | "kg">("lbs")
   const [value, setValue] = useState("")
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isLoading, setIsLoading] = useState(true)
   
   // Simulate loading state for better UX
@@ -61,6 +66,7 @@ export default function PRs() {
     setSelectedMovement(movement)
     setCustomMovement("")
     setValue("")
+    setSelectedDate(new Date())
     setShowAddPRSheet(true)
   }
 
@@ -87,7 +93,7 @@ export default function PRs() {
         category: activeCategory,
         value: parseFloat(value),
         unit,
-        date: new Date()
+        date: selectedDate
       })
 
       // Trigger confetti animation!
@@ -396,6 +402,35 @@ export default function PRs() {
                   </Segment>
                 ))}
               </SegmentedControl>
+            </div>
+
+            {/* Date Picker */}
+            <div className="space-y-2">
+              <label className="text-body font-medium text-foreground">Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                    data-testid="date-picker-trigger"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    initialFocus
+                    data-testid="date-picker-calendar"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
