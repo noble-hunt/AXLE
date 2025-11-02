@@ -39,7 +39,7 @@ const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | unde
 
 export function MovementCard({ movement, category, onAddPR }: MovementCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const { getPRsByMovement, getBestPRByMovement, profile, setProfile } = useAppStore()
+  const { getPRsByMovement, getBestPRByMovement, profile, hydrateFromDb, user } = useAppStore()
   const { toast } = useToast()
   
   const isFavorite = profile?.favoriteMovements?.includes(movement) || false
@@ -59,10 +59,10 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
       const responseData = await result.json()
       
       if (responseData.profile) {
-        setProfile({
-          ...profile,
-          favoriteMovements: responseData.profile.favoriteMovements || responseData.profile.favorite_movements || []
-        })
+        // Refresh profile from database to ensure we have the latest data
+        if (user?.id) {
+          await hydrateFromDb(user.id)
+        }
         
         toast({
           title: isFavorite ? "Removed from favorites" : "Added to favorites",

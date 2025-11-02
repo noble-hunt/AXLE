@@ -961,11 +961,29 @@ export const useAppStore = create<AppState>()(
         try {
           console.log('💧 Hydrating from database for user:', userId);
           
-          // For now, skip data hydration since we're using in-memory storage
-          // TODO: Implement proper API endpoints for data fetching when needed
-          console.log('✅ Database hydration complete');
+          // Fetch PRs from database
+          const prsResponse = await fetch('/api/prs', {
+            credentials: 'include'
+          });
           
-          // Don't update store with empty data - keep existing seed data
+          if (prsResponse.ok) {
+            const prsData = await prsResponse.json();
+            set({ prs: prsData || [] });
+          }
+          
+          // Fetch profile from database
+          const profileResponse = await fetch('/api/profiles', {
+            credentials: 'include'
+          });
+          
+          if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+            if (profileData.profile) {
+              set({ profile: profileData.profile });
+            }
+          }
+          
+          console.log('✅ Database hydration complete');
         } catch (error) {
           console.error('❌ Database hydration failed:', error);
           throw error;
@@ -1251,7 +1269,7 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ prs: [pr, ...state.prs] }));
         
         // If authenticated, sync to database
-        const { isAuthenticated } = get();
+        const { isAuthenticated, user } = get();
         if (isAuthenticated) {
           try {
             const { apiRequest } = await import('@/lib/queryClient');
@@ -1267,6 +1285,11 @@ export const useAppStore = create<AppState>()(
               workoutId: pr.workoutId,
               date: pr.date instanceof Date ? pr.date.toISOString().split('T')[0] : pr.date
             });
+            
+            // Refresh PRs from database to ensure we have the latest data
+            if (user?.id) {
+              await get().hydrateFromDb(user.id);
+            }
           } catch (error) {
             console.error('Failed to sync PR to database:', error);
             // Rollback optimistic update on error
