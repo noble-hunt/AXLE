@@ -115,7 +115,7 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 min-h-[64px]">
         {hasPRs ? (
           <>
             {/* Collapsed View - Show Most Recent PR */}
@@ -123,7 +123,7 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 flex-1">
                   <Trophy className="w-5 h-5 text-destructive" />
-                  <div>
+                  <div className="min-h-[48px] flex flex-col justify-center">
                     <p className="font-bold text-lg" data-testid={`text-latest-pr-value-${movement.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`}>
                       {mostRecentPR && formatValue(mostRecentPR.value, (mostRecentPR.unit as Unit) || defaultUnit)}
                     </p>
@@ -134,7 +134,7 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
                     )}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right min-h-[48px] flex flex-col justify-center">
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Calendar className="w-4 h-4" />
                     <span data-testid={`text-latest-pr-date-${movement.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`}>
@@ -223,11 +223,19 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
             </AnimatePresence>
           </>
         ) : (
-          // Empty state
-          <div className="text-center py-8 text-muted-foreground">
-            <Trophy className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <h4 className="text-sm font-medium mb-1">No PRs recorded</h4>
-            <p className="text-xs">Set your first personal record for this movement!</p>
+          // Empty state - min-height ensures consistent card size
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-1">
+                <Trophy className="w-5 h-5 text-muted-foreground opacity-30" />
+                <div className="min-h-[48px] flex flex-col justify-center">
+                  <p className="font-bold text-lg text-muted-foreground">No PRs recorded</p>
+                </div>
+              </div>
+              <div className="text-right min-h-[48px] flex flex-col justify-center">
+                <p className="text-xs text-muted-foreground">Add your first PR</p>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

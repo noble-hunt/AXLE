@@ -172,10 +172,11 @@ export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariant
               stroke={getRepMaxColor()}
               strokeWidth={2}
               dot={(props) => {
-                const { cx, cy, payload } = props
+                const { cx, cy, payload, index } = props
                 const color = showRepMaxVariants ? getRepMaxColor(payload.repMax) : getRepMaxColor()
                 return (
                   <circle
+                    key={`dot-${payload.id || index}`}
                     cx={cx}
                     cy={cy}
                     r={4}
