@@ -11,11 +11,40 @@ interface PRProgressChartProps {
   unit: Unit
 }
 
+// Helper to convert numeric rep max to RepMaxType enum
+const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | undefined => {
+  if (!repMax) return undefined
+  
+  // If it's already a RepMaxType string enum, return it
+  if (Object.values(RepMaxType).includes(repMax as RepMaxType)) {
+    return repMax as RepMaxType
+  }
+  
+  // Otherwise, try to parse it as a number and map to enum
+  const num = typeof repMax === 'number' ? repMax : parseInt(String(repMax))
+  switch (num) {
+    case 1: return RepMaxType.ONE_RM
+    case 3: return RepMaxType.THREE_RM
+    case 5: return RepMaxType.FIVE_RM
+    case 10: return RepMaxType.TEN_RM
+    default: return undefined
+  }
+}
+
 export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChartProps) {
   // Filter and sort PRs for this movement and rep max
   const filteredPRs = prs
-    .filter(pr => pr.movement === movement && (!repMax || pr.repMax === repMax))
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .filter(pr => {
+      if (pr.movement !== movement) return false
+      if (!repMax) return true
+      const prRepMaxEnum = mapRepMaxToEnum(pr.repMax)
+      return prRepMaxEnum === repMax
+    })
+    .sort((a, b) => {
+      const dateA = a.date instanceof Date ? a.date : new Date(a.date)
+      const dateB = b.date instanceof Date ? b.date : new Date(b.date)
+      return dateA.getTime() - dateB.getTime()
+    })
 
   if (filteredPRs.length === 0) {
     return (
@@ -39,21 +68,27 @@ export function PRProgressChart({ movement, prs, repMax, unit }: PRProgressChart
   const chartData = filteredPRs.map((pr, index) => {
     let displayValue: number
     
-    if (unit === Unit.TIME && typeof pr.value === 'string') {
-      // Convert time string (mm:ss) to total seconds for chart display
-      const [minutes, seconds] = pr.value.split(':').map(Number)
+    // Handle TIME unit - convert "mm:ss" string to seconds
+    if (unit === Unit.TIME) {
+      const timeValue = String(pr.value || '0:00')
+      const parts = timeValue.split(':')
+      const minutes = parts.length > 0 ? parseInt(parts[0]) || 0 : 0
+      const seconds = parts.length > 1 ? parseInt(parts[1]) || 0 : 0
       displayValue = minutes * 60 + seconds
     } else if (typeof pr.value === 'number') {
       displayValue = pr.value
     } else {
-      displayValue = 0
+      // Fallback: try to parse as number
+      displayValue = typeof pr.value === 'string' ? parseFloat(pr.value) || 0 : 0
     }
 
+    const prDate = pr.date instanceof Date ? pr.date : new Date(pr.date)
+    
     return {
-      date: format(pr.date, 'MMM dd'),
+      date: format(prDate, 'MMM dd'),
       value: displayValue,
       originalValue: pr.value,
-      fullDate: pr.date,
+      fullDate: prDate,
       id: pr.id,
     }
   })

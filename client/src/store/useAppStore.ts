@@ -1884,20 +1884,30 @@ export const useAppStore = create<AppState>()(
             feedback: w.feedback
           }));
           
-          const transformedPRs = data.prs.map((pr: any) => ({
-            id: pr.id,
-            exercise: pr.movement,
-            category: pr.category,
-            weight: pr.weight_kg * 2.20462, // Convert kg to lbs
-            reps: pr.rep_max,
-            date: new Date(pr.date),
-            createdAt: new Date(pr.date),
-            movement: pr.movement,
-            movementCategory: pr.category,
-            repMax: pr.rep_max,
-            value: pr.weight_kg * 2.20462,
-            unit: Unit.LBS
-          }));
+          const transformedPRs = data.prs.map((pr: any) => {
+            // Preserve string values for TIME units, parse numeric values for other units
+            const unit = pr.unit || Unit.LBS;
+            const value = unit === Unit.TIME || unit === 'time'
+              ? pr.value // Keep as string for time-based PRs (e.g., "22:45")
+              : (typeof pr.value === 'string' ? parseFloat(pr.value) : pr.value);
+            
+            return {
+              id: pr.id,
+              exercise: pr.movement,
+              category: pr.category,
+              weight: pr.weight_kg ? parseFloat(pr.weight_kg) * 2.20462 : (typeof value === 'number' ? value : 0), // Legacy field
+              reps: pr.rep_max || 1,
+              date: new Date(pr.date),
+              createdAt: new Date(pr.date),
+              movement: pr.movement,
+              movementCategory: pr.category,
+              repMax: pr.rep_max,
+              value: value,
+              unit: unit,
+              weightKg: pr.weight_kg ? parseFloat(pr.weight_kg) : undefined,
+              notes: pr.notes
+            };
+          });
           
           const transformedAchievements = data.achievements.map((ach: any) => ({
             id: ach.id,
