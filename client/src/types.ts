@@ -105,8 +105,9 @@ export enum Unit {
   LBS = "lbs",
   REPS = "reps",
   TIME = "time", // Format: mm:ss
-  HEIGHT_INCHES = "inches",
-  HEIGHT_CM = "cm"
+  HEIGHT_INCHES = "in",
+  HEIGHT_CM = "cm",
+  METERS = "m"
 }
 
 // Union type for all movement types

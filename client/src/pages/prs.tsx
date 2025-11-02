@@ -34,10 +34,15 @@ const categoryOptions: { value: CategoryType; label: string }[] = [
   { value: MovementCategory.OTHER, label: 'Other' }
 ]
 
-// Unit options
+// Unit options - all measurement types
 const unitOptions = [
-  { value: "lbs", label: "lbs" },
-  { value: "kg", label: "kg" }
+  { value: "lbs", label: "lbs (weight)" },
+  { value: "kg", label: "kg (weight)" },
+  { value: "reps", label: "reps (count)" },
+  { value: "time", label: "time (mm:ss)" },
+  { value: "in", label: "in (inches)" },
+  { value: "cm", label: "cm (centimeters)" },
+  { value: "m", label: "m (meters)" }
 ] as const
 
 export default function PRs() {
@@ -48,11 +53,9 @@ export default function PRs() {
   const [selectedMovement, setSelectedMovement] = useState<Movement | undefined>()
   const [customMovement, setCustomMovement] = useState("")
   const [value, setValue] = useState("")
+  const [selectedUnit, setSelectedUnit] = useState<string>("lbs") // Default to lbs
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isLoading, setIsLoading] = useState(true)
-  
-  // Get user's preferred unit from profile (default to 'lbs' if not set)
-  const unit = profile?.preferredUnit || 'lbs'
   
   // Get favorite movements from profile
   const favoriteMovements = profile?.favoriteMovements || []
@@ -83,6 +86,7 @@ export default function PRs() {
     setSelectedMovement(movement)
     setCustomMovement("")
     setValue("")
+    setSelectedUnit("lbs") // Reset to default
     setSelectedDate(new Date())
     setShowAddPRSheet(true)
   }
@@ -114,7 +118,7 @@ export default function PRs() {
         movement: movementName as Movement,
         category: prCategory,
         value: parseFloat(value),
-        unit,
+        unit: selectedUnit,
         date: selectedDate
       })
 
@@ -138,8 +142,8 @@ export default function PRs() {
       toast({
         title: randomMessage,
         description: isFirstPR 
-          ? `First ${movementName} PR recorded: ${value}${unit}!`
-          : `New ${movementName} PR: ${value}${unit}`,
+          ? `First ${movementName} PR recorded: ${value}${selectedUnit}!`
+          : `New ${movementName} PR: ${value}${selectedUnit}`,
       })
 
       setShowAddPRSheet(false)
@@ -420,10 +424,27 @@ export default function PRs() {
               label="Value"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="Enter weight or time"
+              placeholder="Enter value (weight, time, reps, etc.)"
               type="number"
               data-testid="pr-value-input"
             />
+
+            {/* Unit Selector */}
+            <div className="space-y-2">
+              <label className="text-body font-medium text-foreground">Unit</label>
+              <div className="flex flex-wrap gap-2">
+                {unitOptions.map((option) => (
+                  <Chip
+                    key={option.value}
+                    variant={selectedUnit === option.value ? "primary" : "default"}
+                    onClick={() => setSelectedUnit(option.value)}
+                    data-testid={`unit-${option.value}`}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </div>
+            </div>
 
             {/* Date Picker */}
             <div className="space-y-2">
