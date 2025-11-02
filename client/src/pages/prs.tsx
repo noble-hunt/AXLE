@@ -11,7 +11,7 @@ import { Sheet } from "@/components/swift/sheet"
 import { Field } from "@/components/swift/field"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
-import { Trophy, TrendingUp, Calendar as CalendarIcon, Target, Dumbbell, Plus, Award, BarChart3 } from "lucide-react"
+import { Trophy, TrendingUp, Calendar as CalendarIcon, Target, Dumbbell, Plus, Award, BarChart3, Star } from "lucide-react"
 import { MovementCard } from "@/components/common/movement-card"
 import { celebratePR, celebrateFirstPR } from "@/lib/confetti"
 import { Calendar } from "@/components/ui/calendar"
@@ -19,13 +19,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
-// Category tab options
-const categoryOptions = [
-  { value: MovementCategory.POWERLIFTING, label: "Power" },
-  { value: MovementCategory.OLYMPIC_WEIGHTLIFTING, label: "Olympic" },
-  { value: MovementCategory.GYMNASTICS, label: "Gym" },
-  { value: MovementCategory.AEROBIC, label: "Cardio" },
-  { value: MovementCategory.BODYBUILDING, label: "BB" }
+// Special category type for "All" and "Favorites"
+type CategoryType = 'ALL' | 'FAVORITES' | MovementCategory
+
+// Category tab options with All and Favorites
+const categoryOptions: { value: CategoryType; label: string }[] = [
+  { value: 'ALL', label: 'All' },
+  { value: 'FAVORITES', label: 'Favorites' },
+  { value: MovementCategory.POWERLIFTING, label: 'Powerlifting' },
+  { value: MovementCategory.OLYMPIC_WEIGHTLIFTING, label: 'Olympic Lifting' },
+  { value: MovementCategory.GYMNASTICS, label: 'Gymnastics' },
+  { value: MovementCategory.AEROBIC, label: 'Cardio' },
+  { value: MovementCategory.BODYBUILDING, label: 'Bodybuilding' }
 ]
 
 // Unit options
@@ -37,7 +42,7 @@ const unitOptions = [
 export default function PRs() {
   const { prs: personalRecords, getPRsByCategory, addPR, profile } = useAppStore()
   const { toast } = useToast()
-  const [activeCategory, setActiveCategory] = useState<MovementCategory>(MovementCategory.POWERLIFTING)
+  const [activeCategory, setActiveCategory] = useState<CategoryType>('ALL')
   const [showAddPRSheet, setShowAddPRSheet] = useState(false)
   const [selectedMovement, setSelectedMovement] = useState<Movement | undefined>()
   const [customMovement, setCustomMovement] = useState("")
@@ -47,6 +52,9 @@ export default function PRs() {
   
   // Get user's preferred unit from profile (default to 'lbs' if not set)
   const unit = profile?.preferredUnit || 'lbs'
+  
+  // Get favorite movements from profile
+  const favoriteMovements = profile?.favoriteMovements || []
   
   // Simulate loading state for better UX
   useEffect(() => {
@@ -62,9 +70,15 @@ export default function PRs() {
     const prDate = pr.date instanceof Date ? pr.date : new Date(pr.date)
     return prDate >= thisMonth
   }).length
-  const categoryPRs = getPRsByCategory(activeCategory).length
+  
+  // Calculate category PRs based on activeCategory
+  const categoryPRs = activeCategory === 'ALL' 
+    ? totalPRs 
+    : activeCategory === 'FAVORITES'
+    ? favoriteMovements.length
+    : getPRsByCategory(activeCategory).length
 
-  const handleAddPR = (movement?: Movement) => {
+  const handleAddPR = (movement?: Movement, category?: MovementCategory) => {
     setSelectedMovement(movement)
     setCustomMovement("")
     setValue("")
@@ -90,9 +104,14 @@ export default function PRs() {
       )
       const isFirstPR = existingPRsForMovement.length === 0
 
+      // Determine category - if on Favorites, try to infer from movement, otherwise use first available category
+      const prCategory = activeCategory !== 'ALL' && activeCategory !== 'FAVORITES'
+        ? activeCategory
+        : MovementCategory.POWERLIFTING // Default fallback
+      
       await addPR({
         movement: movementName as Movement,
-        category: activeCategory,
+        category: prCategory,
         value: parseFloat(value),
         unit,
         date: selectedDate
@@ -136,8 +155,17 @@ export default function PRs() {
   }
 
   // Get movements and PRs for current category
-  const movements = getMovementsByCategory(activeCategory)
-  const categoryPersonalRecords = getPRsByCategory(activeCategory)
+  const movements = activeCategory === 'ALL'
+    ? Object.values(MovementCategory).flatMap(cat => getMovementsByCategory(cat))
+    : activeCategory === 'FAVORITES'
+    ? favoriteMovements as Movement[]
+    : getMovementsByCategory(activeCategory)
+  
+  const categoryPersonalRecords = activeCategory === 'ALL'
+    ? personalRecords
+    : activeCategory === 'FAVORITES'
+    ? personalRecords.filter(pr => favoriteMovements.includes(pr.movement as string))
+    : getPRsByCategory(activeCategory)
 
   if (isLoading) {
     return (
@@ -202,23 +230,28 @@ export default function PRs() {
         />
       </div>
 
-      {/* Filter Controls */}
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-body font-medium text-foreground">Category</label>
-          <div className="-ml-1">
-            <SegmentedControl
-              value={activeCategory}
-              onValueChange={(value) => setActiveCategory(value as MovementCategory)}
-              data-testid="category-tabs"
+      {/* Filter Controls - Multi-row Pills */}
+      <div className="space-y-2">
+        <label className="text-body font-medium text-foreground">Category</label>
+        <div className="flex flex-wrap gap-2">
+          {categoryOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setActiveCategory(option.value)}
+              className={cn(
+                "px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200",
+                activeCategory === option.value
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+              data-testid={`category-${option.value.toLowerCase()}`}
             >
-              {categoryOptions.map((option) => (
-                <Segment key={option.value} value={option.value}>
-                  {option.label}
-                </Segment>
-              ))}
-            </SegmentedControl>
-          </div>
+              {option.value === 'FAVORITES' && (
+                <Star className="w-4 h-4 inline-block mr-1 -mt-0.5" />
+              )}
+              {option.label}
+            </button>
+          ))}
         </div>
       </div>
 

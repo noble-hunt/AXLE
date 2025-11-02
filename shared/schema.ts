@@ -12,6 +12,7 @@ export const profiles = pgTable("profiles", {
   avatarUrl: text("avatar_url"),
   dateOfBirth: date("date_of_birth"),
   preferredUnit: text("preferred_unit").notNull().default("lbs"), // User's preferred weight unit (lbs or kg)
+  favoriteMovements: text("favorite_movements").array().notNull().default(sql`'{}'`), // Array of favorite movement names
   providers: text("providers").array().notNull().default(sql`'{}'`), // Array of linked identity providers
   // Location data for environment service integration
   latitude: real("latitude"),

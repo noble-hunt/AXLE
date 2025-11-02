@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trophy, Calendar, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react'
+import { Plus, Trophy, Calendar, ChevronDown, ChevronUp, TrendingUp, Star } from 'lucide-react'
 import { Movement, RepMaxType, Unit, MovementCategory, PR, getDefaultUnitForMovement, shouldShowRepMaxForMovement } from '../../types'
 import { PRProgressChart } from './pr-progress-chart'
 import { useAppStore } from '@/store/useAppStore'
 import { format } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
+import { apiRequest } from '@/lib/queryClient'
+import { useToast } from '@/hooks/use-toast'
 
 interface MovementCardProps {
   movement: Movement
@@ -37,7 +39,44 @@ const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | unde
 
 export function MovementCard({ movement, category, onAddPR }: MovementCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const { getPRsByMovement, getBestPRByMovement } = useAppStore()
+  const { getPRsByMovement, getBestPRByMovement, profile, setProfile } = useAppStore()
+  const { toast } = useToast()
+  
+  const isFavorite = profile?.favoriteMovements?.includes(movement) || false
+  
+  const toggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    
+    try {
+      const newFavorites = isFavorite
+        ? (profile?.favoriteMovements || []).filter(m => m !== movement)
+        : [...(profile?.favoriteMovements || []), movement]
+      
+      const result = await apiRequest('POST', '/api/profiles', {
+        action: 'update',
+        favoriteMovements: newFavorites
+      })
+      const responseData = await result.json()
+      
+      if (responseData.profile) {
+        setProfile({
+          ...profile,
+          favoriteMovements: responseData.profile.favoriteMovements || responseData.profile.favorite_movements || []
+        })
+        
+        toast({
+          title: isFavorite ? "Removed from favorites" : "Added to favorites",
+          description: `${movement} ${isFavorite ? 'removed from' : 'added to'} your favorites`
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update favorites",
+        variant: "destructive"
+      })
+    }
+  }
   
   const movementPRs = getPRsByMovement(movement)
   const defaultUnit = getDefaultUnitForMovement(movement)
@@ -89,6 +128,17 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={toggleFavorite}
+              className="h-8 w-8 p-0 hover:bg-transparent"
+              data-testid={`button-favorite-${movement.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`}
+            >
+              <Star 
+                className={`w-5 h-5 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} 
+              />
+            </Button>
             <span>{movement}</span>
             {hasPRs && (
               <motion.div
