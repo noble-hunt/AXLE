@@ -7,7 +7,7 @@ import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
 import { SegmentedControl, Segment } from "@/components/swift/segmented-control"
 import { StatBadge } from "@/components/swift/stat-badge"
-import { Sheet } from "@/components/swift/sheet"
+import { Sheet, SheetContent } from "@/components/swift/sheet"
 import { Field } from "@/components/swift/field"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
@@ -307,14 +307,27 @@ export default function PRs() {
           </div>
         ) : (
           <div className="grid gap-4" data-testid="movements-grid">
-            {movements.map((movement) => (
-              <MovementCard
-                key={movement}
-                movement={movement}
-                category={activeCategory}
-                onAddPR={handleAddPR}
-              />
-            ))}
+            {movements.map((movement) => {
+              // Determine the correct category to pass to MovementCard
+              let movementCategory: MovementCategory
+              
+              if (activeCategory === 'ALL' || activeCategory === 'FAVORITES') {
+                // Find the category from the PR data
+                const movementPR = personalRecords.find(pr => pr.movement === movement)
+                movementCategory = movementPR?.movementCategory || MovementCategory.OTHER
+              } else {
+                movementCategory = activeCategory
+              }
+              
+              return (
+                <MovementCard
+                  key={movement}
+                  movement={movement}
+                  category={movementCategory}
+                  onAddPR={handleAddPR}
+                />
+              )
+            })}
           </div>
         )}
       </div>
@@ -343,7 +356,8 @@ export default function PRs() {
         onOpenChange={setShowAddPRSheet}
         data-testid="add-pr-sheet"
       >
-        <div className="p-6 space-y-6">
+        <SheetContent onClose={() => setShowAddPRSheet(false)}>
+        <div className="space-y-6">
           <div className="text-center space-y-2">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
               <Trophy className="w-6 h-6 text-primary" />
@@ -474,6 +488,7 @@ export default function PRs() {
             </Button>
           </div>
         </div>
+        </SheetContent>
       </Sheet>
     </motion.div>
   )
