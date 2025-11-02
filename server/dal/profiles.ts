@@ -1,4 +1,7 @@
 import { supabaseAdmin } from "../lib/supabaseAdmin";
+import pg from 'pg';
+
+const { Client } = pg;
 
 // Helper function to map database fields (snake_case) to frontend fields (camelCase)
 function mapProfileToFrontend(dbProfile: any) {
@@ -214,7 +217,6 @@ export async function updateProfile(userId: string, updates: {
     }
 
     // Try direct SQL via connection
-    const { Client } = await import('pg');
     const client = new Client({ connectionString: process.env.DATABASE_URL });
     await client.connect();
 
