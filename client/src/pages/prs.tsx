@@ -389,8 +389,8 @@ export default function PRs() {
             />
 
             {/* Unit Selection */}
-            <div className="space-y-2">
-              <label className="text-body font-medium text-foreground">Unit</label>
+            <div className="flex items-center justify-between gap-4">
+              <label className="text-body font-medium text-foreground h-10 flex items-center">Unit</label>
               <SegmentedControl
                 value={unit}
                 onValueChange={(value) => setUnit(value as "lbs" | "kg")}
