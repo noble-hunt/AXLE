@@ -12,6 +12,8 @@ function mapProfileToFrontend(dbProfile: any) {
     username: dbProfile.username,
     dateOfBirth: dbProfile.date_of_birth,
     avatarUrl: dbProfile.avatar_url,
+    preferredUnit: dbProfile.preferred_unit,
+    favoriteMovements: dbProfile.favorite_movements || [],
     providers: dbProfile.providers,
     // Convert timestamp strings to Date objects for frontend
     createdAt: dbProfile.created_at ? new Date(dbProfile.created_at) : undefined,
@@ -101,6 +103,8 @@ export async function updateProfile(userId: string, updates: {
   username?: string;
   dateOfBirth?: string | null;
   avatarUrl?: string;
+  preferredUnit?: string;
+  favoriteMovements?: string[];
 }) {
   const updateData: any = {};
   
@@ -110,6 +114,8 @@ export async function updateProfile(userId: string, updates: {
   if (updates.username !== undefined) updateData.username = updates.username;
   if (updates.dateOfBirth !== undefined) updateData.date_of_birth = updates.dateOfBirth;
   if (updates.avatarUrl !== undefined) updateData.avatar_url = updates.avatarUrl;
+  if (updates.preferredUnit !== undefined) updateData.preferred_unit = updates.preferredUnit;
+  if (updates.favoriteMovements !== undefined) updateData.favorite_movements = updates.favoriteMovements;
 
   // First try to update existing profile
   const { data: updateResult, error: updateError } = await supabaseAdmin
