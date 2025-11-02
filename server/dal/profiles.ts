@@ -106,54 +106,148 @@ export async function updateProfile(userId: string, updates: {
   preferredUnit?: string;
   favoriteMovements?: string[];
 }) {
-  const updateData: any = {};
-  
-  // Map frontend field names to database column names
-  if (updates.firstName !== undefined) updateData.first_name = updates.firstName;
-  if (updates.lastName !== undefined) updateData.last_name = updates.lastName;
-  if (updates.username !== undefined) updateData.username = updates.username;
-  if (updates.dateOfBirth !== undefined) updateData.date_of_birth = updates.dateOfBirth;
-  if (updates.avatarUrl !== undefined) updateData.avatar_url = updates.avatarUrl;
-  if (updates.preferredUnit !== undefined) updateData.preferred_unit = updates.preferredUnit;
-  if (updates.favoriteMovements !== undefined) updateData.favorite_movements = updates.favoriteMovements;
+  // Build SET clauses for SQL update
+  const setClauses: string[] = [];
+  const values: any[] = [];
+  let paramIndex = 1;
 
-  // First try to update existing profile
-  const { data: updateResult, error: updateError } = await supabaseAdmin
-    .from('profiles')
-    .update(updateData)
-    .eq('user_id', userId)
-    .select()
-    .single();
-
-  // If update succeeds, return the result
-  if (!updateError && updateResult) {
-    return mapProfileToFrontend(updateResult);
+  if (updates.firstName !== undefined) {
+    setClauses.push(`first_name = $${paramIndex++}`);
+    values.push(updates.firstName);
+  }
+  if (updates.lastName !== undefined) {
+    setClauses.push(`last_name = $${paramIndex++}`);
+    values.push(updates.lastName);
+  }
+  if (updates.username !== undefined) {
+    setClauses.push(`username = $${paramIndex++}`);
+    values.push(updates.username);
+  }
+  if (updates.dateOfBirth !== undefined) {
+    setClauses.push(`date_of_birth = $${paramIndex++}`);
+    values.push(updates.dateOfBirth);
+  }
+  if (updates.avatarUrl !== undefined) {
+    setClauses.push(`avatar_url = $${paramIndex++}`);
+    values.push(updates.avatarUrl);
+  }
+  if (updates.preferredUnit !== undefined) {
+    setClauses.push(`preferred_unit = $${paramIndex++}`);
+    values.push(updates.preferredUnit);
+  }
+  if (updates.favoriteMovements !== undefined) {
+    setClauses.push(`favorite_movements = $${paramIndex++}`);
+    values.push(updates.favoriteMovements);
   }
 
-  // If profile doesn't exist (PGRST116), create it with the provided data
-  if (updateError && updateError.code === 'PGRST116') {
-    const insertData = {
-      user_id: userId,
-      ...updateData,
-    };
+  if (setClauses.length === 0) {
+    // No updates, just fetch and return current profile
+    return await getProfile(userId);
+  }
 
-    const { data: insertResult, error: insertError } = await supabaseAdmin
-      .from('profiles')
-      .insert(insertData)
-      .select()
-      .single();
+  // Add userId to values
+  values.push(userId);
 
-    if (insertError) {
-      throw new Error(`Failed to create profile: ${insertError.message}`);
+  // Build the UPDATE query using raw SQL
+  const updateQuery = `
+    UPDATE profiles
+    SET ${setClauses.join(', ')}
+    WHERE user_id = $${paramIndex}
+    RETURNING *;
+  `;
+
+  try {
+    const { data, error } = await supabaseAdmin.rpc('exec_sql', {
+      sql_query: updateQuery,
+      params: values
+    });
+
+    if (error) {
+      // If update didn't find the row, try to insert
+      if (error.message?.includes('0 rows') || error.code === 'PGRST116') {
+        // Build INSERT query
+        const insertCols = ['user_id', ...Object.keys(updates).map(k => {
+          if (k === 'firstName') return 'first_name';
+          if (k === 'lastName') return 'last_name';
+          if (k === 'dateOfBirth') return 'date_of_birth';
+          if (k === 'avatarUrl') return 'avatar_url';
+          if (k === 'preferredUnit') return 'preferred_unit';
+          if (k === 'favoriteMovements') return 'favorite_movements';
+          return k;
+        })];
+        
+        const insertVals = [userId, ...Object.values(updates)];
+        const placeholders = insertVals.map((_, i) => `$${i + 1}`).join(', ');
+        
+        const insertQuery = `
+          INSERT INTO profiles (${insertCols.join(', ')})
+          VALUES (${placeholders})
+          RETURNING *;
+        `;
+        
+        const { data: insertData, error: insertError } = await supabaseAdmin.rpc('exec_sql', {
+          sql_query: insertQuery,
+          params: insertVals
+        });
+        
+        if (insertError) {
+          throw new Error(`Failed to create profile: ${insertError.message}`);
+        }
+        
+        return mapProfileToFrontend(insertData[0]);
+      }
+      
+      throw new Error(`Failed to update profile: ${error.message}`);
     }
 
-    return mapProfileToFrontend(insertResult);
-  }
+    return mapProfileToFrontend(data[0]);
+  } catch (error: any) {
+    // If RPC doesn't exist, fall back to direct query
+    const { data: queryData, error: queryError } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
 
-  // If other error, throw it
-  if (updateError) {
-    throw new Error(`Failed to update profile: ${updateError.message}`);
-  }
+    if (queryError && queryError.code !== 'PGRST116') {
+      throw new Error(`Failed to fetch profile for update: ${queryError.message}`);
+    }
 
-  return mapProfileToFrontend(updateResult);
+    // Try direct SQL via connection
+    const { Client } = await import('pg');
+    const client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+
+    try {
+      const result = await client.query(updateQuery, values);
+      
+      if (result.rowCount === 0) {
+        // No rows updated, try insert
+        const insertCols = ['user_id'];
+        const insertVals: any[] = [userId];
+        let idx = 1;
+        
+        if (updates.firstName !== undefined) { insertCols.push('first_name'); insertVals.push(updates.firstName); }
+        if (updates.lastName !== undefined) { insertCols.push('last_name'); insertVals.push(updates.lastName); }
+        if (updates.username !== undefined) { insertCols.push('username'); insertVals.push(updates.username); }
+        if (updates.dateOfBirth !== undefined) { insertCols.push('date_of_birth'); insertVals.push(updates.dateOfBirth); }
+        if (updates.avatarUrl !== undefined) { insertCols.push('avatar_url'); insertVals.push(updates.avatarUrl); }
+        if (updates.preferredUnit !== undefined) { insertCols.push('preferred_unit'); insertVals.push(updates.preferredUnit); }
+        if (updates.favoriteMovements !== undefined) { insertCols.push('favorite_movements'); insertVals.push(updates.favoriteMovements); }
+        
+        const placeholders = insertVals.map((_, i) => `$${i + 1}`).join(', ');
+        const insertQuery = `INSERT INTO profiles (${insertCols.join(', ')}) VALUES (${placeholders}) RETURNING *;`;
+        
+        const insertResult = await client.query(insertQuery, insertVals);
+        await client.end();
+        return mapProfileToFrontend(insertResult.rows[0]);
+      }
+
+      await client.end();
+      return mapProfileToFrontend(result.rows[0]);
+    } catch (pgError: any) {
+      await client.end();
+      throw new Error(`Failed to update profile via direct connection: ${pgError.message}`);
+    }
+  }
 }
