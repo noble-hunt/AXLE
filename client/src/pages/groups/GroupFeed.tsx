@@ -505,24 +505,31 @@ export default function GroupFeedPage() {
       if (hoursSinceLastShown < 24) return false;
     }
     
-    // Show if no posts at all
-    if (posts.length === 0) return true;
+    let shouldShow = false;
     
-    // Check if most recent post is older than 24 hours
-    const mostRecentPost = posts[posts.length - 1]; // Newest post is at end
-    if (mostRecentPost) {
-      const lastPostTime = new Date(mostRecentPost.createdAt);
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      
-      // Show nudge if most recent post is older than 24 hours and we have less than 10 posts total
-      if (lastPostTime < twentyFourHoursAgo && posts.length < 10) {
-        // Update localStorage when we decide to show
-        localStorage.setItem(lastNudgeKey, new Date().toISOString());
-        return true;
+    // Show if no posts at all
+    if (posts.length === 0) {
+      shouldShow = true;
+    } else {
+      // Check if most recent post is older than 24 hours
+      const mostRecentPost = posts[posts.length - 1]; // Newest post is at end
+      if (mostRecentPost) {
+        const lastPostTime = new Date(mostRecentPost.createdAt);
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        
+        // Show nudge if most recent post is older than 24 hours and we have less than 10 posts total
+        if (lastPostTime < twentyFourHoursAgo && posts.length < 10) {
+          shouldShow = true;
+        }
       }
     }
     
-    return false;
+    // Always update localStorage when we decide to show the nudge
+    if (shouldShow) {
+      localStorage.setItem(lastNudgeKey, new Date().toISOString());
+    }
+    
+    return shouldShow;
   };
 
   // Group editing functions
