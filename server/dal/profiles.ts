@@ -8,7 +8,6 @@ function mapProfileToFrontend(dbProfile: any) {
   if (!dbProfile) return null;
   
   return {
-    id: dbProfile.id,
     userId: dbProfile.user_id,
     firstName: dbProfile.first_name,
     lastName: dbProfile.last_name,
@@ -20,10 +19,9 @@ function mapProfileToFrontend(dbProfile: any) {
     providers: dbProfile.providers,
     // Convert timestamp strings to Date objects for frontend
     createdAt: dbProfile.created_at ? new Date(dbProfile.created_at) : undefined,
-    updatedAt: dbProfile.updated_at ? new Date(dbProfile.updated_at) : undefined,
     // Include any other fields that might exist
-    lastLat: dbProfile.last_lat,
-    lastLon: dbProfile.last_lon,
+    latitude: dbProfile.latitude,
+    longitude: dbProfile.longitude,
     timezone: dbProfile.timezone,
   };
 }
@@ -84,20 +82,32 @@ export async function updateProfileProviders(userId: string, provider: string) {
 }
 
 export async function getProfile(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') {
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  
+  try {
+    await client.connect();
+    
+    // Query with explicit column selection to ensure PostgreSQL arrays are returned correctly
+    const result = await client.query(
+      `SELECT 
+        user_id, first_name, last_name, username, date_of_birth, avatar_url, 
+        preferred_unit, favorite_movements, providers, created_at,
+        latitude, longitude, timezone
+       FROM profiles 
+       WHERE user_id = $1`,
+      [userId]
+    );
+    
+    if (result.rows.length === 0) {
       return null; // Profile not found
     }
+    
+    return mapProfileToFrontend(result.rows[0]);
+  } catch (error: any) {
     throw new Error(`Failed to get profile: ${error.message}`);
+  } finally {
+    await client.end();
   }
-
-  return mapProfileToFrontend(data);
 }
 
 export async function updateProfile(userId: string, updates: {

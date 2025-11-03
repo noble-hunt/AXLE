@@ -1003,7 +1003,6 @@ export const useAppStore = create<AppState>()(
             const profileData = await profileResponse.json();
             if (profileData.profile) {
               set({ profile: profileData.profile });
-              console.log('✅ Loaded profile from database with', profileData.profile.favoriteMovements?.length || 0, 'favorites');
             }
           } else if (profileResponse.status === 401) {
             console.log('⏸️ Skipping profile hydration - not authenticated yet');
