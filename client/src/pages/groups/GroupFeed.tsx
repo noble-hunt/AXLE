@@ -406,8 +406,9 @@ export default function GroupFeedPage() {
   const virtualizer = useVirtualizer({
     count: posts.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 100, // Estimate post height
+    estimateSize: () => 250, // More realistic estimate for card with avatar, content, reactions
     overscan: 5,
+    measureElement: (element) => element?.getBoundingClientRect().height ?? 250,
   });
 
   useEffect(() => {
@@ -484,10 +485,25 @@ export default function GroupFeedPage() {
     loadPosts(newestPost.createdAt);
   };
 
-  // Determine if nudge should be shown
+  // Determine if nudge should be shown (once per day)
   const shouldShowNudge = (): boolean => {
+    if (!groupId) return false;
+    
     // Don't show if loading or typing members present (active)
     if (loading || typingMembers.length > 0) return false;
+    
+    // Check localStorage for last nudge timestamp
+    const lastNudgeKey = `group-nudge-${groupId}`;
+    const lastNudgeTime = localStorage.getItem(lastNudgeKey);
+    
+    if (lastNudgeTime) {
+      const lastShown = new Date(lastNudgeTime);
+      const now = new Date();
+      const hoursSinceLastShown = (now.getTime() - lastShown.getTime()) / (1000 * 60 * 60);
+      
+      // Don't show if shown within last 24 hours
+      if (hoursSinceLastShown < 24) return false;
+    }
     
     // Show if no posts at all
     if (posts.length === 0) return true;
@@ -499,7 +515,11 @@ export default function GroupFeedPage() {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       
       // Show nudge if most recent post is older than 24 hours and we have less than 10 posts total
-      return lastPostTime < twentyFourHoursAgo && posts.length < 10;
+      if (lastPostTime < twentyFourHoursAgo && posts.length < 10) {
+        // Update localStorage when we decide to show
+        localStorage.setItem(lastNudgeKey, new Date().toISOString());
+        return true;
+      }
     }
     
     return false;
@@ -1213,7 +1233,7 @@ export default function GroupFeedPage() {
     const reactions = postReactions[post.id] || [];
     
     return (
-      <Card key={post.id} className="rounded-2xl bg-zinc-900/70 border border-white/10 p-4 md:p-5 space-y-3" data-testid={`post-${post.id}`}>
+      <Card key={post.id} className="rounded-2xl bg-zinc-900/70 border border-white/10 p-3 space-y-3" data-testid={`post-${post.id}`}>
         <div className="flex gap-3">
           <Avatar className="w-10 h-10 flex-shrink-0">
             <AvatarImage src={post.authorAvatar} alt={post.authorName} />
@@ -1733,14 +1753,16 @@ export default function GroupFeedPage() {
             .map((virtualItem) => (
             <div
               key={virtualItem.key}
+              data-index={virtualItem.index}
+              ref={virtualizer.measureElement}
               style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 width: '100%',
-                height: `${virtualItem.size}px`,
                 transform: `translateY(${virtualItem.start}px)`,
               }}
+              className="pb-3"
             >
               {renderPost(posts[virtualItem.index])}
             </div>
