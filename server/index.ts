@@ -10,6 +10,7 @@ import { initSentry, Sentry } from "./sentry";
 import { logging } from "./middleware/logging";
 import { jsonError } from "./middleware/error";
 import { runBootMigrationGuard } from "./migrations/boot-guard";
+import { ensureStorageBuckets } from "./lib/initStorage";
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -162,6 +163,9 @@ app.get("/api/_routes", (req, res) => {
 (async () => {
   // Run boot-time migration guard to ensure critical schema exists
   // await runBootMigrationGuard(); // Disabled: Not applicable for local PostgreSQL database
+  
+  // Ensure storage buckets exist
+  await ensureStorageBuckets();
   
   const server = await registerRoutes(app);
 

@@ -912,54 +912,65 @@ export default function Profile() {
     setIsUploadingPhoto(true)
 
     try {
-      // Convert to base64 for now (could be replaced with Supabase storage later)
-      const reader = new FileReader()
-      reader.onload = async (e) => {
-        const base64String = e.target?.result as string
-        
-        // Update profile with new avatar (safely handle null profile)
-        setProfile((prev: any) => prev ? { 
-          ...prev, 
-          avatarUrl: base64String 
-        } : { 
-          avatarUrl: base64String,
-          userId: user?.id || '',
-          firstName: user?.user_metadata?.first_name || '',
-          lastName: user?.user_metadata?.last_name || '',
-          providers: ['email'],
-          username: user?.email?.split('@')[0] || '',
-          createdAt: new Date()
-        })
-        
-        // Also update in database if user is authenticated
-        if (user?.id) {
-          try {
-            const { supabase } = await import('@/lib/supabase')
-            await supabase
-              .from('profiles')
-              .update({ avatar_url: base64String })
-              .eq('user_id', user.id)
-          } catch (error) {
-            console.error('Failed to update avatar in database:', error)
-          }
-        }
-
-        toast({
-          title: "Profile photo updated!",
-          description: "Your new profile photo has been saved.",
-        })
+      // Get signed upload URL using authFetch for proper authentication
+      const signedUploadResponse = await authFetch('/api/storage/profile-photos/signed-upload', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ filename: file.name }),
+      });
+      
+      if (!signedUploadResponse.ok) {
+        const errorData = await signedUploadResponse.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || 'Failed to get upload URL');
       }
       
-      reader.readAsDataURL(file)
+      const { path, token, signedUrl } = await signedUploadResponse.json() as { path: string; token: string; signedUrl?: string };
+
+      // Upload to Supabase storage
+      const storage: any = supabase.storage.from('profile-photos');
+      if (typeof storage.uploadToSignedUrl === 'function') {
+        const { error } = await storage.uploadToSignedUrl(path, token, file);
+        if (error) throw error;
+      } else {
+        await fetch(signedUrl!, { method: 'PUT', body: file, headers: { 'x-upsert': 'true' } });
+      }
+
+      // Get public URL
+      const { data } = supabase.storage.from('profile-photos').getPublicUrl(path);
+      const publicUrl = data.publicUrl;
+
+      // Update avatar in database via API (authFetch returns parsed data)
+      const { profile: updatedProfile } = await authFetch('/api/profile/avatar', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ avatarUrl: publicUrl }),
+      });
+
+      // Update local profile state with the server response
+      if (updatedProfile) {
+        setProfile({
+          ...profile,
+          ...updatedProfile,
+          userId: user?.id || profile?.userId || '',
+          createdAt: updatedProfile.createdAt ? new Date(updatedProfile.createdAt) : profile?.createdAt || new Date()
+        });
+      }
+
+      toast({
+        title: "Profile photo updated!",
+        description: "Your new profile photo has been saved.",
+      })
     } catch (error) {
       console.error('Photo upload error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update your profile photo. Please try again.';
       toast({
         title: "Upload failed",
-        description: "Failed to update your profile photo. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
       setIsUploadingPhoto(false)
+      event.target.value = '' // Reset input
     }
   }
   

@@ -617,6 +617,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update profile avatar - PATCH to update just the avatar URL
+  app.patch("/api/profile/avatar", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { avatarUrl } = z.object({ avatarUrl: z.string() }).parse(req.body);
+      
+      const { updateProfile } = await import("./dal/profiles");
+      const updatedProfile = await updateProfile(authReq.user.id, { avatarUrl });
+      
+      if (!updatedProfile) {
+        return res.status(404).json({ message: "Profile not found" });
+      }
+      
+      res.json({ profile: updatedProfile });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid avatar URL", errors: error.errors });
+      }
+      console.error("Failed to update avatar:", error);
+      res.status(500).json({ message: "Failed to update avatar" });
+    }
+  });
+
   // Profile upsert - POST to create/update profile fields
   const upsertProfileSchema = z.object({
     firstName: z.string().optional(),

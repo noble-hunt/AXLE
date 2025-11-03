@@ -40,4 +40,22 @@ router.post('/group-photos/signed-upload', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/profile-photos/signed-upload', requireAuth, async (req, res) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { filename } = req.body ?? {};
+    
+    const ext = String(filename || 'jpg').split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `${authReq.user.id}/${crypto.randomUUID()}.${ext}`;
+    
+    const { data, error } = await supabaseAdmin.storage.from('profile-photos').createSignedUploadUrl(path);
+    if (error) return res.status(400).json({ error: error.message });
+    
+    res.json({ path, token: data.token, signedUrl: (data as any).signedUrl });
+  } catch (error) {
+    console.error('Profile photo signed upload error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
