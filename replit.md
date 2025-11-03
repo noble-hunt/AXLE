@@ -25,6 +25,14 @@ Preferred communication style: Simple, everyday language.
   - Users can set their preferred weight unit in Edit Profile page
   - PRs page automatically uses profile preference for all PR displays and entries
   - Removed per-page unit toggles for consistent, user-centric experience
+- **Group Messaging Fix (Nov 3, 2025)**:
+  - Fixed critical bug where group messages displayed email addresses or "User" instead of proper author names
+  - Updated GroupPost type to include full author metadata (authorFirstName, authorLastName, authorUsername, authorAvatarUrl)
+  - Changed fetchGroupPosts to use `/api/groups/:id/feed` endpoint which joins with profiles table for author data
+  - Updated sendPost to insert into posts table, link to group, then refetch from feed endpoint using database timestamps to get complete author info
+  - Enhanced dbRowToPost to handle both feed format (new) and legacy mutation format (old) for backward compatibility
+  - Added temporary post ID skip logic in reactions endpoint to prevent UUID validation errors
+  - Group feed now displays proper author names ("Hunter Noble") instead of fallback values
 
 ### Backend Architecture
 - **Server**: Express.js with a RESTful API in TypeScript.
