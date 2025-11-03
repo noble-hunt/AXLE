@@ -33,6 +33,14 @@ Preferred communication style: Simple, everyday language.
   - Enhanced dbRowToPost to handle both feed format (new) and legacy mutation format (old) for backward compatibility
   - Added temporary post ID skip logic in reactions endpoint to prevent UUID validation errors
   - Group feed now displays proper author names ("Hunter Noble") instead of fallback values
+- **Group Feed UI Fixes (Nov 3, 2025)**:
+  - Fixed virtual scrolling overlap: Increased estimateSize from 100px to 250px to match actual card heights (~250-300px)
+  - Added dynamic measureElement callback for precise height measurement of posts with variable content
+  - Fixed spacing between messages: Added pb-3 padding to wrapper divs (space-y doesn't work with virtual scrolling absolute positioning)
+  - Fixed nudge card localStorage bug: Card now correctly shows only once per 24 hours (was showing on every page load for empty feeds)
+  - Reduced card padding from p-4 md:p-5 to p-3 for better mobile UX
+  - Converted Edit Group form from inline display to modal Dialog overlay to prevent blocking message view
+  - Edit Group button now opens a scrollable modal (max-h-90vh) instead of replacing the feed UI
 
 ### Backend Architecture
 - **Server**: Express.js with a RESTful API in TypeScript.

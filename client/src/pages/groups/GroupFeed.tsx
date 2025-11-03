@@ -1524,10 +1524,10 @@ export default function GroupFeedPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsEditingGroup(!isEditingGroup)}
+              onClick={startEditingGroup}
               data-testid="edit-group-button"
             >
-              {isEditingGroup ? "Cancel" : "Edit Group"}
+              Edit Group
             </Button>
           ) : (
             <DropdownMenu>
@@ -1551,11 +1551,16 @@ export default function GroupFeedPage() {
         </div>
       </div>
 
-      {/* Group Edit Interface - Only for owners when editing */}
-      {isEditingGroup && group.userRole === 'owner' && (
-        <div className="h-[100dvh] overflow-y-auto">
-          <div className="mx-auto max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+96px)]">
-            <Card className="p-4">
+      {/* Group Edit Dialog - Only for owners */}
+      {group.userRole === 'owner' && (
+        <Dialog open={isEditingGroup} onOpenChange={(open) => {
+          if (!open) cancelEditingGroup();
+          else setIsEditingGroup(true);
+        }}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Group</DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
               {/* Group Details Section */}
               <div>
@@ -1611,37 +1616,36 @@ export default function GroupFeedPage() {
               </div>
 
               {/* Member Management Section - Owner only */}
-              {group.userRole === 'owner' && (
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium">Member Management</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={loadGroupMembers}
-                      disabled={loadingMembers}
-                      data-testid="load-members-button"
-                    >
-                      {showMembers ? "Refresh Members" : "View Members"}
-                    </Button>
-                  </div>
-                  
-                  {/* Add Member */}
-                  <div className="flex gap-2 mb-3">
-                    <Input
-                      placeholder="User ID to add"
-                      value={newMemberUserId}
-                      onChange={(e) => setNewMemberUserId(e.target.value)}
-                      data-testid="add-member-input"
-                    />
-                    <Button
-                      onClick={addMemberToGroup}
-                      disabled={!newMemberUserId.trim() || addingMember}
-                      data-testid="add-member-button"
-                    >
-                      {addingMember ? "Adding..." : "Add Member"}
-                    </Button>
-                  </div>
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium">Member Management</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={loadGroupMembers}
+                    disabled={loadingMembers}
+                    data-testid="load-members-button"
+                  >
+                    {showMembers ? "Refresh Members" : "View Members"}
+                  </Button>
+                </div>
+                
+                {/* Add Member */}
+                <div className="flex gap-2 mb-3">
+                  <Input
+                    placeholder="User ID to add"
+                    value={newMemberUserId}
+                    onChange={(e) => setNewMemberUserId(e.target.value)}
+                    data-testid="add-member-input"
+                  />
+                  <Button
+                    onClick={addMemberToGroup}
+                    disabled={!newMemberUserId.trim() || addingMember}
+                    data-testid="add-member-button"
+                  >
+                    {addingMember ? "Adding..." : "Add Member"}
+                  </Button>
+                </div>
 
                 {/* Members List */}
                 {showMembers && (
@@ -1685,11 +1689,9 @@ export default function GroupFeedPage() {
                     )}
                   </div>
                 )}
-                </div>
-              )}
+              </div>
 
               {/* Chat & Group Actions - Owner only */}
-              {group.userRole === 'owner' && (
               <div className="border-t pt-4 space-y-3">
                 <h3 className="font-medium">Group Actions</h3>
                 <div className="flex gap-2">
@@ -1711,12 +1713,10 @@ export default function GroupFeedPage() {
                     {deletingGroup ? "Deleting..." : "Delete Group"}
                   </Button>
                 </div>
-                </div>
-              )}
+              </div>
             </div>
-          </Card>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Feed */}
