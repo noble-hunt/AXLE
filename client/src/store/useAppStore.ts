@@ -961,10 +961,22 @@ export const useAppStore = create<AppState>()(
         try {
           console.log('💧 Hydrating from database for user:', userId);
           
+          // Get the session from the store to access the JWT token
+          const { session } = get();
+          if (!session?.access_token) {
+            console.log('⏸️ No access token available - skipping hydration');
+            return;
+          }
+          
+          const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          };
+          
           // Fetch PRs from database using POST with action: 'list'
           const prsResponse = await fetch('/api/prs', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             credentials: 'include',
             body: JSON.stringify({ action: 'list' })
           });
@@ -972,6 +984,7 @@ export const useAppStore = create<AppState>()(
           if (prsResponse.ok) {
             const prsData = await prsResponse.json();
             set({ prs: prsData || [] });
+            console.log('✅ Loaded', prsData.length, 'PRs from database');
           } else if (prsResponse.status === 401) {
             console.log('⏸️ Skipping PR hydration - not authenticated yet');
           } else {
@@ -981,7 +994,7 @@ export const useAppStore = create<AppState>()(
           // Fetch profile from database using POST with action: 'get'
           const profileResponse = await fetch('/api/profiles', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             credentials: 'include',
             body: JSON.stringify({ action: 'get' })
           });
@@ -990,6 +1003,7 @@ export const useAppStore = create<AppState>()(
             const profileData = await profileResponse.json();
             if (profileData.profile) {
               set({ profile: profileData.profile });
+              console.log('✅ Loaded profile from database with', profileData.profile.favoriteMovements?.length || 0, 'favorites');
             }
           } else if (profileResponse.status === 401) {
             console.log('⏸️ Skipping profile hydration - not authenticated yet');
