@@ -28,7 +28,7 @@ export function BottomNavigation() {
               <Link key={path} href={path}>
                 <div
                   className={cn(
-                    "flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-colors",
+                    "flex flex-col items-center gap-1 p-2 w-20 rounded-xl transition-colors",
                     isActive
                       ? "bg-accent text-accent-foreground"
                       : "hover:bg-accent hover:text-accent-foreground"
