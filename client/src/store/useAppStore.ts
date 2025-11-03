@@ -961,19 +961,29 @@ export const useAppStore = create<AppState>()(
         try {
           console.log('💧 Hydrating from database for user:', userId);
           
-          // Fetch PRs from database
+          // Fetch PRs from database using POST with action: 'list'
           const prsResponse = await fetch('/api/prs', {
-            credentials: 'include'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action: 'list' })
           });
           
           if (prsResponse.ok) {
             const prsData = await prsResponse.json();
             set({ prs: prsData || [] });
+          } else if (prsResponse.status === 401) {
+            console.log('⏸️ Skipping PR hydration - not authenticated yet');
+          } else {
+            console.warn('Failed to fetch PRs:', prsResponse.status);
           }
           
-          // Fetch profile from database
+          // Fetch profile from database using POST with action: 'get'
           const profileResponse = await fetch('/api/profiles', {
-            credentials: 'include'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action: 'get' })
           });
           
           if (profileResponse.ok) {
@@ -981,12 +991,16 @@ export const useAppStore = create<AppState>()(
             if (profileData.profile) {
               set({ profile: profileData.profile });
             }
+          } else if (profileResponse.status === 401) {
+            console.log('⏸️ Skipping profile hydration - not authenticated yet');
+          } else {
+            console.warn('Failed to fetch profile:', profileResponse.status);
           }
           
           console.log('✅ Database hydration complete');
         } catch (error) {
           console.error('❌ Database hydration failed:', error);
-          throw error;
+          // Don't throw - allow the app to continue with local data
         }
       },
 
