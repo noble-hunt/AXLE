@@ -1,11 +1,11 @@
-import { Home, Activity, Heart, Users, MoreHorizontal } from "lucide-react"
+import { Home, Activity, Trophy, Users, MoreHorizontal } from "lucide-react"
 import { Link, useLocation } from "wouter"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: Activity, label: "Workout", path: "/workout" },
-  { icon: Heart, label: "Health", path: "/health" },
+  { icon: Trophy, label: "PRs", path: "/prs" },
   { icon: Users, label: "Groups", path: "/groups" },
   { icon: MoreHorizontal, label: "More", path: "/profile" }
 ]
@@ -18,12 +18,12 @@ export function BottomNavigation() {
       <div className="max-w-sm mx-auto px-4 py-2">
         <div className="flex justify-around items-center">
           {navItems.map(({ icon: Icon, label, path }) => {
-            // Support nested routes for groups, profile, and workout
-            // PRs route (/prs) should highlight the More tab since PRs is accessed via More
+            // Support nested routes for groups, profile, workout, and prs
             const isActive = location === path || 
               (path === "/groups" && location.startsWith("/groups/")) ||
-              (path === "/profile" && (location.startsWith("/profile/") || location === "/prs")) ||
-              (path === "/workout" && location.startsWith("/workout/"))
+              (path === "/profile" && location.startsWith("/profile/")) ||
+              (path === "/workout" && location.startsWith("/workout/")) ||
+              (path === "/prs" && location.startsWith("/prs"))
             return (
               <Link key={path} href={path}>
                 <div

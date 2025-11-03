@@ -40,7 +40,8 @@ import {
   Settings,
   Award,
   Camera,
-  FileText
+  FileText,
+  Heart
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
@@ -763,7 +764,7 @@ function SettingsSection() {
   
   const settingsItems = [
     { icon: Settings, label: "Edit Profile", path: "/profile/edit", color: "text-primary", type: "navigate" },
-    { icon: Trophy, label: "Personal Records", path: "/prs", color: "text-accent", type: "navigate" },
+    { icon: Heart, label: "Health", path: "/health", color: "text-accent", type: "navigate" },
     { icon: Award, label: "Achievements", path: "/achievements", color: "text-accent", type: "navigate" },
     { icon: Bell, label: "Notifications", type: "modal" },
     { icon: Shield, label: "Privacy", type: "modal" },
