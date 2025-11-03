@@ -132,7 +132,7 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
               size="sm"
               variant="ghost"
               onClick={toggleFavorite}
-              className="h-8 w-8 p-0 hover:bg-transparent"
+              className="h-8 w-8 p-0 hover:bg-transparent -ml-1.5"
               data-testid={`button-favorite-${movement.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`}
             >
               <Star 
