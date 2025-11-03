@@ -122,8 +122,31 @@ function safeTimeAgo(iso?: string) {
   try { return formatDistanceToNow(parseISO(iso), { addSuffix: true }); } catch { return ''; }
 }
 
-// Transform database row to Post object
+// Transform feed API response or mutation result to Post object
 function dbRowToPost(row: any, userProfile?: any): Post {
+  // Handle new feed format (from /api/groups/:id/feed)
+  if (row.authorFirstName !== undefined || row.authorUsername !== undefined) {
+    let authorName = 'User';
+    if (row.authorFirstName && row.authorLastName) {
+      authorName = `${row.authorFirstName} ${row.authorLastName}`;
+    } else if (row.authorFirstName) {
+      authorName = row.authorFirstName;
+    } else if (row.authorUsername) {
+      authorName = row.authorUsername;
+    }
+    
+    return {
+      id: row.id,
+      kind: row.kind as Post['kind'],
+      content: row.content || {},
+      createdAt: row.createdAt,
+      authorId: row.userId,
+      authorName,
+      authorAvatar: row.authorAvatarUrl,
+    };
+  }
+  
+  // Handle old mutation format (from direct Supabase inserts)
   const kind = row.meta?.kind || 'message';
   let content = {};
   
@@ -425,15 +448,11 @@ export default function GroupFeedPage() {
         setLoadingMore(true);
       }
 
-      // Load posts using the new posts API only
+      // Load posts using the feed API
       const newPosts = groupId ? await fetchGroupPosts(groupId, since) : [];
       
-      // Filter for valid posts and transform to expected interface
-      const validPosts = newPosts.filter(
-        (p: any) => typeof p?.body === 'string' && typeof p?.created_at === 'string'
-      ).map(post => dbRowToPost(post, { 
-        full_name: 'User'
-      }));
+      // Transform to expected Post interface
+      const validPosts = newPosts.map(post => dbRowToPost(post));
       
       if (since) {
         // Append newer posts (for polling updates)
@@ -694,7 +713,7 @@ export default function GroupFeedPage() {
               if (targetGroupId === groupId) {
                 setPosts(p => {
                   const withoutTemp = p.filter(x => x.id !== tempPost.id && x.id !== String(result.value!.id));
-                  const confirmedPost = dbRowToPost(result.value!, user?.user_metadata);
+                  const confirmedPost = dbRowToPost(result.value!);
                   return [confirmedPost, ...withoutTemp];
                 });
               }
@@ -767,7 +786,7 @@ export default function GroupFeedPage() {
         
         setPosts(p => {
           const withoutTemp = p.filter(x => x.id !== temp.id && x.id !== String(data.id));
-          const confirmedPost = dbRowToPost(data, user?.user_metadata);
+          const confirmedPost = dbRowToPost(data);
           return [confirmedPost, ...withoutTemp];
         });
       } catch (error) {

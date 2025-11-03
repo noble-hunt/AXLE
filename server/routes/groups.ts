@@ -443,6 +443,11 @@ export function registerGroupRoutes(app: Express) {
         return res.status(400).json({ message: "post_id query parameter is required" });
       }
 
+      // Skip temporary post IDs (not yet saved to database)
+      if (String(postId).startsWith('temp-')) {
+        return res.json([]);
+      }
+
       const reactions = await getReactionSummary(userId, groupId, String(postId));
       res.json(reactions);
     } catch (error) {
