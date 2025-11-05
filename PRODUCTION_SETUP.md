@@ -39,9 +39,13 @@ SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```bash
 OPENAI_API_KEY="sk-..."
 ```
-- **Where to get it:** OpenAI API Dashboard
+- **Where to get it:** [OpenAI API Dashboard](https://platform.openai.com/api-keys)
 - **Required for:** AI-powered workout generation
-- **Fallback:** Without this, basic workout generation still works but with limited features
+- **Fallback Behavior:** 
+  - ✅ **WITH** OPENAI_API_KEY: Generates creative, unique workouts using AI
+  - ⚠️ **WITHOUT** OPENAI_API_KEY: Falls back to template-based mock workouts
+  - The app will work in production without this key, but workout quality will be reduced
+  - For production use, setting this key is **highly recommended**
 
 ### 4. **OPTIONAL** - For enhanced features
 

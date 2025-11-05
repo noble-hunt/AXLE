@@ -1317,13 +1317,24 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     rawCategory,
     style,
     duration: request.duration,
-    intensity: request.intensity
+    intensity: request.intensity,
+    hasApiKey: !!openai
   });
+
+  // If no OpenAI API key is configured, use fallback immediately
+  if (!openai) {
+    console.warn('[WG] No OpenAI API key configured, using fallback', { stamp: GENERATOR_STAMP, category });
+    
+    if (!DISABLE_MOCK) {
+      console.warn('[WG] → mock_fallback (no API key)', { stamp: GENERATOR_STAMP, category });
+      return generateMockWorkout(request, 'no-api-key');
+    }
+    
+    throw new Error('Workout generation requires OPENAI_API_KEY environment variable. Please configure it in your deployment settings.');
+  }
 
   // Call OpenAI with movement library
   try {
-    if (!openai) throw new Error('OpenAI API key not configured');
-    
     const result = await generateWithOpenAI(request);
     console.warn('[WG] OpenAI success', { stamp: GENERATOR_STAMP, category, style });
     return result;
@@ -1332,8 +1343,8 @@ export async function generateWorkout(request: EnhancedWorkoutRequest): Promise<
     
     // Fallback to mock only if OpenAI fails
     if (!DISABLE_MOCK) {
-      console.warn('[WG] → mock_fallback', { stamp: GENERATOR_STAMP, category });
-      return generateMockWorkout(request);
+      console.warn('[WG] → mock_fallback (OpenAI error)', { stamp: GENERATOR_STAMP, category });
+      return generateMockWorkout(request, err?.message || 'openai-error');
     }
     
     throw err;
