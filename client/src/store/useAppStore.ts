@@ -988,7 +988,11 @@ export const useAppStore = create<AppState>()(
           } else if (prsResponse.status === 401) {
             console.log('⏸️ Skipping PR hydration - not authenticated yet');
           } else {
-            console.warn('Failed to fetch PRs:', prsResponse.status);
+            const errorText = await prsResponse.text().catch(() => 'Unknown error');
+            console.error(`❌ Failed to fetch PRs: ${prsResponse.status} ${prsResponse.statusText}`, errorText);
+            if (prsResponse.status === 500) {
+              console.error('💡 Hint: This might be a database connection issue in production. Check environment variables.');
+            }
           }
           
           // Fetch profile from database using POST with action: 'get'
@@ -1003,11 +1007,20 @@ export const useAppStore = create<AppState>()(
             const profileData = await profileResponse.json();
             if (profileData.profile) {
               set({ profile: profileData.profile });
+              console.log('✅ Loaded profile:', profileData.profile.username || profileData.profile.email);
+            } else {
+              console.warn('⚠️ Profile data returned but empty - profile might not exist in database');
             }
           } else if (profileResponse.status === 401) {
             console.log('⏸️ Skipping profile hydration - not authenticated yet');
           } else {
-            console.warn('Failed to fetch profile:', profileResponse.status);
+            const errorText = await profileResponse.text().catch(() => 'Unknown error');
+            console.error(`❌ Failed to fetch profile: ${profileResponse.status} ${profileResponse.statusText}`, errorText);
+            if (profileResponse.status === 500) {
+              console.error('💡 Hint: Check DATABASE_URL and database schema in production environment');
+            } else if (profileResponse.status === 404) {
+              console.warn('💡 Profile not found - you may need to complete your profile setup');
+            }
           }
           
           console.log('✅ Database hydration complete');
