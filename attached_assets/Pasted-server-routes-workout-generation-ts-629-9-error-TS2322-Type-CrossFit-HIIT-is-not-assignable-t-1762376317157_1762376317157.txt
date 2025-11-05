@@ -1,0 +1,20 @@
+server/routes/workout-generation.ts(629,9): error TS2322: Type '"CrossFit/HIIT"' is not assignable to type 'Category'.
+server/routes/workout-generation.ts(689,9): error TS2322: Type '"Olympic"' is not assignable to type 'Category'.
+server/routes/workout-seeds.ts(81,22): error TS2339: Property 'genSeed' does not exist on type '{ id: any; userId: any; title: any; request: any; sets: any; notes: any; completed: any; feedback: any; startedAt: any; createdAt: any; totalActiveMinutes: any; intensity: any; energySystem: any; }'.
+server/routes/workout-seeds.ts(81,48): error TS2339: Property 'genSeed' does not exist on type '{ id: any; userId: any; title: any; request: any; sets: any; notes: any; completed: any; feedback: any; startedAt: any; createdAt: any; totalActiveMinutes: any; intensity: any; energySystem: any; }'.
+server/routes/workout-seeds.ts(88,24): error TS2339: Property 'genSeed' does not exist on type '{ id: any; userId: any; title: any; request: any; sets: any; notes: any; completed: any; feedback: any; startedAt: any; createdAt: any; totalActiveMinutes: any; intensity: any; energySystem: any; }'.
+server/workouts/telemetry.ts(88,7): error TS2322: Type 'GenerationEventData' is not assignable to type 'Json'.
+  Type 'GenerationEventData' is not assignable to type '{ [key: string]: Json; }'.
+    Index signature for type 'string' is missing in type 'GenerationEventData'.
+server/workouts/telemetry.ts(134,7): error TS2322: Type 'FeedbackEventData' is not assignable to type 'Json'.
+  Type 'FeedbackEventData' is not assignable to type '{ [key: string]: Json; }'.
+    Index signature for type 'string' is missing in type 'FeedbackEventData'.
+server/services/workouts/createFromSeed.ts(61,32): error TS2339: Property 'meta' does not exist on type '{ workout: { id: string; name: string; description: string; totalMinutes: number; estimatedIntensity: number; blocks: { id: string; name: any; type: string; structure: string; exercises: { id: any; name: any; ... 5 more ...; notes: any; }[]; notes: any; }[]; coaching_notes: string; metadata: { ...; }; }; choices: { ...'.
+  Property 'meta' does not exist on type '{ workout: { id: string; name: string; description: string; totalMinutes: number; estimatedIntensity: number; blocks: { id: string; name: any; type: string; structure: string; exercises: { id: any; name: any; ... 5 more ...; notes: any; }[]; notes: any; }[]; coaching_notes: string; metadata: { ...; }; }; choices: { ...'.
+Build Completed in /vercel/output [1m]
+Deploying outputs...
+Deployment completed
+Creating build cache...
+Created build cache: 2:31.404 (m:ss.mmm)
+Uploading build cache [128.21 MB]
+Build cache uploaded: 1.417s

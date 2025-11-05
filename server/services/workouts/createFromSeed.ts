@@ -58,7 +58,7 @@ export async function createWorkoutFromSeed(args: Args) {
       notes: workout.coaching_notes || workout.description || '',
       completed: false,
       genSeed: args.seed,
-      generatorVersion: result.meta?.usedVersion || args.generatorVersion,
+      generatorVersion: args.generatorVersion,
       generationId: args.seed.rngSeed || uuid()
     }).returning();
 

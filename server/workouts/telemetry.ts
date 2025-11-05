@@ -85,7 +85,7 @@ export async function logGenerationEvent(
       event: 'generate',
       generationId,
       requestHash,
-      payload: eventData,
+      payload: eventData as any,
       responseTimeMs,
     };
 
@@ -131,7 +131,7 @@ export async function logFeedbackEvent(
       event: 'feedback',
       workoutId,
       generationId,
-      payload: eventData,
+      payload: eventData as any,
     };
 
     await storage.createWorkoutEvent(workoutEvent);

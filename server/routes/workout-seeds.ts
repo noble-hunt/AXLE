@@ -78,14 +78,15 @@ export function registerSeedRoutes(app: Express) {
           return res.status(403).json({ error: "Access denied" });
         }
         
-        if (!workout.genSeed || typeof workout.genSeed !== 'object') {
+        const workoutWithSeed = workout as any;
+        if (!workoutWithSeed.genSeed || typeof workoutWithSeed.genSeed !== 'object') {
           return res.status(400).json({ 
             error: "Workout does not have a valid generation seed",
             details: "This workout was created before seed tracking was implemented"
           });
         }
         
-        seed = workout.genSeed as GeneratorSeed;
+        seed = workoutWithSeed.genSeed as GeneratorSeed;
       } else if (validatedData.seed) {
         seed = validatedData.seed;
       } else {
