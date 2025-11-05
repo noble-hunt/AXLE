@@ -349,12 +349,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[AXLE /preview] OpenAI-first generation:', {
         style: workoutStyle,
         duration: durationMin,
-        equipment: equipmentList.length
+        equipment: equipmentList.length,
+        hasOpenAI: !!process.env.OPENAI_API_KEY
       });
       
       // Generate workout using OpenAI-first approach
+      const startTime = Date.now();
       const generatedWorkout = await generateWorkout(generatorRequest as any);
+      const duration = Date.now() - startTime;
       const meta = (generatedWorkout as any)?.meta || {};
+      
+      console.log('[AXLE /preview] Success:', {
+        duration: `${duration}ms`,
+        generator: meta.generator
+      });
       
       // Return the generated workout with seed
       res.json({ 
@@ -364,10 +372,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         meta
       });
     } catch (e: any) {
-      console.error('[AXLE][preview] Error:', e);
+      console.error('[AXLE][preview] Error:', {
+        message: e?.message || String(e),
+        code: e?.code,
+        status: e?.status,
+        type: e?.type,
+        stack: e?.stack,
+        fullError: JSON.stringify(e, null, 2)
+      });
       res.status(500).json({ 
         ok: false, 
-        error: { code: 'INTERNAL', message: e?.message || 'Preview generation failed' } 
+        error: { 
+          code: 'INTERNAL', 
+          message: e?.message || 'Preview generation failed',
+          details: process.env.NODE_ENV === 'development' ? e?.stack : undefined
+        } 
       });
     }
   });

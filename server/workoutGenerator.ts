@@ -1112,16 +1112,25 @@ YOUR RESPONSE MUST:
   };
 
   // Add timeout wrapper to prevent hanging
-  // Structured outputs need more time than regular JSON generation
-  const timeoutMs = 45000; // 45 second timeout for structured outputs
+  // Reduced to 30s to stay within Vercel's function timeout limits
+  const timeoutMs = 30000; // 30 second timeout (Vercel Pro allows 60s max)
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('OpenAI request timed out after 45s')), timeoutMs);
+    setTimeout(() => reject(new Error('OpenAI request timed out after 30s')), timeoutMs);
+  });
+
+  console.log('[WG] Calling OpenAI API', {
+    model: 'gpt-4o-mini',
+    category,
+    style,
+    movementCount: availableMovements.length,
+    timeoutMs
   });
 
   let response;
   try {
+    const startTime = Date.now();
     response = await Promise.race([
-      openai.chat.completions.create({
+      openai!.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -1142,12 +1151,20 @@ YOUR RESPONSE MUST:
       }),
       timeoutPromise
     ]) as any;
+    
+    const duration = Date.now() - startTime;
+    console.log('[WG] OpenAI API success', {
+      duration: `${duration}ms`,
+      tokenUsage: response.usage
+    });
   } catch (err: any) {
     console.error('[WG] OpenAI API call failed', {
       error: err?.message || String(err),
       code: err?.code,
       status: err?.status,
-      type: err?.type
+      type: err?.type,
+      stack: err?.stack,
+      fullError: JSON.stringify(err, null, 2)
     });
     throw new Error(`OpenAI API failed: ${err?.message || 'Unknown error'}`);
   }
