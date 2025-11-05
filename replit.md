@@ -41,6 +41,13 @@ Preferred communication style: Simple, everyday language.
   - Reduced card padding from p-4 md:p-5 to p-3 for better mobile UX
   - Converted Edit Group form from inline display to modal Dialog overlay to prevent blocking message view
   - Edit Group button now opens a scrollable modal (max-h-90vh) instead of replacing the feed UI
+  - **CRITICAL**: Edit Group modal now properly populates form fields on open (calls startEditingGroup) and resets on close (calls cancelEditingGroup)
+- **Group Message Author Name Fix (Nov 5, 2025)**:
+  - Fixed critical bug where newly sent messages displayed user's email address instead of proper name
+  - Updated optimistic post creation to use profile data (firstName, lastName, username) with proper fallback chain
+  - Fallback order: "First Last" → "First" → "Last" → username → email prefix (not full email) → "You"
+  - Matches name display pattern used throughout app (profile.tsx)
+  - Email addresses no longer appear as author names in group feeds
 
 ### Backend Architecture
 - **Server**: Express.js with a RESTful API in TypeScript.

@@ -230,7 +230,7 @@ export default function GroupFeedPage() {
   const [, params] = useRoute("/groups/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { user } = useAppStore();
+  const { user, profile } = useAppStore();
   
   // Rate limiting hooks
   const reactionRateLimit = useReactionRateLimit();
@@ -698,6 +698,16 @@ export default function GroupFeedPage() {
           const body = message.trim();
 
           // Create optimistic posts for each target group
+          const firstName = profile?.firstName || user?.user_metadata?.first_name || '';
+          const lastName = profile?.lastName || user?.user_metadata?.last_name || '';
+          const authorName = firstName && lastName 
+            ? `${firstName} ${lastName}`
+            : firstName 
+              ? firstName
+              : lastName
+                ? lastName
+                : (profile?.username || user?.email?.split('@')[0] || 'You');
+          
           const tempPosts: any[] = [];
           for (const targetGroupId of targetGroups) {
             const temp = {
@@ -709,7 +719,7 @@ export default function GroupFeedPage() {
               },
               createdAt: new Date().toISOString(),
               authorId: userId,
-              authorName: user?.user_metadata?.full_name || user?.email || 'You',
+              authorName,
               groupId: targetGroupId,
               _status: 'sending' as const,
             };
@@ -781,6 +791,16 @@ export default function GroupFeedPage() {
       if (!message.trim()) return;
 
       const userId = (await supabase.auth.getUser()).data.user?.id!;
+      const firstName = profile?.firstName || user?.user_metadata?.first_name || '';
+      const lastName = profile?.lastName || user?.user_metadata?.last_name || '';
+      const authorName = firstName && lastName 
+        ? `${firstName} ${lastName}`
+        : firstName 
+          ? firstName
+          : lastName
+            ? lastName
+            : (profile?.username || user?.email?.split('@')[0] || 'You');
+      
       const temp = { 
         id: `temp-${crypto.randomUUID()}`, 
         kind: 'message' as const,
@@ -790,7 +810,7 @@ export default function GroupFeedPage() {
         },
         createdAt: new Date().toISOString(),
         authorId: userId,
-        authorName: user?.user_metadata?.full_name || user?.email || 'You',
+        authorName,
         _status: 'sending' as const 
       };
       
