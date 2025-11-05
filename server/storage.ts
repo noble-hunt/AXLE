@@ -76,8 +76,18 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const userId = randomUUID();
     const user: User = { 
-      ...insertUser, 
       userId,
+      username: insertUser.username ?? null,
+      firstName: insertUser.firstName ?? null,
+      lastName: insertUser.lastName ?? null,
+      avatarUrl: insertUser.avatarUrl ?? null,
+      dateOfBirth: insertUser.dateOfBirth ?? null,
+      preferredUnit: insertUser.preferredUnit ?? 'lbs',
+      favoriteMovements: Array.isArray(insertUser.favoriteMovements) ? insertUser.favoriteMovements : [],
+      providers: Array.isArray(insertUser.providers) ? insertUser.providers : [],
+      latitude: insertUser.latitude ?? null,
+      longitude: insertUser.longitude ?? null,
+      timezone: insertUser.timezone ?? null,
       createdAt: new Date()
     };
     this.users.set(userId, user);
@@ -88,7 +98,11 @@ export class MemStorage implements IStorage {
   async getWorkouts(userId: string): Promise<Workout[]> {
     return Array.from(this.workouts.values())
       .filter(workout => workout.userId === userId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
   }
 
   async getWorkout(id: string): Promise<Workout | undefined> {
@@ -101,6 +115,20 @@ export class MemStorage implements IStorage {
       ...insertWorkout,
       id,
       notes: insertWorkout.notes ?? null,
+      completed: insertWorkout.completed ?? null,
+      feedback: insertWorkout.feedback ?? null,
+      seed: insertWorkout.seed ?? null,
+      genSeed: insertWorkout.genSeed ?? {},
+      generatorVersion: insertWorkout.generatorVersion ?? 'v0.3.0',
+      generationId: insertWorkout.generationId ?? null,
+      rationale: insertWorkout.rationale ?? null,
+      criticScore: insertWorkout.criticScore ?? null,
+      criticIssues: insertWorkout.criticIssues 
+        ? (Array.isArray(insertWorkout.criticIssues) ? insertWorkout.criticIssues : [insertWorkout.criticIssues])
+        : null,
+      rawWorkoutJson: insertWorkout.rawWorkoutJson ?? null,
+      userScore: insertWorkout.userScore ?? null,
+      startedAt: null,
       createdAt: new Date()
     };
     this.workouts.set(id, workout);
@@ -111,7 +139,13 @@ export class MemStorage implements IStorage {
     const existing = this.workouts.get(id);
     if (!existing) return undefined;
 
-    const updated: Workout = { ...existing, ...updateData };
+    const updated: Workout = { 
+      ...existing, 
+      ...updateData,
+      criticIssues: updateData.criticIssues 
+        ? (Array.isArray(updateData.criticIssues) ? updateData.criticIssues : [updateData.criticIssues])
+        : existing.criticIssues
+    };
     this.workouts.set(id, updated);
     return updated;
   }
@@ -134,10 +168,17 @@ export class MemStorage implements IStorage {
   async createPersonalRecord(insertPR: InsertPersonalRecord): Promise<PersonalRecord> {
     const id = randomUUID();
     const pr: PersonalRecord = {
-      ...insertPR,
       id,
-      reps: insertPR.reps ?? null,
+      userId: insertPR.userId,
+      category: insertPR.category,
+      movement: insertPR.movement,
+      value: String(insertPR.value),
+      unit: insertPR.unit,
+      repMax: insertPR.repMax ?? null,
+      weightKg: insertPR.weightKg ? String(insertPR.weightKg) : null,
+      notes: insertPR.notes ?? null,
       workoutId: insertPR.workoutId ?? null,
+      date: insertPR.date ?? new Date().toISOString().split('T')[0],
       createdAt: new Date()
     };
     this.personalRecords.set(id, pr);
@@ -148,7 +189,12 @@ export class MemStorage implements IStorage {
     const existing = this.personalRecords.get(id);
     if (!existing) return undefined;
 
-    const updated: PersonalRecord = { ...existing, ...updateData };
+    const updated: PersonalRecord = { 
+      ...existing, 
+      ...updateData,
+      value: updateData.value ? String(updateData.value) : existing.value,
+      weightKg: updateData.weightKg ? String(updateData.weightKg) : existing.weightKg
+    };
     this.personalRecords.set(id, updated);
     return updated;
   }
@@ -161,15 +207,23 @@ export class MemStorage implements IStorage {
   async getAchievements(userId: string): Promise<Achievement[]> {
     return Array.from(this.achievements.values())
       .filter(achievement => achievement.userId === userId)
-      .sort((a, b) => new Date(b.unlockedAt).getTime() - new Date(a.unlockedAt).getTime());
+      .sort((a, b) => {
+        const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return timeB - timeA;
+      });
   }
 
   async createAchievement(insertAchievement: InsertAchievement): Promise<Achievement> {
     const id = randomUUID();
     const achievement: Achievement = {
-      ...insertAchievement,
       id,
-      createdAt: new Date()
+      userId: insertAchievement.userId,
+      name: insertAchievement.name,
+      description: insertAchievement.description,
+      progress: insertAchievement.progress ? String(insertAchievement.progress) : '0',
+      unlocked: insertAchievement.unlocked ?? false,
+      updatedAt: new Date()
     };
     this.achievements.set(id, achievement);
     return achievement;
@@ -187,8 +241,14 @@ export class MemStorage implements IStorage {
   async createWorkoutEvent(insertEvent: InsertWorkoutEvent): Promise<WorkoutEvent> {
     const id = randomUUID();
     const event: WorkoutEvent = {
-      ...insertEvent,
       id,
+      userId: insertEvent.userId,
+      event: insertEvent.event,
+      workoutId: insertEvent.workoutId ?? null,
+      generationId: insertEvent.generationId ?? null,
+      requestHash: insertEvent.requestHash ?? null,
+      payload: insertEvent.payload,
+      responseTimeMs: insertEvent.responseTimeMs ?? null,
       createdAt: new Date()
     };
     this.workoutEvents.set(id, event);
