@@ -134,3 +134,42 @@ Preferred communication style: Simple, everyday language.
 ### Authentication and Session Management
 - **connect-pg-simple**: PostgreSQL session store.
 - **express-session**: Session middleware.
+
+## Production Deployment (Nov 5, 2025)
+
+### Deployment Platform
+- **Vercel Pro**: Production hosting with serverless functions
+- **Database**: Separate Neon PostgreSQL instance (not Replit dev database)
+- **File Storage**: Supabase Storage for user avatar uploads
+
+### Environment Variables
+Complete documentation in `PRODUCTION_SETUP.md` covering:
+- **CRITICAL** (3): DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+- **REQUIRED** (3): VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, SUPABASE_ANON_KEY
+- **IMPORTANT** (1): OPENAI_API_KEY
+- **OPTIONAL** (20+): Health integrations (Oura, Fitbit, Garmin, Whoop), email (Resend), error tracking (Sentry), site config
+- **FEATURE FLAGS** (5): HOBH_FORCE_PREMIUM, AXLE_DISABLE_SIMPLE, AXLE_DISABLE_MOCK, etc.
+
+### Health Check Endpoint
+- **Route**: `GET /api/healthz`
+- **Purpose**: Validates all environment variables without exposing values
+- **Status Levels**:
+  - `healthy` 🟢 - All critical/required/important variables configured
+  - `degraded` 🟡 - Some variables missing, reduced functionality
+  - `critical` 🔴 - Critical variables missing, app may crash
+- **Response**: Categorized variable status (critical, required, important, optional, featureFlags) with actionable warnings
+
+### Frontend Error Logging
+- Enhanced `useAppStore.ts` with detailed error diagnostics
+- Logs include status codes, response text, and helpful hints
+- 500 errors → database connection issues
+- 404 errors → profile setup needed
+- 401 errors → authentication required
+
+### Setup Process
+1. Create Neon database with connection pooling enabled
+2. Set all environment variables in Vercel
+3. Run database migrations: `npm run db:push`
+4. Deploy to Vercel
+5. Visit `/api/healthz` to verify configuration
+6. Monitor browser console for detailed error logs if issues occur
