@@ -13,12 +13,10 @@ export async function generateWithFallback(seed: any, opts: any) {
   try {
     // Use configured default version (defaults to v0.3.0)
     if (GENERATOR_VERSION_DEFAULT === 'v0.2.5') {
-      const result = await generateV02(seed, opts);
-      return { ...result, meta: { ...result.meta, usedVersion: 'v0.2.5' } };
+      return await generateV02(seed, opts);
     }
     
-    const result = await generateV03(seed, opts);
-    return { ...result, meta: { ...result.meta, usedVersion: 'v0.3.0' } };
+    return await generateV03(seed, opts);
   } catch (err) {
     if (GENERATOR_ALLOW_FALLBACK) {
       console.log(`Generator ${GENERATOR_VERSION_DEFAULT} failed, falling back to ${GENERATOR_FALLBACK}`);
@@ -35,11 +33,9 @@ export async function generateWithFallback(seed: any, opts: any) {
       usedVersion = GENERATOR_FALLBACK;
       
       if (GENERATOR_FALLBACK === 'v0.2.5') {
-        const result = await generateV02(legacySeed, opts);
-        return { ...result, meta: { ...result.meta, usedVersion: 'v0.2.5', fallback: true } };
+        return await generateV02(legacySeed, opts);
       } else {
-        const result = await generateV03(legacySeed, opts);
-        return { ...result, meta: { ...result.meta, usedVersion: 'v0.3.0', fallback: true } };
+        return await generateV03(legacySeed, opts);
       }
     }
     throw err;

@@ -12,14 +12,14 @@ export async function deriveSuggestionSeed(userId: string) {
   // Get latest health report
   const health = healthReports && healthReports.length > 0 ? healthReports[0] : null;
 
-  // SAFE DEFAULTS for MVP
+  // SAFE DEFAULTS for MVP - Profile doesn't have workout preferences yet
   const inputs: GeneratorInputs = {
-    archetype: (profile?.default_archetype as any) ?? 'mixed',
-    minutes: profile?.default_minutes ?? 30,
-    targetIntensity: (profile?.default_intensity ?? 6) as GeneratorInputs['targetIntensity'],
-    equipment: profile?.equipment ?? ['dumbbells', 'bodyweight'],
-    constraints: profile?.constraints ?? [],
-    location: (profile?.location as GeneratorInputs['location']) ?? 'gym'
+    archetype: 'mixed',
+    minutes: 30,
+    targetIntensity: 6 as GeneratorInputs['targetIntensity'],
+    equipment: ['dumbbells', 'bodyweight'],
+    constraints: [],
+    location: 'gym' as GeneratorInputs['location']
   };
 
   const context: GeneratorContext = {
