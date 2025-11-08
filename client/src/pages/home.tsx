@@ -141,10 +141,10 @@ export default function Home() {
       >
         {/* Welcome Banner */}
         <motion.div
-          className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 dark:from-primary dark:via-accent dark:to-info"
+          className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-purple-400/90 via-pink-300/90 to-orange-300/90 dark:from-primary dark:via-accent dark:to-info"
           variants={slideUp}
         >
-          <div className="relative z-10 flex items-center justify-between text-white">
+          <div className="relative z-10 flex items-center justify-between text-gray-900 dark:text-white">
             <div>
               <h1 className="text-subheading font-bold">Welcome back!</h1>
               <h2 className="text-heading font-bold">{(() => {
