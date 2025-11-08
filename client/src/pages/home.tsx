@@ -141,7 +141,7 @@ export default function Home() {
       >
         {/* Welcome Banner */}
         <motion.div
-          className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-primary via-accent to-info"
+          className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 dark:from-primary dark:via-accent dark:to-info"
           variants={slideUp}
         >
           <div className="relative z-10 flex items-center justify-between text-white">
