@@ -766,6 +766,7 @@ function SettingsSection() {
     { icon: Settings, label: "Edit Profile", path: "/profile/edit", color: "text-primary", type: "navigate" },
     { icon: Heart, label: "Health", path: "/health", color: "text-accent", type: "navigate" },
     { icon: Award, label: "Achievements", path: "/achievements", color: "text-accent", type: "navigate" },
+    { icon: FileText, label: "Reports", path: "/reports", color: "text-primary", type: "navigate" },
     { icon: Bell, label: "Notifications", type: "modal" },
     { icon: Shield, label: "Privacy", type: "modal" },
     { icon: Info, label: "About", type: "modal" },

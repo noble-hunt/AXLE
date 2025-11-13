@@ -1,281 +1,231 @@
-import { SectionTitle } from "@/components/ui/section-title"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { useAppStore } from "@/store/useAppStore"
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Calendar, 
-  Download, 
-  Share, 
-  Filter,
-  Clock,
-  Target,
-  Flame,
-  Heart,
-  Activity,
-  Moon,
-  Lightbulb
-} from "lucide-react"
+import { useQuery, useMutation } from "@tanstack/react-query"
+import { useState } from "react"
+import { useLocation } from "wouter"
+import { Card } from "@/components/swift/card"
+import { Button } from "@/components/swift/button"
+import { FileText, Plus, TrendingUp, Calendar, ChevronLeft, Settings } from "lucide-react"
+import { format } from "date-fns"
+import { motion } from "framer-motion"
+import { fadeIn, slideUp } from "@/lib/motion-variants"
+import { useToast } from "@/hooks/use-toast"
+import { apiRequest, queryClient } from "@/lib/queryClient"
+import type { Report } from "@shared/schema"
 
-export default function Reports() {
-  const { workouts, prs: personalRecords, streak, weeklyWorkouts, reports: healthReports, getRecentReports, getLatestReport } = useAppStore()
+export default function ReportsPage() {
+  const [, setLocation] = useLocation()
+  const { toast } = useToast()
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
 
-  // Debug readout
-  console.log('Reports Page State:', { 
-    totalWorkouts: workouts.length,
-    totalPRs: personalRecords.length,
-    streak,
-    weeklyWorkouts,
-    totalTime: workouts.reduce((sum, w) => sum + w.duration, 0),
-    avgWorkoutTime: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length) : 0,
-    healthReports: healthReports.length
+  // Fetch user reports
+  const { data: reports, isLoading } = useQuery<Report[]>({
+    queryKey: ['/api/reports']
   })
 
-  const totalTime = workouts.reduce((sum, w) => sum + w.duration, 0)
-  const avgWorkoutTime = workouts.length > 0 ? Math.round(totalTime / workouts.length) : 0
-  
-  // Health data
-  const recentReports = getRecentReports(7) // Last 7 days
-  const latestReport = getLatestReport()
-  const todaysReport = healthReports.find(r => {
-    const today = new Date()
-    const reportDate = new Date(r.date)
-    return reportDate.toDateString() === today.toDateString()
-  })
-  
-  // Simple health suggestions based on data
-  const getHealthSuggestions = () => {
-    const suggestions = []
-    
-    if (latestReport) {
-      // Sleep suggestions
-      if (latestReport.metrics?.sleep && typeof latestReport.metrics.sleep.quality === 'number' && latestReport.metrics.sleep.quality < 70) {
-        suggestions.push({
-          type: 'sleep',
-          icon: Moon,
-          title: 'Improve Sleep Quality',
-          message: `Your sleep score is ${latestReport.metrics.sleep.quality}/100. Try going to bed 30min earlier.`,
-          priority: 'high'
-        })
+  // Generate report mutation
+  const generateReport = useMutation({
+    mutationFn: async (frequency: 'weekly' | 'monthly') => {
+      const response = await apiRequest('POST', '/api/reports/generate', { frequency })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to generate report' }))
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
       }
       
-      // HRV suggestions  
-      if (latestReport.metrics?.recovery?.hrv && latestReport.metrics.recovery.hrv < 40) {
-        suggestions.push({
-          type: 'recovery',
-          icon: Heart,
-          title: 'Focus on Recovery',
-          message: `Your HRV is ${latestReport.metrics.recovery.hrv}ms. Consider lighter workouts today.`,
-          priority: 'medium'
-        })
-      }
-      
-      // Activity suggestions
-      if (weeklyWorkouts < 3) {
-        suggestions.push({
-          type: 'activity',
-          icon: Activity,
-          title: 'Increase Activity',
-          message: `Only ${weeklyWorkouts} workouts this week. Try to get 3-4 sessions per week.`,
-          priority: 'medium'
-        })
-      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      toast({
+        title: "Report generated",
+        description: "Your new report is ready to view"
+      })
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to generate report",
+        description: error.message,
+        variant: "destructive"
+      })
     }
-    
-    return suggestions.slice(0, 3) // Show max 3 suggestions
+  })
+
+  const handleGenerateReport = () => {
+    // For now, default to weekly. TODO: Add frequency selector
+    generateReport.mutate('weekly')
   }
-  
-  const healthSuggestions = getHealthSuggestions()
 
   return (
-    <>
-      <SectionTitle 
-        title="Reports & Analytics" 
-        action={
-          <Button variant="outline" size="sm" className="rounded-xl" data-testid="filter-reports">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
-        }
-      />
-
-      {/* Key Metrics Overview */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="total-workouts-metric">
-          <Calendar className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{workouts.length}</p>
-          <p className="text-xs text-muted-foreground">Total Workouts</p>
-        </Card>
-        
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="current-streak-metric">
-          <Flame className="w-6 h-6 text-destructive mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{streak}</p>
-          <p className="text-xs text-muted-foreground">Day Streak</p>
-        </Card>
-        
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="total-time-metric">
-          <Clock className="w-6 h-6 text-chart-2 mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{totalTime}</p>
-          <p className="text-xs text-muted-foreground">Total Minutes</p>
-        </Card>
-        
-        <Card className="p-4 card-shadow border border-border text-center" data-testid="avg-time-metric">
-          <Target className="w-6 h-6 text-chart-3 mx-auto mb-2" />
-          <p className="text-lg font-bold text-foreground">{avgWorkoutTime}</p>
-          <p className="text-xs text-muted-foreground">Avg Minutes</p>
-        </Card>
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
+        <div className="max-w-sm mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLocation("/profile")}
+                data-testid="button-back"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              <h1 className="text-title font-bold text-foreground">Reports</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => toast({
+                  title: "Coming soon",
+                  description: "Report preferences will be available soon"
+                })}
+                data-testid="button-settings"
+              >
+                <Settings className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Health Metrics */}
-      {latestReport && (
-        <Card className="p-4 card-shadow border border-border">
-          <SectionTitle title={todaysReport ? "Today's Health Metrics" : "Latest Health Metrics"} className="mb-4" />
-          
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center" data-testid="resting-hr-metric">
-              <Heart className="w-6 h-6 text-chart-1 mx-auto mb-2" />
-              <p className="text-lg font-bold text-foreground">{latestReport.metrics?.heartRate?.resting || '--'}</p>
-              <p className="text-xs text-muted-foreground">Resting HR</p>
-            </div>
-            
-            <div className="text-center" data-testid="hrv-metric">
-              <Activity className="w-6 h-6 text-chart-2 mx-auto mb-2" />
-              <p className="text-lg font-bold text-foreground">{latestReport.metrics?.recovery?.hrv || '--'}</p>
-              <p className="text-xs text-muted-foreground">HRV (ms)</p>
-            </div>
-            
-            <div className="text-center" data-testid="sleep-score-metric">
-              <Moon className="w-6 h-6 text-chart-3 mx-auto mb-2" />
-              <p className="text-lg font-bold text-foreground">{latestReport.metrics?.sleep?.quality || '--'}</p>
-              <p className="text-xs text-muted-foreground">Sleep Score</p>
-            </div>
-          </div>
-          
-          {(todaysReport || latestReport) && (
-            <div className="mt-4 text-center">
-              <p className="text-xs text-muted-foreground">
-                Last updated: {new Date(todaysReport?.createdAt || latestReport.createdAt || new Date()).toLocaleTimeString()}
+      {/* Content */}
+      <div className="max-w-sm mx-auto px-4 py-6 space-y-6">
+        {/* CTA Card for first-time users */}
+        {(!reports || reports.length === 0) && !isLoading && (
+          <motion.div {...fadeIn}>
+            <Card className="p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-8 h-8 text-primary" />
+              </div>
+              <h2 className="text-heading font-bold text-foreground mb-2">
+                Welcome to AXLE Reports
+              </h2>
+              <p className="text-body text-muted-foreground mb-6">
+                Get comprehensive insights into your fitness journey with weekly and monthly reports featuring workout analytics, PR progression, and personalized recommendations.
               </p>
-            </div>
-          )}
-        </Card>
-      )}
+              <Button
+                onClick={() => toast({
+                  title: "Coming soon",
+                  description: "Report preferences will be available soon"
+                })}
+                className="w-full"
+                data-testid="button-setup-reports"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Set Up Reports
+              </Button>
+            </Card>
+          </motion.div>
+        )}
 
-      {/* Health Suggestions */}
-      {healthSuggestions.length > 0 && (
-        <Card className="p-4 card-shadow border border-border">
-          <div className="flex items-center gap-3 mb-4">
-            <Lightbulb className="w-5 h-5 text-chart-2" />
-            <SectionTitle title="Health Insights" />
+        {/* Loading State */}
+        {isLoading && (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="p-4 animate-pulse">
+                <div className="h-20 bg-muted rounded" />
+              </Card>
+            ))}
           </div>
-          
-          <div className="space-y-3">
-            {healthSuggestions.map((suggestion, index) => {
-              const IconComponent = suggestion.icon
+        )}
+
+        {/* Reports List */}
+        {reports && reports.length > 0 && (
+          <motion.div {...slideUp} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-subheading font-semibold text-foreground">
+                Your Reports
+              </h2>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleGenerateReport}
+                disabled={generateReport.isPending}
+                data-testid="button-generate-report"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {generateReport.isPending ? 'Generating...' : 'Generate'}
+              </Button>
+            </div>
+
+            {reports.map((report: any, index: number) => {
+              const isViewed = !!report.viewedAt
+              const periodStart = new Date(report.timeframeStart)
+              const periodEnd = new Date(report.timeframeEnd)
+
               return (
-                <div 
-                  key={`${suggestion.type}-${index}`}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-muted/50" 
-                  data-testid={`suggestion-${suggestion.type}`}
+                <motion.div
+                  key={report.id}
+                  {...slideUp}
+                  transition={{ delay: index * 0.05 }}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    suggestion.priority === 'high' ? 'bg-destructive/10' :
-                    suggestion.priority === 'medium' ? 'bg-chart-2/10' : 'bg-muted'
-                  }`}>
-                    <IconComponent className={`w-4 h-4 ${
-                      suggestion.priority === 'high' ? 'text-destructive' :
-                      suggestion.priority === 'medium' ? 'text-chart-2' : 'text-muted-foreground'
-                    }`} />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-sm text-foreground">{suggestion.title}</h4>
-                    <p className="text-xs text-muted-foreground mt-1">{suggestion.message}</p>
-                  </div>
-                </div>
+                  <Card
+                    className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => setSelectedReport(report)}
+                    data-testid={`report-card-${report.id}`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-body font-semibold text-foreground">
+                            {report.frequency === 'weekly' ? 'Weekly' : 'Monthly'} Report
+                          </h3>
+                          <div className="flex items-center gap-2 text-caption text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
+                            <span>
+                              {format(periodStart, 'MMM d')} - {format(periodEnd, 'MMM d, yyyy')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {!isViewed && (
+                        <div className="w-2 h-2 rounded-full bg-primary" data-testid="badge-unviewed" />
+                      )}
+                    </div>
+
+                    {/* Quick Stats Preview */}
+                    {report.metrics && (
+                      <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border/50">
+                        <div>
+                          <p className="text-caption text-muted-foreground">Workouts</p>
+                          <p className="text-body font-semibold text-foreground">
+                            {report.metrics.workoutStats?.totalWorkouts || 0}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-caption text-muted-foreground">PRs</p>
+                          <p className="text-body font-semibold text-foreground">
+                            {report.metrics.prStats?.totalPRs || 0}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-caption text-muted-foreground">Score</p>
+                          <p className="text-body font-semibold text-foreground">
+                            {report.metrics.workoutStats?.consistencyScore || 0}%
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                </motion.div>
               )
             })}
-          </div>
-        </Card>
-      )}
+          </motion.div>
+        )}
 
-      {/* Weekly Progress Chart */}
-      <Card className="p-4 card-shadow border border-border">
-        <div className="flex items-center justify-between mb-4">
-          <SectionTitle title="Weekly Progress" />
-          <TrendingUp className="w-5 h-5 text-chart-2" />
-        </div>
-        
-        <div className="chart-container h-48 flex items-center justify-center">
-          <div className="text-center space-y-2">
-            <BarChart3 className="w-8 h-8 text-muted-foreground mx-auto" />
-            <p className="text-sm text-muted-foreground">Weekly progress chart</p>
-            <p className="text-xs text-muted-foreground">Recharts integration needed</p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Workout Frequency */}
-      <Card className="p-4 card-shadow border border-border">
-        <SectionTitle title="Workout Frequency" className="mb-4" />
-        
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">This Week</span>
-            <span className="font-semibold text-foreground">{weeklyWorkouts} workouts</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Last Week</span>
-            <span className="font-semibold text-foreground">3 workouts</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Monthly Average</span>
-            <span className="font-semibold text-foreground">3.5 workouts</span>
-          </div>
-        </div>
-      </Card>
-
-      {/* Personal Records Trend */}
-      <Card className="p-4 card-shadow border border-border">
-        <SectionTitle title="Personal Records" className="mb-4" />
-        
-        <div className="space-y-3">
-          {personalRecords.slice(0, 3).map((pr, index) => (
-            <div key={pr.id} className="flex items-center justify-between" data-testid={`pr-trend-${pr.id}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  index === 0 ? 'bg-chart-1' : 
-                  index === 1 ? 'bg-chart-2' : 'bg-chart-3'
-                }`} />
-                <span className="text-sm text-muted-foreground">{pr.exercise}</span>
-              </div>
-              <span className="font-semibold text-foreground">{pr.weight} lbs</span>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Export Options */}
-      <Card className="p-4 card-shadow border border-border">
-        <SectionTitle title="Export Data" className="mb-4" />
-        
-        <div className="space-y-3">
-          <Button variant="outline" className="w-full rounded-2xl justify-start" data-testid="export-pdf">
-            <Download className="w-4 h-4 mr-2" />
-            Export as PDF
-          </Button>
-          
-          <Button variant="outline" className="w-full rounded-2xl justify-start" data-testid="export-csv">
-            <Download className="w-4 h-4 mr-2" />
-            Export as CSV
-          </Button>
-          
-          <Button variant="outline" className="w-full rounded-2xl justify-start" data-testid="share-report">
-            <Share className="w-4 h-4 mr-2" />
-            Share Report
-          </Button>
-        </div>
-      </Card>
-    </>
+        {/* Empty State after initial setup */}
+        {reports && reports.length === 0 && !isLoading && (
+          <Card className="p-8 text-center">
+            <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-body text-muted-foreground">
+              No reports generated yet. Check back soon!
+            </p>
+          </Card>
+        )}
+      </div>
+    </div>
   )
 }
