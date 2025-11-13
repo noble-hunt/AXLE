@@ -15,7 +15,7 @@ import { requireAuth, AuthenticatedRequest } from "./middleware/auth";
 import { listWorkouts, getWorkout, insertWorkout, updateWorkout, deleteWorkout, startWorkoutAtomic, getRecentRPE, getZoneMinutes14d, getStrain } from "./dal/workouts";
 import { listPRs } from "./dal/prs";
 import { list as listAchievements } from "./dal/achievements";
-import { listReports } from "./dal/reports";
+import { listReports, getReportsByUserId, getReportById, createReport, markReportAsViewed, getReportPreferences, updateReportPreferences } from "./dal/reports";
 import { listWearables } from "./dal/wearables";
 import { registerSuggestionRoutes } from "./routes/suggestions";
 import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron";
@@ -2252,6 +2252,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("DAL function test error:", error);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================================================
+  // AXLE REPORTS ENDPOINTS
+  // ============================================================================
+
+  // GET /api/reports - List all reports for the user with optional filters
+  app.get("/api/reports", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      
+      // Parse query parameters
+      const frequency = req.query.frequency as 'weekly' | 'monthly' | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      const reports = await getReportsByUserId(userId, {
+        frequency,
+        limit
+      });
+      
+      res.json(reports);
+    } catch (error: any) {
+      console.error("Failed to fetch reports:", error);
+      res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
+  // GET /api/reports/:id - Get a specific report by ID
+  app.get("/api/reports/:id", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const reportId = req.params.id;
+      
+      let report = await getReportById(reportId, userId);
+      
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      
+      // Mark as viewed if not already viewed
+      if (!report.viewedAt) {
+        await markReportAsViewed(reportId);
+        // Refetch to get the updated viewedAt timestamp
+        report = await getReportById(reportId, userId) || report;
+      }
+      
+      res.json(report);
+    } catch (error: any) {
+      console.error("Failed to fetch report:", error);
+      res.status(500).json({ error: "Failed to fetch report" });
+    }
+  });
+
+  // POST /api/reports/generate - Generate a new report manually
+  app.post("/api/reports/generate", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      
+      const { frequency } = req.body;
+      
+      if (!frequency || !['weekly', 'monthly'].includes(frequency)) {
+        return res.status(400).json({ error: "Invalid frequency. Must be 'weekly' or 'monthly'" });
+      }
+      
+      // Calculate timeframe based on frequency
+      const now = new Date();
+      const timeframeEnd = now;
+      const timeframeStart = new Date(now);
+      
+      if (frequency === 'weekly') {
+        timeframeStart.setDate(now.getDate() - 7);
+      } else {
+        timeframeStart.setMonth(now.getMonth() - 1);
+      }
+      
+      // TODO: Implement full report generation logic in Task 4
+      // For now, create a placeholder report with basic metrics
+      const report = await createReport({
+        userId,
+        frequency,
+        timeframeStart,
+        timeframeEnd,
+        metrics: {
+          workoutsCompleted: 0,
+          totalVolume: 0,
+          totalDuration: 0,
+          avgIntensity: 0,
+          newPRs: 0,
+          consistencyScore: 0
+        },
+        insights: {
+          summary: "Report generation coming soon!",
+          strengths: ["Data collection in progress"],
+          areasForImprovement: [],
+          recommendations: ["Complete workouts to generate insights"]
+        }
+      });
+      
+      res.json(report);
+    } catch (error: any) {
+      console.error("Failed to generate report:", error);
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
+  // GET /api/profiles/report-preferences - Get user's report preferences
+  app.get("/api/profiles/report-preferences", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      
+      const preferences = await getReportPreferences(userId);
+      
+      if (!preferences) {
+        return res.status(404).json({ error: "Preferences not found" });
+      }
+      
+      res.json(preferences);
+    } catch (error: any) {
+      console.error("Failed to fetch report preferences:", error);
+      res.status(500).json({ error: "Failed to fetch report preferences" });
+    }
+  });
+
+  // PATCH /api/profiles/report-preferences - Update user's report preferences
+  app.patch("/api/profiles/report-preferences", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      
+      const { reportPreferencesSchema } = await import("@shared/schema");
+      const validated = reportPreferencesSchema.parse(req.body);
+      
+      await updateReportPreferences(userId, validated);
+      
+      // Return updated preferences
+      const updated = await getReportPreferences(userId);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Failed to update report preferences:", error);
+      
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          error: 'Invalid preferences data',
+          details: error.errors 
+        });
+      }
+      
+      res.status(500).json({ error: "Failed to update report preferences" });
     }
   });
 
