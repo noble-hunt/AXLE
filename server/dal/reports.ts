@@ -315,6 +315,8 @@ export async function getReportPreferences(userId: string) {
       reportWeeklyDay: profiles.reportWeeklyDay,
       reportMonthlyDay: profiles.reportMonthlyDay,
       reportDeliveryTime: profiles.reportDeliveryTime,
+      enableNotifications: profiles.enableNotifications,
+      enableEmail: profiles.enableEmail,
     })
     .from(profiles)
     .where(eq(profiles.userId, userId))
@@ -333,6 +335,8 @@ export async function updateReportPreferences(
     reportWeeklyDay?: number | null;
     reportMonthlyDay?: number | null;
     reportDeliveryTime?: string;
+    enableNotifications?: boolean;
+    enableEmail?: boolean;
   }
 ): Promise<void> {
   await db

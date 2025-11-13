@@ -22,8 +22,8 @@ interface ReportPreferencesSheetProps {
 
 const preferencesSchema = z.object({
   reportFrequency: z.enum(['weekly', 'monthly', 'both', 'none']),
-  weeklyReportDay: z.number().min(0).max(6).nullable(),
-  monthlyReportDay: z.number().min(1).max(28).nullable(),
+  reportWeeklyDay: z.number().min(0).max(6).nullable(),
+  reportMonthlyDay: z.number().min(1).max(31).nullable(),
   enableNotifications: z.boolean(),
   enableEmail: z.boolean()
 })
@@ -40,7 +40,7 @@ const WEEKDAYS = [
   { value: 0, label: 'Sunday' }
 ]
 
-const MONTH_DAYS = Array.from({ length: 28 }, (_, i) => ({
+const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => ({
   value: i + 1,
   label: `${i + 1}${getOrdinalSuffix(i + 1)}`
 }))
@@ -62,8 +62,8 @@ export function ReportPreferencesSheet({ isOpen, onClose, currentPreferences }: 
     resolver: zodResolver(preferencesSchema),
     defaultValues: {
       reportFrequency: currentPreferences?.reportFrequency || 'weekly',
-      weeklyReportDay: currentPreferences?.weeklyReportDay ?? 1,
-      monthlyReportDay: currentPreferences?.monthlyReportDay ?? 1,
+      reportWeeklyDay: currentPreferences?.reportWeeklyDay !== undefined ? currentPreferences.reportWeeklyDay : 1,
+      reportMonthlyDay: currentPreferences?.reportMonthlyDay !== undefined ? currentPreferences.reportMonthlyDay : 1,
       enableNotifications: currentPreferences?.enableNotifications ?? true,
       enableEmail: currentPreferences?.enableEmail ?? false
     }
@@ -74,8 +74,8 @@ export function ReportPreferencesSheet({ isOpen, onClose, currentPreferences }: 
     if (currentPreferences) {
       form.reset({
         reportFrequency: currentPreferences.reportFrequency || 'weekly',
-        weeklyReportDay: currentPreferences.weeklyReportDay ?? 1,
-        monthlyReportDay: currentPreferences.monthlyReportDay ?? 1,
+        reportWeeklyDay: currentPreferences.reportWeeklyDay !== undefined ? currentPreferences.reportWeeklyDay : 1,
+        reportMonthlyDay: currentPreferences.reportMonthlyDay !== undefined ? currentPreferences.reportMonthlyDay : 1,
         enableNotifications: currentPreferences.enableNotifications ?? true,
         enableEmail: currentPreferences.enableEmail ?? false
       })
@@ -110,7 +110,13 @@ export function ReportPreferencesSheet({ isOpen, onClose, currentPreferences }: 
   })
 
   const handleSubmit = (values: PreferencesFormValues) => {
-    updatePreferences.mutate(values)
+    // Send null for weekly/monthly day fields when those frequencies aren't selected
+    const payload = {
+      ...values,
+      reportWeeklyDay: (values.reportFrequency === 'weekly' || values.reportFrequency === 'both') ? values.reportWeeklyDay : null,
+      reportMonthlyDay: (values.reportFrequency === 'monthly' || values.reportFrequency === 'both') ? values.reportMonthlyDay : null,
+    }
+    updatePreferences.mutate(payload)
   }
 
   const watchedFrequency = form.watch('reportFrequency')
@@ -168,7 +174,7 @@ export function ReportPreferencesSheet({ isOpen, onClose, currentPreferences }: 
               <Card className="p-4">
                 <FormField
                   control={form.control}
-                  name="weeklyReportDay"
+                  name="reportWeeklyDay"
                   render={({ field }) => (
                     <FormItem data-testid="form-item-weekly-day">
                       <FormLabel>Weekly Report Day</FormLabel>
@@ -206,7 +212,7 @@ export function ReportPreferencesSheet({ isOpen, onClose, currentPreferences }: 
               <Card className="p-4">
                 <FormField
                   control={form.control}
-                  name="monthlyReportDay"
+                  name="reportMonthlyDay"
                   render={({ field }) => (
                     <FormItem data-testid="form-item-monthly-day">
                       <FormLabel>Monthly Report Day</FormLabel>

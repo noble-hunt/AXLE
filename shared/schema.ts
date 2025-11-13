@@ -28,6 +28,8 @@ export const profiles = pgTable("profiles", {
   reportWeeklyDay: integer("report_weekly_day"), // Day of week (0-6) for weekly reports (0=Sunday, 1=Monday, etc.)
   reportMonthlyDay: integer("report_monthly_day"), // Day of month (1-31) for monthly reports
   reportDeliveryTime: time("report_delivery_time").default("09:00:00"), // Time of day for report delivery (HH:MM:SS)
+  enableNotifications: boolean("enable_notifications").notNull().default(true), // Enable in-app notifications for reports
+  enableEmail: boolean("enable_email").notNull().default(false), // Enable email delivery for reports
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -705,6 +707,8 @@ export const reportPreferencesSchema = z.object({
   reportWeeklyDay: z.number().int().min(0).max(6).nullable().optional(), // 0=Sunday, 1=Monday, ..., 6=Saturday
   reportMonthlyDay: z.number().int().min(1).max(31).nullable().optional(), // 1-31 day of month
   reportDeliveryTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(), // HH:MM or HH:MM:SS
+  enableNotifications: z.boolean().optional(),
+  enableEmail: z.boolean().optional(),
 }).refine(data => {
   // Validate that appropriate days are set based on frequency
   if (data.reportFrequency === 'weekly' || data.reportFrequency === 'both') {
