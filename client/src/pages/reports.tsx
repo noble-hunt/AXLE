@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useLocation } from "wouter"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
@@ -9,6 +9,7 @@ import { motion } from "framer-motion"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { useToast } from "@/hooks/use-toast"
 import { apiRequest, queryClient } from "@/lib/queryClient"
+import { ReportDetailModal } from "@/components/reports/ReportDetailModal"
 import type { Report } from "@shared/schema"
 
 export default function ReportsPage() {
@@ -53,6 +54,27 @@ export default function ReportsPage() {
     // For now, default to weekly. TODO: Add frequency selector
     generateReport.mutate('weekly')
   }
+
+  // Mark report as viewed mutation
+  const markAsViewed = useMutation({
+    mutationFn: async (reportId: string) => {
+      const response = await apiRequest('PATCH', `/api/reports/${reportId}/viewed`, {})
+      
+      if (!response.ok) {
+        throw new Error('Failed to mark report as viewed')
+      }
+      
+      return response.json()
+    },
+    onSuccess: () => {
+      // Silently update cache without toast
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+    }
+  })
+
+  const handleReportViewed = useCallback((reportId: string) => {
+    markAsViewed.mutate(reportId)
+  }, [markAsViewed])
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -226,6 +248,14 @@ export default function ReportsPage() {
           </Card>
         )}
       </div>
+
+      {/* Report Detail Modal */}
+      <ReportDetailModal
+        report={selectedReport}
+        isOpen={!!selectedReport}
+        onClose={() => setSelectedReport(null)}
+        onReportViewed={handleReportViewed}
+      />
     </div>
   )
 }
