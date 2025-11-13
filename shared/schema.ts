@@ -708,6 +708,44 @@ export const reportMetricsSchema = z.object({
       value: z.number(), // 0-1 intensity score based on workout count/duration
       workoutCount: z.number(),
     })).max(90).optional(), // Cap at ~3 months of daily data
+    // NEW: Training Load Timeline - daily volume breakdown by category
+    trainingLoad: z.array(z.object({
+      date: z.string(), // ISO date YYYY-MM-DD
+      categories: z.record(z.string(), z.number()), // Category -> minutes
+      totalMinutes: z.number(),
+      avgIntensity: z.number().nullable(),
+    })).max(31).optional(), // Cap at 31 days (monthly view)
+    // NEW: Streak data for consistency features
+    streakData: z.object({
+      currentStreak: z.number(),
+      longestStreak: z.number(),
+      totalActiveDays: z.number(),
+      totalRestDays: z.number(),
+    }).optional(),
+    // NEW: PR Sparklines - per-movement progression for top movements
+    prSparklines: z.array(z.object({
+      movement: z.string(),
+      category: z.string(),
+      timeline: z.array(z.object({
+        date: z.string(),
+        value: z.number(),
+        unit: z.string(),
+      })),
+      latestValue: z.number(),
+      improvement: z.string(), // Display string e.g., "+15 lbs" or "+12%"
+      improvementDelta: z.number(), // Numeric delta for comparisons
+      improvementPercent: z.number(), // Percent improvement
+    })).max(5).optional(), // Top 5 movements
+    // NEW: Recovery Correlation - sleep/HRV vs performance
+    recoveryCorrelation: z.array(z.object({
+      date: z.string(),
+      sleepScore: z.number().nullable(),
+      hrvScore: z.number().nullable(),
+      workoutIntensity: z.number().nullable(),
+      workoutCompletion: z.boolean(),
+      workoutDuration: z.number().nullable(), // Minutes for bubble size
+      restingHR: z.number().nullable(),
+    })).max(31).optional(), // Cap at 31 days
   }).optional(),
 }).passthrough(); // Allow future fields
 
