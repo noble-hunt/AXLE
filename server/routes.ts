@@ -2331,27 +2331,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeframeStart.setMonth(now.getMonth() - 1);
       }
       
-      // TODO: Implement full report generation logic in Task 4
-      // For now, create a placeholder report with basic metrics
+      // Generate full report with real metrics and insights
+      const { generateReport } = await import("./services/reportGenerator");
+      const { metrics, insights } = await generateReport(userId, frequency, timeframeStart, timeframeEnd);
+      
       const report = await createReport({
         userId,
         frequency,
         timeframeStart,
         timeframeEnd,
-        metrics: {
-          workoutsCompleted: 0,
-          totalVolume: 0,
-          totalDuration: 0,
-          avgIntensity: 0,
-          newPRs: 0,
-          consistencyScore: 0
-        },
-        insights: {
-          summary: "Report generation coming soon!",
-          strengths: ["Data collection in progress"],
-          areasForImprovement: [],
-          recommendations: ["Complete workouts to generate insights"]
-        }
+        metrics,
+        insights
       });
       
       res.json(report);
