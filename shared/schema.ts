@@ -807,6 +807,7 @@ export type InsertAxleReport = z.infer<typeof insertAxleReportSchema>;
 export type ReportFrequency = 'none' | 'weekly' | 'monthly' | 'both';
 export type ReportCadence = 'weekly' | 'monthly';
 export type ReportStatus = 'generating' | 'ready' | 'delivered' | 'failed';
+export type Report = AxleReport; // Alias for frontend convenience
 
 // Legacy aliases for backward compatibility
 export const users = profiles; // Alias for compatibility
