@@ -20,7 +20,8 @@ export function ReportDetailModal({ report, isOpen, onClose, onReportViewed }: R
     if (isOpen && report && !report.viewedAt && onReportViewed) {
       onReportViewed(report.id)
     }
-  }, [isOpen, report?.id, report?.viewedAt, onReportViewed])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, report?.id, report?.viewedAt])
 
   if (!report) return null
 

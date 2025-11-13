@@ -2302,6 +2302,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/reports/:id/viewed - Mark a report as viewed
+  app.patch("/api/reports/:id/viewed", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const reportId = req.params.id;
+      
+      // Mark the report as viewed
+      await markReportAsViewed(reportId);
+      
+      // Fetch the updated report to return
+      const report = await getReportById(reportId, userId);
+      
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      
+      res.json(report);
+    } catch (error: any) {
+      console.error("Failed to mark report as viewed:", error);
+      res.status(500).json({ error: "Failed to mark report as viewed" });
+    }
+  });
+
   // POST /api/reports/generate - Generate a new report manually
   app.post("/api/reports/generate", requireAuth, async (req, res) => {
     try {
