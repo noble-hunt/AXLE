@@ -21,9 +21,11 @@ export default function ReportsPage() {
   const [preferencesOpen, setPreferencesOpen] = useState(false)
   const profile = useAppStore(state => state.profile)
 
-  // Fetch user reports
+  // Fetch user reports with aggressive caching for instant loads
   const { data: reports, isLoading } = useQuery<Report[]>({
-    queryKey: ['/api/reports']
+    queryKey: ['/api/reports'],
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
   })
 
   // Generate report mutation
