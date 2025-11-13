@@ -13,6 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient"
 import { Card } from "@/components/swift/card"
 import { Bell, Mail, Calendar } from "lucide-react"
 import type { Profile } from "@shared/schema"
+import { useAppStore } from "@/store/useAppStore"
 
 interface ReportPreferencesSheetProps {
   isOpen: boolean
@@ -92,12 +93,36 @@ export function ReportPreferencesSheet({ isOpen, onClose, currentPreferences }: 
       
       return response.json()
     },
-    onSuccess: () => {
+    onSuccess: (updatedPreferences) => {
+      // Optimistically update React Query cache without triggering refetch
+      queryClient.setQueryData(['/api/profiles'], (old: any) => {
+        if (!old) return old
+        return {
+          ...old,
+          reportFrequency: updatedPreferences.reportFrequency,
+          reportWeeklyDay: updatedPreferences.reportWeeklyDay,
+          reportMonthlyDay: updatedPreferences.reportMonthlyDay,
+          enableNotifications: updatedPreferences.enableNotifications,
+          enableEmail: updatedPreferences.enableEmail
+        }
+      })
+      
+      // Also update Zustand store to keep it in sync (avoid hydration cascade)
+      useAppStore.setState((state) => ({
+        profile: state.profile ? {
+          ...state.profile,
+          reportFrequency: updatedPreferences.reportFrequency,
+          reportWeeklyDay: updatedPreferences.reportWeeklyDay,
+          reportMonthlyDay: updatedPreferences.reportMonthlyDay,
+          enableNotifications: updatedPreferences.enableNotifications,
+          enableEmail: updatedPreferences.enableEmail
+        } : state.profile
+      }))
+      
       toast({
         title: "Preferences saved",
         description: "Your report settings have been updated successfully."
       })
-      queryClient.invalidateQueries({ queryKey: ['/api/profiles'] })
       onClose()
     },
     onError: (error) => {

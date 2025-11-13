@@ -26,6 +26,7 @@ export default function ReportsPage() {
     queryKey: ['/api/reports'],
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    placeholderData: (previousData) => previousData, // Keep previous data during refetch to prevent skeleton flicker
   })
 
   // Generate report mutation
