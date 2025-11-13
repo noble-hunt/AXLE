@@ -1,7 +1,12 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, uuid, integer, timestamp, jsonb, boolean, numeric, smallint, date, uniqueIndex, pgEnum, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, uuid, integer, timestamp, jsonb, boolean, numeric, smallint, date, uniqueIndex, pgEnum, real, time, check, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// AXLE REPORTS ENUMS
+export const reportFrequencyEnum = pgEnum("report_frequency", ["none", "weekly", "monthly", "both"]);
+export const reportCadenceEnum = pgEnum("report_cadence", ["weekly", "monthly"]); // For actual report generation
+export const reportStatusEnum = pgEnum("report_status", ["generating", "ready", "delivered", "failed"]);
 
 // PROFILES - User profile data (references Supabase auth.users)
 export const profiles = pgTable("profiles", {
@@ -18,6 +23,11 @@ export const profiles = pgTable("profiles", {
   latitude: real("latitude"),
   longitude: real("longitude"),
   timezone: text("timezone"),
+  // AXLE Reports preferences
+  reportFrequency: reportFrequencyEnum("report_frequency").notNull().default("weekly"), // Report delivery frequency
+  reportWeeklyDay: integer("report_weekly_day"), // Day of week (0-6) for weekly reports (0=Sunday, 1=Monday, etc.)
+  reportMonthlyDay: integer("report_monthly_day"), // Day of month (1-31) for monthly reports
+  reportDeliveryTime: time("report_delivery_time").default("09:00:00"), // Time of day for report delivery (HH:MM:SS)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -89,6 +99,31 @@ export const achievements = pgTable("achievements", {
   unlocked: boolean("unlocked").notNull().default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// AXLE REPORTS - Weekly/Monthly fitness reports with insights and analytics
+export const axleReports = pgTable("axle_reports", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  frequency: reportCadenceEnum("frequency").notNull(), // 'weekly' | 'monthly'
+  timeframeStart: timestamp("timeframe_start", { withTimezone: true }).notNull(), // UTC timestamp
+  timeframeEnd: timestamp("timeframe_end", { withTimezone: true }).notNull(), // UTC timestamp
+  status: reportStatusEnum("status").notNull().default("generating"),
+  generatorVersion: text("generator_version").notNull().default("v1.0.0"),
+  // Report data stored as JSONB for flexibility
+  metrics: jsonb("metrics").notNull(), // Workout stats, PR stats, health stats, trends
+  insights: jsonb("insights").notNull(), // Headlines, highlights, recommendations, fun facts
+  viewedAt: timestamp("viewed_at"), // When user first opened the report
+  deliveredAt: timestamp("delivered_at"), // When report was delivered (email/push)
+  deliveryChannel: text("delivery_channel").array().default(sql`'{}'`), // ['email', 'push', 'in-app']
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Prevent duplicate reports for same period
+  uniqueUserPeriod: uniqueIndex("axle_reports_user_period_unique").on(table.userId, table.frequency, table.timeframeStart),
+  // Index for efficient queries
+  userTimeframeIdx: index("axle_reports_user_timeframe_idx").on(table.userId, table.timeframeStart),
+  // Ensure valid timeframes
+  timeframeOrderCheck: check("timeframe_order_check", sql`${table.timeframeEnd} > ${table.timeframeStart}`),
+}));
 
 // GROUPS & SOCIAL FEATURES
 
@@ -618,6 +653,97 @@ export type DeviceToken = typeof deviceTokens.$inferSelect;
 export type InsertDeviceToken = z.infer<typeof insertDeviceTokenSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+// AXLE REPORTS - Types and Schemas
+
+// Report Metrics structure (JSONB)
+export const reportMetricsSchema = z.object({
+  workoutStats: z.object({
+    totalWorkouts: z.number(),
+    totalMinutes: z.number(),
+    avgIntensity: z.number().nullable(),
+    completionRate: z.number(),
+    consistencyScore: z.number(),
+    categoriesBreakdown: z.record(z.string(), z.number()).optional(), // Category -> count
+  }),
+  prStats: z.object({
+    totalPRs: z.number(),
+    topPRs: z.array(z.object({
+      movement: z.string(),
+      improvement: z.string(),
+      value: z.string(),
+    })),
+    categoriesImproved: z.array(z.string()),
+  }),
+  healthStats: z.object({
+    avgHeartRate: z.number().nullable(),
+    recoveryScore: z.number().nullable(),
+    sleepHours: z.number().nullable(),
+    readiness: z.number().nullable(),
+  }).optional(),
+  trends: z.object({
+    workoutTrend: z.enum(['up', 'down', 'stable']),
+    volumeTrend: z.enum(['up', 'down', 'stable']),
+    intensityTrend: z.enum(['up', 'down', 'stable']),
+  }),
+}).passthrough(); // Allow future fields
+
+// Report Insights structure (JSONB)
+export const reportInsightsSchema = z.object({
+  headline: z.string(),
+  highlights: z.array(z.string()),
+  recommendations: z.array(z.string()),
+  funFacts: z.array(z.string()),
+  badges: z.array(z.string()),
+  mostProductiveDay: z.string().optional(),
+  favoriteMovement: z.string().optional(),
+}).passthrough(); // Allow future fields
+
+// Report preferences schema for validation
+export const reportPreferencesSchema = z.object({
+  reportFrequency: z.enum(['none', 'weekly', 'monthly', 'both']),
+  reportWeeklyDay: z.number().int().min(0).max(6).nullable().optional(), // 0=Sunday, 1=Monday, ..., 6=Saturday
+  reportMonthlyDay: z.number().int().min(1).max(31).nullable().optional(), // 1-31 day of month
+  reportDeliveryTime: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(), // HH:MM or HH:MM:SS
+}).refine(data => {
+  // Validate that appropriate days are set based on frequency
+  if (data.reportFrequency === 'weekly' || data.reportFrequency === 'both') {
+    // Weekly or both requires weekly day to be set
+    if (data.reportWeeklyDay === null || data.reportWeeklyDay === undefined) {
+      return false;
+    }
+  }
+  if (data.reportFrequency === 'monthly' || data.reportFrequency === 'both') {
+    // Monthly or both requires monthly day to be set
+    if (data.reportMonthlyDay === null || data.reportMonthlyDay === undefined) {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "Weekly reports require reportWeeklyDay (0-6), monthly reports require reportMonthlyDay (1-31), both require both fields"
+});
+
+// Insert schema for creating new reports
+export const insertAxleReportSchema = createInsertSchema(axleReports).omit({
+  id: true,
+  createdAt: true,
+  viewedAt: true,
+  deliveredAt: true,
+}).extend({
+  metrics: reportMetricsSchema,
+  insights: reportInsightsSchema,
+});
+
+// Types
+export type ReportMetrics = z.infer<typeof reportMetricsSchema>;
+export type ReportInsights = z.infer<typeof reportInsightsSchema>;
+export type ReportPreferences = z.infer<typeof reportPreferencesSchema>;
+export type AxleReport = typeof axleReports.$inferSelect;
+export type InsertAxleReport = z.infer<typeof insertAxleReportSchema>;
+export type ReportFrequency = 'none' | 'weekly' | 'monthly' | 'both';
+export type ReportCadence = 'weekly' | 'monthly';
+export type ReportStatus = 'generating' | 'ready' | 'delivered' | 'failed';
 
 // Legacy aliases for backward compatibility
 export const users = profiles; // Alias for compatibility
