@@ -4,6 +4,7 @@
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It enables users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation.
 
 ## Recent Changes (November 13, 2025)
+- **Fixed OpenAI Timeout Issue**: Resolved production-critical bug where workout generation was failing due to 30-second timeout. Increased OpenAI timeout to 60 seconds in both `server/workoutGenerator.ts` and `server/lib/openai.ts`. Added proper timeout configuration (`timeout: 60000, maxRetries: 2`) to OpenAI client initialization.
 - **Fixed Advanced Insights Section**: Resolved bug where advanced visualizations (Training Load, Enhanced Consistency, PR Sparklines, Recovery Correlation) weren't rendering in report detail modals. Backend now returns empty arrays instead of `undefined` for visualization fields, ensuring all chart components render with proper empty states.
 - **Added Report Type Export**: Added `Report` type alias to `shared/schema.ts` for convenient frontend imports.
 
