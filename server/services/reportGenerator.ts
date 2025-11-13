@@ -443,31 +443,34 @@ function calculateVisualizations(
       });
   }
   
-  // Calculate PR timeline with deltas
+  // Calculate PR timeline with deltas (chronologically ordered)
   const prTimeline: any[] = [];
   const movementBestMap = new Map<string, number>();
   
-  prs
-    .sort((a, b) => a.date.localeCompare(b.date)) // Sort by date ascending
-    .slice(0, 50) // Cap at 50 most recent PRs
-    .forEach(pr => {
-      const prValue = Number(pr.value);
-      const previousBest = movementBestMap.get(pr.movement) || null;
-      const delta = previousBest !== null ? prValue - previousBest : null;
-      
-      prTimeline.push({
-        date: pr.date,
-        movement: pr.movement,
-        value: prValue,
-        unit: pr.unit,
-        delta
-      });
-      
-      // Update best for this movement
-      if (previousBest === null || prValue > previousBest) {
-        movementBestMap.set(pr.movement, prValue);
-      }
+  // Sort by date descending, take most recent 50, then reverse to chronological order
+  const recentPRs = prs
+    .sort((a, b) => b.date.localeCompare(a.date)) // Descending: newest first
+    .slice(0, 50) // Take 50 most recent
+    .reverse(); // Reverse to chronological order (oldest to newest)
+  
+  recentPRs.forEach(pr => {
+    const prValue = Number(pr.value);
+    const previousBest = movementBestMap.get(pr.movement) || null;
+    const delta = previousBest !== null ? prValue - previousBest : null;
+    
+    prTimeline.push({
+      date: pr.date,
+      movement: pr.movement,
+      value: prValue,
+      unit: pr.unit,
+      delta
     });
+    
+    // Update best for this movement
+    if (previousBest === null || prValue > previousBest) {
+      movementBestMap.set(pr.movement, prValue);
+    }
+  });
   
   // Calculate consistency heatmap (daily breakdown within timeframe)
   const consistencyHeatmap: any[] = [];

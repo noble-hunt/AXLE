@@ -5,6 +5,7 @@ import { Card } from "@/components/swift/card"
 import { X, TrendingUp, TrendingDown, Minus, Trophy, Dumbbell, Target, Award } from "lucide-react"
 import { format } from "date-fns"
 import type { Report } from "@shared/schema"
+import { ReportCharts } from "./ReportCharts"
 
 interface ReportDetailModalProps {
   report: Report | null
@@ -97,6 +98,9 @@ export function ReportDetailModal({ report, isOpen, onClose, onReportViewed }: R
               <p className="text-caption text-muted-foreground">Consistency</p>
             </Card>
           </div>
+
+          {/* Visualizations */}
+          <ReportCharts report={report} />
 
           {/* Trends */}
           {metrics?.trends && (
