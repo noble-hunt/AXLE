@@ -10,12 +10,16 @@ import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { useToast } from "@/hooks/use-toast"
 import { apiRequest, queryClient } from "@/lib/queryClient"
 import { ReportDetailModal } from "@/components/reports/ReportDetailModal"
+import { ReportPreferencesSheet } from "@/components/reports/ReportPreferencesSheet"
+import { useAppStore } from "@/store/useAppStore"
 import type { Report } from "@shared/schema"
 
 export default function ReportsPage() {
   const [, setLocation] = useLocation()
   const { toast } = useToast()
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
+  const [preferencesOpen, setPreferencesOpen] = useState(false)
+  const profile = useAppStore(state => state.profile)
 
   // Fetch user reports
   const { data: reports, isLoading } = useQuery<Report[]>({
@@ -97,10 +101,7 @@ export default function ReportsPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => toast({
-                  title: "Coming soon",
-                  description: "Report preferences will be available soon"
-                })}
+                onClick={() => setPreferencesOpen(true)}
                 data-testid="button-settings"
               >
                 <Settings className="w-5 h-5" />
@@ -126,10 +127,7 @@ export default function ReportsPage() {
                 Get comprehensive insights into your fitness journey with weekly and monthly reports featuring workout analytics, PR progression, and personalized recommendations.
               </p>
               <Button
-                onClick={() => toast({
-                  title: "Coming soon",
-                  description: "Report preferences will be available soon"
-                })}
+                onClick={() => setPreferencesOpen(true)}
                 className="w-full"
                 data-testid="button-setup-reports"
               >
@@ -255,6 +253,13 @@ export default function ReportsPage() {
         isOpen={!!selectedReport}
         onClose={() => setSelectedReport(null)}
         onReportViewed={handleReportViewed}
+      />
+
+      {/* Report Preferences Sheet */}
+      <ReportPreferencesSheet
+        isOpen={preferencesOpen}
+        onClose={() => setPreferencesOpen(false)}
+        currentPreferences={profile}
       />
     </div>
   )
