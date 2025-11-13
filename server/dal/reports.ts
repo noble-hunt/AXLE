@@ -367,3 +367,20 @@ export async function reportExists(
 
   return !!existing;
 }
+
+/**
+ * Delete a report
+ */
+export async function deleteReport(reportId: string, userId: string): Promise<boolean> {
+  const result = await db
+    .delete(axleReports)
+    .where(
+      and(
+        eq(axleReports.id, reportId),
+        eq(axleReports.userId, userId)
+      )
+    )
+    .returning({ id: axleReports.id });
+
+  return result.length > 0;
+}

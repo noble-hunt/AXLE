@@ -87,6 +87,41 @@ export default function ReportsPage() {
     markAsViewed.mutate(reportId)
   }, [markAsViewed])
 
+  // Delete report mutation with optimistic update
+  const deleteReport = useMutation({
+    mutationFn: async (reportId: string) => {
+      const response = await apiRequest('DELETE', `/api/reports/${reportId}`, {})
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete report')
+      }
+      
+      return reportId
+    },
+    onSuccess: (reportId) => {
+      // Optimistically remove from cache
+      queryClient.setQueryData<Report[]>(['/api/reports'], (old) => {
+        if (!old) return old
+        return old.filter(report => report.id !== reportId)
+      })
+      toast({
+        title: "Report deleted",
+        description: "The report has been permanently removed"
+      })
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete report",
+        description: error.message,
+        variant: "destructive"
+      })
+    }
+  })
+
+  const handleDeleteReport = useCallback((reportId: string) => {
+    deleteReport.mutate(reportId)
+  }, [deleteReport])
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
@@ -260,6 +295,7 @@ export default function ReportsPage() {
         isOpen={!!selectedReport}
         onClose={() => setSelectedReport(null)}
         onReportViewed={handleReportViewed}
+        onDelete={handleDeleteReport}
       />
 
       {/* Report Preferences Sheet */}

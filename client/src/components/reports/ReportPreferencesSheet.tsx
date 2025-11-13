@@ -125,7 +125,7 @@ export function ReportPreferencesSheet({ isOpen, onClose, currentPreferences }: 
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto">
+      <SheetContent side="bottom" className="max-h-[90vh] max-w-[400px] mx-auto overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Report Settings</SheetTitle>
           <SheetDescription>

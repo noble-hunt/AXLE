@@ -1,7 +1,9 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Button } from "@/components/swift/button"
 import { Card } from "@/components/swift/card"
-import { TrendingUp, TrendingDown, Minus, Trophy, Dumbbell, Target, Award } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, Trophy, Dumbbell, Target, Award, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import type { Report } from "@shared/schema"
 import { ReportCharts } from "./ReportCharts"
@@ -11,9 +13,12 @@ interface ReportDetailModalProps {
   isOpen: boolean
   onClose: () => void
   onReportViewed?: (reportId: string) => void
+  onDelete?: (reportId: string) => void
 }
 
-export function ReportDetailModal({ report, isOpen, onClose, onReportViewed }: ReportDetailModalProps) {
+export function ReportDetailModal({ report, isOpen, onClose, onReportViewed, onDelete }: ReportDetailModalProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
   // Mark as viewed when modal opens (useEffect to prevent re-renders)
   useEffect(() => {
     if (isOpen && report && !report.viewedAt && onReportViewed) {
@@ -21,6 +26,14 @@ export function ReportDetailModal({ report, isOpen, onClose, onReportViewed }: R
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, report?.id, report?.viewedAt])
+
+  const handleDelete = () => {
+    if (report && onDelete) {
+      onDelete(report.id)
+      setShowDeleteDialog(false)
+      onClose()
+    }
+  }
 
   if (!report) return null
 
@@ -40,8 +53,9 @@ export function ReportDetailModal({ report, isOpen, onClose, onReportViewed }: R
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-[400px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-title font-bold text-foreground mb-2">
             {insights?.headline || `${frequency === 'weekly' ? 'Weekly' : 'Monthly'} Report`}
@@ -209,8 +223,46 @@ export function ReportDetailModal({ report, isOpen, onClose, onReportViewed }: R
               </div>
             </Card>
           )}
+
+          {/* Delete Button */}
+          {onDelete && (
+            <div className="pt-2 border-t border-border">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                data-testid="button-delete-report"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Report
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialogContent className="max-w-[400px]">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Report?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete this report. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            data-testid="button-confirm-delete"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

@@ -2326,6 +2326,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE /api/reports/:id - Delete a report
+  app.delete("/api/reports/:id", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user.id;
+      const reportId = req.params.id;
+      
+      const { deleteReport } = await import("./dal/reports");
+      const deleted = await deleteReport(reportId, userId);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Failed to delete report:", error);
+      res.status(500).json({ error: "Failed to delete report" });
+    }
+  });
+
   // POST /api/reports/generate - Generate a new report manually
   app.post("/api/reports/generate", requireAuth, async (req, res) => {
     try {
