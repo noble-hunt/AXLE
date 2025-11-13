@@ -1,8 +1,9 @@
 import { Card } from "@/components/swift/card"
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { BarChart, Bar, LineChart, Line, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import type { Report } from "@shared/schema"
-import { TrendingUp, TrendingDown, BarChart3, LineChart as LineChartIcon, Calendar } from "lucide-react"
+import { TrendingUp, TrendingDown, BarChart3, LineChart as LineChartIcon, Calendar, Activity, Flame, Target } from "lucide-react"
 import { ErrorBoundary } from "./ErrorBoundary"
+import { format } from "date-fns"
 
 interface ReportChartsProps {
   report: Report
@@ -321,6 +322,488 @@ function ConsistencyHeatmap({ data }: ConsistencyHeatmapProps) {
         </div>
         <span>{activeDays} of {totalDays} days active ({consistencyPercent}%)</span>
       </div>
+    </Card>
+  )
+}
+
+// ============================================================================
+// ADVANCED CHARTS - Gated behind "See More" section for performance
+// ============================================================================
+
+interface ReportAdvancedChartsProps {
+  report: Report
+}
+
+export function ReportAdvancedCharts({ report }: ReportAdvancedChartsProps) {
+  const visualizations = report.metrics?.visualizations
+
+  if (!visualizations) {
+    return null
+  }
+
+  return (
+    <div className="space-y-4" data-testid="report-advanced-charts">
+      <ErrorBoundary>
+        {visualizations.trainingLoad && <TrainingLoadChart data={visualizations.trainingLoad} />}
+      </ErrorBoundary>
+      <ErrorBoundary>
+        {visualizations.consistencyHeatmap && visualizations.streakData && (
+          <EnhancedConsistencyCard 
+            data={visualizations.consistencyHeatmap} 
+            streakData={visualizations.streakData}
+          />
+        )}
+      </ErrorBoundary>
+      <ErrorBoundary>
+        {visualizations.prSparklines && <PRSparklinesGrid data={visualizations.prSparklines} />}
+      </ErrorBoundary>
+      <ErrorBoundary>
+        {visualizations.recoveryCorrelation && <RecoveryCorrelationChart data={visualizations.recoveryCorrelation} />}
+      </ErrorBoundary>
+    </div>
+  )
+}
+
+// Color palette for workout categories (consistent across app)
+const CATEGORY_COLORS: Record<string, string> = {
+  'CrossFit': 'hsl(var(--chart-1))',
+  'Strength': 'hsl(var(--chart-2))',
+  'Olympic Weightlifting': 'hsl(var(--chart-3))',
+  'Powerlifting': 'hsl(var(--chart-4))',
+  'Conditioning': 'hsl(var(--chart-5))',
+  'Bodybuilding': 'hsl(var(--accent))',
+  'Gymnastics': 'hsl(var(--chart-1))',
+  'Endurance': 'hsl(var(--chart-2))',
+  'Mobility': 'hsl(var(--chart-3))',
+  'Unknown': 'hsl(var(--muted-foreground))'
+}
+
+// 1. Training Load Timeline - Stacked bar with intensity overlay
+interface TrainingLoadChartProps {
+  data: Array<{
+    date: string
+    categories: Record<string, number>
+    totalMinutes: number
+    avgIntensity: number | null
+  }>
+}
+
+function TrainingLoadChart({ data }: TrainingLoadChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <Card className="p-4" data-testid="chart-training-load-empty">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="w-5 h-5 text-primary" />
+          <h3 className="text-subheading font-semibold text-foreground">Training Load Timeline</h3>
+        </div>
+        <div className="h-48 flex items-center justify-center">
+          <p className="text-body text-muted-foreground">No training load data available</p>
+        </div>
+      </Card>
+    )
+  }
+
+  // Transform data for stacked bar chart
+  const chartData = data.map(day => ({
+    date: format(new Date(day.date), 'M/d'),
+    avgIntensity: day.avgIntensity,
+    ...day.categories
+  }))
+
+  // Get all unique categories
+  const allCategories = Array.from(
+    new Set(data.flatMap(d => Object.keys(d.categories)))
+  )
+
+  // Calculate total volume for summary
+  const totalVolume = data.reduce((sum, d) => sum + d.totalMinutes, 0)
+
+  return (
+    <Card className="p-4" data-testid="chart-training-load">
+      <div className="flex items-center gap-2 mb-3">
+        <Activity className="w-5 h-5 text-primary" />
+        <h3 className="text-subheading font-semibold text-foreground">Training Load Timeline</h3>
+      </div>
+      <div className="h-60">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 5, right: 15, left: -15, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+            <XAxis 
+              dataKey="date" 
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+            />
+            <YAxis 
+              yAxisId="left"
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+              label={{ value: 'Minutes', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
+            />
+            <YAxis 
+              yAxisId="right"
+              orientation="right"
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+              domain={[0, 10]}
+              label={{ value: 'Intensity', angle: 90, position: 'insideRight', style: { fill: 'hsl(var(--muted-foreground))' } }}
+            />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontSize: 11
+              }}
+              formatter={(value: any) => typeof value === 'number' ? Math.round(value) : value}
+            />
+            <Legend 
+              wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
+              iconSize={10}
+            />
+            
+            {/* Stacked bars for each category */}
+            {allCategories.map((category) => (
+              <Bar
+                key={category}
+                dataKey={category}
+                stackId="a"
+                fill={CATEGORY_COLORS[category] || CATEGORY_COLORS['Unknown']}
+                yAxisId="left"
+                radius={[2, 2, 0, 0]}
+              />
+            ))}
+            
+            {/* Intensity line overlay */}
+            {data.some(d => d.avgIntensity !== null) && (
+              <Line
+                type="monotone"
+                dataKey="avgIntensity"
+                stroke="hsl(var(--accent))"
+                strokeWidth={2}
+                dot={{ r: 3, fill: 'hsl(var(--accent))' }}
+                yAxisId="right"
+                name="Avg Intensity"
+              />
+            )}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="text-caption text-muted-foreground text-center mt-2">
+        Daily volume by category • {totalVolume} total minutes • {allCategories.length} categories
+      </p>
+    </Card>
+  )
+}
+
+// 2. Enhanced Consistency Card with Streak Stats
+interface EnhancedConsistencyCardProps {
+  data: Array<{ date: string; value: number; workoutCount: number }>
+  streakData: {
+    currentStreak: number
+    longestStreak: number
+    totalActiveDays: number
+    totalRestDays: number
+  }
+}
+
+function EnhancedConsistencyCard({ data, streakData }: EnhancedConsistencyCardProps) {
+  if (!data || data.length === 0) {
+    return null
+  }
+
+  // Group by weeks (simplified - just show last 5 weeks)
+  const weeks: Array<Array<{ date: string; value: number; workoutCount: number }>> = []
+  let currentWeek: Array<{ date: string; value: number; workoutCount: number }> = []
+  
+  data.forEach((day, idx) => {
+    const dayOfWeek = new Date(day.date).getDay()
+    if (dayOfWeek === 0 && currentWeek.length > 0) {
+      weeks.push(currentWeek)
+      currentWeek = []
+    }
+    currentWeek.push(day)
+    if (idx === data.length - 1) {
+      weeks.push(currentWeek)
+    }
+  })
+
+  const recentWeeks = weeks.slice(-5)
+
+  const getIntensityColor = (value: number) => {
+    if (value === 0) return 'bg-muted/30'
+    if (value < 0.3) return 'bg-primary/20'
+    if (value < 0.6) return 'bg-primary/40'
+    if (value < 0.9) return 'bg-primary/60'
+    return 'bg-primary/80'
+  }
+
+  return (
+    <Card className="p-4" data-testid="card-enhanced-consistency">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Flame className="w-5 h-5 text-orange-500" />
+          <h3 className="text-subheading font-semibold text-foreground">Consistency & Streaks</h3>
+        </div>
+        {streakData.currentStreak > 0 && (
+          <div className="text-right" data-testid="badge-current-streak">
+            <div className="text-xl font-bold text-orange-500">{streakData.currentStreak}</div>
+            <div className="text-xs text-muted-foreground">day streak 🔥</div>
+          </div>
+        )}
+      </div>
+
+      {/* Mini heatmap - last 5 weeks */}
+      <div className="space-y-1 mb-3">
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+            <div key={idx} className="text-xs text-center text-muted-foreground font-medium">
+              {day}
+            </div>
+          ))}
+        </div>
+        {recentWeeks.map((week, weekIdx) => (
+          <div key={weekIdx} className="grid grid-cols-7 gap-1">
+            {week.map((day, dayIdx) => (
+              <div
+                key={dayIdx}
+                className={`aspect-square rounded ${getIntensityColor(day.value)} border border-border/50 transition-colors`}
+                title={`${format(new Date(day.date), 'MMM d')}: ${day.workoutCount} workout${day.workoutCount !== 1 ? 's' : ''}`}
+                data-testid={`enhanced-heatmap-day-${day.date}`}
+              />
+            ))}
+            {week.length < 7 && Array.from({ length: 7 - week.length }).map((_, idx) => (
+              <div key={`empty-${idx}`} className="aspect-square" />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Streak stats grid */}
+      <div className="grid grid-cols-4 gap-2 pt-3 border-t">
+        <div className="text-center">
+          <div className="text-lg font-bold text-orange-500" data-testid="text-current-streak-stat">{streakData.currentStreak}</div>
+          <div className="text-xs text-muted-foreground">Current</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold" data-testid="text-longest-streak-stat">{streakData.longestStreak}</div>
+          <div className="text-xs text-muted-foreground">Longest</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-success" data-testid="text-active-days-stat">{streakData.totalActiveDays}</div>
+          <div className="text-xs text-muted-foreground">Active</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-muted-foreground" data-testid="text-rest-days-stat">{streakData.totalRestDays}</div>
+          <div className="text-xs text-muted-foreground">Rest</div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+// 3. PR Sparklines Grid - Mini line charts for top movements
+interface PRSparklinesGridProps {
+  data: Array<{
+    movement: string
+    category: string
+    timeline: Array<{ date: string; value: number; unit: string }>
+    latestValue: number
+    improvement: string
+    improvementDelta: number
+    improvementPercent: number
+  }>
+}
+
+function PRSparklinesGrid({ data }: PRSparklinesGridProps) {
+  if (!data || data.length === 0) {
+    return (
+      <Card className="p-4" data-testid="card-pr-sparklines-empty">
+        <div className="flex items-center gap-2 mb-3">
+          <Target className="w-5 h-5 text-accent" />
+          <h3 className="text-subheading font-semibold text-foreground">PR Progress</h3>
+        </div>
+        <div className="h-48 flex items-center justify-center">
+          <p className="text-body text-muted-foreground">No PR progression data available</p>
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="p-4" data-testid="card-pr-sparklines">
+      <div className="flex items-center gap-2 mb-3">
+        <Target className="w-5 h-5 text-accent" />
+        <h3 className="text-subheading font-semibold text-foreground">PR Progress Sparklines</h3>
+      </div>
+      
+      <div className="space-y-3">
+        {data.map((movement, idx) => (
+          <div key={idx} className="space-y-1" data-testid={`sparkline-${idx}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate" data-testid={`text-movement-name-${idx}`}>
+                  {movement.movement}
+                </div>
+                <div className="text-xs text-muted-foreground">{movement.category}</div>
+              </div>
+              <div className="text-right ml-2">
+                <div className="font-semibold text-sm" data-testid={`text-latest-value-${idx}`}>
+                  {movement.latestValue} {movement.timeline[0]?.unit}
+                </div>
+                <div 
+                  className={`text-xs flex items-center gap-1 justify-end ${movement.improvementDelta >= 0 ? 'text-success' : 'text-destructive'}`} 
+                  data-testid={`text-improvement-${idx}`}
+                >
+                  {movement.improvementDelta >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                  {movement.improvement} ({movement.improvementPercent >= 0 ? '+' : ''}{movement.improvementPercent}%)
+                </div>
+              </div>
+            </div>
+            
+            <div className="h-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={movement.timeline} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="hsl(var(--accent))" 
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      fontSize: 10
+                    }}
+                    labelFormatter={(label) => format(new Date(label), 'MMM d, yyyy')}
+                    formatter={(value: any) => [`${value} ${movement.timeline[0]?.unit}`, 'Value']}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+// 4. Recovery Correlation - Scatter plot of sleep/HRV vs performance
+interface RecoveryCorrelationChartProps {
+  data: Array<{
+    date: string
+    sleepScore: number | null
+    hrvScore: number | null
+    workoutIntensity: number | null
+    workoutCompletion: boolean
+    workoutDuration: number | null
+    restingHR: number | null
+  }>
+}
+
+function RecoveryCorrelationChart({ data }: RecoveryCorrelationChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <Card className="p-4" data-testid="card-recovery-correlation-empty">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="w-5 h-5 text-primary" />
+          <h3 className="text-subheading font-semibold text-foreground">Recovery vs Performance</h3>
+        </div>
+        <div className="h-48 flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <p className="text-body text-muted-foreground">Recovery data not available</p>
+            <p className="text-caption text-muted-foreground">
+              Connect a wearable (Oura, Fitbit, Garmin, Whoop) to see correlations
+            </p>
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
+  // Filter valid data points
+  const scatterData = data
+    .filter(d => d.sleepScore !== null && d.workoutIntensity !== null)
+    .map(d => ({
+      sleepScore: d.sleepScore!,
+      intensity: d.workoutIntensity!,
+      date: format(new Date(d.date), 'M/d'),
+    }))
+
+  if (scatterData.length === 0) {
+    return (
+      <Card className="p-4" data-testid="card-recovery-correlation-insufficient">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="w-5 h-5 text-primary" />
+          <h3 className="text-subheading font-semibold text-foreground">Recovery vs Performance</h3>
+        </div>
+        <div className="h-48 flex items-center justify-center">
+          <p className="text-body text-muted-foreground">Insufficient data for correlation analysis</p>
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="p-4" data-testid="card-recovery-correlation">
+      <div className="flex items-center gap-2 mb-3">
+        <Activity className="w-5 h-5 text-primary" />
+        <h3 className="text-subheading font-semibold text-foreground">Recovery vs Performance</h3>
+      </div>
+      
+      <div className="h-60">
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 5, right: 15, left: -15, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+            <XAxis 
+              type="number"
+              dataKey="sleepScore" 
+              name="Sleep Score"
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+              domain={[0, 100]}
+              label={{ value: 'Sleep Score', position: 'insideBottom', offset: -5, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <YAxis 
+              type="number"
+              dataKey="intensity" 
+              name="Intensity"
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+              domain={[0, 10]}
+              label={{ value: 'Workout Intensity', angle: -90, position: 'insideLeft', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <Tooltip 
+              cursor={{ strokeDasharray: '3 3' }}
+              contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontSize: 11
+              }}
+              formatter={(value: any, name: string) => [
+                typeof value === 'number' ? value.toFixed(1) : value,
+                name === 'sleepScore' ? 'Sleep' : 'Intensity'
+              ]}
+            />
+            <Scatter 
+              name="Workouts" 
+              data={scatterData} 
+              fill="hsl(var(--primary))"
+              fillOpacity={0.6}
+            />
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+
+      <p className="text-caption text-muted-foreground text-center mt-2 pt-2 border-t">
+        💡 Higher sleep scores often correlate with better workout intensity
+      </p>
     </Card>
   )
 }
