@@ -38,7 +38,11 @@ function resolveStyle(input: any): string {
 
 // Using gpt-4o-mini for fast, cost-effective workout generation with excellent quality
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
-const openai = apiKey ? new OpenAI({ apiKey }) : null;
+const openai = apiKey ? new OpenAI({ 
+  apiKey,
+  timeout: 60000, // 60 second timeout for complex workout generation
+  maxRetries: 2
+}) : null;
 
 // ===== HOBH: upgradeIntensity (hard mode) =====
 const ROTATION = ["DB Box Step-Overs","KB Swings","Wall Balls","Burpees"];
@@ -1112,10 +1116,10 @@ YOUR RESPONSE MUST:
   };
 
   // Add timeout wrapper to prevent hanging
-  // Reduced to 30s to stay within Vercel's function timeout limits
-  const timeoutMs = 30000; // 30 second timeout (Vercel Pro allows 60s max)
+  // Increased to 60s for complex workouts (Vercel Pro allows 60s max)
+  const timeoutMs = 60000; // 60 second timeout
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('OpenAI request timed out after 30s')), timeoutMs);
+    setTimeout(() => reject(new Error('OpenAI request timed out after 60s')), timeoutMs);
   });
 
   console.log('[WG] Calling OpenAI API', {
