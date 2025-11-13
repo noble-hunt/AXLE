@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase"
 
 export default function EditProfile() {
   const [, setLocation] = useLocation()
-  const { user, profile, setProfile } = useAppStore()
+  const { user, profile, patchProfile } = useAppStore()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   
@@ -42,38 +42,15 @@ export default function EditProfile() {
         preferredUnit
       }
 
-      // Update via PATCH endpoint that supports all profile fields including avatarUrl
-      const result = await apiRequest('POST', '/api/profiles', {
-        action: 'update',
-        firstName: updateData.firstName,
-        lastName: updateData.lastName, 
-        dateOfBirth: updateData.dateOfBirth,
-        preferredUnit: updateData.preferredUnit
+      // Use optimized patchProfile for instant updates
+      await patchProfile(updateData)
+
+      toast({
+        title: "Profile updated!",
+        description: "Your profile information has been saved successfully.",
       })
-      const responseData = await result.json()
 
-      if (responseData.profile) {
-        // Update local store with response data - PATCH endpoint returns camelCase
-        setProfile({
-          ...profile,
-          userId: user.id,
-          firstName: responseData.profile.firstName || responseData.profile.first_name,
-          lastName: responseData.profile.lastName || responseData.profile.last_name,
-          dateOfBirth: responseData.profile.dateOfBirth || responseData.profile.date_of_birth,
-          preferredUnit: responseData.profile.preferredUnit || responseData.profile.preferred_unit || 'lbs',
-          username: responseData.profile.username || profile?.username,
-          avatarUrl: responseData.profile.avatarUrl || responseData.profile.avatar_url || profile?.avatarUrl,
-          providers: responseData.profile.providers || profile?.providers || ['email'],
-          createdAt: responseData.profile.createdAt || responseData.profile.created_at || profile?.createdAt || new Date()
-        })
-
-        toast({
-          title: "Profile updated!",
-          description: "Your profile information has been saved successfully.",
-        })
-
-        setLocation("/profile")
-      }
+      setLocation("/profile")
     } catch (error) {
       console.error('Profile update error:', error)
       toast({

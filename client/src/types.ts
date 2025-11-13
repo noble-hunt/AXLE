@@ -477,6 +477,7 @@ export interface AppState extends WorkoutState, PRState, AchievementState, Weara
   profile: any; // Will be typed properly when imported from @shared/schema
   setProfile: (profile: any) => void;
   upsertProfile: (userId: string, email: string, username?: string, firstName?: string, lastName?: string) => Promise<void>;
+  patchProfile: (updates: Partial<any>) => Promise<void>;
   clearProfile: () => void;
   
   // Global state

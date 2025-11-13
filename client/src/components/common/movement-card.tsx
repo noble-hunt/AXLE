@@ -39,7 +39,7 @@ const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | unde
 
 export function MovementCard({ movement, category, onAddPR }: MovementCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const { getPRsByMovement, getBestPRByMovement, profile, hydrateFromDb, user } = useAppStore()
+  const { getPRsByMovement, getBestPRByMovement, profile, patchProfile } = useAppStore()
   const { toast } = useToast()
   
   const isFavorite = profile?.favoriteMovements?.includes(movement) || false
@@ -47,29 +47,20 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
   const toggleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation()
     
+    const newFavorites = isFavorite
+      ? (profile?.favoriteMovements || []).filter(m => m !== movement)
+      : [...(profile?.favoriteMovements || []), movement]
+    
     try {
-      const newFavorites = isFavorite
-        ? (profile?.favoriteMovements || []).filter(m => m !== movement)
-        : [...(profile?.favoriteMovements || []), movement]
+      // Optimistic update - UI responds instantly
+      await patchProfile({ favoriteMovements: newFavorites })
       
-      const result = await apiRequest('POST', '/api/profiles', {
-        action: 'update',
-        favoriteMovements: newFavorites
+      toast({
+        title: isFavorite ? "Removed from favorites" : "Added to favorites",
+        description: `${movement} ${isFavorite ? 'removed from' : 'added to'} your favorites`
       })
-      const responseData = await result.json()
-      
-      if (responseData.profile) {
-        // Refresh profile from database to ensure we have the latest data
-        if (user?.id) {
-          await hydrateFromDb(user.id)
-        }
-        
-        toast({
-          title: isFavorite ? "Removed from favorites" : "Added to favorites",
-          description: `${movement} ${isFavorite ? 'removed from' : 'added to'} your favorites`
-        })
-      }
     } catch (error) {
+      // Error is already handled by patchProfile (rollback)
       toast({
         title: "Error",
         description: "Failed to update favorites",

@@ -934,6 +934,76 @@ export const useAppStore = create<AppState>()(
           console.error('Profile upsert error:', error);
         }
       },
+      patchProfile: async (updates: Partial<any>) => {
+        const previousProfile = get().profile;
+        
+        // Guard: Require profile to be loaded before patching
+        if (!previousProfile) {
+          throw new Error('Profile not loaded - cannot update');
+        }
+        
+        // Optimistically update the profile immediately
+        set({ 
+          profile: { ...previousProfile, ...updates } 
+        });
+        
+        try {
+          const { apiRequest } = await import('@/lib/queryClient');
+          
+          // Use PATCH endpoint for efficient updates
+          const result = await apiRequest('PATCH', '/api/profiles', updates);
+          const responseData = await result.json();
+          
+          if (!result.ok) {
+            console.error('Failed to patch profile:', responseData.message);
+            // Rollback on error
+            set({ profile: previousProfile });
+            throw new Error(responseData.message || 'Failed to update profile');
+          }
+          
+          // Guard against missing response data
+          if (!responseData || !responseData.profile) {
+            console.warn('Server did not return profile data - keeping optimistic update');
+            return;
+          }
+          
+          // Merge server response with previous profile to preserve all fields
+          // Only update fields that are actually present in the server response
+          const serverProfile = responseData.profile;
+          const mergedProfile = { ...previousProfile };
+          
+          // Helper to update field if present in server response (handles both snake_case and camelCase)
+          const updateField = (camelKey: string, snakeKey: string) => {
+            if (serverProfile[camelKey] !== undefined) {
+              mergedProfile[camelKey] = serverProfile[camelKey];
+            } else if (serverProfile[snakeKey] !== undefined) {
+              mergedProfile[camelKey] = serverProfile[snakeKey];
+            }
+          };
+          
+          updateField('userId', 'user_id');
+          updateField('username', 'username');
+          updateField('firstName', 'first_name');
+          updateField('lastName', 'last_name');
+          updateField('avatarUrl', 'avatar_url');
+          updateField('dateOfBirth', 'date_of_birth');
+          updateField('preferredUnit', 'preferred_unit');
+          updateField('favoriteMovements', 'favorite_movements');
+          updateField('providers', 'providers');
+          updateField('latitude', 'latitude');
+          updateField('longitude', 'longitude');
+          updateField('timezone', 'timezone');
+          updateField('createdAt', 'created_at');
+          
+          set({ profile: mergedProfile });
+          
+        } catch (error) {
+          console.error('Profile patch error:', error);
+          // Rollback on error
+          set({ profile: previousProfile });
+          throw error;
+        }
+      },
       clearProfile: () => set({ profile: null }),
       
       // Authentication state
@@ -1313,7 +1383,7 @@ export const useAppStore = create<AppState>()(
         if (isAuthenticated) {
           try {
             const { apiRequest } = await import('@/lib/queryClient');
-            await apiRequest('POST', '/api/prs', {
+            const result = await apiRequest('POST', '/api/prs', {
               action: 'create',
               movement: pr.movement || pr.exercise,
               category: pr.category,
@@ -1326,9 +1396,12 @@ export const useAppStore = create<AppState>()(
               date: pr.date instanceof Date ? pr.date.toISOString().split('T')[0] : pr.date
             });
             
-            // Refresh PRs from database to ensure we have the latest data
-            if (user?.id) {
-              await get().hydrateFromDb(user.id);
+            // Update with server response for the created PR to get the real ID
+            const responseData = await result.json();
+            if (responseData && responseData.id) {
+              set((state) => ({
+                prs: state.prs.map(p => p.id === pr.id ? { ...pr, id: responseData.id } : p)
+              }));
             }
           } catch (error) {
             console.error('Failed to sync PR to database:', error);
