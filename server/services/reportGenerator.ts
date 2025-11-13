@@ -666,13 +666,14 @@ function calculateVisualizations(
   const recoveryCorrelation: any[] = [];
   
   // Final safety check: hard cap all arrays to prevent schema violations
+  // Always return all fields (even if empty) so frontend components can show empty states
   return {
-    workoutVolume: workoutVolume.length > 0 ? workoutVolume.slice(0, 26) : undefined,
-    prTimeline: prTimeline.length > 0 ? prTimeline.slice(0, 50) : undefined,
-    consistencyHeatmap: consistencyHeatmap.length > 0 ? consistencyHeatmap.slice(0, 90) : undefined,
-    trainingLoad: trainingLoad.length > 0 ? trainingLoad.slice(0, 31) : undefined,
+    workoutVolume: workoutVolume.length > 0 ? workoutVolume.slice(0, 26) : [],
+    prTimeline: prTimeline.length > 0 ? prTimeline.slice(0, 50) : [],
+    consistencyHeatmap: consistencyHeatmap.length > 0 ? consistencyHeatmap.slice(0, 90) : [],
+    trainingLoad: trainingLoad.length > 0 ? trainingLoad.slice(0, 31) : [],
     streakData,
-    prSparklines: prSparklines.length > 0 ? prSparklines.slice(0, 5) : undefined,
-    recoveryCorrelation: recoveryCorrelation.length > 0 ? recoveryCorrelation.slice(0, 31) : undefined
+    prSparklines: prSparklines.length > 0 ? prSparklines.slice(0, 5) : [],
+    recoveryCorrelation: recoveryCorrelation.length > 0 ? recoveryCorrelation.slice(0, 31) : []
   };
 }

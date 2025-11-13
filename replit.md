@@ -3,6 +3,10 @@
 ## Overview
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It enables users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation.
 
+## Recent Changes (November 13, 2025)
+- **Fixed Advanced Insights Section**: Resolved bug where advanced visualizations (Training Load, Enhanced Consistency, PR Sparklines, Recovery Correlation) weren't rendering in report detail modals. Backend now returns empty arrays instead of `undefined` for visualization fields, ensuring all chart components render with proper empty states.
+- **Added Report Type Export**: Added `Report` type alias to `shared/schema.ts` for convenient frontend imports.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
