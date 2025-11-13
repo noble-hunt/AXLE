@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query"
+import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query"
 import { useState, useCallback } from "react"
 import { useLocation } from "wouter"
 import { Card } from "@/components/swift/card"
@@ -26,7 +26,7 @@ export default function ReportsPage() {
     queryKey: ['/api/reports'],
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
-    placeholderData: (previousData) => previousData, // Keep previous data during refetch to prevent skeleton flicker
+    placeholderData: keepPreviousData, // Keep previous data during refetch to prevent skeleton flicker
   })
 
   // Generate report mutation
@@ -183,7 +183,7 @@ export default function ReportsPage() {
           </motion.div>
         )}
 
-        {/* Loading State - minimal to prevent flicker */}
+        {/* Minimal loading state - NO skeleton cards to prevent flicker */}
         {isLoading && !reports && (
           <div className="flex items-center justify-center py-12">
             <div className="text-center space-y-3">
