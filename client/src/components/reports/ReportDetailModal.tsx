@@ -1,8 +1,7 @@
 import { useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/swift/button"
 import { Card } from "@/components/swift/card"
-import { X, TrendingUp, TrendingDown, Minus, Trophy, Dumbbell, Target, Award } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, Trophy, Dumbbell, Target, Award } from "lucide-react"
 import { format } from "date-fns"
 import type { Report } from "@shared/schema"
 import { ReportCharts } from "./ReportCharts"
@@ -42,26 +41,14 @@ export function ReportDetailModal({ report, isOpen, onClose, onReportViewed }: R
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <DialogTitle className="text-title font-bold text-foreground mb-2">
-                {insights?.headline || `${frequency === 'weekly' ? 'Weekly' : 'Monthly'} Report`}
-              </DialogTitle>
-              <p className="text-caption text-muted-foreground">
-                {format(periodStart, 'MMM d')} - {format(periodEnd, 'MMM d, yyyy')}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              data-testid="button-close-modal"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
+          <DialogTitle className="text-title font-bold text-foreground mb-2">
+            {insights?.headline || `${frequency === 'weekly' ? 'Weekly' : 'Monthly'} Report`}
+          </DialogTitle>
+          <p className="text-caption text-muted-foreground">
+            {format(periodStart, 'MMM d')} - {format(periodEnd, 'MMM d, yyyy')}
+          </p>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
