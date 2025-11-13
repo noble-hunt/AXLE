@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Button } from "@/components/swift/button"
 import { Card } from "@/components/swift/card"
-import { TrendingUp, TrendingDown, Minus, Trophy, Dumbbell, Target, Award, Trash2 } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, Trophy, Dumbbell, Target, Award, Trash2, ChevronDown } from "lucide-react"
 import { format } from "date-fns"
 import type { Report } from "@shared/schema"
-import { ReportCharts } from "./ReportCharts"
+import { ReportCharts, ReportAdvancedCharts } from "./ReportCharts"
 
 interface ReportDetailModalProps {
   report: Report | null
@@ -18,6 +19,7 @@ interface ReportDetailModalProps {
 
 export function ReportDetailModal({ report, isOpen, onClose, onReportViewed, onDelete }: ReportDetailModalProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showAdvancedCharts, setShowAdvancedCharts] = useState(false)
 
   // Mark as viewed when modal opens (useEffect to prevent re-renders)
   useEffect(() => {
@@ -223,6 +225,30 @@ export function ReportDetailModal({ report, isOpen, onClose, onReportViewed, onD
               </div>
             </Card>
           )}
+
+          {/* Advanced Visualizations - Collapsible "See More" Section */}
+          <Collapsible open={showAdvancedCharts} onOpenChange={setShowAdvancedCharts} data-testid="collapsible-advanced-charts">
+            <Card className="p-4">
+              <CollapsibleTrigger asChild>
+                <button 
+                  className="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity"
+                  data-testid="button-toggle-advanced-charts"
+                >
+                  <h3 className="text-subheading font-semibold text-foreground">
+                    Advanced Insights
+                  </h3>
+                  <ChevronDown 
+                    className={`w-5 h-5 text-muted-foreground transition-transform ${showAdvancedCharts ? 'rotate-180' : ''}`}
+                  />
+                </button>
+              </CollapsibleTrigger>
+              
+              <CollapsibleContent className="pt-4">
+                {/* Only mount advanced charts when expanded (lazy loading for performance) */}
+                {showAdvancedCharts && <ReportAdvancedCharts report={report} />}
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Delete Button */}
           {onDelete && (

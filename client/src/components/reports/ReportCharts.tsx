@@ -4,6 +4,7 @@ import type { Report } from "@shared/schema"
 import { TrendingUp, TrendingDown, BarChart3, LineChart as LineChartIcon, Calendar, Activity, Flame, Target } from "lucide-react"
 import { ErrorBoundary } from "./ErrorBoundary"
 import { format } from "date-fns"
+import { useMemo } from "react"
 
 interface ReportChartsProps {
   report: Report
@@ -374,8 +375,18 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Bodybuilding': 'hsl(var(--accent))',
   'Gymnastics': 'hsl(var(--chart-1))',
   'Endurance': 'hsl(var(--chart-2))',
-  'Mobility': 'hsl(var(--chart-3))',
-  'Unknown': 'hsl(var(--muted-foreground))'
+  'Mobility': 'hsl(var(--chart-3))'
+}
+
+// Deterministic fallback color generator for unknown categories
+function getCategoryColor(category: string): string {
+  if (CATEGORY_COLORS[category]) {
+    return CATEGORY_COLORS[category]
+  }
+  // Hash the category name to pick a consistent color
+  const hash = category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  const colors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))']
+  return colors[hash % colors.length]
 }
 
 // 1. Training Load Timeline - Stacked bar with intensity overlay
@@ -468,7 +479,7 @@ function TrainingLoadChart({ data }: TrainingLoadChartProps) {
                 key={category}
                 dataKey={category}
                 stackId="a"
-                fill={CATEGORY_COLORS[category] || CATEGORY_COLORS['Unknown']}
+                fill={getCategoryColor(category)}
                 yAxisId="left"
                 radius={[2, 2, 0, 0]}
               />
@@ -512,21 +523,35 @@ function EnhancedConsistencyCard({ data, streakData }: EnhancedConsistencyCardPr
     return null
   }
 
-  // Group by weeks (simplified - just show last 5 weeks)
-  const weeks: Array<Array<{ date: string; value: number; workoutCount: number }>> = []
-  let currentWeek: Array<{ date: string; value: number; workoutCount: number }> = []
+  // Properly structure weeks (7 days each, pad leading/trailing gaps)
+  const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   
-  data.forEach((day, idx) => {
-    const dayOfWeek = new Date(day.date).getDay()
-    if (dayOfWeek === 0 && currentWeek.length > 0) {
-      weeks.push(currentWeek)
+  // Build a full week structure
+  const weeks: Array<Array<{ date: string; value: number; workoutCount: number } | null>> = []
+  let currentWeek: Array<{ date: string; value: number; workoutCount: number } | null> = []
+  
+  // Pad leading days of first week if it doesn't start on Sunday
+  const firstDayOfWeek = new Date(sortedData[0].date).getDay()
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    currentWeek.push(null)
+  }
+  
+  // Group data into weeks
+  sortedData.forEach((day) => {
+    currentWeek.push(day)
+    if (currentWeek.length === 7) {
+      weeks.push([...currentWeek])
       currentWeek = []
     }
-    currentWeek.push(day)
-    if (idx === data.length - 1) {
-      weeks.push(currentWeek)
-    }
   })
+  
+  // Pad trailing days of last week if incomplete
+  if (currentWeek.length > 0) {
+    while (currentWeek.length < 7) {
+      currentWeek.push(null)
+    }
+    weeks.push([...currentWeek])
+  }
 
   const recentWeeks = weeks.slice(-5)
 
@@ -564,17 +589,19 @@ function EnhancedConsistencyCard({ data, streakData }: EnhancedConsistencyCardPr
         </div>
         {recentWeeks.map((week, weekIdx) => (
           <div key={weekIdx} className="grid grid-cols-7 gap-1">
-            {week.map((day, dayIdx) => (
-              <div
-                key={dayIdx}
-                className={`aspect-square rounded ${getIntensityColor(day.value)} border border-border/50 transition-colors`}
-                title={`${format(new Date(day.date), 'MMM d')}: ${day.workoutCount} workout${day.workoutCount !== 1 ? 's' : ''}`}
-                data-testid={`enhanced-heatmap-day-${day.date}`}
-              />
-            ))}
-            {week.length < 7 && Array.from({ length: 7 - week.length }).map((_, idx) => (
-              <div key={`empty-${idx}`} className="aspect-square" />
-            ))}
+            {week.map((day, dayIdx) => {
+              if (!day) {
+                return <div key={`empty-${dayIdx}`} className="aspect-square" />
+              }
+              return (
+                <div
+                  key={dayIdx}
+                  className={`aspect-square rounded ${getIntensityColor(day.value)} border border-border/50 transition-colors`}
+                  title={`${format(new Date(day.date), 'MMM d')}: ${day.workoutCount} workout${day.workoutCount !== 1 ? 's' : ''}`}
+                  data-testid={`enhanced-heatmap-day-${day.date}`}
+                />
+              )
+            })}
           </div>
         ))}
       </div>
@@ -706,6 +733,28 @@ interface RecoveryCorrelationChartProps {
 }
 
 function RecoveryCorrelationChart({ data }: RecoveryCorrelationChartProps) {
+  // Memoize filtered and throttled data to prevent re-allocations
+  const scatterData = useMemo(() => {
+    if (!data || data.length === 0) return []
+    
+    // Filter valid data points
+    const validPoints = data
+      .filter(d => d.sleepScore !== null && d.workoutIntensity !== null)
+      .map(d => ({
+        sleepScore: d.sleepScore!,
+        intensity: d.workoutIntensity!,
+        date: format(new Date(d.date), 'M/d'),
+      }))
+    
+    // Throttle points for performance (max 50 points to prevent paint stutter)
+    if (validPoints.length <= 50) {
+      return validPoints
+    }
+    
+    const step = Math.ceil(validPoints.length / 50)
+    return validPoints.filter((_, idx) => idx % step === 0)
+  }, [data])
+
   if (!data || data.length === 0) {
     return (
       <Card className="p-4" data-testid="card-recovery-correlation-empty">
@@ -724,15 +773,6 @@ function RecoveryCorrelationChart({ data }: RecoveryCorrelationChartProps) {
       </Card>
     )
   }
-
-  // Filter valid data points
-  const scatterData = data
-    .filter(d => d.sleepScore !== null && d.workoutIntensity !== null)
-    .map(d => ({
-      sleepScore: d.sleepScore!,
-      intensity: d.workoutIntensity!,
-      date: format(new Date(d.date), 'M/d'),
-    }))
 
   if (scatterData.length === 0) {
     return (
@@ -795,7 +835,7 @@ function RecoveryCorrelationChart({ data }: RecoveryCorrelationChartProps) {
               name="Workouts" 
               data={scatterData} 
               fill="hsl(var(--primary))"
-              fillOpacity={0.6}
+              fillOpacity={scatterData.length > 20 ? 0.4 : 0.6}
             />
           </ScatterChart>
         </ResponsiveContainer>
