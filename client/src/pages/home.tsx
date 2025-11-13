@@ -117,6 +117,10 @@ export default function Home() {
     setLocation('/history')
   }
 
+  const handleSeeAllHealth = () => {
+    setLocation('/health')
+  }
+
   const formatTimeAgo = (date: Date) => {
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
@@ -230,7 +234,13 @@ export default function Home() {
 
         {/* Health Insights */}
         <motion.div variants={slideUp}>
-          <h3 className="text-subheading font-semibold text-foreground mb-4">Health Insights</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-subheading font-semibold text-foreground">Health Insights</h3>
+            <Button variant="ghost" size="sm" onClick={handleSeeAllHealth} data-testid="see-all-health">
+              <span className="text-primary">See All</span>
+              <ChevronRight className="w-4 h-4 ml-1 text-primary" />
+            </Button>
+          </div>
           <HealthInsights />
         </motion.div>
       </motion.div>
