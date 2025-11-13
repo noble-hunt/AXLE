@@ -1,5 +1,5 @@
 import { Card } from "@/components/swift/card"
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts"
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import type { Report } from "@shared/schema"
 import { TrendingUp, TrendingDown, BarChart3, LineChart as LineChartIcon, Calendar } from "lucide-react"
 import { ErrorBoundary } from "./ErrorBoundary"
