@@ -688,6 +688,27 @@ export const reportMetricsSchema = z.object({
     volumeTrend: z.enum(['up', 'down', 'stable']),
     intensityTrend: z.enum(['up', 'down', 'stable']),
   }),
+  // Visualization data for charts (capped to prevent massive payloads)
+  visualizations: z.object({
+    workoutVolume: z.array(z.object({
+      date: z.string(), // ISO date string for the period (week start or day)
+      totalMinutes: z.number(),
+      totalWorkouts: z.number(),
+      label: z.string(), // Human-readable label (e.g., "Week of Jan 1")
+    })).max(26).optional(), // Cap at 26 weeks or days
+    prTimeline: z.array(z.object({
+      date: z.string(), // ISO date string
+      movement: z.string(),
+      value: z.number(),
+      unit: z.string(), // "lbs", "kg", or "reps"
+      delta: z.number().nullable(), // Improvement from previous PR
+    })).max(50).optional(), // Cap at 50 most recent PRs
+    consistencyHeatmap: z.array(z.object({
+      date: z.string(), // ISO date string (YYYY-MM-DD)
+      value: z.number(), // 0-1 intensity score based on workout count/duration
+      workoutCount: z.number(),
+    })).max(90).optional(), // Cap at ~3 months of daily data
+  }).optional(),
 }).passthrough(); // Allow future fields
 
 // Report Insights structure (JSONB)

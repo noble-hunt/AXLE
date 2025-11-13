@@ -59,7 +59,7 @@ export default function ReportsPage() {
     generateReport.mutate('weekly')
   }
 
-  // Mark report as viewed mutation
+  // Mark report as viewed mutation with optimistic update (no refetch!)
   const markAsViewed = useMutation({
     mutationFn: async (reportId: string) => {
       const response = await apiRequest('PATCH', `/api/reports/${reportId}/viewed`, {})
@@ -70,9 +70,16 @@ export default function ReportsPage() {
       
       return response.json()
     },
-    onSuccess: () => {
-      // Silently update cache without toast
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+    onSuccess: (_, reportId) => {
+      // Optimistically update cache without refetching
+      queryClient.setQueryData<Report[]>(['/api/reports'], (old) => {
+        if (!old) return old
+        return old.map(report => 
+          report.id === reportId 
+            ? { ...report, viewedAt: new Date().toISOString() } 
+            : report
+        )
+      })
     }
   })
 

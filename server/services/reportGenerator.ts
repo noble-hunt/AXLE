@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { workouts, prs, type ReportMetrics, type ReportInsights } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
-import { startOfDay, endOfDay, differenceInDays, format } from "date-fns";
+import { startOfDay, endOfDay, differenceInDays, format, startOfWeek } from "date-fns";
 
 /**
  * Generate a complete fitness report for a user within a timeframe
@@ -12,17 +12,27 @@ export async function generateReport(
   timeframeStart: Date,
   timeframeEnd: Date
 ): Promise<{ metrics: ReportMetrics; insights: ReportInsights }> {
-  // Calculate all metrics in parallel
-  const [workoutStats, prStats, trends] = await Promise.all([
-    calculateWorkoutStats(userId, timeframeStart, timeframeEnd, frequency),
-    calculatePRStats(userId, timeframeStart, timeframeEnd),
+  // Fetch raw data first (reuse for both stats and visualizations)
+  const [workoutsData, prData, trends] = await Promise.all([
+    fetchAndCalculateWorkoutStats(userId, timeframeStart, timeframeEnd, frequency),
+    fetchAndCalculatePRStats(userId, timeframeStart, timeframeEnd),
     calculateTrends(userId, timeframeStart, timeframeEnd, frequency)
   ]);
 
+  // Calculate visualizations using fetched data (no duplicate queries)
+  const visualizations = calculateVisualizations(
+    workoutsData.workouts,
+    prData.prs,
+    timeframeStart,
+    timeframeEnd,
+    frequency
+  );
+
   const metrics: ReportMetrics = {
-    workoutStats,
-    prStats,
-    trends
+    workoutStats: workoutsData.stats,
+    prStats: prData.stats,
+    trends,
+    visualizations
   };
 
   // Generate insights based on metrics
@@ -32,14 +42,14 @@ export async function generateReport(
 }
 
 /**
- * Calculate workout statistics
+ * Fetch workouts and calculate statistics (returns both for reuse in visualizations)
  */
-async function calculateWorkoutStats(
+async function fetchAndCalculateWorkoutStats(
   userId: string,
   timeframeStart: Date,
   timeframeEnd: Date,
   frequency: 'weekly' | 'monthly'
-): Promise<ReportMetrics['workoutStats']> {
+): Promise<{ stats: ReportMetrics['workoutStats']; workouts: any[] }> {
   const userWorkouts = await db
     .select()
     .from(workouts)
@@ -49,7 +59,8 @@ async function calculateWorkoutStats(
         gte(workouts.createdAt, timeframeStart),
         lte(workouts.createdAt, timeframeEnd)
       )
-    );
+    )
+    .orderBy(workouts.createdAt);
 
   const totalWorkouts = userWorkouts.length;
   
@@ -95,7 +106,7 @@ async function calculateWorkoutStats(
   const targetWorkouts = frequency === 'weekly' ? 3 : 12;
   const consistencyScore = Math.min(100, Math.round((totalWorkouts / targetWorkouts) * 100));
 
-  return {
+  const stats = {
     totalWorkouts,
     totalMinutes,
     avgIntensity,
@@ -103,16 +114,18 @@ async function calculateWorkoutStats(
     consistencyScore,
     categoriesBreakdown: Object.keys(categoriesMap).length > 0 ? categoriesMap : undefined
   };
+
+  return { stats, workouts: userWorkouts };
 }
 
 /**
- * Calculate PR statistics
+ * Fetch PRs and calculate statistics (returns both for reuse in visualizations)
  */
-async function calculatePRStats(
+async function fetchAndCalculatePRStats(
   userId: string,
   timeframeStart: Date,
   timeframeEnd: Date
-): Promise<ReportMetrics['prStats']> {
+): Promise<{ stats: ReportMetrics['prStats']; prs: any[] }> {
   // PRs table uses date (string) type, so we need to convert Date to YYYY-MM-DD
   const startDateStr = format(timeframeStart, 'yyyy-MM-dd');
   const endDateStr = format(timeframeEnd, 'yyyy-MM-dd');
@@ -127,12 +140,13 @@ async function calculatePRStats(
         sql`${prs.date} <= ${endDateStr}`
       )
     )
-    .orderBy(desc(prs.value));
+    .orderBy(prs.date); // Order by date for timeline visualization
 
   const totalPRs = userPRs.length;
 
-  // Get top 3 PRs
-  const topPRs = userPRs.slice(0, 3).map(pr => ({
+  // Get top 3 PRs by value (coerce to number for correct sorting)
+  const topPRsByValue = [...userPRs].sort((a, b) => Number(b.value) - Number(a.value));
+  const topPRs = topPRsByValue.slice(0, 3).map(pr => ({
     movement: pr.movement,
     improvement: `${pr.value} ${pr.unit}${pr.repMax ? ` (${pr.repMax}RM)` : ''}`,
     value: `${pr.value} ${pr.unit}`
@@ -141,11 +155,13 @@ async function calculatePRStats(
   // Get categories improved
   const categoriesImproved = Array.from(new Set(userPRs.map(pr => pr.category)));
 
-  return {
+  const stats = {
     totalPRs,
     topPRs,
     categoriesImproved
   };
+
+  return { stats, prs: userPRs };
 }
 
 /**
@@ -342,5 +358,165 @@ function generateInsights(
     recommendations,
     funFacts,
     badges
+  };
+}
+
+/**
+ * Calculate visualization data from fetched workouts and PRs (no duplicate queries)
+ */
+function calculateVisualizations(
+  workouts: any[],
+  prs: any[],
+  timeframeStart: Date,
+  timeframeEnd: Date,
+  frequency: 'weekly' | 'monthly'
+): NonNullable<ReportMetrics['visualizations']> {
+  // Helper to clamp values between 0 and 1
+  const clamp = (value: number) => Math.max(0, Math.min(1, value));
+  
+  // Calculate workout volume buckets
+  const workoutVolume: any[] = [];
+  
+  if (frequency === 'weekly') {
+    // Daily aggregation for weekly reports (up to 7 days)
+    const dayMap = new Map<string, {totalMinutes: number; totalWorkouts: number}>();
+    
+    workouts.forEach(workout => {
+      const dayKey = format(workout.createdAt, 'yyyy-MM-dd');
+      const existing = dayMap.get(dayKey) || {totalMinutes: 0, totalWorkouts: 0};
+      
+      // Calculate duration
+      let minutes = 0;
+      if (workout.startedAt && workout.createdAt) {
+        minutes = Math.round((workout.createdAt.getTime() - workout.startedAt.getTime()) / 60000);
+      }
+      
+      dayMap.set(dayKey, {
+        totalMinutes: existing.totalMinutes + minutes,
+        totalWorkouts: existing.totalWorkouts + 1
+      });
+    });
+    
+    // Convert to array with labels (cap at 7 days for weekly reports)
+    Array.from(dayMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(0, 7) // Weekly: max 7 days
+      .forEach(([date, data]) => {
+        workoutVolume.push({
+          date,
+          totalMinutes: data.totalMinutes,
+          totalWorkouts: data.totalWorkouts,
+          label: format(new Date(date), 'EEE M/d') // "Mon 11/10"
+        });
+      });
+  } else {
+    // ISO week aggregation for monthly reports (up to 6 weeks)
+    const weekMap = new Map<string, {totalMinutes: number; totalWorkouts: number}>();
+    
+    workouts.forEach(workout => {
+      const weekStart = startOfWeek(workout.createdAt, { weekStartsOn: 1 }); // Monday
+      const weekKey = format(weekStart, 'yyyy-MM-dd');
+      const existing = weekMap.get(weekKey) || {totalMinutes: 0, totalWorkouts: 0};
+      
+      let minutes = 0;
+      if (workout.startedAt && workout.createdAt) {
+        minutes = Math.round((workout.createdAt.getTime() - workout.startedAt.getTime()) / 60000);
+      }
+      
+      weekMap.set(weekKey, {
+        totalMinutes: existing.totalMinutes + minutes,
+        totalWorkouts: existing.totalWorkouts + 1
+      });
+    });
+    
+    // Convert to array with labels (cap at 6 weeks for monthly reports)
+    Array.from(weekMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(0, 6) // Monthly: max 6 weeks
+      .forEach(([date, data]) => {
+        workoutVolume.push({
+          date,
+          totalMinutes: data.totalMinutes,
+          totalWorkouts: data.totalWorkouts,
+          label: `Week of ${format(new Date(date), 'MMM d')}` // "Week of Nov 3"
+        });
+      });
+  }
+  
+  // Calculate PR timeline with deltas
+  const prTimeline: any[] = [];
+  const movementBestMap = new Map<string, number>();
+  
+  prs
+    .sort((a, b) => a.date.localeCompare(b.date)) // Sort by date ascending
+    .slice(0, 50) // Cap at 50 most recent PRs
+    .forEach(pr => {
+      const prValue = Number(pr.value);
+      const previousBest = movementBestMap.get(pr.movement) || null;
+      const delta = previousBest !== null ? prValue - previousBest : null;
+      
+      prTimeline.push({
+        date: pr.date,
+        movement: pr.movement,
+        value: prValue,
+        unit: pr.unit,
+        delta
+      });
+      
+      // Update best for this movement
+      if (previousBest === null || prValue > previousBest) {
+        movementBestMap.set(pr.movement, prValue);
+      }
+    });
+  
+  // Calculate consistency heatmap (daily breakdown within timeframe)
+  const consistencyHeatmap: any[] = [];
+  const dailyWorkoutMap = new Map<string, {count: number; minutes: number}>();
+  
+  workouts.forEach(workout => {
+    const dayKey = format(workout.createdAt, 'yyyy-MM-dd');
+    const existing = dailyWorkoutMap.get(dayKey) || {count: 0, minutes: 0};
+    
+    let minutes = 0;
+    if (workout.startedAt && workout.createdAt) {
+      minutes = Math.round((workout.createdAt.getTime() - workout.startedAt.getTime()) / 60000);
+    }
+    
+    dailyWorkoutMap.set(dayKey, {
+      count: existing.count + 1,
+      minutes: existing.minutes + minutes
+    });
+  });
+  
+  // Generate heatmap for all days in timeframe (strictly cap at 90 days)
+  const heatmapStartDate = new Date(Math.max(
+    timeframeStart.getTime(),
+    timeframeEnd.getTime() - (89 * 24 * 60 * 60 * 1000) // 90 days back from end
+  ));
+  
+  let currentDate = new Date(heatmapStartDate);
+  const endDate = new Date(timeframeEnd);
+  
+  while (currentDate <= endDate && consistencyHeatmap.length < 90) {
+    const dayKey = format(currentDate, 'yyyy-MM-dd');
+    const data = dailyWorkoutMap.get(dayKey) || {count: 0, minutes: 0};
+    
+    // Calculate intensity value: clamp((minutes/45 + count/2)/2, 0, 1)
+    const value = clamp((data.minutes / 45 + data.count / 2) / 2);
+    
+    consistencyHeatmap.push({
+      date: dayKey, // Already JSON-safe string
+      value: Number(value.toFixed(2)), // Ensure JSON-safe number
+      workoutCount: Number(data.count) // Ensure JSON-safe number
+    });
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  // Final safety check: hard cap all arrays to prevent schema violations
+  return {
+    workoutVolume: workoutVolume.length > 0 ? workoutVolume.slice(0, 26) : undefined,
+    prTimeline: prTimeline.length > 0 ? prTimeline.slice(0, 50) : undefined,
+    consistencyHeatmap: consistencyHeatmap.length > 0 ? consistencyHeatmap.slice(0, 90) : undefined
   };
 }

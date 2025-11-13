@@ -2265,9 +2265,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
       
-      // Parse query parameters
+      // Parse query parameters with default limit to prevent fetching too many heavy JSONB rows
       const frequency = req.query.frequency as 'weekly' | 'monthly' | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50; // Default limit of 50
       
       const reports = await getReportsByUserId(userId, {
         frequency,
@@ -2281,26 +2281,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/reports/:id - Get a specific report by ID
+  // GET /api/reports/:id - Get a specific report by ID (pure read, no side effects)
   app.get("/api/reports/:id", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user.id;
       const reportId = req.params.id;
       
-      let report = await getReportById(reportId, userId);
+      const report = await getReportById(reportId, userId);
       
       if (!report) {
         return res.status(404).json({ error: "Report not found" });
       }
       
-      // Mark as viewed if not already viewed
-      if (!report.viewedAt) {
-        await markReportAsViewed(reportId);
-        // Refetch to get the updated viewedAt timestamp
-        report = await getReportById(reportId, userId) || report;
-      }
-      
+      // Return report as-is without side effects (client handles mark-as-viewed)
       res.json(report);
     } catch (error: any) {
       console.error("Failed to fetch report:", error);
