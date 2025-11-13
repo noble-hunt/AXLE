@@ -183,14 +183,13 @@ export default function ReportsPage() {
           </motion.div>
         )}
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="p-4 animate-pulse">
-                <div className="h-20 bg-muted rounded" />
-              </Card>
-            ))}
+        {/* Loading State - minimal to prevent flicker */}
+        {isLoading && !reports && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center space-y-3">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-caption text-muted-foreground">Loading reports...</p>
+            </div>
           </div>
         )}
 
