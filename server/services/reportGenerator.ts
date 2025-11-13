@@ -516,10 +516,163 @@ function calculateVisualizations(
     currentDate.setDate(currentDate.getDate() + 1);
   }
   
+  // NEW: Calculate training load timeline (daily volume by category)
+  const trainingLoad: any[] = [];
+  const trainingLoadMap = new Map<string, {categories: Record<string, number>; totalMinutes: number; intensities: number[]}>();
+  
+  workouts.forEach(workout => {
+    const dayKey = format(workout.createdAt, 'yyyy-MM-dd');
+    const existing = trainingLoadMap.get(dayKey) || {categories: {}, totalMinutes: 0, intensities: []};
+    
+    // Get category from request
+    let category = 'Unknown';
+    if (workout.request && typeof workout.request === 'object') {
+      const req = workout.request as any;
+      category = req.category || 'Unknown';
+    }
+    
+    // Calculate duration
+    let minutes = 0;
+    if (workout.startedAt && workout.createdAt) {
+      minutes = Math.round((workout.createdAt.getTime() - workout.startedAt.getTime()) / 60000);
+    }
+    
+    // Aggregate by category
+    existing.categories[category] = (existing.categories[category] || 0) + minutes;
+    existing.totalMinutes += minutes;
+    
+    // Collect intensities
+    if (workout.feedback && typeof workout.feedback === 'object') {
+      const fb = workout.feedback as any;
+      if (typeof fb.perceivedIntensity === 'number') {
+        existing.intensities.push(fb.perceivedIntensity);
+      }
+    }
+    
+    trainingLoadMap.set(dayKey, existing);
+  });
+  
+  // Convert to array (cap at 31 days)
+  Array.from(trainingLoadMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-31) // Last 31 days
+    .forEach(([date, data]) => {
+      const avgIntensity = data.intensities.length > 0 
+        ? data.intensities.reduce((sum, i) => sum + i, 0) / data.intensities.length 
+        : null;
+      
+      trainingLoad.push({
+        date,
+        categories: data.categories,
+        totalMinutes: data.totalMinutes,
+        avgIntensity: avgIntensity ? Number(avgIntensity.toFixed(1)) : null
+      });
+    });
+  
+  // NEW: Calculate streak data
+  let currentStreak = 0;
+  let longestStreak = 0;
+  let tempStreak = 0;
+  let totalActiveDays = 0;
+  
+  // Sort all unique workout days
+  const workoutDays = Array.from(dailyWorkoutMap.keys()).sort();
+  totalActiveDays = workoutDays.length;
+  
+  // Calculate streaks by checking consecutive days
+  for (let i = 0; i < workoutDays.length; i++) {
+    const currentDay = new Date(workoutDays[i]);
+    const previousDay = i > 0 ? new Date(workoutDays[i - 1]) : null;
+    
+    if (previousDay && differenceInDays(currentDay, previousDay) === 1) {
+      tempStreak++;
+    } else {
+      tempStreak = 1;
+    }
+    
+    longestStreak = Math.max(longestStreak, tempStreak);
+  }
+  
+  // Check if current streak is active (includes today or yesterday)
+  if (workoutDays.length > 0) {
+    const lastWorkoutDay = new Date(workoutDays[workoutDays.length - 1]);
+    const today = new Date();
+    const daysDiff = differenceInDays(startOfDay(today), startOfDay(lastWorkoutDay));
+    
+    if (daysDiff <= 1) {
+      currentStreak = tempStreak;
+    }
+  }
+  
+  const periodDays = differenceInDays(endOfDay(timeframeEnd), startOfDay(timeframeStart)) + 1;
+  const totalRestDays = periodDays - totalActiveDays;
+  
+  const streakData = {
+    currentStreak,
+    longestStreak,
+    totalActiveDays,
+    totalRestDays
+  };
+  
+  // NEW: Calculate PR sparklines (top 5 movements)
+  const prSparklines: any[] = [];
+  const movementPRsMap = new Map<string, any[]>();
+  
+  // Group PRs by movement
+  prs.forEach(pr => {
+    if (!movementPRsMap.has(pr.movement)) {
+      movementPRsMap.set(pr.movement, []);
+    }
+    movementPRsMap.get(pr.movement)!.push(pr);
+  });
+  
+  // Find top 5 movements by most recent PR count
+  const topMovements = Array.from(movementPRsMap.entries())
+    .map(([movement, movementPRs]) => ({
+      movement,
+      prs: movementPRs.sort((a, b) => a.date.localeCompare(b.date)), // Chronological
+      latestPR: movementPRs[movementPRs.length - 1]
+    }))
+    .sort((a, b) => b.prs.length - a.prs.length)
+    .slice(0, 5);
+  
+  topMovements.forEach(({ movement, prs: movementPRs, latestPR }) => {
+    if (movementPRs.length < 2) return; // Need at least 2 PRs for progression
+    
+    const timeline = movementPRs.map(pr => ({
+      date: pr.date,
+      value: Number(pr.value),
+      unit: pr.unit
+    }));
+    
+    const firstValue = Number(movementPRs[0].value);
+    const latestValue = Number(latestPR.value);
+    const improvementDelta = latestValue - firstValue;
+    const improvementPercent = firstValue > 0 ? (improvementDelta / firstValue) * 100 : 0;
+    
+    prSparklines.push({
+      movement,
+      category: latestPR.category || 'Unknown',
+      timeline,
+      latestValue,
+      improvement: `+${improvementDelta.toFixed(0)} ${latestPR.unit}`,
+      improvementDelta,
+      improvementPercent: Number(improvementPercent.toFixed(1))
+    });
+  });
+  
+  // NEW: Recovery correlation (placeholder - requires health data integration)
+  // For now, return empty array. Will populate when health integrations are active.
+  const recoveryCorrelation: any[] = [];
+  
   // Final safety check: hard cap all arrays to prevent schema violations
   return {
     workoutVolume: workoutVolume.length > 0 ? workoutVolume.slice(0, 26) : undefined,
     prTimeline: prTimeline.length > 0 ? prTimeline.slice(0, 50) : undefined,
-    consistencyHeatmap: consistencyHeatmap.length > 0 ? consistencyHeatmap.slice(0, 90) : undefined
+    consistencyHeatmap: consistencyHeatmap.length > 0 ? consistencyHeatmap.slice(0, 90) : undefined,
+    trainingLoad: trainingLoad.length > 0 ? trainingLoad.slice(0, 31) : undefined,
+    streakData,
+    prSparklines: prSparklines.length > 0 ? prSparklines.slice(0, 5) : undefined,
+    recoveryCorrelation: recoveryCorrelation.length > 0 ? recoveryCorrelation.slice(0, 31) : undefined
   };
 }
