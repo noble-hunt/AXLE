@@ -48,6 +48,26 @@ Preferred communication style: Simple, everyday language.
   - Fallback order: "First Last" → "First" → "Last" → username → email prefix (not full email) → "You"
   - Matches name display pattern used throughout app (profile.tsx)
   - Email addresses no longer appear as author names in group feeds
+- **AXLE Reports Feature (Nov 13, 2025)**:
+  - Comprehensive weekly/monthly fitness reporting system with automated generation and delivery
+  - **Database Schema**: Added `axle_reports` table with metrics/insights JSON storage, timeframe tracking, and delivery status
+  - **Report Preferences**: Extended profiles table with report frequency (none/weekly/monthly/both), delivery day selection (0-6 for weekly, 1-31 for monthly), delivery time, and notification toggles
+  - **Backend Services**: ReportGenerator service calculates workout volume, PR progression, consistency metrics, and generates personalized insights
+  - **API Endpoints**: 
+    - `GET /api/reports` - List user's report history with filters
+    - `GET /api/reports/:id` - Get detailed report with auto mark-as-viewed
+    - `POST /api/reports/generate` - Manual report generation
+    - `PATCH /api/profiles/report-preferences` - Update report settings
+  - **Frontend Components**:
+    - Reports page (`/reports`) with history list, generate button, and preferences access
+    - ReportDetailModal with hero summary, KPI grid, insights display, and share functionality
+    - ReportPreferencesSheet with frequency selection, day pickers, notification toggles, and time selection
+  - **Critical Fixes**:
+    - Fixed backend/frontend schema mismatch for enableNotifications and enableEmail fields
+    - Corrected field name inconsistency (weeklyReportDay → reportWeeklyDay, monthlyReportDay → reportMonthlyDay)
+    - Implemented null value preservation to respect backend refinement contract (sends null for non-selected frequencies)
+    - Expanded monthly day range to 1-31 to match backend schema
+  - **Future Enhancements**: Planned visualizations (workout volume bar chart, PR timeline, consistency heatmap using recharts)
 
 ### Backend Architecture
 - **Server**: Express.js with a RESTful API in TypeScript.
