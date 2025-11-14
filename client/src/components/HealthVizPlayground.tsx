@@ -1,6 +1,6 @@
 // client/src/components/HealthVizPlayground.tsx
 import { useEffect, useRef, useState } from 'react';
-import anime from 'animejs/lib/anime.es.js';
+import anime from 'animejs';
 
 interface Workout {
   id: string;
