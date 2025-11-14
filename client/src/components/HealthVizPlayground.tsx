@@ -38,6 +38,15 @@ export function HealthVizPlayground() {
   const animeLoaded = useAnimeJS();
 
   // ===== SLIDER CONTROLS (Initial Testing) =====
+  // Immediate UI state (for responsive sliders)
+  const [strengthRatioUI, setStrengthRatioUI] = useState(0.6);
+  const [cardioRatioUI, setCardioRatioUI] = useState(0.3);
+  const [streakDaysUI, setStreakDaysUI] = useState(7);
+  const [sleepQualityUI, setSleepQualityUI] = useState(0.8);
+  const [streakWeeksUI, setStreakWeeksUI] = useState(0);
+  const [goodSleepNightsUI, setGoodSleepNightsUI] = useState(4);
+
+  // Debounced animation state (triggers expensive operations)
   const [strengthRatio, setStrengthRatio] = useState(0.6); // 0-1
   const [cardioRatio, setCardioRatio] = useState(0.3);
   const [streakDays, setStreakDays] = useState(7);
@@ -72,6 +81,77 @@ export function HealthVizPlayground() {
   }
 
   const [treeData, setTreeData] = useState<TreeData>({ branches: [], leaves: [], roots: [] });
+
+  // ===== POLISH FEATURES =====
+  const [fps, setFps] = useState(60);
+  const [isAnimationsPaused, setIsAnimationsPaused] = useState(false);
+  const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
+  const animationTimelinesRef = useRef<any[]>([]);
+  const fpsFrameTimes = useRef<number[]>([]);
+  const lastFrameTime = useRef<number>(performance.now());
+
+  // ===== POLISH UTILITY FUNCTIONS =====
+  
+  // Debounced slider setter (updates UI immediately, debounces animation state)
+  const debouncedSet = (key: string, uiSetter: (value: any) => void, animSetter: (value: any) => void, value: any) => {
+    // Update UI state immediately for responsive sliders
+    uiSetter(value);
+    
+    // Debounce the animation state update
+    if (debounceTimers.current[key]) {
+      clearTimeout(debounceTimers.current[key]);
+    }
+    debounceTimers.current[key] = setTimeout(() => {
+      animSetter(value);
+    }, 300);
+  };
+
+  // Reset all animations
+  const resetAnimations = () => {
+    if (!animeLoaded) return;
+    
+    // Remove all existing animations
+    window.anime.remove('.gem-particle, .gem-vertex, .orb-particle, .tree-branch, .tree-root, .tree-leaf');
+    animationTimelinesRef.current.forEach(timeline => {
+      if (timeline && timeline.restart) {
+        timeline.restart();
+      }
+    });
+    
+    // Trigger re-render by updating a dummy state
+    setStreakWeeks(s => s);
+  };
+
+  // Random workout pattern - adds 10 workouts over 3 seconds
+  const addRandomWorkoutPattern = () => {
+    if (!animeLoaded) {
+      // Fallback without animation
+      for (let i = 0; i < 10; i++) {
+        setTimeout(() => addWorkout(), i * 300);
+      }
+      return;
+    }
+
+    const workoutColors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'];
+    const workoutFocus: Array<"strength" | "cardio" | "mixed" | "endurance"> = ['strength', 'cardio', 'mixed', 'endurance'];
+    
+    // Create timeline for workout additions
+    const timeline = window.anime.timeline({
+      easing: 'easeInOutQuad'
+    });
+
+    // Register timeline
+    animationTimelinesRef.current.push(timeline);
+
+    for (let i = 0; i < 10; i++) {
+      timeline.add({
+        duration: 1,
+        complete: () => {
+          addWorkout();
+        }
+      }, i * 300);
+    }
+  };
 
   // Generate L-System string
   const generateLSystem = (iterations: number): string => {
@@ -176,6 +256,67 @@ export function HealthVizPlayground() {
       leafElement.style.opacity = '0.8';
     });
   }, [treeData]);
+
+  // ===== FPS COUNTER =====
+  useEffect(() => {
+    let animationFrameId: number;
+
+    const updateFPS = () => {
+      const currentTime = performance.now();
+      const delta = currentTime - lastFrameTime.current;
+      lastFrameTime.current = currentTime;
+
+      // Track frame times
+      fpsFrameTimes.current.push(1000 / delta);
+      if (fpsFrameTimes.current.length > 60) {
+        fpsFrameTimes.current.shift();
+      }
+
+      // Calculate average FPS
+      const avgFps = fpsFrameTimes.current.reduce((a, b) => a + b, 0) / fpsFrameTimes.current.length;
+      setFps(Math.round(avgFps));
+
+      animationFrameId = requestAnimationFrame(updateFPS);
+    };
+
+    animationFrameId = requestAnimationFrame(updateFPS);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  // ===== PAGE VISIBILITY API =====
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isHidden = document.hidden;
+      setIsAnimationsPaused(isHidden);
+
+      if (!animeLoaded || !window.anime) return;
+
+      if (isHidden) {
+        // Pause all animations
+        animationTimelinesRef.current.forEach(timeline => {
+          if (timeline && timeline.pause) {
+            timeline.pause();
+          }
+        });
+      } else {
+        // Resume all animations
+        animationTimelinesRef.current.forEach(timeline => {
+          if (timeline && timeline.play) {
+            timeline.play();
+          }
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [animeLoaded]);
 
   // ===== TRAINING IDENTITY GEM: Multi-layered Crystal =====
   useEffect(() => {
@@ -482,6 +623,9 @@ export function HealthVizPlayground() {
       easing: 'easeOutQuad',
     });
 
+    // Register timeline
+    animationTimelinesRef.current.push(timeline);
+
     timeline
       .add({
         targets: ripple,
@@ -551,6 +695,9 @@ export function HealthVizPlayground() {
     const timeline = window.anime.timeline({
       easing: 'easeOutQuad'
     });
+
+    // Register timeline
+    animationTimelinesRef.current.push(timeline);
 
     // Step 1: Grow branches sequentially
     branches.forEach((branch, i) => {
@@ -623,10 +770,40 @@ export function HealthVizPlayground() {
 
   return (
     <div className="p-6 space-y-12 bg-gray-900 min-h-screen text-white">
+      {/* FPS Counter */}
+      <div className="fixed top-4 right-4 bg-black/80 px-3 py-2 rounded-lg text-sm font-mono border border-gray-700">
+        <span className="text-green-400">{fps} FPS</span>
+        {isAnimationsPaused && <span className="text-yellow-400 ml-2">⏸ PAUSED</span>}
+      </div>
+
       <h1 className="text-3xl font-bold">
         Health Viz Playground 🎨
         {!animeLoaded && <span className="text-xs text-gray-500 ml-2">(animations disabled)</span>}
       </h1>
+
+      {/* Control Buttons */}
+      <div className="flex flex-wrap gap-3" data-testid="control-buttons">
+        <button
+          onClick={resetAnimations}
+          disabled={!animeLoaded}
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+          data-testid="button-reset-animations"
+        >
+          🔄 Reset Animations
+        </button>
+        
+        <button
+          onClick={addRandomWorkoutPattern}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors"
+          data-testid="button-random-workouts"
+        >
+          ⚡ Random Workout Pattern
+        </button>
+
+        <div className="px-4 py-2 bg-gray-800 rounded-lg text-sm">
+          <span className="text-gray-400">Slider changes debounced:</span> <span className="text-green-400 font-mono">300ms</span>
+        </div>
+      </div>
 
       {/* ========== SECTION 1: TRAINING IDENTITY GEM ========== */}
       <div className="space-y-4 border border-gray-700 p-6 rounded-lg">
@@ -711,38 +888,38 @@ export function HealthVizPlayground() {
         </div>
         <div className="space-y-2">
           <label className="block">
-            Strength Ratio: {strengthRatio.toFixed(2)}
+            Strength Ratio: {strengthRatioUI.toFixed(2)}
             <input
               type="range"
               min="0"
               max="1"
               step="0.1"
-              value={strengthRatio}
-              onChange={(e) => setStrengthRatio(parseFloat(e.target.value))}
+              value={strengthRatioUI}
+              onChange={(e) => debouncedSet('strength', setStrengthRatioUI, setStrengthRatio, parseFloat(e.target.value))}
               className="w-full"
             />
           </label>
           <label className="block">
-            Cardio Ratio: {cardioRatio.toFixed(2)}
+            Cardio Ratio: {cardioRatioUI.toFixed(2)}
             <input
               type="range"
               min="0"
               max="1"
               step="0.1"
-              value={cardioRatio}
-              onChange={(e) => setCardioRatio(parseFloat(e.target.value))}
+              value={cardioRatioUI}
+              onChange={(e) => debouncedSet('cardio', setCardioRatioUI, setCardioRatio, parseFloat(e.target.value))}
               className="w-full"
             />
           </label>
           <label className="block">
-            Streak Days: {streakDays}
+            Streak Days: {streakDaysUI}
             <input
               type="range"
               min="0"
               max="30"
               step="1"
-              value={streakDays}
-              onChange={(e) => setStreakDays(parseInt(e.target.value))}
+              value={streakDaysUI}
+              onChange={(e) => debouncedSet('streakDays', setStreakDaysUI, setStreakDays, parseInt(e.target.value))}
               className="w-full"
             />
           </label>
@@ -894,14 +1071,14 @@ export function HealthVizPlayground() {
         </div>
         <div className="space-y-2">
           <label className="block">
-            Sleep Quality: {sleepQuality.toFixed(2)}
+            Sleep Quality: {sleepQualityUI.toFixed(2)}
             <input
               type="range"
               min="0"
               max="1"
               step="0.1"
-              value={sleepQuality}
-              onChange={(e) => setSleepQuality(parseFloat(e.target.value))}
+              value={sleepQualityUI}
+              onChange={(e) => debouncedSet('sleepQuality', setSleepQualityUI, setSleepQuality, parseFloat(e.target.value))}
               className="w-full"
             />
           </label>
@@ -989,26 +1166,26 @@ export function HealthVizPlayground() {
 
         <div className="space-y-2">
           <label className="block">
-            Streak Weeks: {streakWeeks}
+            Streak Weeks: {streakWeeksUI}
             <input
               type="range"
               min="0"
               max="6"
               step="1"
-              value={streakWeeks}
-              onChange={(e) => setStreakWeeks(parseInt(e.target.value))}
+              value={streakWeeksUI}
+              onChange={(e) => debouncedSet('streakWeeks', setStreakWeeksUI, setStreakWeeks, parseInt(e.target.value))}
               className="w-full"
             />
           </label>
           <label className="block">
-            Good Sleep Nights (last 7 days): {goodSleepNights}
+            Good Sleep Nights (last 7 days): {goodSleepNightsUI}
             <input
               type="range"
               min="0"
               max="7"
               step="1"
-              value={goodSleepNights}
-              onChange={(e) => setGoodSleepNights(parseInt(e.target.value))}
+              value={goodSleepNightsUI}
+              onChange={(e) => debouncedSet('goodSleep', setGoodSleepNightsUI, setGoodSleepNights, parseInt(e.target.value))}
               className="w-full"
             />
           </label>
