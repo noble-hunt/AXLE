@@ -53,6 +53,8 @@ export function HealthVizPlayground() {
   // Refs
   const gemRef = useRef<HTMLDivElement>(null);
   const orbRef = useRef<HTMLDivElement>(null);
+  const blobPathRef = useRef<SVGPathElement>(null);
+  const blobContainerRef = useRef<SVGSVGElement>(null);
   const gumballContainerRef = useRef<SVGSVGElement>(null);
   const treeRef = useRef<SVGPathElement>(null);
   const liquidFillRef = useRef<SVGRectElement>(null);
@@ -75,24 +77,95 @@ export function HealthVizPlayground() {
     });
   }, [strengthRatio, cardioRatio, streakDays]);
 
-  // ===== VITALITY ORB (Pulse + Glow) =====
+  // ===== VITALITY ORB: Blob Morphing =====
   useEffect(() => {
-    if (!orbRef.current) return;
+    if (!blobPathRef.current || !animeLoaded) return;
 
+    // Define 5 organic blob shapes
+    const blobPaths = [
+      // Shape 0: Low recovery - jagged, stressed
+      "M20,-30 C30,-20 40,0 30,20 C20,30 0,35 -20,30 C-35,20 -40,0 -30,-20 C-20,-35 0,-40 20,-30 Z",
+      // Shape 1: Slight improvement
+      "M22,-28 C32,-18 38,5 28,22 C18,32 -5,33 -22,28 C-33,18 -38,0 -28,-22 C-18,-33 5,-38 22,-28 Z",
+      // Shape 2: Medium recovery
+      "M24,-26 C34,-16 36,8 26,24 C16,34 -8,32 -24,26 C-32,16 -36,0 -26,-24 C-16,-34 8,-36 24,-26 Z",
+      // Shape 3: Good recovery
+      "M26,-24 C36,-14 34,12 24,26 C14,36 -12,30 -26,24 C-30,14 -34,0 -24,-26 C-14,-36 12,-34 26,-24 Z",
+      // Shape 4: Excellent recovery - smooth, rounded
+      "M25,-25 C35,-15 35,15 25,25 C15,35 -15,35 -25,25 C-35,15 -35,-15 -25,-25 C-15,-35 15,-35 25,-25 Z",
+    ];
+
+    const pathIndex = Math.min(Math.floor(sleepQuality * 4), 4);
     const recoveryHue = sleepQuality * 180 + 20; // 200° teal → 20° orange
-    const pulseSpeed = 3000 - (restingHR - 40) * 30;
-    const glowIntensity = sleepQuality * 20 + 5;
 
+    // Morph blob shape
     window.anime({
-      targets: orbRef.current,
-      background: `radial-gradient(circle, hsl(${recoveryHue}, 70%, 60%), hsl(${recoveryHue}, 50%, 40%))`,
-      boxShadow: `0 0 ${glowIntensity}px hsl(${recoveryHue}, 80%, 50%)`,
-      scale: [1, 1.1, 1],
-      duration: pulseSpeed,
-      easing: "easeInOutQuad",
+      targets: blobPathRef.current,
+      d: blobPaths[pathIndex],
+      duration: 2000,
+      easing: 'easeInOutQuad',
+    });
+
+    // Animate fill color
+    window.anime({
+      targets: blobPathRef.current,
+      fill: `hsl(${recoveryHue}, 70%, 60%)`,
+      duration: 2000,
+      easing: 'easeInOutQuad',
+    });
+
+    // Pulsing/breathing effect
+    window.anime({
+      targets: blobPathRef.current,
+      scale: [1, 1.15, 1],
+      opacity: [0.8, 1, 0.8],
+      duration: 3000 - (restingHR - 40) * 30,
+      easing: 'easeInOutQuad',
       loop: true,
     });
-  }, [sleepQuality, restingHR]);
+  }, [sleepQuality, restingHR, animeLoaded]);
+
+  // ===== VITALITY ORB: Particle Aura =====
+  useEffect(() => {
+    if (!blobContainerRef.current || !animeLoaded) return;
+
+    const particles = document.querySelectorAll('.orb-particle');
+    if (particles.length === 0) return;
+
+    const particleCount = particles.length;
+    const radius = 40;
+
+    // Animate each particle in circular orbit
+    particles.forEach((particle, i) => {
+      const angle = (i / particleCount) * Math.PI * 2;
+      
+      window.anime({
+        targets: particle,
+        translateX: [
+          { value: Math.cos(angle) * radius },
+          { value: Math.cos(angle + Math.PI * 2) * radius }
+        ],
+        translateY: [
+          { value: Math.sin(angle) * radius },
+          { value: Math.sin(angle + Math.PI * 2) * radius }
+        ],
+        duration: 8000 + i * 200, // Stagger speeds
+        easing: 'linear',
+        loop: true,
+      });
+
+      // Pulse particles
+      window.anime({
+        targets: particle,
+        opacity: [0.3, 0.8, 0.3],
+        r: [1.5, 2.5, 1.5],
+        duration: 2000,
+        delay: i * 150,
+        easing: 'easeInOutQuad',
+        loop: true,
+      });
+    });
+  }, [sleepQuality, animeLoaded]);
 
   // ===== GUMBALL MACHINE: Liquid Fill Animation =====
   useEffect(() => {
@@ -381,9 +454,42 @@ export function HealthVizPlayground() {
 
       {/* ========== SECTION 3: VITALITY ORB ========== */}
       <div className="space-y-4 border border-gray-700 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold">🌀 Vitality Orb (Sliders)</h2>
+        <h2 className="text-xl font-semibold">🌀 Vitality Orb (Morphing Blob)</h2>
+        <p className="text-sm text-gray-400">
+          Adjust sleep quality to see the blob morph and particles respond!
+        </p>
         <div className="flex justify-center">
-          <div ref={orbRef} className="w-40 h-40 rounded-full" />
+          <svg
+            ref={blobContainerRef}
+            viewBox="-50 -50 100 100"
+            className="w-64 h-64"
+          >
+            {/* Morphing Blob */}
+            <path
+              ref={blobPathRef}
+              d="M20,-30 C30,-20 40,0 30,20 C20,30 0,35 -20,30 C-35,20 -40,0 -30,-20 C-20,-35 0,-40 20,-30 Z"
+              fill="hsl(200, 70%, 60%)"
+              opacity="0.8"
+            />
+
+            {/* Particle Aura */}
+            {Array.from({ length: Math.floor(sleepQuality * 15) }).map((_, i) => {
+              const particleCount = Math.floor(sleepQuality * 15);
+              const angle = (i / particleCount) * Math.PI * 2;
+              const radius = 40;
+              return (
+                <circle
+                  key={i}
+                  className="orb-particle"
+                  cx={Math.cos(angle) * radius}
+                  cy={Math.sin(angle) * radius}
+                  r="2"
+                  fill="white"
+                  opacity="0.5"
+                />
+              );
+            })}
+          </svg>
         </div>
         <div className="space-y-2">
           <label className="block">
