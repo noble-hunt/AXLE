@@ -52,6 +52,10 @@ export function HealthVizPlayground() {
 
   // Refs
   const gemRef = useRef<HTMLDivElement>(null);
+  const gemOuterRef = useRef<SVGPolygonElement>(null);
+  const gemMiddleRef = useRef<SVGPolygonElement>(null);
+  const gemInnerRef = useRef<SVGPolygonElement>(null);
+  const gemContainerRef = useRef<SVGSVGElement>(null);
   const orbRef = useRef<HTMLDivElement>(null);
   const blobPathRef = useRef<SVGPathElement>(null);
   const blobContainerRef = useRef<SVGSVGElement>(null);
@@ -59,23 +63,162 @@ export function HealthVizPlayground() {
   const treeRef = useRef<SVGPathElement>(null);
   const liquidFillRef = useRef<SVGRectElement>(null);
 
-  // ===== TRAINING IDENTITY GEM (Color + Scale) =====
+  // ===== TRAINING IDENTITY GEM: Multi-layered Crystal =====
   useEffect(() => {
-    if (!gemRef.current) return;
+    if (!gemOuterRef.current || !gemMiddleRef.current || !gemInnerRef.current || !animeLoaded) return;
 
-    const hue = strengthRatio * 0 + cardioRatio * 240;
-    const scale = 1 + streakDays * 0.05;
-    const rotation = streakDays * 5;
+    const outer = gemOuterRef.current;
+    const middle = gemMiddleRef.current;
+    const inner = gemInnerRef.current;
+
+    // Clean up any existing animations
+    window.anime.remove([outer, middle, inner]);
+
+    // Parallax rotation for each layer (initialize once)
+    window.anime({
+      targets: outer,
+      rotate: '360deg',
+      duration: 8000,
+      easing: 'linear',
+      loop: true,
+    });
 
     window.anime({
-      targets: gemRef.current,
-      background: `linear-gradient(135deg, hsl(${hue}, 80%, 50%), hsl(${hue + 30}, 70%, 60%))`,
-      scale: [gemRef.current.style.transform ? 1 : 0.8, scale],
-      rotate: `${rotation}deg`,
-      duration: 1500,
-      easing: "easeOutElastic(1, .6)",
+      targets: middle,
+      rotate: '-360deg',
+      duration: 12000,
+      easing: 'linear',
+      loop: true,
     });
-  }, [strengthRatio, cardioRatio, streakDays]);
+
+    window.anime({
+      targets: inner,
+      rotate: '360deg',
+      duration: 10000,
+      easing: 'linear',
+      loop: true,
+    });
+  }, [animeLoaded]);
+
+  // ===== TRAINING IDENTITY GEM: Color Gradient Morphing =====
+  useEffect(() => {
+    if (!animeLoaded) return;
+
+    // Color morphing: red (strength) to blue (cardio)
+    const strengthHue = 0; // Red
+    const cardioHue = 240; // Blue
+    const currentHue = strengthRatio * strengthHue + cardioRatio * cardioHue;
+    
+    // Create gradient colors
+    const color1 = `hsl(${currentHue}, 80%, 50%)`;
+    const color2 = `hsl(${currentHue + 30}, 70%, 60%)`;
+
+    // Animate gradient stops separately
+    const gradient1 = document.getElementById('gemGradientStop1');
+    const gradient2 = document.getElementById('gemGradientStop2');
+    
+    if (gradient1 && gradient2) {
+      // Clean up previous color animations
+      window.anime.remove([gradient1, gradient2]);
+
+      // Animate first stop
+      window.anime({
+        targets: gradient1,
+        'stop-color': color1,
+        duration: 1500,
+        easing: 'easeInOutQuad',
+      });
+
+      // Animate second stop
+      window.anime({
+        targets: gradient2,
+        'stop-color': color2,
+        duration: 1500,
+        easing: 'easeInOutQuad',
+      });
+    }
+  }, [strengthRatio, cardioRatio, animeLoaded]);
+
+  // ===== TRAINING IDENTITY GEM: Glowing Vertices =====
+  useEffect(() => {
+    if (!animeLoaded) return;
+
+    const vertices = document.querySelectorAll('.gem-vertex');
+    if (vertices.length === 0) return;
+
+    // Clean up existing vertex animations
+    window.anime.remove(vertices);
+
+    const glowIntensity = Math.min(streakDays / 30, 1);
+
+    vertices.forEach((vertex, i) => {
+      window.anime({
+        targets: vertex,
+        scale: [1, 1 + glowIntensity * 0.5, 1],
+        opacity: [0.6, 0.6 + glowIntensity * 0.4, 0.6],
+        duration: 2000,
+        delay: i * 100,
+        easing: 'easeInOutQuad',
+        loop: true,
+      });
+    });
+  }, [streakDays, animeLoaded]);
+
+  // ===== TRAINING IDENTITY GEM: Particle Trails (Initialize Once) =====
+  useEffect(() => {
+    if (!gemContainerRef.current || !animeLoaded) return;
+
+    const particles = document.querySelectorAll('.gem-particle');
+    if (particles.length === 0) return;
+
+    // Clean up existing particle animations
+    window.anime.remove(particles);
+
+    const orbitRadius = 55;
+
+    particles.forEach((particle, i) => {
+      const angle = (i / particles.length) * Math.PI * 2;
+      
+      // Orbital motion
+      window.anime({
+        targets: particle,
+        translateX: [
+          { value: Math.cos(angle) * orbitRadius },
+          { value: Math.cos(angle + Math.PI * 2) * orbitRadius }
+        ],
+        translateY: [
+          { value: Math.sin(angle) * orbitRadius },
+          { value: Math.sin(angle + Math.PI * 2) * orbitRadius }
+        ],
+        duration: 6000 + i * 300,
+        easing: 'linear',
+        loop: true,
+      });
+    });
+  }, [animeLoaded]);
+
+  // ===== TRAINING IDENTITY GEM: Particle Opacity Based on Workout Frequency =====
+  useEffect(() => {
+    if (!animeLoaded) return;
+
+    const particles = document.querySelectorAll('.gem-particle');
+    if (particles.length === 0) return;
+
+    const workoutFrequency = Math.min(workouts.length / 10, 1);
+
+    particles.forEach((particle, i) => {
+      // Update opacity/scale based on workout frequency
+      window.anime({
+        targets: particle,
+        opacity: [0.3, 0.8 * workoutFrequency, 0.3],
+        scale: [0.8, 1.2, 0.8],
+        duration: 1500,
+        delay: i * 200,
+        easing: 'easeInOutQuad',
+        loop: true,
+      });
+    });
+  }, [workouts.length, animeLoaded]);
 
   // ===== VITALITY ORB: Blob Morphing =====
   useEffect(() => {
@@ -297,16 +440,83 @@ export function HealthVizPlayground() {
       {/* ========== SECTION 1: TRAINING IDENTITY GEM ========== */}
       <div className="space-y-4 border border-gray-700 p-6 rounded-lg">
         <h2 className="text-xl font-semibold">
-          🔷 Training Identity Gem (Sliders)
+          💎 Training Identity Gem (Multi-layered Crystal)
         </h2>
+        <p className="text-sm text-gray-400">
+          Adjust sliders to see crystal morph, vertices glow, and particles orbit!
+        </p>
         <div className="flex justify-center">
-          <div
-            ref={gemRef}
-            className="w-40 h-40 rounded-lg"
-            style={{
-              clipPath: "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)",
-            }}
-          />
+          <svg
+            ref={gemContainerRef}
+            viewBox="0 0 100 100"
+            className="w-64 h-64"
+          >
+            {/* Gradient Definition */}
+            <defs>
+              <linearGradient id="gemGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop id="gemGradientStop1" offset="0%" stopColor="hsl(0, 80%, 50%)" />
+                <stop id="gemGradientStop2" offset="100%" stopColor="hsl(30, 70%, 60%)" />
+              </linearGradient>
+            </defs>
+
+            {/* Particle Trails */}
+            {Array.from({ length: 8 }).map((_, i) => {
+              const particleCount = 8;
+              const angle = (i / particleCount) * Math.PI * 2;
+              const radius = 55;
+              return (
+                <circle
+                  key={i}
+                  className="gem-particle"
+                  cx={50 + Math.cos(angle) * radius}
+                  cy={50 + Math.sin(angle) * radius}
+                  r="1.5"
+                  fill="white"
+                  opacity="0.5"
+                />
+              );
+            })}
+
+            {/* Outer Crystal Layer */}
+            <polygon
+              ref={gemOuterRef}
+              points="50,5 95,35 82,85 18,85 5,35"
+              fill="url(#gemGradient)"
+              opacity="0.3"
+              style={{ transformOrigin: '50px 50px' }}
+            />
+
+            {/* Middle Crystal Layer */}
+            <polygon
+              ref={gemMiddleRef}
+              points="50,15 85,40 75,80 25,80 15,40"
+              fill="url(#gemGradient)"
+              opacity="0.5"
+              style={{ transformOrigin: '50px 50px' }}
+            />
+
+            {/* Inner Crystal Layer */}
+            <polygon
+              ref={gemInnerRef}
+              points="50,25 75,45 68,75 32,75 25,45"
+              fill="url(#gemGradient)"
+              opacity="0.7"
+              style={{ transformOrigin: '50px 50px' }}
+            />
+
+            {/* Vertex Points (Outer Layer) */}
+            {[[50, 5], [95, 35], [82, 85], [18, 85], [5, 35]].map(([x, y], i) => (
+              <circle
+                key={`vertex-${i}`}
+                className="gem-vertex"
+                cx={x}
+                cy={y}
+                r="2"
+                fill="white"
+                opacity="0.8"
+              />
+            ))}
+          </svg>
         </div>
         <div className="space-y-2">
           <label className="block">
