@@ -61,7 +61,121 @@ export function HealthVizPlayground() {
   const blobContainerRef = useRef<SVGSVGElement>(null);
   const gumballContainerRef = useRef<SVGSVGElement>(null);
   const treeRef = useRef<SVGPathElement>(null);
+  const treeContainerRef = useRef<SVGSVGElement>(null);
   const liquidFillRef = useRef<SVGRectElement>(null);
+
+  // ===== L-SYSTEM TREE GENERATION =====
+  interface TreeData {
+    branches: string[];
+    leaves: Array<{ x: number; y: number }>;
+    roots: string[];
+  }
+
+  const [treeData, setTreeData] = useState<TreeData>({ branches: [], leaves: [], roots: [] });
+
+  // Generate L-System string
+  const generateLSystem = (iterations: number): string => {
+    let result = "F";
+    for (let i = 0; i < iterations; i++) {
+      result = result.replace(/F/g, "F[+F]F[-F]F");
+    }
+    return result;
+  };
+
+  // Convert L-System to SVG paths
+  const lSystemToSVG = (lsystem: string, startX: number, startY: number, length: number, angle: number): TreeData => {
+    const branches: string[] = [];
+    const leaves: Array<{ x: number; y: number }> = [];
+    const stack: Array<{ x: number; y: number; angle: number }> = [];
+    
+    let x = startX;
+    let y = startY;
+    let currentAngle = angle;
+    const allSegments: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+    
+    const angleIncrement = 25 * (Math.PI / 180); // 25 degrees in radians
+    
+    // Parse L-system and create all line segments
+    for (let i = 0; i < lsystem.length; i++) {
+      const char = lsystem[i];
+      
+      if (char === 'F') {
+        // Move forward and record segment
+        const startSegX = x;
+        const startSegY = y;
+        x = x + length * Math.sin(currentAngle);
+        y = y - length * Math.cos(currentAngle);
+        allSegments.push({ x1: startSegX, y1: startSegY, x2: x, y2: y });
+        leaves.push({ x, y }); // Potential leaf at every segment end
+      } else if (char === '+') {
+        currentAngle += angleIncrement;
+      } else if (char === '-') {
+        currentAngle -= angleIncrement;
+      } else if (char === '[') {
+        stack.push({ x, y, angle: currentAngle });
+      } else if (char === ']') {
+        const state = stack.pop();
+        if (state) {
+          x = state.x;
+          y = state.y;
+          currentAngle = state.angle;
+        }
+      }
+    }
+    
+    // Convert all segments to individual branch paths
+    allSegments.forEach(seg => {
+      branches.push(`M${seg.x1},${seg.y1} L${seg.x2},${seg.y2}`);
+    });
+    
+    // Generate roots (mirror branches downward, but keep in viewBox)
+    const roots = branches.map(branch => {
+      const points = branch.split(/[ML]/).filter(p => p.trim());
+      const rootPoints = points.map(point => {
+        const [px, py] = point.split(',').map(Number);
+        // Mirror and scale down to fit in viewBox (stay below y=100)
+        const mirroredY = startY + (startY - py) * 0.3; // Scale by 0.3 to keep in bounds
+        return `${px},${Math.min(mirroredY, 118)}`; // Cap at 118 to stay in viewBox
+      });
+      return `M${rootPoints.join(' L')}`;
+    });
+    
+    return { branches, leaves, roots };
+  };
+
+  // Generate tree data when streakWeeks changes
+  useEffect(() => {
+    const iterations = Math.min(Math.floor(streakWeeks / 2), 3); // Max 3 iterations to avoid too many branches
+    const lsystemString = generateLSystem(iterations);
+    const data = lSystemToSVG(lsystemString, 50, 100, 8, 0);
+    setTreeData(data);
+  }, [streakWeeks]);
+
+  // Initialize paths and leaves to be visible (decouple from anime.js loading)
+  useEffect(() => {
+    const branches = document.querySelectorAll('.tree-branch');
+    const roots = document.querySelectorAll('.tree-root');
+    const leaves = document.querySelectorAll('.tree-leaf');
+    
+    // Reset dash offsets so paths are visible even without animation
+    branches.forEach((branch) => {
+      const pathElement = branch as SVGPathElement;
+      pathElement.style.strokeDasharray = 'none';
+      pathElement.style.strokeDashoffset = '0';
+    });
+    
+    roots.forEach((root) => {
+      const pathElement = root as SVGPathElement;
+      pathElement.style.strokeDasharray = 'none';
+      pathElement.style.strokeDashoffset = '0';
+    });
+
+    // Make leaves visible
+    leaves.forEach((leaf) => {
+      const leafElement = leaf as SVGCircleElement;
+      leafElement.style.opacity = '0.8';
+    });
+  }, [treeData]);
 
   // ===== TRAINING IDENTITY GEM: Multi-layered Crystal =====
   useEffect(() => {
@@ -404,38 +518,115 @@ export function HealthVizPlayground() {
     setLastWorkoutId(newWorkout.id);
   };
 
-  // ===== TREE GROWTH: Morph branches =====
+  // ===== TREE GROWTH: Coordinated Timeline Animation =====
   useEffect(() => {
-    if (!treeRef.current) return;
+    if (!animeLoaded || !treeContainerRef.current || treeData.branches.length === 0) return;
 
-    const branchPaths = [
-      "M50,100 L50,50", // 0 weeks (trunk only)
-      "M50,100 L50,50 L30,30 L70,30", // 1-2 weeks (2 branches)
-      "M50,100 L50,50 L30,30 L70,30 L20,10 L80,10", // 3+ weeks (4 branches)
-    ];
+    const branches = document.querySelectorAll('.tree-branch');
+    const roots = document.querySelectorAll('.tree-root');
+    const leaves = document.querySelectorAll('.tree-leaf');
 
-    const pathIndex = Math.min(Math.floor(streakWeeks / 2), 2);
+    if (branches.length === 0) return;
 
-    window.anime({
-      targets: treeRef.current,
-      d: branchPaths[pathIndex],
-      duration: 2000,
-      easing: "easeOutElastic(1, .5)",
+    // Clean up existing animations
+    window.anime.remove([...Array.from(branches), ...Array.from(roots), ...Array.from(leaves)]);
+
+    // Set initial states for branches
+    branches.forEach((branch) => {
+      const pathElement = branch as SVGPathElement;
+      const pathLength = pathElement.getTotalLength();
+      pathElement.style.strokeDasharray = `${pathLength}`;
+      pathElement.style.strokeDashoffset = `${pathLength}`;
     });
-  }, [streakWeeks]);
 
-  // Show loading state while anime.js loads
-  if (!animeLoaded) {
-    return (
-      <div className="p-6 bg-gray-900 min-h-screen text-white flex items-center justify-center">
-        <p className="text-xl">Loading animations...</p>
-      </div>
-    );
-  }
+    // Set initial states for roots
+    roots.forEach((root) => {
+      const pathElement = root as SVGPathElement;
+      const pathLength = pathElement.getTotalLength();
+      pathElement.style.strokeDasharray = `${pathLength}`;
+      pathElement.style.strokeDashoffset = `${pathLength}`;
+    });
+
+    // Create coordinated timeline
+    const timeline = window.anime.timeline({
+      easing: 'easeOutQuad'
+    });
+
+    // Step 1: Grow branches sequentially
+    branches.forEach((branch, i) => {
+      const pathElement = branch as SVGPathElement;
+      const pathLength = pathElement.getTotalLength();
+      
+      timeline.add({
+        targets: pathElement,
+        strokeDashoffset: [pathLength, 0],
+        duration: 1000,
+        easing: 'easeOutQuad',
+      }, i * 200); // Stagger by 200ms
+    });
+
+    // Step 2: Grow roots after branches
+    const branchDuration = branches.length * 200;
+    roots.forEach((root, i) => {
+      const pathElement = root as SVGPathElement;
+      const pathLength = pathElement.getTotalLength();
+      
+      timeline.add({
+        targets: pathElement,
+        strokeDashoffset: [pathLength, 0],
+        duration: 800,
+        easing: 'easeOutQuad',
+      }, branchDuration + i * 100);
+    });
+
+    // Step 3: Fade in leaves after branches and roots
+    const rootDuration = roots.length * 100;
+    const leafDelay = branchDuration + rootDuration + 500;
+    
+    timeline.add({
+      targets: Array.from(leaves),
+      opacity: [0, 0.8],
+      scale: [0, 1],
+      duration: 600,
+      delay: window.anime.stagger(50),
+      easing: 'easeOutElastic(1, .6)',
+    }, leafDelay);
+
+    // Step 4: Start wind sway after leaves appear
+    const swayDelay = leafDelay + 600 + (leaves.length * 50);
+    
+    // Leaf sway
+    timeline.add({
+      targets: Array.from(leaves),
+      translateX: [-2, 2, -2],
+      translateY: [-1, 1, -1],
+      duration: 3000,
+      delay: window.anime.stagger(100),
+      easing: 'easeInOutSine',
+      loop: true,
+    }, swayDelay);
+
+    // Branch sway (skip trunk)
+    const swayBranches = Array.from(branches).slice(1);
+    if (swayBranches.length > 0) {
+      timeline.add({
+        targets: swayBranches,
+        rotate: ['-1deg', '1deg', '-1deg'],
+        duration: 4000,
+        delay: window.anime.stagger(150),
+        easing: 'easeInOutSine',
+        loop: true,
+        transformOrigin: '0% 0%',
+      }, swayDelay);
+    }
+  }, [treeData, goodSleepNights, animeLoaded]);
 
   return (
     <div className="p-6 space-y-12 bg-gray-900 min-h-screen text-white">
-      <h1 className="text-3xl font-bold">Health Viz Playground 🎨</h1>
+      <h1 className="text-3xl font-bold">
+        Health Viz Playground 🎨
+        {!animeLoaded && <span className="text-xs text-gray-500 ml-2">(animations disabled)</span>}
+      </h1>
 
       {/* ========== SECTION 1: TRAINING IDENTITY GEM ========== */}
       <div className="space-y-4 border border-gray-700 p-6 rounded-lg">
@@ -732,39 +923,67 @@ export function HealthVizPlayground() {
       {/* ========== SECTION 4: GROWING TREE (Wellness) ========== */}
       <div className="space-y-4 border border-gray-700 p-6 rounded-lg">
         <h2 className="text-xl font-semibold">
-          🌳 Growing Tree (Wellness Growth)
+          🌳 Growing Tree (L-System Procedural Growth)
         </h2>
         <p className="text-sm text-gray-400">
-          Adjust weeks & sleep to see branches/leaves grow!
+          Adjust weeks & sleep to see recursive branches, roots, and leaves grow!
         </p>
 
         <div className="flex justify-center">
-          <svg viewBox="0 0 100 120" className="w-64 h-80">
-            {/* Trunk + Branches (morphing path) */}
-            <path
-              ref={treeRef}
-              d="M50,100 L50,50"
-              stroke="#8b4513"
-              strokeWidth="3"
-              fill="none"
-              strokeLinecap="round"
-            />
+          <svg
+            ref={treeContainerRef}
+            viewBox="0 0 100 120"
+            className="w-64 h-80"
+            data-testid="tree-container"
+          >
+            {/* Roots Group (rendered first, below branches) */}
+            <g className="tree-roots">
+              {treeData.roots.map((rootPath, i) => (
+                <path
+                  key={`root-${i}`}
+                  className="tree-root"
+                  d={rootPath}
+                  stroke="#654321"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.6"
+                  data-testid={`tree-root-${i}`}
+                />
+              ))}
+            </g>
 
-            {/* Leaves (based on good sleep nights) */}
-            {Array.from({ length: goodSleepNights }).map((_, i) => {
-              const x = 30 + Math.random() * 40;
-              const y = 20 + Math.random() * 30;
-              return (
+            {/* Branches Group (procedurally generated) */}
+            <g className="tree-branches">
+              {treeData.branches.map((branchPath, i) => (
+                <path
+                  key={`branch-${i}`}
+                  className="tree-branch"
+                  d={branchPath}
+                  stroke="#8b4513"
+                  strokeWidth={i === 0 ? "3" : "2"}
+                  fill="none"
+                  strokeLinecap="round"
+                  data-testid={`tree-branch-${i}`}
+                />
+              ))}
+            </g>
+
+            {/* Leaves Group (limited by goodSleepNights) */}
+            <g className="tree-leaves">
+              {treeData.leaves.slice(0, goodSleepNights).map((leaf, i) => (
                 <circle
-                  key={i}
-                  cx={x}
-                  cy={y}
+                  key={`leaf-${i}`}
+                  className="tree-leaf"
+                  cx={leaf.x}
+                  cy={leaf.y}
                   r="3"
                   fill="#4ade80"
-                  opacity="0.8"
+                  opacity="0"
+                  data-testid={`tree-leaf-${i}`}
                 />
-              );
-            })}
+              ))}
+            </g>
           </svg>
         </div>
 

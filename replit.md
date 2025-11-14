@@ -3,6 +3,9 @@
 ## Overview
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It enables users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation.
 
+## Recent Changes (November 14, 2025)
+- **Implemented L-System Procedural Tree Visualization**: Added Growing Tree component to Health Viz Playground using procedural L-System generation (rule: "F" → "F[+F]F[-F]F"). Each 'F' command creates a separate SVG branch segment for proper recursive branching. Features: mirrored root system (scaled 0.3x, capped at y=118), leaves positioned at branch endpoints (limited by goodSleepNights), coordinated anime.js timeline (branches → roots → leaves → wind sway), and graceful degradation when anime.js unavailable. Fixed critical rendering bug by decoupling SVG visibility from animation library loading, ensuring tree renders in all environments (test, offline, CDN failures).
+
 ## Recent Changes (November 13, 2025)
 - **Fixed OpenAI Timeout Issue**: Resolved production-critical bug where workout generation was failing due to 30-second timeout. Increased OpenAI timeout to 60 seconds in both `server/workoutGenerator.ts` and `server/lib/openai.ts`. Added proper timeout configuration (`timeout: 60000, maxRetries: 2`) to OpenAI client initialization.
 - **Fixed Advanced Insights Section**: Resolved bug where advanced visualizations (Training Load, Enhanced Consistency, PR Sparklines, Recovery Correlation) weren't rendering in report detail modals. Backend now returns empty arrays instead of `undefined` for visualization fields, ensuring all chart components render with proper empty states.
