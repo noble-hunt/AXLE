@@ -1,14 +1,42 @@
 // client/src/components/HealthVizPlayground.tsx
-import { useEffect, useRef, useState } from 'react';
-import anime from 'animejs/lib/anime.es.js';
+import { useEffect, useRef, useState } from "react";
+
+// Load anime.js from CDN
+declare global {
+  interface Window {
+    anime: any;
+  }
+}
+
+// Hook to load anime.js from CDN
+function useAnimeJS() {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (window.anime) {
+      setLoaded(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js";
+    script.onload = () => setLoaded(true);
+    document.head.appendChild(script);
+  }, []);
+
+  return loaded;
+}
 
 interface Workout {
   id: string;
-  focus: 'strength' | 'cardio' | 'mixed' | 'endurance';
+  focus: "strength" | "cardio" | "mixed" | "endurance";
   color: string;
 }
 
 export function HealthVizPlayground() {
+  const animeLoaded = useAnimeJS();
+
   // ===== SLIDER CONTROLS (Initial Testing) =====
   const [strengthRatio, setStrengthRatio] = useState(0.6); // 0-1
   const [cardioRatio, setCardioRatio] = useState(0.3);
@@ -32,16 +60,16 @@ export function HealthVizPlayground() {
     if (!gemRef.current) return;
 
     const hue = strengthRatio * 0 + cardioRatio * 240;
-    const scale = 1 + (streakDays * 0.05);
+    const scale = 1 + streakDays * 0.05;
     const rotation = streakDays * 5;
 
-    anime({
+    window.anime({
       targets: gemRef.current,
       background: `linear-gradient(135deg, hsl(${hue}, 80%, 50%), hsl(${hue + 30}, 70%, 60%))`,
       scale: [gemRef.current.style.transform ? 1 : 0.8, scale],
       rotate: `${rotation}deg`,
       duration: 1500,
-      easing: 'easeOutElastic(1, .6)',
+      easing: "easeOutElastic(1, .6)",
     });
   }, [strengthRatio, cardioRatio, streakDays]);
 
@@ -53,25 +81,30 @@ export function HealthVizPlayground() {
     const pulseSpeed = 3000 - (restingHR - 40) * 30;
     const glowIntensity = sleepQuality * 20 + 5;
 
-    anime({
+    window.anime({
       targets: orbRef.current,
       background: `radial-gradient(circle, hsl(${recoveryHue}, 70%, 60%), hsl(${recoveryHue}, 50%, 40%))`,
       boxShadow: `0 0 ${glowIntensity}px hsl(${recoveryHue}, 80%, 50%)`,
       scale: [1, 1.1, 1],
       duration: pulseSpeed,
-      easing: 'easeInOutQuad',
+      easing: "easeInOutQuad",
       loop: true,
     });
   }, [sleepQuality, restingHR]);
 
   // ===== GUMBALL MACHINE: Add workout =====
   const addWorkout = () => {
-    const focuses: Array<'strength' | 'cardio' | 'mixed' | 'endurance'> = ['strength', 'cardio', 'mixed', 'endurance'];
+    const focuses: Array<"strength" | "cardio" | "mixed" | "endurance"> = [
+      "strength",
+      "cardio",
+      "mixed",
+      "endurance",
+    ];
     const colors: Record<string, string> = {
-      strength: '#ef4444',
-      cardio: '#3b82f6',
-      mixed: '#fbbf24',
-      endurance: '#10b981',
+      strength: "#ef4444",
+      cardio: "#3b82f6",
+      mixed: "#fbbf24",
+      endurance: "#10b981",
     };
 
     const focus = focuses[Math.floor(Math.random() * focuses.length)];
@@ -89,20 +122,29 @@ export function HealthVizPlayground() {
     if (!treeRef.current) return;
 
     const branchPaths = [
-      'M50,100 L50,50', // 0 weeks (trunk only)
-      'M50,100 L50,50 L30,30 L70,30', // 1-2 weeks (2 branches)
-      'M50,100 L50,50 L30,30 L70,30 L20,10 L80,10', // 3+ weeks (4 branches)
+      "M50,100 L50,50", // 0 weeks (trunk only)
+      "M50,100 L50,50 L30,30 L70,30", // 1-2 weeks (2 branches)
+      "M50,100 L50,50 L30,30 L70,30 L20,10 L80,10", // 3+ weeks (4 branches)
     ];
 
     const pathIndex = Math.min(Math.floor(streakWeeks / 2), 2);
 
-    anime({
+    window.anime({
       targets: treeRef.current,
       d: branchPaths[pathIndex],
       duration: 2000,
-      easing: 'easeOutElastic(1, .5)',
+      easing: "easeOutElastic(1, .5)",
     });
   }, [streakWeeks]);
+
+  // Show loading state while anime.js loads
+  if (!animeLoaded) {
+    return (
+      <div className="p-6 bg-gray-900 min-h-screen text-white flex items-center justify-center">
+        <p className="text-xl">Loading animations...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-12 bg-gray-900 min-h-screen text-white">
@@ -110,13 +152,15 @@ export function HealthVizPlayground() {
 
       {/* ========== SECTION 1: TRAINING IDENTITY GEM ========== */}
       <div className="space-y-4 border border-gray-700 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold">🔷 Training Identity Gem (Sliders)</h2>
+        <h2 className="text-xl font-semibold">
+          🔷 Training Identity Gem (Sliders)
+        </h2>
         <div className="flex justify-center">
           <div
             ref={gemRef}
             className="w-40 h-40 rounded-lg"
             style={{
-              clipPath: 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)',
+              clipPath: "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)",
             }}
           />
         </div>
@@ -162,19 +206,36 @@ export function HealthVizPlayground() {
 
       {/* ========== SECTION 2: GUMBALL MACHINE (Growth) ========== */}
       <div className="space-y-4 border border-gray-700 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold">🍬 Gumball Machine (Growth Test)</h2>
-        <p className="text-sm text-gray-400">Click "Add Workout" to see gumballs drop in!</p>
-        
+        <h2 className="text-xl font-semibold">
+          🍬 Gumball Machine (Growth Test)
+        </h2>
+        <p className="text-sm text-gray-400">
+          Click "Add Workout" to see gumballs drop in!
+        </p>
+
         <div className="flex justify-center">
           <svg
             ref={gumballContainerRef}
             viewBox="0 0 100 120"
             className="w-64 h-80"
-            style={{ border: '2px solid rgba(255,255,255,0.2)', borderRadius: '8px' }}
+            style={{
+              border: "2px solid rgba(255,255,255,0.2)",
+              borderRadius: "8px",
+            }}
           >
             {/* Container outline */}
-            <rect x="10" y="10" width="80" height="100" fill="none" stroke="white" strokeWidth="1" opacity="0.3" rx="8" />
-            
+            <rect
+              x="10"
+              y="10"
+              width="80"
+              height="100"
+              fill="none"
+              stroke="white"
+              strokeWidth="1"
+              opacity="0.3"
+              rx="8"
+            />
+
             {/* Gumballs */}
             {workouts.map((workout, i) => {
               const row = Math.floor(i / 5);
@@ -188,7 +249,10 @@ export function HealthVizPlayground() {
                   fill={workout.color}
                   opacity="0.9"
                   style={{
-                    animation: i === workouts.length - 1 ? 'dropIn 1.2s ease-out' : 'none',
+                    animation:
+                      i === workouts.length - 1
+                        ? "dropIn 1.2s ease-out"
+                        : "none",
                   }}
                 />
               );
@@ -210,7 +274,9 @@ export function HealthVizPlayground() {
             Reset
           </button>
         </div>
-        <p className="text-center text-sm text-gray-400">Workouts: {workouts.length}</p>
+        <p className="text-center text-sm text-gray-400">
+          Workouts: {workouts.length}
+        </p>
       </div>
 
       {/* ========== SECTION 3: VITALITY ORB ========== */}
@@ -236,7 +302,7 @@ export function HealthVizPlayground() {
             Resting HR: {restingHR} bpm
             <input
               type="range"
-              min="40"
+              min="0"
               max="100"
               step="5"
               value={restingHR}
@@ -249,8 +315,12 @@ export function HealthVizPlayground() {
 
       {/* ========== SECTION 4: GROWING TREE (Wellness) ========== */}
       <div className="space-y-4 border border-gray-700 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold">🌳 Growing Tree (Wellness Growth)</h2>
-        <p className="text-sm text-gray-400">Adjust weeks & sleep to see branches/leaves grow!</p>
+        <h2 className="text-xl font-semibold">
+          🌳 Growing Tree (Wellness Growth)
+        </h2>
+        <p className="text-sm text-gray-400">
+          Adjust weeks & sleep to see branches/leaves grow!
+        </p>
 
         <div className="flex justify-center">
           <svg viewBox="0 0 100 120" className="w-64 h-80">
@@ -263,7 +333,7 @@ export function HealthVizPlayground() {
               fill="none"
               strokeLinecap="round"
             />
-            
+
             {/* Leaves (based on good sleep nights) */}
             {Array.from({ length: goodSleepNights }).map((_, i) => {
               const x = 30 + Math.random() * 40;
