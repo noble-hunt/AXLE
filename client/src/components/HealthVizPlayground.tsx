@@ -48,12 +48,14 @@ export function HealthVizPlayground() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [streakWeeks, setStreakWeeks] = useState(0);
   const [goodSleepNights, setGoodSleepNights] = useState(4);
+  const [lastWorkoutId, setLastWorkoutId] = useState<string | null>(null);
 
   // Refs
   const gemRef = useRef<HTMLDivElement>(null);
   const orbRef = useRef<HTMLDivElement>(null);
   const gumballContainerRef = useRef<SVGSVGElement>(null);
   const treeRef = useRef<SVGPathElement>(null);
+  const liquidFillRef = useRef<SVGRectElement>(null);
 
   // ===== TRAINING IDENTITY GEM (Color + Scale) =====
   useEffect(() => {
@@ -92,6 +94,74 @@ export function HealthVizPlayground() {
     });
   }, [sleepQuality, restingHR]);
 
+  // ===== GUMBALL MACHINE: Liquid Fill Animation =====
+  useEffect(() => {
+    if (!liquidFillRef.current || !animeLoaded) return;
+
+    const targetHeight = Math.min(workouts.length * 10, 100);
+
+    window.anime({
+      targets: liquidFillRef.current,
+      height: targetHeight,
+      y: 110 - targetHeight,
+      duration: 800,
+      easing: 'easeOutQuad',
+    });
+  }, [workouts.length, animeLoaded]);
+
+  // ===== GUMBALL MACHINE: Drop Animation with Spring Physics =====
+  useEffect(() => {
+    if (!animeLoaded || workouts.length === 0) return;
+
+    // Get all gumball elements
+    const gumballs = document.querySelectorAll('.gumball');
+    if (gumballs.length === 0) return;
+
+    // Animate all gumballs with stagger
+    window.anime({
+      targets: gumballs,
+      translateY: [
+        { value: -200, duration: 0 },
+        { value: 0, duration: 1200, easing: 'spring(1, 80, 10, 0)' }
+      ],
+      scale: [
+        { value: 0.5, duration: 0 },
+        { value: 1, duration: 1200, easing: 'spring(1, 80, 10, 0)' }
+      ],
+      rotate: [
+        { value: 0, duration: 0 },
+        { value: '1turn', duration: 1200, easing: 'easeOutQuad' }
+      ],
+      opacity: [
+        { value: 0, duration: 0 },
+        { value: 0.9, duration: 400 }
+      ],
+      delay: window.anime.stagger(100),
+    });
+  }, [workouts.length, animeLoaded]);
+
+  // ===== GUMBALL MACHINE: Ripple Effect on Last Gumball =====
+  useEffect(() => {
+    if (!lastWorkoutId || !animeLoaded) return;
+
+    const ripple = document.getElementById(`ripple-${lastWorkoutId}`);
+    if (!ripple) return;
+
+    // Create timeline for drop → bounce → ripple
+    const timeline = window.anime.timeline({
+      easing: 'easeOutQuad',
+    });
+
+    timeline
+      .add({
+        targets: ripple,
+        r: [0, 20],
+        opacity: [0.6, 0],
+        duration: 1000,
+        delay: 1200, // Wait for drop to complete
+      });
+  }, [lastWorkoutId, animeLoaded]);
+
   // ===== GUMBALL MACHINE: Add workout =====
   const addWorkout = () => {
     const focuses: Array<"strength" | "cardio" | "mixed" | "endurance"> = [
@@ -115,6 +185,7 @@ export function HealthVizPlayground() {
     };
 
     setWorkouts((prev) => [...prev, newWorkout]);
+    setLastWorkoutId(newWorkout.id);
   };
 
   // ===== TREE GROWTH: Morph branches =====
@@ -223,6 +294,14 @@ export function HealthVizPlayground() {
               borderRadius: "8px",
             }}
           >
+            {/* Gradient Definition for Liquid Fill */}
+            <defs>
+              <linearGradient id="liquidGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#a855f7" stopOpacity="0.4" />
+              </linearGradient>
+            </defs>
+
             {/* Container outline */}
             <rect
               x="10"
@@ -236,25 +315,46 @@ export function HealthVizPlayground() {
               rx="8"
             />
 
+            {/* Liquid Fill Meter */}
+            <rect
+              ref={liquidFillRef}
+              x="10"
+              y="110"
+              width="80"
+              height="0"
+              fill="url(#liquidGradient)"
+              rx="8"
+            />
+
             {/* Gumballs */}
             {workouts.map((workout, i) => {
               const row = Math.floor(i / 5);
               const col = i % 5;
               return (
-                <circle
-                  key={workout.id}
-                  cx={20 + col * 14}
-                  cy={95 - row * 14}
-                  r="6"
-                  fill={workout.color}
-                  opacity="0.9"
-                  style={{
-                    animation:
-                      i === workouts.length - 1
-                        ? "dropIn 1.2s ease-out"
-                        : "none",
-                  }}
-                />
+                <g key={workout.id}>
+                  {/* Ripple effect for last added gumball */}
+                  {workout.id === lastWorkoutId && (
+                    <circle
+                      id={`ripple-${workout.id}`}
+                      cx={20 + col * 14}
+                      cy={95 - row * 14}
+                      r="0"
+                      fill="none"
+                      stroke={workout.color}
+                      strokeWidth="2"
+                      opacity="0"
+                    />
+                  )}
+                  {/* Gumball */}
+                  <circle
+                    className="gumball"
+                    cx={20 + col * 14}
+                    cy={95 - row * 14}
+                    r="6"
+                    fill={workout.color}
+                    opacity="0"
+                  />
+                </g>
               );
             })}
           </svg>
@@ -380,25 +480,6 @@ export function HealthVizPlayground() {
         </div>
       </div>
 
-      {/* CSS for gumball drop animation */}
-      <style>{`
-        @keyframes dropIn {
-          0% {
-            transform: translateY(-100px);
-            opacity: 0;
-          }
-          60% {
-            transform: translateY(5px);
-          }
-          80% {
-            transform: translateY(-2px);
-          }
-          100% {
-            transform: translateY(0);
-            opacity: 0.9;
-          }
-        }
-      `}</style>
     </div>
   );
 }
