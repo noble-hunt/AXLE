@@ -42,6 +42,7 @@ import Callback from "@/pages/auth/Callback";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import PrivacyPolicy from "@/pages/legal/privacy";
 import TermsOfService from "@/pages/legal/terms";
+import { HealthVizPlayground } from "@/components/HealthVizPlayground";
 
 function OverlayWrapper() {
   const search = useSearch();
@@ -75,6 +76,9 @@ function OverlayWrapper() {
         {/* Legal routes - accessible to all */}
         <Route path="/legal/privacy" component={PrivacyPolicy} />
         <Route path="/legal/terms" component={TermsOfService} />
+        
+        {/* Testing playground */}
+        <Route path="/playground" component={HealthVizPlayground} />
         
         {/* Home route - accessible to all */}
         <Route path="/" component={Home} />
