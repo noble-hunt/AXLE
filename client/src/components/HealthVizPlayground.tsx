@@ -404,13 +404,18 @@ export function HealthVizPlayground() {
     // Clean up existing vertex animations
     window.anime.remove(vertices);
 
+    // glowIntensity scales from 0 to 1 based on streakDays (0-30)
     const glowIntensity = Math.min(streakDays / 30, 1);
+
+    // Scale and opacity vary based on streak intensity
+    const maxScale = 1 + glowIntensity * 0.5; // 1.0 to 1.5 based on streakDays
+    const maxOpacity = 0.6 + glowIntensity * 0.3; // 0.6 to 0.9 based on streakDays
 
     // Animate all vertices with stagger
     window.anime({
       targets: '.crystal-vertex',
-      scale: [1, 1.5, 1],
-      opacity: [0.6, 0.9, 0.6],
+      scale: [1, maxScale, 1],
+      opacity: [0.6, maxOpacity, 0.6],
       duration: 2000,
       delay: window.anime.stagger(100), // 100ms stagger
       easing: 'easeInOutQuad',
@@ -429,30 +434,25 @@ export function HealthVizPlayground() {
     window.anime.remove(particles);
 
     const orbitRadius = 40; // Radius for circular orbit
-    const centerX = 50;
-    const centerY = 50;
 
     particles.forEach((particle, i) => {
       const startAngle = (i / particles.length) * Math.PI * 2;
       
-      // Create circular orbital motion using translateX/Y
+      // Create circular orbital motion with proper keyframes
+      // Generate 36 keyframes (10 degree increments) for smooth circular motion
+      const translateXKeyframes = [];
+      const translateYKeyframes = [];
+      
+      for (let deg = 0; deg <= 360; deg += 10) {
+        const angle = startAngle + (deg * Math.PI / 180);
+        translateXKeyframes.push({ value: Math.cos(angle) * orbitRadius });
+        translateYKeyframes.push({ value: Math.sin(angle) * orbitRadius });
+      }
+      
       window.anime({
         targets: particle,
-        translateX: function() {
-          return Array.from({ length: 360 }, (_, deg) => {
-            const angle = startAngle + (deg * Math.PI / 180);
-            return Math.cos(angle) * orbitRadius;
-          });
-        },
-        translateY: function() {
-          return Array.from({ length: 360 }, (_, deg) => {
-            const angle = startAngle + (deg * Math.PI / 180);
-            return Math.sin(angle) * orbitRadius;
-          });
-        },
-        // Set initial position
-        cx: centerX,
-        cy: centerY,
+        translateX: translateXKeyframes,
+        translateY: translateYKeyframes,
         duration: 8000,
         delay: i * 50, // Stagger by 50ms
         easing: 'linear',
@@ -867,6 +867,8 @@ export function HealthVizPlayground() {
               <circle
                 key={`particle-${i}`}
                 className="crystal-particle"
+                cx="50"
+                cy="50"
                 r="2"
                 fill="white"
                 opacity="0.6"
