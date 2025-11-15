@@ -1,0 +1,64 @@
+TASK: Replace the Gumball Machine section with a container that uses spring physics for realistic bouncing and a rising liquid fill meter.
+
+VISUAL REFERENCE: https://codepen.io/juliangarnier/pen/mWdraw (Motion path SVG example)
+
+REQUIREMENTS:
+1. Glass container with rounded rect SVG (rx="12")
+2. Gumballs drop from top using spring easing: 'spring(1, 80, 10, 0)'
+3. Add bounce on landing: keyframes with translateY values
+4. Liquid fill meter rises from bottom with wave effect on top edge
+5. Last added gumball gets expanding ripple effect (3 concentric circles fading out)
+6. Stagger multiple adds: use anime.stagger(150) for cascade effect
+7. Container grows slightly when hitting milestones (10, 25, 50 workouts)
+
+IMPLEMENTATION DETAILS:
+- Container: <rect x="15" y="15" width="70" height="85" rx="12" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2"/>
+- Liquid fill: <rect x="15" y={liquidY} width="70" height={liquidHeight} fill="url(#liquidGradient)" opacity="0.3"/>
+  - liquidY = 100 - (workouts.length * 1.5)
+  - Animate height change with easing: 'easeOutQuad'
+- Wave effect on liquid top: <path d="..." stroke="cyan" strokeWidth="1" opacity="0.6"/> with sine wave, animate d attribute
+- Gumball drop sequence:
+  1. Initial position: cy="-20"
+  2. Animate translateY: [-20, finalY], scale: [0.7, 1.2, 1], rotate: '2turn'
+  3. Easing: 'spring(1, 80, 10, 0)'
+  4. Duration: 1800
+- Ripple effect when gumball lands:
+  - 3 <circle> elements at gumball position
+  - Animate r: [8, 30], opacity: [0.6, 0], duration 800, stagger by 200ms
+- Milestone celebration: scale container [1, 1.1, 1] with confetti burst (small rects scattering)
+
+CODE STRUCTURE:
+const liquidGradientRef = useRef<SVGLinearGradientElement>(null);
+const containerRef = useRef<SVGRectElement>(null);
+
+// Animate liquid fill
+useEffect(() => {
+  const targetHeight = workouts.length * 1.5;
+  window.anime({
+    targets: liquidGradientRef.current,
+    height: targetHeight,
+    easing: 'easeOutQuad',
+    duration: 1000
+  });
+}, [workouts.length]);
+
+// Add gumball with physics
+const addWorkoutWithPhysics = () => {
+  const newWorkout = { ... };
+  setWorkouts(prev => [...prev, newWorkout]);
+  
+  // Animate new gumball
+  setTimeout(() => {
+    window.anime({
+      targets: `.gumball-${newWorkout.id}`,
+      translateY: ['-20px', `${finalY}px`],
+      scale: [0.7, 1.2, 1],
+      rotate: '720deg',
+      easing: 'spring(1, 80, 10, 0)',
+      duration: 1800,
+      complete: () => triggerRipple(newWorkout.id)
+    });
+  }, 50);
+};
+
+Ensure ripple circles are created dynamically and removed after animation completes.

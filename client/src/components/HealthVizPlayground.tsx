@@ -58,6 +58,10 @@ export function HealthVizPlayground() {
   const [streakWeeks, setStreakWeeks] = useState(0);
   const [goodSleepNights, setGoodSleepNights] = useState(4);
   const [lastWorkoutId, setLastWorkoutId] = useState<string | null>(null);
+  
+  // Physics Container state
+  const [currentRippleId, setCurrentRippleId] = useState<string | null>(null);
+  const [milestoneHit, setMilestoneHit] = useState<number | null>(null);
 
   // Refs
   const gemRef = useRef<HTMLDivElement>(null);
@@ -72,6 +76,11 @@ export function HealthVizPlayground() {
   const treeRef = useRef<SVGPathElement>(null);
   const treeContainerRef = useRef<SVGSVGElement>(null);
   const liquidFillRef = useRef<SVGRectElement>(null);
+  
+  // Physics Container refs
+  const glassContainerRef = useRef<SVGRectElement>(null);
+  const liquidWaveRef = useRef<SVGPathElement>(null);
+  const gumballGroupRef = useRef<SVGGElement>(null);
 
   // ===== L-SYSTEM TREE GENERATION =====
   interface TreeData {
@@ -552,78 +561,188 @@ export function HealthVizPlayground() {
     });
   }, [sleepQuality, animeLoaded]);
 
-  // ===== GUMBALL MACHINE: Liquid Fill Animation =====
+  // ===== PHYSICS CONTAINER: Liquid Fill Animation =====
   useEffect(() => {
     if (!liquidFillRef.current || !animeLoaded) return;
 
-    const targetHeight = Math.min(workouts.length * 10, 100);
+    const targetHeight = Math.min(workouts.length * 1.5, 85);
+    const targetY = 100 - targetHeight;
 
+    // Animate liquid fill rising
     window.anime({
       targets: liquidFillRef.current,
+      y: targetY,
       height: targetHeight,
-      y: 110 - targetHeight,
-      duration: 800,
       easing: 'easeOutQuad',
+      duration: 1000,
     });
   }, [workouts.length, animeLoaded]);
 
-  // ===== GUMBALL MACHINE: Drop Animation with Spring Physics =====
+  // ===== PHYSICS CONTAINER: Wave Effect on Liquid Top =====
   useEffect(() => {
-    if (!animeLoaded || workouts.length === 0) return;
+    if (!animeLoaded || !liquidWaveRef.current || workouts.length === 0) return;
 
-    // Get all gumball elements
-    const gumballs = document.querySelectorAll('.gumball');
-    if (gumballs.length === 0) return;
+    const liquidHeight = Math.min(workouts.length * 1.5, 85);
+    const waveY = 100 - liquidHeight;
 
-    // Animate all gumballs with stagger
+    // Animated wave path
+    const createWavePath = (offset: number) => {
+      const amplitude = 1.5;
+      const frequency = 2;
+      let path = `M 15 ${waveY}`;
+      
+      for (let x = 0; x <= 70; x += 5) {
+        const y = waveY + Math.sin((x / 70) * frequency * Math.PI * 2 + offset) * amplitude;
+        path += ` L ${15 + x} ${y}`;
+      }
+      
+      return path;
+    };
+
+    // Animate wave movement
     window.anime({
-      targets: gumballs,
-      translateY: [
-        { value: -200, duration: 0 },
-        { value: 0, duration: 1200, easing: 'spring(1, 80, 10, 0)' }
+      targets: liquidWaveRef.current,
+      d: [
+        { value: createWavePath(0) },
+        { value: createWavePath(Math.PI) },
+        { value: createWavePath(Math.PI * 2) }
       ],
-      scale: [
-        { value: 0.5, duration: 0 },
-        { value: 1, duration: 1200, easing: 'spring(1, 80, 10, 0)' }
-      ],
-      rotate: [
-        { value: 0, duration: 0 },
-        { value: '1turn', duration: 1200, easing: 'easeOutQuad' }
-      ],
-      opacity: [
-        { value: 0, duration: 0 },
-        { value: 0.9, duration: 400 }
-      ],
-      delay: window.anime.stagger(100),
+      easing: 'linear',
+      duration: 3000,
+      loop: true,
     });
   }, [workouts.length, animeLoaded]);
 
-  // ===== GUMBALL MACHINE: Ripple Effect on Last Gumball =====
+  // ===== PHYSICS CONTAINER: Gumball Drop with Spring Physics & Bounce =====
   useEffect(() => {
-    if (!lastWorkoutId || !animeLoaded) return;
+    if (!animeLoaded || !lastWorkoutId) return;
 
-    const ripple = document.getElementById(`ripple-${lastWorkoutId}`);
-    if (!ripple) return;
+    const gumball = document.querySelector(`.gumball-${lastWorkoutId}`);
+    if (!gumball) return;
 
-    // Create timeline for drop → bounce → ripple
-    const timeline = window.anime.timeline({
-      easing: 'easeOutQuad',
-    });
+    // Clean up existing animations
+    window.anime.remove(gumball);
+
+    // Create drop timeline with spring physics and bounce
+    const timeline = window.anime.timeline({});
 
     // Register timeline
     animationTimelinesRef.current.push(timeline);
 
-    timeline
-      .add({
-        targets: ripple,
-        r: [0, 20],
-        opacity: [0.6, 0],
-        duration: 1000,
-        delay: 1200, // Wait for drop to complete
-      });
+    // Phase 1: Spring drop from top
+    timeline.add({
+      targets: gumball,
+      translateY: ['-80px', '0px'],
+      scale: [0.7, 1.2, 1],
+      rotate: '720deg',
+      easing: 'spring(1, 80, 10, 0)',
+      duration: 1800,
+    });
+
+    // Phase 2: Bounce on landing
+    timeline.add({
+      targets: gumball,
+      scaleY: [1, 0.8, 1.05, 1],
+      scaleX: [1, 1.15, 0.95, 1],
+      easing: 'easeOutElastic(1, 0.5)',
+      duration: 600,
+    }, '-=200');
+
   }, [lastWorkoutId, animeLoaded]);
 
-  // ===== GUMBALL MACHINE: Add workout =====
+  // ===== PHYSICS CONTAINER: Ripple Effect (3 Concentric Circles) =====
+  useEffect(() => {
+    if (!animeLoaded || !currentRippleId) return;
+
+    const ripple1 = document.querySelector(`.ripple-1-${currentRippleId}`);
+    const ripple2 = document.querySelector(`.ripple-2-${currentRippleId}`);
+    const ripple3 = document.querySelector(`.ripple-3-${currentRippleId}`);
+
+    if (!ripple1 || !ripple2 || !ripple3) return;
+
+    // Trigger ripples after gumball lands (1800ms drop + 400ms bounce)
+    setTimeout(() => {
+      window.anime({
+        targets: [ripple1, ripple2, ripple3],
+        r: [8, 30],
+        opacity: [0.6, 0],
+        duration: 800,
+        delay: window.anime.stagger(200),
+        easing: 'easeOutQuad',
+      });
+    }, 2000);
+  }, [currentRippleId, animeLoaded]);
+
+  // ===== PHYSICS CONTAINER: Milestone Celebration =====
+  useEffect(() => {
+    if (!animeLoaded || !milestoneHit || !glassContainerRef.current) {
+      console.log('⚠️ Milestone effect skipped:', { animeLoaded, milestoneHit, hasRef: !!glassContainerRef.current });
+      return;
+    }
+
+    console.log('🎊 Running milestone celebration for:', milestoneHit);
+    const container = glassContainerRef.current;
+
+    // Scale container animation
+    const timeline = window.anime.timeline({});
+    
+    timeline.add({
+      targets: container,
+      scale: [1, 1.1, 1],
+      duration: 800,
+      easing: 'easeOutElastic(1, 0.3)',
+      complete: () => {
+        // Reset milestone after animation completes (keep visible longer for testing)
+        setTimeout(() => {
+          console.log('✅ Clearing milestone');
+          setMilestoneHit(null);
+        }, 2000);
+      }
+    });
+
+    // Confetti burst effect (simplified - small rects scattering)
+    const confettiContainer = document.getElementById('confetti-container');
+    console.log('🎨 Confetti container found:', !!confettiContainer);
+    if (confettiContainer) {
+      const confettiCount = 20;
+      const confettiElements: HTMLElement[] = [];
+      
+      for (let i = 0; i < confettiCount; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti-particle';
+        confetti.style.position = 'absolute';
+        confetti.style.width = '4px';
+        confetti.style.height = '8px';
+        confetti.style.left = '50%';
+        confetti.style.top = '50%';
+        confetti.style.backgroundColor = ['#ef4444', '#3b82f6', '#fbbf24', '#10b981'][i % 4];
+        confetti.style.opacity = '0.8';
+        confettiContainer.appendChild(confetti);
+        confettiElements.push(confetti);
+      }
+
+      console.log('✨ Created', confettiCount, 'confetti particles');
+
+      // Animate confetti scatter
+      window.anime({
+        targets: confettiElements,
+        translateX: () => window.anime.random(-100, 100),
+        translateY: () => window.anime.random(-100, 100),
+        rotate: () => window.anime.random(0, 360),
+        opacity: [0.8, 0],
+        duration: 1500,
+        easing: 'easeOutQuad',
+        complete: () => {
+          // Clean up confetti
+          confettiElements.forEach(el => el.remove());
+          console.log('🧹 Cleaned up confetti');
+        }
+      });
+    }
+
+  }, [milestoneHit, animeLoaded]);
+
+  // ===== PHYSICS CONTAINER: Add workout with milestone detection =====
   const addWorkout = () => {
     const focuses: Array<"strength" | "cardio" | "mixed" | "endurance"> = [
       "strength",
@@ -645,8 +764,22 @@ export function HealthVizPlayground() {
       color: colors[focus],
     };
 
-    setWorkouts((prev) => [...prev, newWorkout]);
+    setWorkouts((prev) => {
+      const newWorkouts = [...prev, newWorkout];
+      const newCount = newWorkouts.length;
+      
+      // Detect milestones - set state after workouts update
+      setTimeout(() => {
+        if (newCount === 10 || newCount === 25 || newCount === 50) {
+          console.log('🎉 Milestone hit:', newCount);
+          setMilestoneHit(newCount);
+        }
+      }, 0);
+      
+      return newWorkouts;
+    });
     setLastWorkoutId(newWorkout.id);
+    setCurrentRippleId(newWorkout.id);
   };
 
   // ===== TREE GROWTH: Coordinated Timeline Animation =====
@@ -916,20 +1049,22 @@ export function HealthVizPlayground() {
         </div>
       </div>
 
-      {/* ========== SECTION 2: GUMBALL MACHINE (Growth) ========== */}
+      {/* ========== SECTION 2: PHYSICS CONTAINER (Spring Physics & Liquid Fill) ========== */}
       <div className="space-y-4 border border-gray-700 p-6 rounded-lg">
         <h2 className="text-xl font-semibold">
-          🍬 Gumball Machine (Growth Test)
+          🧪 Physics Container (Spring Physics & Liquid Fill)
         </h2>
         <p className="text-sm text-gray-400">
-          Click "Add Workout" to see gumballs drop in!
+          Click "Add Workout" to see realistic physics! Milestones at 10, 25, 50.
         </p>
 
-        <div className="flex justify-center">
+        <div className="flex justify-center relative">
+          <div id="confetti-container" className="absolute inset-0 pointer-events-none" />
           <svg
             ref={gumballContainerRef}
             viewBox="0 0 100 120"
             className="w-64 h-80"
+            data-testid="physics-svg-container"
             style={{
               border: "2px solid rgba(255,255,255,0.2)",
               borderRadius: "8px",
@@ -943,61 +1078,115 @@ export function HealthVizPlayground() {
               </linearGradient>
             </defs>
 
-            {/* Container outline */}
+            {/* Glass Container */}
             <rect
-              x="10"
-              y="10"
-              width="80"
-              height="100"
+              ref={glassContainerRef}
+              x="15"
+              y="15"
+              width="70"
+              height="85"
+              rx="12"
               fill="none"
-              stroke="white"
-              strokeWidth="1"
-              opacity="0.3"
-              rx="8"
+              stroke="rgba(255,255,255,0.2)"
+              strokeWidth="2"
             />
 
             {/* Liquid Fill Meter */}
             <rect
               ref={liquidFillRef}
-              x="10"
-              y="110"
-              width="80"
+              x="15"
+              y="100"
+              width="70"
               height="0"
               fill="url(#liquidGradient)"
-              rx="8"
+              opacity="0.3"
             />
 
-            {/* Gumballs */}
-            {workouts.map((workout, i) => {
-              const row = Math.floor(i / 5);
-              const col = i % 5;
-              return (
-                <g key={workout.id}>
-                  {/* Ripple effect for last added gumball */}
-                  {workout.id === lastWorkoutId && (
+            {/* Wave Effect on Liquid Top */}
+            {workouts.length > 0 && (
+              <path
+                ref={liquidWaveRef}
+                d="M 15 100 L 85 100"
+                stroke="cyan"
+                strokeWidth="1"
+                fill="none"
+                opacity="0.6"
+              />
+            )}
+
+            {/* Gumballs with Spring Physics */}
+            <g ref={gumballGroupRef} data-testid="physics-gumball-group">
+              {workouts.map((workout, i) => {
+                const row = Math.floor(i / 5);
+                const col = i % 5;
+                const cx = 25 + col * 12;
+                const cy = 90 - row * 12;
+
+                return (
+                  <g key={workout.id}>
+                    {/* 3 Concentric Ripple Circles */}
+                    {workout.id === currentRippleId && (
+                      <>
+                        <circle
+                          className={`ripple-1-${workout.id}`}
+                          cx={cx}
+                          cy={cy}
+                          r="0"
+                          fill="none"
+                          stroke={workout.color}
+                          strokeWidth="2"
+                          opacity="0"
+                        />
+                        <circle
+                          className={`ripple-2-${workout.id}`}
+                          cx={cx}
+                          cy={cy}
+                          r="0"
+                          fill="none"
+                          stroke={workout.color}
+                          strokeWidth="1.5"
+                          opacity="0"
+                        />
+                        <circle
+                          className={`ripple-3-${workout.id}`}
+                          cx={cx}
+                          cy={cy}
+                          r="0"
+                          fill="none"
+                          stroke={workout.color}
+                          strokeWidth="1"
+                          opacity="0"
+                        />
+                      </>
+                    )}
+                    
+                    {/* Gumball with physics class */}
                     <circle
-                      id={`ripple-${workout.id}`}
-                      cx={20 + col * 14}
-                      cy={95 - row * 14}
-                      r="0"
-                      fill="none"
-                      stroke={workout.color}
-                      strokeWidth="2"
-                      opacity="0"
+                      className={`gumball gumball-${workout.id}`}
+                      cx={cx}
+                      cy={cy}
+                      r="5"
+                      fill={workout.color}
+                      opacity="0.9"
                     />
-                  )}
-                  {/* Gumball */}
-                  <circle
-                    className="gumball"
-                    cx={20 + col * 14}
-                    cy={95 - row * 14}
-                    r="6"
-                    fill={workout.color}
-                    opacity="0"
-                  />
-                </g>
-              );
-            })}
+                  </g>
+                );
+              })}
+            </g>
+
+            {/* Milestone Badge */}
+            {milestoneHit && (
+              <text
+                x="50"
+                y="50"
+                textAnchor="middle"
+                fontSize="16"
+                fill="gold"
+                fontWeight="bold"
+              >
+                🎉 {milestoneHit} Workouts!
+              </text>
+            )}
           </svg>
         </div>
 
@@ -1005,18 +1194,42 @@ export function HealthVizPlayground() {
           <button
             onClick={addWorkout}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold"
+            data-testid="button-add-workout"
           >
             Add Workout
           </button>
           <button
-            onClick={() => setWorkouts([])}
+            onClick={() => {
+              // Clean up all physics animations
+              if (window.anime) {
+                window.anime.remove('.gumball, .ripple-1, .ripple-2, .ripple-3');
+                if (liquidFillRef.current) {
+                  window.anime.remove(liquidFillRef.current);
+                }
+                if (liquidWaveRef.current) {
+                  window.anime.remove(liquidWaveRef.current);
+                }
+                if (glassContainerRef.current) {
+                  window.anime.remove(glassContainerRef.current);
+                }
+              }
+              
+              // Reset all state
+              setWorkouts([]);
+              setCurrentRippleId(null);
+              setMilestoneHit(null);
+              setLastWorkoutId(null);
+              
+              console.log('🔄 Physics container reset complete');
+            }}
             className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold"
+            data-testid="button-reset-workouts"
           >
             Reset
           </button>
         </div>
-        <p className="text-center text-sm text-gray-400">
-          Workouts: {workouts.length}
+        <p className="text-center text-sm text-gray-400" data-testid="physics-workouts-counter">
+          Workouts: {workouts.length} {milestoneHit && '🎉'}
         </p>
       </div>
 
