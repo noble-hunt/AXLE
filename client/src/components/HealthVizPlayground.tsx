@@ -94,10 +94,13 @@ export function HealthVizPlayground() {
   // ===== POLISH FEATURES =====
   const [fps, setFps] = useState(60);
   const [isAnimationsPaused, setIsAnimationsPaused] = useState(false);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [gradientHue, setGradientHue] = useState(220); // Start with blue
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
   const animationTimelinesRef = useRef<any[]>([]);
   const fpsFrameTimes = useRef<number[]>([]);
   const lastFrameTime = useRef<number>(performance.now());
+  const autoPlayInterval = useRef<NodeJS.Timeout | null>(null);
 
   // ===== POLISH UTILITY FUNCTIONS =====
   
@@ -129,6 +132,48 @@ export function HealthVizPlayground() {
     
     // Trigger re-render by updating a dummy state
     setStreakWeeks(s => s);
+  };
+
+  // Toggle auto-play demo (randomly adjusts all sliders every 2 seconds)
+  const toggleAutoPlay = () => {
+    if (isAutoPlaying) {
+      // Stop auto-play
+      if (autoPlayInterval.current) {
+        clearInterval(autoPlayInterval.current);
+        autoPlayInterval.current = null;
+      }
+      setIsAutoPlaying(false);
+      console.log('⏹️ Auto-play stopped');
+    } else {
+      // Start auto-play
+      setIsAutoPlaying(true);
+      console.log('▶️ Auto-play started');
+      
+      autoPlayInterval.current = setInterval(() => {
+        // Randomly adjust all sliders
+        const randomStrength = Math.random();
+        const randomCardio = Math.random() * 0.5;
+        const randomStreakDays = Math.floor(Math.random() * 15) + 1;
+        const randomSleepQuality = Math.random();
+        const randomStreakWeeks = Math.floor(Math.random() * 7);
+        const randomGoodSleep = Math.floor(Math.random() * 8);
+        
+        setStrengthRatioUI(randomStrength);
+        setStrengthRatio(randomStrength);
+        setCardioRatioUI(randomCardio);
+        setCardioRatio(randomCardio);
+        setStreakDaysUI(randomStreakDays);
+        setStreakDays(randomStreakDays);
+        setSleepQualityUI(randomSleepQuality);
+        setSleepQuality(randomSleepQuality);
+        setStreakWeeksUI(randomStreakWeeks);
+        setStreakWeeks(randomStreakWeeks);
+        setGoodSleepNightsUI(randomGoodSleep);
+        setGoodSleepNights(randomGoodSleep);
+        
+        console.log('🎲 Auto-play randomized all sliders');
+      }, 2000);
+    }
   };
 
   // Random workout pattern - adds 10 workouts over 3 seconds
@@ -375,6 +420,28 @@ export function HealthVizPlayground() {
     };
   }, [animeLoaded]);
 
+  // ===== BACKGROUND GRADIENT ANIMATION =====
+  useEffect(() => {
+    // Cycle through dark blues (hue 200-240)
+    const gradientInterval = setInterval(() => {
+      setGradientHue(prev => {
+        const next = prev + 0.5;
+        return next > 240 ? 200 : next;
+      });
+    }, 50); // Smooth 50ms updates
+
+    return () => clearInterval(gradientInterval);
+  }, []);
+
+  // ===== AUTO-PLAY CLEANUP =====
+  useEffect(() => {
+    return () => {
+      if (autoPlayInterval.current) {
+        clearInterval(autoPlayInterval.current);
+      }
+    };
+  }, []);
+
   // ===== TRAINING IDENTITY CRYSTAL: Multi-layered with Parallax Rotation =====
   useEffect(() => {
     if (!gemOuterRef.current || !gemMiddleRef.current || !gemInnerRef.current || !animeLoaded) return;
@@ -429,25 +496,43 @@ export function HealthVizPlayground() {
     const gradient1 = document.getElementById('crystalGradStop1');
     const gradient2 = document.getElementById('crystalGradStop2');
     
-    if (gradient1 && gradient2) {
-      // Clean up previous color animations
+    if (!gradient1 || !gradient2) {
+      console.warn('⚠️ Crystal gradient stops not found, skipping animation');
+      return;
+    }
+
+    // Clean up previous color animations (only if elements exist)
+    try {
       window.anime.remove([gradient1, gradient2]);
+    } catch (e) {
+      console.warn('⚠️ Failed to remove gradient animations:', e);
+    }
 
-      // Animate first stop
-      window.anime({
-        targets: gradient1,
-        'stop-color': color1,
-        duration: 1500,
-        easing: 'easeInOutQuad',
-      });
+    // Wrap all anime calls in try-catch to prevent crashes during auto-play
+    try {
+      // Re-query to ensure fresh references
+      const freshGrad1 = document.getElementById('crystalGradStop1');
+      const freshGrad2 = document.getElementById('crystalGradStop2');
+      
+      if (freshGrad1) {
+        window.anime({
+          targets: freshGrad1,
+          'stop-color': color1,
+          duration: 1500,
+          easing: 'easeInOutQuad',
+        });
+      }
 
-      // Animate second stop
-      window.anime({
-        targets: gradient2,
-        'stop-color': color2,
-        duration: 1500,
-        easing: 'easeInOutQuad',
-      });
+      if (freshGrad2) {
+        window.anime({
+          targets: freshGrad2,
+          'stop-color': color2,
+          duration: 1500,
+          easing: 'easeInOutQuad',
+        });
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to animate gradient stops:', e);
     }
   }, [strengthRatio, cardioRatio, animeLoaded]);
 
@@ -544,6 +629,12 @@ export function HealthVizPlayground() {
     
     console.log(`🌀 Blob morphing to shape ${pathIndex} (sleepQuality: ${sleepQuality.toFixed(2)})`);
 
+    // Double-check ref still exists before animating (auto-play can cause rapid changes)
+    if (!blobPathRef.current) {
+      console.warn('⚠️ Blob ref became null during animation setup');
+      return;
+    }
+
     // Morph blob shape based on sleepQuality
     window.anime({
       targets: blobPathRef.current,
@@ -554,15 +645,17 @@ export function HealthVizPlayground() {
 
     // Pulsing/breathing effect with scale [1, 1.08, 1]
     // Faster pulse = higher HR (inversely proportional)
-    const breathingDuration = 3000 - (restingHR * 10);
+    const breathingDuration = Math.max(1000, 3000 - (restingHR * 10)); // Clamp min duration
     
-    window.anime({
-      targets: blobPathRef.current,
-      scale: [1, 1.08, 1],
-      duration: breathingDuration,
-      easing: 'easeInOutSine',
-      loop: true,
-    });
+    if (blobPathRef.current) {
+      window.anime({
+        targets: blobPathRef.current,
+        scale: [1, 1.08, 1],
+        duration: breathingDuration,
+        easing: 'easeInOutSine',
+        loop: true,
+      });
+    }
     
     console.log(`💨 Breathing animation: ${breathingDuration}ms (HR: ${restingHR} bpm)`);
   }, [sleepQuality, restingHR, animeLoaded]);
@@ -954,39 +1047,65 @@ export function HealthVizPlayground() {
   }, [treeData, goodSleepNights, animeLoaded]);
 
   return (
-    <div className="p-6 space-y-12 bg-gray-900 min-h-screen text-white">
+    <div className="relative p-6 space-y-12 min-h-screen text-white">
+      {/* Animated Background Gradient */}
+      <div 
+        className="fixed inset-0 -z-10 transition-all duration-1000"
+        style={{
+          background: `linear-gradient(135deg, 
+            hsl(${gradientHue}, 30%, 8%) 0%, 
+            hsl(${gradientHue + 20}, 25%, 12%) 50%, 
+            hsl(${gradientHue + 10}, 28%, 10%) 100%)`
+        }}
+      />
+
       {/* FPS Counter */}
-      <div className="fixed top-4 right-4 bg-black/80 px-3 py-2 rounded-lg text-sm font-mono border border-gray-700">
+      <div className="fixed top-4 right-4 bg-black/80 backdrop-blur-sm px-3 py-2 rounded-lg text-sm font-mono border border-gray-700 shadow-lg z-50">
         <span className="text-green-400">{fps} FPS</span>
         {isAnimationsPaused && <span className="text-yellow-400 ml-2">⏸ PAUSED</span>}
       </div>
 
-      <h1 className="text-3xl font-bold">
-        Health Viz Playground 🎨
-        {!animeLoaded && <span className="text-xs text-gray-500 ml-2">(animations disabled)</span>}
-      </h1>
+      {/* Sticky Header with Glassmorphism */}
+      <div className="sticky top-0 z-40 -mx-6 -mt-6 px-6 py-4 mb-6 bg-black/30 backdrop-blur-md border-b border-gray-700/50">
+        <h1 className="text-3xl font-bold mb-4">
+          Health Viz Playground 🎨
+          {!animeLoaded && <span className="text-xs text-gray-500 ml-2">(animations disabled)</span>}
+        </h1>
 
-      {/* Control Buttons */}
-      <div className="flex flex-wrap gap-3" data-testid="control-buttons">
-        <button
-          onClick={resetAnimations}
-          disabled={!animeLoaded}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
-          data-testid="button-reset-animations"
-        >
-          🔄 Reset Animations
-        </button>
-        
-        <button
-          onClick={addRandomWorkoutPattern}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors"
-          data-testid="button-random-workouts"
-        >
-          ⚡ Random Workout Pattern
-        </button>
+        {/* Control Buttons */}
+        <div className="flex flex-wrap gap-3" data-testid="control-buttons">
+          <button
+            onClick={resetAnimations}
+            disabled={!animeLoaded}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors shadow-lg"
+            data-testid="button-reset-animations"
+          >
+            🔄 Reset Animations
+          </button>
+          
+          <button
+            onClick={toggleAutoPlay}
+            className={`px-4 py-2 rounded-lg font-semibold transition-colors shadow-lg ${
+              isAutoPlaying 
+                ? 'bg-orange-600 hover:bg-orange-700' 
+                : 'bg-green-600 hover:bg-green-700'
+            }`}
+            data-testid="button-auto-play"
+          >
+            {isAutoPlaying ? '⏹️ Stop Auto-Play' : '▶️ Auto-Play Demo'}
+          </button>
+          
+          <button
+            onClick={addRandomWorkoutPattern}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors shadow-lg"
+            data-testid="button-random-workouts"
+          >
+            ⚡ Random Workout Pattern
+          </button>
 
-        <div className="px-4 py-2 bg-gray-800 rounded-lg text-sm">
-          <span className="text-gray-400">Slider changes debounced:</span> <span className="text-green-400 font-mono">300ms</span>
+          <div className="px-4 py-2 bg-gray-800/80 backdrop-blur-sm rounded-lg text-sm border border-gray-700/50">
+            <span className="text-gray-400">Slider changes debounced:</span> <span className="text-green-400 font-mono">300ms</span>
+          </div>
         </div>
       </div>
 
