@@ -1,0 +1,63 @@
+TASK: Replace Vitality Orb with an organic blob that morphs between 5 shapes using SVG path morphing, with floating particle aura.
+
+VISUAL REFERENCE: https://codepen.io/juliangarnier/pen/gWMPGg (SVG line drawing morphing)
+
+REQUIREMENTS:
+1. Define 5 organic blob shapes as SVG paths (bezier curves)
+2. Morph between shapes based on sleepQuality using anime's path morphing
+3. Add 15 orbiting particles that follow circular motion paths
+4. Particle count increases with sleepQuality (formula: Math.floor(sleepQuality * 15))
+5. Blob pulses/breathes: scale [1, 1.08, 1] with easing: 'easeInOutSine', loop: true
+6. Color cycles through HSL spectrum based on recovery score
+7. Add subtle glow filter that intensifies with good sleep
+
+IMPLEMENTATION DETAILS:
+- Blob paths (centered at 50,50 in viewBox="0 0 100 100"):
+  * Path 1 (low recovery): "M50,20 Q65,25 70,40 Q75,55 65,70 Q50,80 35,70 Q25,55 30,40 Q35,25 50,20 Z"
+  * Path 2: "M50,15 Q70,20 75,40 Q80,60 60,75 Q50,85 40,75 Q20,60 25,40 Q30,20 50,15 Z"
+  * Path 3: "M50,10 Q75,15 80,40 Q85,65 55,80 Q50,90 45,80 Q15,65 20,40 Q25,15 50,10 Z"
+  * Path 4: "M50,12 Q72,18 78,42 Q82,63 58,78 Q50,88 42,78 Q18,63 22,42 Q28,18 50,12 Z"
+  * Path 5 (high recovery): "M50,8 Q78,12 83,42 Q88,68 52,82 Q50,92 48,82 Q12,68 17,42 Q22,12 50,8 Z"
+- Path morphing:
+  const pathIndex = Math.floor(sleepQuality * 4);
+  anime({
+    targets: blobRef.current,
+    d: blobPaths[pathIndex],
+    duration: 2000,
+    easing: 'easeInOutQuad'
+  });
+- Orbiting particles:
+  * Position in circle: x = 50 + Math.cos(angle) * 35, y = 50 + Math.sin(angle) * 35
+  * Animate along circular path using anime.path() with motion path
+  * Stagger start times: anime.stagger(80)
+  * Each particle: <circle r="2.5" fill="white" opacity="0.7"/>
+- Breathing animation:
+  anime({
+    targets: blobRef.current,
+    scale: [1, 1.08, 1],
+    duration: 3000 - (restingHR * 10), // Faster pulse = higher HR
+    easing: 'easeInOutSine',
+    loop: true
+  });
+- Glow filter:
+  <filter id="blobGlow">
+    <feGaussianBlur stdDeviation={sleepQuality * 3}/>
+    <feColorMatrix type="matrix" values="..."/> // Intensify glow
+  </filter>
+
+CODE STRUCTURE:
+<svg viewBox="0 0 100 100" className="w-80 h-80">
+  <defs>
+    <filter id="blobGlow">
+      <feGaussianBlur ref={blurRef} stdDeviation="2"/>
+    </filter>
+  </defs>
+  
+  <path ref={blobRef} d={blobPaths[0]} fill={`hsl(${hue}, 70%, 60%)`} filter="url(#blobGlow)"/>
+  
+  {particles.map((p, i) => (
+    <circle key={i} r="2.5" fill="white" opacity="0.7" className={`particle-${i}`}/>
+  ))}
+</svg>
+
+Animate blur stdDeviation based on sleepQuality for dynamic glow intensity.
