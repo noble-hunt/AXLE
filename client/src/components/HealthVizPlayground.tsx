@@ -85,12 +85,11 @@ export function HealthVizPlayground() {
 
   // ===== L-SYSTEM TREE GENERATION =====
   interface TreeData {
-    branches: string[];
-    leaves: Array<{ x: number; y: number }>;
-    roots: string[];
+    branches: Array<{path: string, level: number, length: number}>;
+    leafPos: Array<{ x: number; y: number }>;
   }
 
-  const [treeData, setTreeData] = useState<TreeData>({ branches: [], leaves: [], roots: [] });
+  const [treeData, setTreeData] = useState<TreeData>({ branches: [], leafPos: [] });
 
   // ===== POLISH FEATURES =====
   const [fps, setFps] = useState(60);
@@ -163,109 +162,103 @@ export function HealthVizPlayground() {
     }
   };
 
-  // Generate L-System string
+  // Generate L-System string with proper rule expansion
   const generateLSystem = (iterations: number): string => {
-    let result = "F";
+    let axiom = "F";
+    const rules: Record<string, string> = { F: "F[+F]F[-F]F" };
+    
     for (let i = 0; i < iterations; i++) {
-      result = result.replace(/F/g, "F[+F]F[-F]F");
+      axiom = axiom.split('').map(char => rules[char] || char).join('');
     }
-    return result;
+    
+    console.log(`🌳 L-System generated (${iterations} iterations): ${axiom.substring(0, 50)}${axiom.length > 50 ? '...' : ''}`);
+    return axiom;
   };
 
-  // Convert L-System to SVG paths
-  const lSystemToSVG = (lsystem: string, startX: number, startY: number, length: number, angle: number): TreeData => {
-    const branches: string[] = [];
-    const leaves: Array<{ x: number; y: number }> = [];
-    const stack: Array<{ x: number; y: number; angle: number }> = [];
+  // Convert L-System to paths with hierarchy levels
+  const lSystemToPath = (lString: string): { branches: Array<{path: string, level: number, length: number}>, leafPos: Array<{x: number, y: number}> } => {
+    let x = 50, y = 100, angle = -90;
+    const stack: Array<{x: number, y: number, angle: number, path: string, level: number}> = [];
+    const branches: Array<{path: string, level: number, length: number}> = [];
+    const leafPos: Array<{x: number, y: number}> = [];
     
-    let x = startX;
-    let y = startY;
-    let currentAngle = angle;
-    const allSegments: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+    let currentPath = `M${x},${y}`;
+    let level = 0;
     
-    const angleIncrement = 25 * (Math.PI / 180); // 25 degrees in radians
-    
-    // Parse L-system and create all line segments
-    for (let i = 0; i < lsystem.length; i++) {
-      const char = lsystem[i];
-      
+    for (let char of lString) {
       if (char === 'F') {
-        // Move forward and record segment
-        const startSegX = x;
-        const startSegY = y;
-        x = x + length * Math.sin(currentAngle);
-        y = y - length * Math.cos(currentAngle);
-        allSegments.push({ x1: startSegX, y1: startSegY, x2: x, y2: y });
-        leaves.push({ x, y }); // Potential leaf at every segment end
+        const newX = x + Math.cos(angle * Math.PI / 180) * 5;
+        const newY = y + Math.sin(angle * Math.PI / 180) * 5;
+        currentPath += ` L${newX},${newY}`;
+        x = newX;
+        y = newY;
       } else if (char === '+') {
-        currentAngle += angleIncrement;
+        angle += 25;
       } else if (char === '-') {
-        currentAngle -= angleIncrement;
+        angle -= 25;
       } else if (char === '[') {
-        stack.push({ x, y, angle: currentAngle });
+        stack.push({x, y, angle, path: currentPath, level});
+        level++;
       } else if (char === ']') {
+        // Calculate path length for this branch
+        const pathLength = calculatePathLength(currentPath);
+        branches.push({path: currentPath, level, length: pathLength});
+        leafPos.push({x, y});
+        
         const state = stack.pop();
         if (state) {
           x = state.x;
           y = state.y;
-          currentAngle = state.angle;
+          angle = state.angle;
+          currentPath = state.path;
+          level = state.level;
         }
       }
     }
     
-    // Convert all segments to individual branch paths
-    allSegments.forEach(seg => {
-      branches.push(`M${seg.x1},${seg.y1} L${seg.x2},${seg.y2}`);
+    // Add final path if not empty
+    if (currentPath !== `M50,100`) {
+      const pathLength = calculatePathLength(currentPath);
+      branches.push({path: currentPath, level: 0, length: pathLength});
+    }
+    
+    console.log(`🌳 Generated ${branches.length} branches, ${leafPos.length} leaf positions`);
+    return { branches, leafPos };
+  };
+
+  // Calculate SVG path length
+  const calculatePathLength = (pathData: string): number => {
+    let totalLength = 0;
+    const commands = pathData.match(/[ML][\d.,\s-]+/g) || [];
+    let lastX = 0, lastY = 0;
+    
+    commands.forEach(cmd => {
+      const type = cmd[0];
+      const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number);
+      
+      if (type === 'M') {
+        lastX = coords[0];
+        lastY = coords[1];
+      } else if (type === 'L') {
+        const dx = coords[0] - lastX;
+        const dy = coords[1] - lastY;
+        totalLength += Math.sqrt(dx * dx + dy * dy);
+        lastX = coords[0];
+        lastY = coords[1];
+      }
     });
     
-    // Generate roots (mirror branches downward, but keep in viewBox)
-    const roots = branches.map(branch => {
-      const points = branch.split(/[ML]/).filter(p => p.trim());
-      const rootPoints = points.map(point => {
-        const [px, py] = point.split(',').map(Number);
-        // Mirror and scale down to fit in viewBox (stay below y=100)
-        const mirroredY = startY + (startY - py) * 0.3; // Scale by 0.3 to keep in bounds
-        return `${px},${Math.min(mirroredY, 118)}`; // Cap at 118 to stay in viewBox
-      });
-      return `M${rootPoints.join(' L')}`;
-    });
-    
-    return { branches, leaves, roots };
+    return totalLength;
   };
 
   // Generate tree data when streakWeeks changes
   useEffect(() => {
     const iterations = Math.min(Math.floor(streakWeeks / 2), 3); // Max 3 iterations to avoid too many branches
     const lsystemString = generateLSystem(iterations);
-    const data = lSystemToSVG(lsystemString, 50, 100, 8, 0);
+    const data = lSystemToPath(lsystemString);
     setTreeData(data);
   }, [streakWeeks]);
 
-  // Initialize paths and leaves to be visible (decouple from anime.js loading)
-  useEffect(() => {
-    const branches = document.querySelectorAll('.tree-branch');
-    const roots = document.querySelectorAll('.tree-root');
-    const leaves = document.querySelectorAll('.tree-leaf');
-    
-    // Reset dash offsets so paths are visible even without animation
-    branches.forEach((branch) => {
-      const pathElement = branch as SVGPathElement;
-      pathElement.style.strokeDasharray = 'none';
-      pathElement.style.strokeDashoffset = '0';
-    });
-    
-    roots.forEach((root) => {
-      const pathElement = root as SVGPathElement;
-      pathElement.style.strokeDasharray = 'none';
-      pathElement.style.strokeDashoffset = '0';
-    });
-
-    // Make leaves visible
-    leaves.forEach((leaf) => {
-      const leafElement = leaf as SVGCircleElement;
-      leafElement.style.opacity = '0.8';
-    });
-  }, [treeData]);
 
   // ===== FPS COUNTER =====
   useEffect(() => {
@@ -822,110 +815,88 @@ export function HealthVizPlayground() {
     setCurrentRippleId(newWorkout.id);
   };
 
-  // ===== TREE GROWTH: Coordinated Timeline Animation =====
+  // ===== TREE GROWTH: Staggered Branch Drawing Animation =====
   useEffect(() => {
     if (!animeLoaded || !treeContainerRef.current || treeData.branches.length === 0) return;
 
     const branches = document.querySelectorAll('.tree-branch');
-    const roots = document.querySelectorAll('.tree-root');
     const leaves = document.querySelectorAll('.tree-leaf');
 
     if (branches.length === 0) return;
 
+    console.log(`🌳 Animating ${branches.length} branches, ${leaves.length} leaves`);
+
     // Clean up existing animations
-    window.anime.remove([...Array.from(branches), ...Array.from(roots), ...Array.from(leaves)]);
-
-    // Set initial states for branches
-    branches.forEach((branch) => {
-      const pathElement = branch as SVGPathElement;
-      const pathLength = pathElement.getTotalLength();
-      pathElement.style.strokeDasharray = `${pathLength}`;
-      pathElement.style.strokeDashoffset = `${pathLength}`;
-    });
-
-    // Set initial states for roots
-    roots.forEach((root) => {
-      const pathElement = root as SVGPathElement;
-      const pathLength = pathElement.getTotalLength();
-      pathElement.style.strokeDasharray = `${pathLength}`;
-      pathElement.style.strokeDashoffset = `${pathLength}`;
-    });
+    window.anime.remove([...Array.from(branches), ...Array.from(leaves)]);
 
     // Create coordinated timeline
     const timeline = window.anime.timeline({
-      easing: 'easeOutQuad'
+      easing: 'easeInOutQuad'
     });
 
     // Register timeline
     animationTimelinesRef.current.push(timeline);
 
-    // Step 1: Grow branches sequentially
-    branches.forEach((branch, i) => {
-      const pathElement = branch as SVGPathElement;
-      const pathLength = pathElement.getTotalLength();
+    // Step 1: Animate each branch with stagger (strokeDashoffset technique)
+    treeData.branches.forEach((branch, i) => {
+      const pathElement = branches[i] as SVGPathElement;
+      const pathLength = branch.length;
       
-      timeline.add({
-        targets: pathElement,
-        strokeDashoffset: [pathLength, 0],
-        duration: 1000,
-        easing: 'easeOutQuad',
-      }, i * 200); // Stagger by 200ms
-    });
-
-    // Step 2: Grow roots after branches
-    const branchDuration = branches.length * 200;
-    roots.forEach((root, i) => {
-      const pathElement = root as SVGPathElement;
-      const pathLength = pathElement.getTotalLength();
+      // Set initial state
+      pathElement.style.strokeDasharray = `${pathLength}`;
+      pathElement.style.strokeDashoffset = `${pathLength}`;
       
       timeline.add({
         targets: pathElement,
         strokeDashoffset: [pathLength, 0],
         duration: 800,
-        easing: 'easeOutQuad',
-      }, branchDuration + i * 100);
+        easing: 'easeInOutQuad'
+      }, i * 100); // Stagger by 100ms
     });
 
-    // Step 3: Fade in leaves after branches and roots
-    const rootDuration = roots.length * 100;
-    const leafDelay = branchDuration + rootDuration + 500;
+    // Step 2: Then animate leaves with scale + opacity fade-in
+    const branchAnimationEnd = treeData.branches.length * 100 + 800;
     
     timeline.add({
       targets: Array.from(leaves),
-      opacity: [0, 0.8],
       scale: [0, 1],
+      opacity: [0, 0.9],
       duration: 600,
       delay: window.anime.stagger(50),
-      easing: 'easeOutElastic(1, .6)',
-    }, leafDelay);
+      easing: 'easeOutElastic(1, .6)'
+    }, branchAnimationEnd);
 
-    // Step 4: Start wind sway after leaves appear
-    const swayDelay = leafDelay + 600 + (leaves.length * 50);
-    
-    // Leaf sway
-    timeline.add({
-      targets: Array.from(leaves),
-      translateX: [-2, 2, -2],
-      translateY: [-1, 1, -1],
-      duration: 3000,
-      delay: window.anime.stagger(100),
-      easing: 'easeInOutSine',
-      loop: true,
-    }, swayDelay);
+    console.log(`🌳 Branch animation timeline created (${branchAnimationEnd}ms total)`);
+  }, [treeData, goodSleepNights, animeLoaded]);
 
-    // Branch sway (skip trunk)
-    const swayBranches = Array.from(branches).slice(1);
-    if (swayBranches.length > 0) {
-      timeline.add({
-        targets: swayBranches,
-        rotate: ['-1deg', '1deg', '-1deg'],
-        duration: 4000,
-        delay: window.anime.stagger(150),
+  // ===== LEAF SWAY ANIMATION (Independent loop) =====
+  useEffect(() => {
+    if (!animeLoaded || treeData.leafPos.length === 0) return;
+
+    const leaves = document.querySelectorAll('.tree-leaf');
+    if (leaves.length === 0) return;
+
+    // Wait for leaves to appear, then start sway
+    const swayDelay = (treeData.branches.length * 100) + 800 + 600 + 300;
+
+    const swayTimeout = setTimeout(() => {
+      window.anime({
+        targets: Array.from(leaves),
+        translateX: () => window.anime.random(-3, 3),
+        translateY: () => window.anime.random(-1, 1),
+        duration: () => window.anime.random(2000, 4000),
         easing: 'easeInOutSine',
         loop: true,
-        transformOrigin: '0% 0%',
-      }, swayDelay);
-    }
+        direction: 'alternate'
+      });
+
+      console.log(`🍃 Leaf sway animation started for ${leaves.length} leaves`);
+    }, swayDelay);
+
+    return () => {
+      clearTimeout(swayTimeout);
+      window.anime.remove(Array.from(leaves));
+    };
   }, [treeData, goodSleepNights, animeLoaded]);
 
   return (
@@ -1378,32 +1349,40 @@ export function HealthVizPlayground() {
             className="w-64 h-80"
             data-testid="tree-container"
           >
-            {/* Roots Group (rendered first, below branches) */}
-            <g className="tree-roots">
-              {treeData.roots.map((rootPath, i) => (
+            {/* Mirrored Roots (brown gradient, rendered first) */}
+            <g transform="translate(0, 100) scale(1, -1)">
+              {treeData.branches.map((branch, i) => (
                 <path
                   key={`root-${i}`}
                   className="tree-root"
-                  d={rootPath}
-                  stroke="#654321"
-                  strokeWidth="2"
+                  d={branch.path}
+                  stroke="url(#rootGradient)"
+                  strokeWidth={Math.max(1, 4 - branch.level)}
                   fill="none"
                   strokeLinecap="round"
-                  opacity="0.6"
+                  opacity="0.3"
                   data-testid={`tree-root-${i}`}
                 />
               ))}
             </g>
 
-            {/* Branches Group (procedurally generated) */}
+            {/* Brown gradient definition */}
+            <defs>
+              <linearGradient id="rootGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#654321" />
+                <stop offset="100%" stopColor="#3e2a1a" />
+              </linearGradient>
+            </defs>
+
+            {/* Branches Group with hierarchy-based thickness */}
             <g className="tree-branches">
-              {treeData.branches.map((branchPath, i) => (
+              {treeData.branches.map((branch, i) => (
                 <path
                   key={`branch-${i}`}
                   className="tree-branch"
-                  d={branchPath}
+                  d={branch.path}
                   stroke="#8b4513"
-                  strokeWidth={i === 0 ? "3" : "2"}
+                  strokeWidth={Math.max(1, 4 - branch.level)}
                   fill="none"
                   strokeLinecap="round"
                   data-testid={`tree-branch-${i}`}
@@ -1411,9 +1390,9 @@ export function HealthVizPlayground() {
               ))}
             </g>
 
-            {/* Leaves Group (limited by goodSleepNights) */}
+            {/* Leaves at branch endpoints (limited by goodSleepNights) */}
             <g className="tree-leaves">
-              {treeData.leaves.slice(0, goodSleepNights).map((leaf, i) => (
+              {treeData.leafPos.slice(0, goodSleepNights).map((leaf, i) => (
                 <circle
                   key={`leaf-${i}`}
                   className="tree-leaf"
