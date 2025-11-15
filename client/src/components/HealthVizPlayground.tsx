@@ -43,7 +43,7 @@ export function HealthVizPlayground() {
   const [cardioRatioUI, setCardioRatioUI] = useState(0.3);
   const [streakDaysUI, setStreakDaysUI] = useState(7);
   const [sleepQualityUI, setSleepQualityUI] = useState(0.8);
-  const [streakWeeksUI, setStreakWeeksUI] = useState(0);
+  const [streakWeeksUI, setStreakWeeksUI] = useState(4);
   const [goodSleepNightsUI, setGoodSleepNightsUI] = useState(4);
 
   // Debounced animation state (triggers expensive operations)
@@ -55,7 +55,7 @@ export function HealthVizPlayground() {
 
   // ===== GROWTH MECHANICS =====
   const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [streakWeeks, setStreakWeeks] = useState(0);
+  const [streakWeeks, setStreakWeeks] = useState(4);
   const [goodSleepNights, setGoodSleepNights] = useState(4);
   const [lastWorkoutId, setLastWorkoutId] = useState<string | null>(null);
   
@@ -177,52 +177,106 @@ export function HealthVizPlayground() {
 
   // Convert L-System to paths with hierarchy levels
   const lSystemToPath = (lString: string): { branches: Array<{path: string, level: number, length: number}>, leafPos: Array<{x: number, y: number}> } => {
-    let x = 50, y = 100, angle = -90;
-    const stack: Array<{x: number, y: number, angle: number, path: string, level: number}> = [];
-    const branches: Array<{path: string, level: number, length: number}> = [];
-    const leafPos: Array<{x: number, y: number}> = [];
+    // Traversal state
+    let x = 50, y = 100, angle = -90, depth = 0;
     
-    let currentPath = `M${x},${y}`;
-    let level = 0;
+    // Stack stores parent state AND the segment index that belongs to this branch tip
+    const stack: Array<{x: number, y: number, angle: number, depth: number, parentLastIndex: number, branchTipIndex: number}> = [];
+    
+    // Segments with metadata
+    const segments: Array<{x1: number, y1: number, x2: number, y2: number, depth: number, endX: number, endY: number}> = [];
+    const terminalIndices = new Set<number>();
+    
+    let lastSegmentIndex = -1;
     
     for (let char of lString) {
       if (char === 'F') {
+        const startX = x;
+        const startY = y;
         const newX = x + Math.cos(angle * Math.PI / 180) * 5;
         const newY = y + Math.sin(angle * Math.PI / 180) * 5;
-        currentPath += ` L${newX},${newY}`;
+        
+        // Create segment with current depth (captured at creation time)
+        const currentDepth = depth;
+        segments.push({
+          x1: startX,
+          y1: startY,
+          x2: newX,
+          y2: newY,
+          depth: currentDepth,
+          endX: newX,
+          endY: newY
+        });
+        
+        lastSegmentIndex = segments.length - 1;
+        
+        // Update stack's branch tip index if we're inside a branch
+        if (stack.length > 0) {
+          stack[stack.length - 1].branchTipIndex = lastSegmentIndex;
+        }
+        
         x = newX;
         y = newY;
+        
       } else if (char === '+') {
         angle += 25;
+        
       } else if (char === '-') {
         angle -= 25;
-      } else if (char === '[') {
-        stack.push({x, y, angle, path: currentPath, level});
-        level++;
-      } else if (char === ']') {
-        // Calculate path length for this branch
-        const pathLength = calculatePathLength(currentPath);
-        branches.push({path: currentPath, level, length: pathLength});
-        leafPos.push({x, y});
         
-        const state = stack.pop();
-        if (state) {
-          x = state.x;
-          y = state.y;
-          angle = state.angle;
-          currentPath = state.path;
-          level = state.level;
+      } else if (char === '[') {
+        // Push current state, save parent's last index separately
+        stack.push({
+          x,
+          y,
+          angle,
+          depth,
+          parentLastIndex: lastSegmentIndex,
+          branchTipIndex: -1  // Will be set when 'F' is encountered
+        });
+        // Increment depth for child branches
+        depth++;
+        
+      } else if (char === ']') {
+        // Pop the branch frame
+        const frame = stack.pop();
+        if (frame) {
+          // Mark THIS branch's tip segment as terminal
+          if (frame.branchTipIndex >= 0) {
+            terminalIndices.add(frame.branchTipIndex);
+          }
+          
+          // Restore parent state completely
+          x = frame.x;
+          y = frame.y;
+          angle = frame.angle;
+          depth = frame.depth;  // Restore parent depth immediately
+          lastSegmentIndex = frame.parentLastIndex;  // Restore parent's last index (not child's!)
         }
       }
     }
     
-    // Add final path if not empty
-    if (currentPath !== `M50,100`) {
-      const pathLength = calculatePathLength(currentPath);
-      branches.push({path: currentPath, level: 0, length: pathLength});
+    // Mark final trailing segment as terminal if not already marked
+    if (lastSegmentIndex >= 0) {
+      terminalIndices.add(lastSegmentIndex);
     }
     
-    console.log(`🌳 Generated ${branches.length} branches, ${leafPos.length} leaf positions`);
+    // Collect leaf positions from all terminal segments
+    const leafPos: Array<{x: number, y: number}> = [];
+    terminalIndices.forEach(idx => {
+      const seg = segments[idx];
+      leafPos.push({x: seg.endX, y: seg.endY});
+    });
+    
+    // Convert segments to branch paths
+    const branches: Array<{path: string, level: number, length: number}> = [];
+    segments.forEach(seg => {
+      const path = `M${seg.x1},${seg.y1} L${seg.x2},${seg.y2}`;
+      const pathLength = calculatePathLength(path);
+      branches.push({path, level: seg.depth, length: pathLength});
+    });
+    
+    console.log(`🌳 Generated ${branches.length} branches from ${segments.length} segments, ${leafPos.length} leaf positions (${terminalIndices.size} terminals)`);
     return { branches, leafPos };
   };
 
@@ -1419,6 +1473,7 @@ export function HealthVizPlayground() {
               value={streakWeeksUI}
               onChange={(e) => debouncedSet('streakWeeks', setStreakWeeksUI, setStreakWeeks, parseInt(e.target.value))}
               className="w-full"
+              data-testid="slider-streak-weeks"
             />
           </label>
           <label className="block">
@@ -1431,6 +1486,7 @@ export function HealthVizPlayground() {
               value={goodSleepNightsUI}
               onChange={(e) => debouncedSet('goodSleep', setGoodSleepNightsUI, setGoodSleepNights, parseInt(e.target.value))}
               className="w-full"
+              data-testid="slider-good-sleep-nights"
             />
           </label>
         </div>
