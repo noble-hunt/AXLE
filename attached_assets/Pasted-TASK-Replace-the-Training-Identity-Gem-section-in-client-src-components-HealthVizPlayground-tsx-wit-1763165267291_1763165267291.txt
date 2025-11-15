@@ -1,0 +1,55 @@
+TASK: Replace the Training Identity Gem section in client/src/components/HealthVizPlayground.tsx with a multi-layered crystal using SVG morphing and staggered particle orbits.
+
+VISUAL REFERENCE: https://animejs.com/ - see the rotating concentric circles with staggered dots on the homepage hero animation.
+
+REQUIREMENTS:
+1. Create 3 nested SVG polygon layers (outer, middle, inner) with different vertex counts
+2. Each layer rotates at different speeds (parallax effect) using loop: true
+3. Add 12 glowing vertex points that pulse based on streakDays (scale animation)
+4. Create 20 orbiting particles in a circular path using anime.path() with stagger delays
+5. Implement SVG gradient morphing from red→blue based on strength/cardio ratios
+6. Add glassmorphism effect with blur filters on middle layer
+
+IMPLEMENTATION DETAILS:
+- Use anime.timeline() to coordinate: crystal spin → vertex glow → particle orbit
+- Polygon points for outer layer: "50,10 90,30 95,70 70,95 30,95 5,70 10,30"
+- Polygon points for middle layer: "50,20 80,35 85,65 65,85 35,85 15,65 20,35"  
+- Polygon points for inner layer: "50,30 70,40 75,60 60,75 40,75 25,60 30,40"
+- Rotation speeds: outer (20s linear), middle (-30s linear), inner (25s linear)
+- Vertex circles: r="4", scale [1, 1.5, 1], duration 2000, stagger by 100ms
+- Particle orbit: use createMotionPath with circular SVG path, stagger(50)
+- Gradient: <linearGradient id="crystalGrad"><stop offset="0%" stop-color="hsl(${hue1})"/><stop offset="100%" stop-color="hsl(${hue2})"/></linearGradient>
+- Animate stop-color attributes directly for smooth color transitions
+
+CODE STRUCTURE:
+<svg viewBox="0 0 100 100" className="w-80 h-80">
+  <defs>
+    <linearGradient id="crystalGrad" ref={gradientRef}>
+      <stop offset="0%" stopColor="..."/>
+      <stop offset="100%" stopColor="..."/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="0.5"/></filter>
+  </defs>
+  
+  {/* Outer layer */}
+  <polygon points="..." fill="url(#crystalGrad)" opacity="0.3" ref={outerRef}/>
+  
+  {/* Middle layer with blur */}
+  <polygon points="..." fill="url(#crystalGrad)" opacity="0.5" filter="url(#blur)" ref={middleRef}/>
+  
+  {/* Inner layer */}
+  <polygon points="..." fill="url(#crystalGrad)" opacity="0.8" ref={innerRef}/>
+  
+  {/* Vertex points */}
+  {vertexPositions.map((pos, i) => (
+    <circle cx={pos.x} cy={pos.y} r="4" fill="white" className={`vertex-${i}`}/>
+  ))}
+  
+  {/* Orbiting particles */}
+  {particles.map((p, i) => (
+    <circle r="2" fill="white" className={`particle-${i}`}/>
+  ))}
+</svg>
+
+Use anime.timeline() with complete callbacks to trigger next phase.
+Update gradient stop colors on slider change using anime to animate stop-color.
