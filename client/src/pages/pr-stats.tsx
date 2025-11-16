@@ -442,12 +442,12 @@ export default function PRStats() {
         <h2 className="text-subheading font-semibold text-foreground">Achievements</h2>
         
         {/* Key Achievement Metrics */}
-        <div className="grid grid-cols-3 gap-4 w-full">
-          <Card className="p-5" data-testid="total-achievements-card">
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="p-5 min-w-0" data-testid="total-achievements-card">
             <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Unlocked</p>
-                <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0 ml-auto">
+                <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
                   <Award className="w-5 h-5 text-warning" />
                 </div>
               </div>
@@ -458,11 +458,11 @@ export default function PRStats() {
             </div>
           </Card>
 
-          <Card className="p-5" data-testid="completion-rate-card">
+          <Card className="p-5 min-w-0" data-testid="completion-rate-card">
             <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Completion</p>
-                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0 ml-auto">
+                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
                   <Target className="w-5 h-5 text-accent" />
                 </div>
               </div>
@@ -473,11 +473,11 @@ export default function PRStats() {
             </div>
           </Card>
 
-          <Card className="p-5" data-testid="recent-unlocks-card">
+          <Card className="p-5 min-w-0" data-testid="recent-unlocks-card">
             <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Last 30 Days</p>
-                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0 ml-auto">
+                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0">
                   <Sparkles className="w-5 h-5 text-success" />
                 </div>
               </div>
