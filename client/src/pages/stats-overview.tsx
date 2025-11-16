@@ -28,7 +28,7 @@ import {
   Star,
   Sparkles
 } from "lucide-react"
-import { Category } from "../types"
+import { Category, type Workout, type PR } from "../types"
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, differenceInDays, subDays, eachDayOfInterval, subWeeks, subMonths } from "date-fns"
 import { Link } from "wouter"
 import { 
@@ -88,13 +88,13 @@ export default function StatsOverview() {
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month')
 
   // Fetch workouts
-  const { data: workouts = [], isLoading, error: workoutsError } = useQuery<any[]>({
+  const { data: workouts = [], isLoading, error: workoutsError } = useQuery<Workout[]>({
     queryKey: ['/api/workouts'],
     enabled: !!user,
   })
 
   // Fetch PRs
-  const { data: prs = [], error: prsError } = useQuery<any[]>({
+  const { data: prs = [], error: prsError } = useQuery<PR[]>({
     queryKey: ['/api/prs'],
     enabled: !!user,
   })
