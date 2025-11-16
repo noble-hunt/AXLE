@@ -107,6 +107,7 @@ interface AchievementStatsResponse {
 
 export default function PRStats() {
   const { user } = useAppStore()
+  const [timeRange, setTimeRange] = useState<'month' | 'year' | 'all'>('all')
   
   // Fetch PR analytics
   const { data: prStats, isLoading: prLoading, error: prError } = useQuery<PRStatsResponse>({
@@ -170,6 +171,28 @@ export default function PRStats() {
     )
   }
 
+  // Filter data based on time range
+  const getFilteredMonthlyData = () => {
+    const now = new Date()
+    const entries = Object.entries(prStats.prsByMonth || {})
+      .sort((a, b) => a[0].localeCompare(b[0]))
+    
+    let filteredEntries = entries
+    if (timeRange === 'month') {
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      filteredEntries = entries.filter(([month]) => month >= currentMonth)
+    } else if (timeRange === 'year') {
+      const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1)
+      const yearAgoStr = `${yearAgo.getFullYear()}-${String(yearAgo.getMonth() + 1).padStart(2, '0')}`
+      filteredEntries = entries.filter(([month]) => month >= yearAgoStr)
+    }
+    
+    return filteredEntries.map(([month, count]) => ({
+      month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      prs: count
+    }))
+  }
+
   // Prepare category distribution data for pie chart
   const categoryData = Object.entries(prStats.categoryDistribution || {}).map(([name, value]) => ({
     name: name.replace('_', ' '),
@@ -178,13 +201,7 @@ export default function PRStats() {
   }))
 
   // Prepare monthly PR trend data
-  const monthlyData = Object.entries(prStats.prsByMonth || {})
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-12) // Last 12 months
-    .map(([month, count]) => ({
-      month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-      prs: count
-    }))
+  const monthlyData = getFilteredMonthlyData()
 
   // Format momentum for display
   const momentumSign = prStats.momentum > 0 ? '+' : ''
@@ -207,10 +224,52 @@ export default function PRStats() {
           </Link>
           <h1 className="text-heading font-bold text-foreground">PR & Achievement Analytics</h1>
         </div>
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
           <Trophy className="w-5 h-5 text-primary" />
         </div>
       </div>
+
+      {/* Time Range Filter */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-body font-medium text-foreground">Time Range</span>
+          <div className="flex gap-1 bg-muted/50 p-1 rounded-xl">
+            <button
+              onClick={() => setTimeRange('month')}
+              className={`px-4 py-2 rounded-lg text-caption font-medium transition-all ${
+                timeRange === 'month'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              data-testid="filter-month"
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => setTimeRange('year')}
+              className={`px-4 py-2 rounded-lg text-caption font-medium transition-all ${
+                timeRange === 'year'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              data-testid="filter-year"
+            >
+              This Year
+            </button>
+            <button
+              onClick={() => setTimeRange('all')}
+              className={`px-4 py-2 rounded-lg text-caption font-medium transition-all ${
+                timeRange === 'all'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+              data-testid="filter-all"
+            >
+              All Time
+            </button>
+          </div>
+        </div>
+      </Card>
 
       {/* PR Stats Section */}
       <div className="space-y-4">
@@ -219,46 +278,52 @@ export default function PRStats() {
         {/* Key PR Metrics */}
         <div className="grid grid-cols-3 gap-4">
           <Card className="p-5" data-testid="total-prs-card">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Total PRs</p>
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Trophy className="w-5 h-5 text-primary" />
+                </div>
+              </div>
+              <div className="space-y-1">
                 <p className="text-title font-bold text-foreground">{prStats.total}</p>
                 <p className="text-caption text-muted-foreground">{prStats.uniqueMovements} movements</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Trophy className="w-5 h-5 text-primary" />
               </div>
             </div>
           </Card>
 
           <Card className="p-5" data-testid="recent-prs-card">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Last 30 Days</p>
+                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0">
+                  {prStats.momentum > 0 ? (
+                    <TrendingUp className="w-5 h-5 text-success" />
+                  ) : (
+                    <TrendingDown className="w-5 h-5 text-destructive" />
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1">
                 <p className="text-title font-bold text-foreground">{prStats.recentCount}</p>
                 <p className={`text-caption font-medium ${momentumColor}`}>
                   {momentumSign}{Math.round(prStats.momentum)}% vs prev
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
-                {prStats.momentum > 0 ? (
-                  <TrendingUp className="w-5 h-5 text-success" />
-                ) : (
-                  <TrendingDown className="w-5 h-5 text-destructive" />
-                )}
-              </div>
             </div>
           </Card>
 
           <Card className="p-5" data-testid="pr-streak-card">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Current Streak</p>
+                <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
+                  <Flame className="w-5 h-5 text-warning" />
+                </div>
+              </div>
+              <div className="space-y-1">
                 <p className="text-title font-bold text-foreground">{prStats.currentStreak}</p>
                 <p className="text-caption text-muted-foreground">Best: {prStats.longestStreak} months</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
-                <Flame className="w-5 h-5 text-warning" />
               </div>
             </div>
           </Card>
@@ -288,7 +353,9 @@ export default function PRStats() {
         {/* PR Velocity Chart */}
         {monthlyData.length > 0 && (
           <Card className="p-5">
-            <h3 className="text-body font-semibold text-foreground mb-4">PR Velocity (Last 12 Months)</h3>
+            <h3 className="text-body font-semibold text-foreground mb-4">
+              PR Velocity {timeRange === 'month' ? '(This Month)' : timeRange === 'year' ? '(This Year)' : '(All Time)'}
+            </h3>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
@@ -311,9 +378,10 @@ export default function PRStats() {
                 <Line 
                   type="monotone" 
                   dataKey="prs" 
-                  stroke={COLORS.primary}
-                  strokeWidth={2}
-                  dot={{ fill: COLORS.primary, r: 4 }}
+                  stroke="#8b5cf6"
+                  strokeWidth={3}
+                  dot={{ fill: "#8b5cf6", r: 5, strokeWidth: 2, stroke: "#ffffff" }}
+                  activeDot={{ r: 7 }}
                   name="PRs Set"
                 />
               </LineChart>
@@ -387,40 +455,46 @@ export default function PRStats() {
         {/* Key Achievement Metrics */}
         <div className="grid grid-cols-3 gap-4">
           <Card className="p-5" data-testid="total-achievements-card">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Unlocked</p>
+                <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
+                  <Award className="w-5 h-5 text-warning" />
+                </div>
+              </div>
+              <div className="space-y-1">
                 <p className="text-title font-bold text-foreground">{achievementStats.unlocked}</p>
                 <p className="text-caption text-muted-foreground">of {achievementStats.total}</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
-                <Award className="w-5 h-5 text-warning" />
               </div>
             </div>
           </Card>
 
           <Card className="p-5" data-testid="completion-rate-card">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Completion</p>
+                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-5 h-5 text-accent" />
+                </div>
+              </div>
+              <div className="space-y-1">
                 <p className="text-title font-bold text-foreground">{Math.round(achievementStats.completionRate)}%</p>
                 <p className="text-caption text-muted-foreground">achieved</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                <Target className="w-5 h-5 text-accent" />
               </div>
             </div>
           </Card>
 
           <Card className="p-5" data-testid="recent-unlocks-card">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Last 30 Days</p>
+                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-success" />
+                </div>
+              </div>
+              <div className="space-y-1">
                 <p className="text-title font-bold text-foreground">{achievementStats.recentUnlocks}</p>
                 <p className="text-caption text-muted-foreground">unlocked</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-success" />
               </div>
             </div>
           </Card>
