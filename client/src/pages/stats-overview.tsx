@@ -26,7 +26,8 @@ import {
   Timer,
   Trophy,
   Star,
-  Sparkles
+  Sparkles,
+  Info
 } from "lucide-react"
 import { Category, type Workout, type PR } from "../types"
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, differenceInDays, subDays, eachDayOfInterval, subWeeks, subMonths } from "date-fns"
@@ -78,7 +79,11 @@ const parseSafeDate = (dateValue: any): Date | null => {
 
 // Helper to safely get duration
 const getSafeDuration = (workout: any): number => {
-  const duration = workout.request?.availableMinutes || workout.duration || 0
+  // Try multiple possible field locations for duration
+  const duration = workout.request?.availableMinutes || 
+                   workout.request?.duration || 
+                   workout.duration || 
+                   0
   const parsed = Number(duration)
   return isNaN(parsed) ? 0 : parsed
 }
@@ -107,9 +112,15 @@ export default function StatsOverview() {
     ? subMonths(now, 1)
     : subMonths(now, 12)
 
+  // Type guard to ensure we're working with actual workout objects (not placeholder strings)
+  const isWorkoutObject = (w: any): w is Workout => {
+    return typeof w === 'object' && w !== null && 'id' in w
+  }
+
   // Filter workouts by time range - only include valid dates
   const filteredWorkouts = workouts.filter(w => {
-    const dateValue = w.created_at || w.createdAt || w.date
+    if (!isWorkoutObject(w)) return false
+    const dateValue = (w as any).created_at || w.createdAt || w.date
     const workoutDate = parseSafeDate(dateValue)
     return workoutDate && workoutDate >= rangeStart && workoutDate <= now
   })
@@ -128,7 +139,7 @@ export default function StatsOverview() {
   // Calculate workout frequency - only count valid dates
   const workoutDates = filteredWorkouts
     .map(w => {
-      const dateValue = w.created_at || w.createdAt || w.date
+      const dateValue = (w as any).created_at || w.createdAt || w.date
       const date = parseSafeDate(dateValue)
       return date ? format(date, 'yyyy-MM-dd') : null
     })
@@ -140,7 +151,10 @@ export default function StatsOverview() {
 
   // Category breakdown
   const categoryBreakdown = filteredWorkouts.reduce((acc, w) => {
-    const category = w.request?.focus || w.request?.category || w.category || 'Unknown'
+    const category = (w as any).request?.focus || 
+                     (w as any).request?.category || 
+                     w.category || 
+                     'Unknown'
     acc[category] = (acc[category] || 0) + 1
     return acc
   }, {} as Record<string, number>)
@@ -155,7 +169,7 @@ export default function StatsOverview() {
   const dailyData = eachDayOfInterval({ start: rangeStart, end: now }).map(date => {
     const dateStr = format(date, 'yyyy-MM-dd')
     const dayWorkouts = filteredWorkouts.filter(w => {
-      const workoutDateValue = w.created_at || w.createdAt || w.date
+      const workoutDateValue = (w as any).created_at || w.createdAt || w.date
       const workoutDate = parseSafeDate(workoutDateValue)
       return workoutDate && format(workoutDate, 'yyyy-MM-dd') === dateStr
     })
@@ -175,7 +189,7 @@ export default function StatsOverview() {
       const weekStart = subWeeks(now, weeks - i - 1)
       const weekEnd = endOfWeek(weekStart)
       const weekWorkouts = filteredWorkouts.filter(w => {
-        const dateValue = w.created_at || w.createdAt || w.date
+        const dateValue = (w as any).created_at || w.createdAt || w.date
         const date = parseSafeDate(dateValue)
         return date && date >= weekStart && date <= weekEnd
       })
@@ -197,7 +211,7 @@ export default function StatsOverview() {
   ]
 
   filteredWorkouts.forEach(w => {
-    const intensity = w.request?.intensity || w.intensity || 5
+    const intensity = (w as any).request?.intensity || w.intensity || 5
     if (intensity <= 3) intensityData[0].count++
     else if (intensity <= 6) intensityData[1].count++
     else if (intensity <= 8) intensityData[2].count++
@@ -206,14 +220,14 @@ export default function StatsOverview() {
 
   // Recent PRs in time range - with safe date parsing
   const recentPRs = prs.filter(pr => {
-    const dateValue = pr.date || pr.created_at || pr.createdAt
+    const dateValue = pr.date || (pr as any).created_at || pr.createdAt
     const prDate = parseSafeDate(dateValue)
     return prDate && prDate >= rangeStart && prDate <= now
   })
 
   // Best performing day - only from valid dates
   const dayOfWeekMap = filteredWorkouts.reduce((acc, w) => {
-    const dateValue = w.created_at || w.createdAt || w.date
+    const dateValue = (w as any).created_at || w.createdAt || w.date
     const date = parseSafeDate(dateValue)
     if (date) {
       const day = format(date, 'EEEE')
@@ -227,7 +241,7 @@ export default function StatsOverview() {
   // Longest streak calculation - only from valid dates
   const workoutDateStrings = filteredWorkouts
     .map(w => {
-      const dateValue = w.created_at || w.createdAt || w.date
+      const dateValue = (w as any).created_at || w.createdAt || w.date
       const date = parseSafeDate(dateValue)
       return date ? format(date, 'yyyy-MM-dd') : null
     })
@@ -307,6 +321,11 @@ export default function StatsOverview() {
     )
   }
 
+  // Empty state for filtered time range (has workouts, but none in selected period)
+  // Count only actual workout objects, not placeholder values
+  const actualWorkoutCount = workouts.filter(isWorkoutObject).length
+  const hasWorkoutsButNoneInRange = actualWorkoutCount > 0 && filteredWorkouts.length === 0
+
   if (!user || (workouts.length === 0 && prs.length === 0)) {
     return (
       <motion.div 
@@ -382,6 +401,25 @@ export default function StatsOverview() {
           </Button>
         ))}
       </div>
+
+      {/* Empty State Alert - when workouts exist but none in selected range */}
+      {hasWorkoutsButNoneInRange && (
+        <Card className="p-5 border-warning/20 bg-warning/5" data-testid="empty-range-alert">
+          <div className="flex gap-4">
+            <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
+              <Info className="w-5 h-5 text-warning" />
+            </div>
+            <div className="space-y-1 flex-1">
+              <h3 className="text-subheading font-semibold text-foreground">No workouts in this time range</h3>
+              <p className="text-body text-muted-foreground">
+                You have {actualWorkoutCount} workout{actualWorkoutCount === 1 ? '' : 's'} total, but none in the selected{' '}
+                <span className="font-medium">{timeRange === 'week' ? 'Last Week' : timeRange === 'month' ? 'Last Month' : 'Last Year'}</span> period.
+                Try selecting a longer time range to see your workout history.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Key Metrics */}
       <div className="grid grid-cols-2 gap-4">

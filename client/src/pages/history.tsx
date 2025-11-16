@@ -306,16 +306,18 @@ export default function History() {
       </div>
 
       {/* View More Stats Button */}
-      <Link href="/stats">
-        <Button 
-          variant="secondary" 
-          className="w-full h-12"
-          data-testid="view-more-stats-button"
-        >
-          <Sparkles className="w-4 h-4 mr-2" />
-          View More Stats
-        </Button>
-      </Link>
+      <div className="mt-6">
+        <Link href="/stats">
+          <Button 
+            variant="secondary" 
+            className="w-full h-12"
+            data-testid="view-more-stats-button"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            View More Stats
+          </Button>
+        </Link>
+      </div>
 
       {/* Workout List */}
       <div className="space-y-8 pt-1">
