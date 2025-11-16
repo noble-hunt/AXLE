@@ -230,46 +230,35 @@ export default function PRStats() {
       </div>
 
       {/* Time Range Filter */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-body font-medium text-foreground">Time Range</span>
-          <div className="flex gap-1 bg-muted/50 p-1 rounded-xl">
-            <button
-              onClick={() => setTimeRange('month')}
-              className={`px-4 py-2 rounded-lg text-caption font-medium transition-all ${
-                timeRange === 'month'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              data-testid="filter-month"
-            >
-              This Month
-            </button>
-            <button
-              onClick={() => setTimeRange('year')}
-              className={`px-4 py-2 rounded-lg text-caption font-medium transition-all ${
-                timeRange === 'year'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              data-testid="filter-year"
-            >
-              This Year
-            </button>
-            <button
-              onClick={() => setTimeRange('all')}
-              className={`px-4 py-2 rounded-lg text-caption font-medium transition-all ${
-                timeRange === 'all'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              data-testid="filter-all"
-            >
-              All Time
-            </button>
-          </div>
-        </div>
-      </Card>
+      <div className="flex gap-2">
+        <Button
+          variant={timeRange === 'month' ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={() => setTimeRange('month')}
+          data-testid="filter-month"
+          className="flex-1"
+        >
+          This Month
+        </Button>
+        <Button
+          variant={timeRange === 'year' ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={() => setTimeRange('year')}
+          data-testid="filter-year"
+          className="flex-1"
+        >
+          This Year
+        </Button>
+        <Button
+          variant={timeRange === 'all' ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={() => setTimeRange('all')}
+          data-testid="filter-all"
+          className="flex-1"
+        >
+          All Time
+        </Button>
+      </div>
 
       {/* PR Stats Section */}
       <div className="space-y-4">
@@ -456,8 +445,8 @@ export default function PRStats() {
         <div className="grid grid-cols-3 gap-4">
           <Card className="p-5" data-testid="total-achievements-card">
             <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <p className="text-caption text-muted-foreground">Unlocked</p>
+              <div className="flex items-start justify-between">
+                <p className="text-caption text-muted-foreground whitespace-nowrap leading-5">Unlocked</p>
                 <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
                   <Award className="w-5 h-5 text-warning" />
                 </div>
@@ -471,8 +460,8 @@ export default function PRStats() {
 
           <Card className="p-5" data-testid="completion-rate-card">
             <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <p className="text-caption text-muted-foreground">Completion</p>
+              <div className="flex items-start justify-between">
+                <p className="text-caption text-muted-foreground whitespace-nowrap leading-5">Completion</p>
                 <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
                   <Target className="w-5 h-5 text-accent" />
                 </div>
@@ -486,8 +475,8 @@ export default function PRStats() {
 
           <Card className="p-5" data-testid="recent-unlocks-card">
             <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <p className="text-caption text-muted-foreground">Last 30 Days</p>
+              <div className="flex items-start justify-between">
+                <p className="text-caption text-muted-foreground whitespace-nowrap leading-5">Last 30 Days</p>
                 <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0">
                   <Sparkles className="w-5 h-5 text-success" />
                 </div>
