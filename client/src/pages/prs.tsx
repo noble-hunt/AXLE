@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/useAppStore"
-import { MovementCategory, getMovementsByCategory, Movement } from '../types'
+import { MovementCategory, getMovementsByCategory, Movement, RepMaxType, repMaxToNumber, shouldShowRepMaxForMovement } from '../types'
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
@@ -46,6 +46,15 @@ const unitOptions = [
   { value: "m", label: "m (meters)" }
 ] as const
 
+// Rep Max options for weight-based movements
+const repMaxOptions = [
+  { value: RepMaxType.ONE_RM, label: "1RM" },
+  { value: RepMaxType.THREE_RM, label: "3RM" },
+  { value: RepMaxType.FIVE_RM, label: "5RM" },
+  { value: RepMaxType.TEN_RM, label: "10RM" },
+  { value: RepMaxType.TWENTY_RM, label: "20RM" }
+] as const
+
 export default function PRs() {
   const { prs: personalRecords, getPRsByCategory, addPR, profile } = useAppStore()
   const { toast } = useToast()
@@ -55,6 +64,7 @@ export default function PRs() {
   const [customMovement, setCustomMovement] = useState("")
   const [value, setValue] = useState("")
   const [selectedUnit, setSelectedUnit] = useState<string>("lbs") // Default to lbs
+  const [selectedRepMax, setSelectedRepMax] = useState<RepMaxType>(RepMaxType.ONE_RM) // Default to 1RM
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isLoading, setIsLoading] = useState(true)
   
@@ -88,6 +98,7 @@ export default function PRs() {
     setCustomMovement("")
     setValue("")
     setSelectedUnit("lbs") // Reset to default
+    setSelectedRepMax(RepMaxType.ONE_RM) // Reset to default
     setSelectedDate(new Date())
     setShowAddPRSheet(true)
   }
@@ -115,12 +126,16 @@ export default function PRs() {
         ? activeCategory
         : MovementCategory.OTHER // Default to Other for custom movements
       
+      // Determine if we should include rep max (only for weight-based movements with lbs/kg)
+      const isWeightBased = selectedMovement && shouldShowRepMaxForMovement(selectedMovement) && (selectedUnit === "lbs" || selectedUnit === "kg")
+      
       await addPR({
         movement: movementName as Movement,
         category: prCategory,
         value: parseFloat(value),
         unit: selectedUnit,
-        date: selectedDate
+        date: selectedDate,
+        repMax: isWeightBased ? repMaxToNumber(selectedRepMax) : undefined
       })
 
       // Trigger confetti animation!
@@ -443,6 +458,25 @@ export default function PRs() {
               type="number"
               data-testid="pr-value-input"
             />
+
+            {/* Rep Max Selector - only show for weight-based movements with lbs/kg */}
+            {selectedMovement && shouldShowRepMaxForMovement(selectedMovement) && (selectedUnit === "lbs" || selectedUnit === "kg") && (
+              <div className="space-y-2">
+                <label className="text-body font-medium text-foreground">Rep Max</label>
+                <div className="flex flex-wrap gap-2">
+                  {repMaxOptions.map((option) => (
+                    <Chip
+                      key={option.value}
+                      variant={selectedRepMax === option.value ? "primary" : "default"}
+                      onClick={() => setSelectedRepMax(option.value)}
+                      data-testid={`rep-max-${option.label.toLowerCase()}`}
+                    >
+                      {option.label}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Unit Selector */}
             <div className="space-y-2">

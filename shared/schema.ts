@@ -385,7 +385,7 @@ export const insertPRSchema = createInsertSchema(prs).omit({
   createdAt: true,
 }).extend({
   // Make optional fields truly optional
-  repMax: z.number().int().min(1).max(10).optional().nullable(),
+  repMax: z.number().int().min(1).max(20).optional().nullable(),
   weightKg: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
   workoutId: z.string().uuid().optional().nullable(),

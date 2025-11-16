@@ -97,8 +97,24 @@ export enum RepMaxType {
   ONE_RM = "1RM",
   THREE_RM = "3RM",
   FIVE_RM = "5RM",
-  TEN_RM = "10RM"
+  TEN_RM = "10RM",
+  TWENTY_RM = "20RM"
 }
+
+export const repMaxToNumber = (repMax: RepMaxType): number => {
+  switch (repMax) {
+    case RepMaxType.ONE_RM:
+      return 1;
+    case RepMaxType.THREE_RM:
+      return 3;
+    case RepMaxType.FIVE_RM:
+      return 5;
+    case RepMaxType.TEN_RM:
+      return 10;
+    case RepMaxType.TWENTY_RM:
+      return 20;
+  }
+};
 
 export enum Unit {
   KG = "kg",

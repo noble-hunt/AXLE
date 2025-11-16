@@ -42,6 +42,7 @@ import {
   getDefaultUnitForMovement,
   shouldShowRepMaxForMovement,
   isWeightBasedMovement,
+  repMaxToNumber,
 } from '../../types'
 
 interface AddPRModalProps {
@@ -148,8 +149,8 @@ export function AddPRModal({
         // Enhanced fields
         movement: data.movement as Movement,
         movementCategory: data.movementCategory,
-        repMax: data.repMax,
-        value: finalValue,
+        repMax: data.repMax ? repMaxToNumber(data.repMax) : undefined,
+        value: typeof finalValue === 'number' ? finalValue : parseFloat(finalValue) || 0,
         unit: data.unit,
         notes: data.notes,
       })
