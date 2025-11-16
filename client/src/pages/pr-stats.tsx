@@ -443,7 +443,7 @@ export default function PRStats() {
         
         {/* Key Achievement Metrics */}
         <div className="grid grid-cols-3 gap-4">
-          <Card className="p-5 min-w-0" data-testid="total-achievements-card">
+          <Card className="p-5" data-testid="total-achievements-card">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Unlocked</p>
@@ -458,7 +458,7 @@ export default function PRStats() {
             </div>
           </Card>
 
-          <Card className="p-5 min-w-0" data-testid="completion-rate-card">
+          <Card className="p-5" data-testid="completion-rate-card">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Completion</p>
@@ -473,7 +473,7 @@ export default function PRStats() {
             </div>
           </Card>
 
-          <Card className="p-5 min-w-0" data-testid="recent-unlocks-card">
+          <Card className="p-5" data-testid="recent-unlocks-card">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Last 30 Days</p>
