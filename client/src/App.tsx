@@ -15,6 +15,7 @@ import Home from "@/pages/home";
 import Workout from "@/pages/workout";
 import WorkoutDetail from "@/pages/workout-detail";
 import History from "@/pages/history";
+import StatsOverview from "@/pages/stats-overview";
 import Health from "@/pages/health";
 import PRs from "@/pages/prs";
 import Achievements from "@/pages/achievements";
@@ -90,6 +91,7 @@ function OverlayWrapper() {
         <Route path="/workout/generate" component={WorkoutGenerate} />
         <Route path="/workout/:id" component={WorkoutDetail} />
         <Route path="/history" component={History} />
+        <Route path="/stats" component={StatsOverview} />
         <Route path="/health" component={Health} />
         <Route path="/prs" component={PRs} />
         <Route path="/achievements" component={Achievements} />

@@ -76,7 +76,7 @@ const SegmentedControl = forwardRef<HTMLDivElement, SegmentedControlProps>(
         <div
           ref={ref}
           className={cn(
-            "inline-flex h-10 items-center justify-center rounded-xl bg-muted p-1 text-muted-foreground shadow-soft",
+            "inline-flex h-10 items-center justify-center rounded-xl bg-muted p-1 text-muted-foreground shadow-soft gap-1",
             "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
             className
           )}
