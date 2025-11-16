@@ -36,68 +36,8 @@ args = "npm run dev"
 waitForPort = 5000
 
 [[ports]]
-localPort = 3001
-externalPort = 8080
-
-[[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 33107
-externalPort = 3000
-
-[[ports]]
-localPort = 33131
-externalPort = 6000
-
-[[ports]]
-localPort = 33225
-externalPort = 8000
-
-[[ports]]
-localPort = 33773
-externalPort = 6800
-
-[[ports]]
-localPort = 35101
-externalPort = 3003
-
-[[ports]]
-localPort = 35341
-externalPort = 3001
-
-[[ports]]
-localPort = 35759
-externalPort = 9000
-
-[[ports]]
-localPort = 36357
-externalPort = 4200
-
-[[ports]]
-localPort = 38679
-externalPort = 3002
-
-[[ports]]
-localPort = 42143
-externalPort = 8081
-
-[[ports]]
-localPort = 43075
-externalPort = 5000
-
-[[ports]]
-localPort = 43605
-externalPort = 8008
-
-[[ports]]
-localPort = 45523
-externalPort = 5173
-
-[[ports]]
-localPort = 46265
-externalPort = 8099
 
 [agent]
 integrations = ["javascript_openai:1.0.0", "javascript_database:1.0.0"]
