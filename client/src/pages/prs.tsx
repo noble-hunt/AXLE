@@ -255,14 +255,14 @@ export default function PRs() {
 
       {/* View More Stats Button */}
       <div className="mt-6">
-        <Link href="/stats">
+        <Link href="/pr-stats">
           <Button 
             variant="secondary" 
             className="w-full h-12"
             data-testid="view-more-stats-button"
           >
             <Sparkles className="w-4 h-4 mr-2" />
-            View More Stats
+            View PR & Achievement Stats
           </Button>
         </Link>
       </div>
