@@ -1291,6 +1291,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PR & Achievement Analytics Endpoints
+  app.get("/api/pr-stats", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const prs = await listPRs(authReq.user.id);
+      const now = new Date();
+      
+      // Time range calculations
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+      const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      
+      // Total PRs by time period
+      const recentPRs = prs.filter(pr => new Date(pr.date) >= thirtyDaysAgo);
+      const previousPeriodPRs = prs.filter(pr => {
+        const date = new Date(pr.date);
+        return date >= sixtyDaysAgo && date < thirtyDaysAgo;
+      });
+      
+      // PR velocity (PRs per month trend)
+      const prsByMonth: Record<string, number> = {};
+      prs.forEach(pr => {
+        const monthKey = pr.date.slice(0, 7); // YYYY-MM format
+        prsByMonth[monthKey] = (prsByMonth[monthKey] || 0) + 1;
+      });
+      
+      // Category distribution
+      const prsByCategory: Record<string, number> = {};
+      prs.forEach(pr => {
+        prsByCategory[pr.category] = (prsByCategory[pr.category] || 0) + 1;
+      });
+      
+      // Movement diversity
+      const uniqueMovements = new Set(prs.map(pr => pr.movement)).size;
+      
+      // Top improving movements (calculate % improvement from earliest to latest)
+      const movementHistory: Record<string, Array<{value: number, date: string}>> = {};
+      prs.forEach(pr => {
+        if (!movementHistory[pr.movement]) movementHistory[pr.movement] = [];
+        movementHistory[pr.movement].push({ value: Number(pr.value), date: pr.date });
+      });
+      
+      const topImprovements = Object.entries(movementHistory)
+        .filter(([_, history]) => history.length >= 2)
+        .map(([movement, history]) => {
+          const sorted = history.sort((a, b) => a.date.localeCompare(b.date));
+          const first = sorted[0].value;
+          const last = sorted[sorted.length - 1].value;
+          const improvement = ((last - first) / first) * 100;
+          return { movement, improvement, from: first, to: last, count: history.length };
+        })
+        .sort((a, b) => b.improvement - a.improvement)
+        .slice(0, 5);
+      
+      // PR streak (consecutive months with at least one PR)
+      const monthsSorted = Object.keys(prsByMonth).sort().reverse();
+      let currentStreak = 0;
+      let longestStreak = 0;
+      let tempStreak = 0;
+      
+      for (let i = 0; i < monthsSorted.length; i++) {
+        if (i === 0 || monthsSorted[i-1].slice(0, 4) === monthsSorted[i].slice(0, 4)) {
+          tempStreak++;
+          longestStreak = Math.max(longestStreak, tempStreak);
+        } else {
+          tempStreak = 1;
+        }
+      }
+      
+      // Current streak (from most recent month)
+      const currentMonth = now.toISOString().slice(0, 7);
+      if (monthsSorted[0] === currentMonth) {
+        currentStreak = 1;
+        for (let i = 1; i < monthsSorted.length; i++) {
+          const prevMonth = new Date(monthsSorted[i-1] + '-01');
+          const currMonth = new Date(monthsSorted[i] + '-01');
+          const diff = (prevMonth.getTime() - currMonth.getTime()) / (30 * 24 * 60 * 60 * 1000);
+          if (diff <= 1.5) currentStreak++;
+          else break;
+        }
+      }
+      
+      // Momentum score (recent vs previous period)
+      const momentum = previousPeriodPRs.length > 0 
+        ? ((recentPRs.length - previousPeriodPRs.length) / previousPeriodPRs.length) * 100
+        : recentPRs.length > 0 ? 100 : 0;
+      
+      // Milestone progress
+      const milestones = [10, 25, 50, 75, 100, 150, 200, 300, 500];
+      const nextMilestone = milestones.find(m => m > prs.length) || prs.length + 100;
+      const progressToMilestone = (prs.length / nextMilestone) * 100;
+      
+      res.json({
+        total: prs.length,
+        recentCount: recentPRs.length,
+        previousPeriodCount: previousPeriodPRs.length,
+        momentum,
+        uniqueMovements,
+        categoryDistribution: prsByCategory,
+        topImprovements,
+        currentStreak,
+        longestStreak,
+        nextMilestone,
+        progressToMilestone,
+        prsByMonth,
+        last90Days: prs.filter(pr => new Date(pr.date) >= ninetyDaysAgo).length,
+        lastYear: prs.filter(pr => new Date(pr.date) >= oneYearAgo).length,
+      });
+    } catch (error) {
+      console.error("Error calculating PR stats:", error);
+      res.status(500).json({ error: "Failed to calculate PR statistics" });
+    }
+  });
+  
+  app.get("/api/achievement-stats", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const achievements = await listAchievements(authReq.user.id);
+      const now = new Date();
+      
+      // Total and unlocked counts
+      const totalAchievements = achievements.length;
+      const unlockedAchievements = achievements.filter(a => a.unlocked);
+      const unlockedCount = unlockedAchievements.length;
+      const completionRate = totalAchievements > 0 ? (unlockedCount / totalAchievements) * 100 : 0;
+      
+      // Recent unlocks (last 30 days)
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const recentUnlocks = unlockedAchievements.filter(a => 
+        a.updatedAt && new Date(a.updatedAt) >= thirtyDaysAgo
+      );
+      
+      // In-progress achievements (>50% progress but not unlocked)
+      const inProgress = achievements
+        .filter(a => !a.unlocked && Number(a.progress) >= 50)
+        .sort((a, b) => Number(b.progress) - Number(a.progress))
+        .slice(0, 5);
+      
+      // Next targets (closest to unlocking)
+      const nextTargets = achievements
+        .filter(a => !a.unlocked)
+        .sort((a, b) => Number(b.progress) - Number(a.progress))
+        .slice(0, 3)
+        .map(a => ({
+          name: a.name,
+          description: a.description,
+          progress: Number(a.progress),
+          remaining: 100 - Number(a.progress)
+        }));
+      
+      // Unlock velocity (average days between unlocks)
+      const unlockedWithDates = unlockedAchievements
+        .filter(a => a.updatedAt)
+        .sort((a, b) => new Date(a.updatedAt!).getTime() - new Date(b.updatedAt!).getTime());
+      
+      let avgDaysBetweenUnlocks = 0;
+      if (unlockedWithDates.length >= 2) {
+        const intervals: number[] = [];
+        for (let i = 1; i < unlockedWithDates.length; i++) {
+          const prev = new Date(unlockedWithDates[i-1].updatedAt!);
+          const curr = new Date(unlockedWithDates[i].updatedAt!);
+          const days = (curr.getTime() - prev.getTime()) / (24 * 60 * 60 * 1000);
+          intervals.push(days);
+        }
+        avgDaysBetweenUnlocks = intervals.reduce((sum, val) => sum + val, 0) / intervals.length;
+      }
+      
+      // Achievement categories (extract from names/descriptions)
+      const categoryPattern = /\[(.*?)\]/; // Matches [Category] in achievement names
+      const categoryCounts: Record<string, number> = {};
+      unlockedAchievements.forEach(a => {
+        const match = a.name.match(categoryPattern);
+        const category = match ? match[1] : 'General';
+        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      });
+      
+      res.json({
+        total: totalAchievements,
+        unlocked: unlockedCount,
+        completionRate,
+        recentUnlocks: recentUnlocks.length,
+        inProgress: inProgress.map(a => ({
+          name: a.name,
+          description: a.description,
+          progress: Number(a.progress)
+        })),
+        nextTargets,
+        avgDaysBetweenUnlocks: Math.round(avgDaysBetweenUnlocks),
+        categoryDistribution: categoryCounts,
+        recentAchievements: recentUnlocks.slice(0, 5).map(a => ({
+          name: a.name,
+          description: a.description,
+          unlockedAt: a.updatedAt
+        }))
+      });
+    } catch (error) {
+      console.error("Error calculating achievement stats:", error);
+      res.status(500).json({ error: "Failed to calculate achievement statistics" });
+    }
+  });
+
   // Achievements routes (legacy)
   app.get("/api/achievements", requireAuth, async (req, res) => {
     try {
