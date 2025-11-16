@@ -90,7 +90,7 @@ const getSafeDuration = (workout: any): number => {
 
 export default function StatsOverview() {
   const { user } = useAppStore()
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month')
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year' | 'all'>('month')
 
   // Fetch workouts
   const { data: workouts = [], isLoading, error: workoutsError } = useQuery<Workout[]>({
@@ -110,7 +110,9 @@ export default function StatsOverview() {
     ? subWeeks(now, 1)
     : timeRange === 'month'
     ? subMonths(now, 1)
-    : subMonths(now, 12)
+    : timeRange === 'year'
+    ? subMonths(now, 12)
+    : null // 'all' time - no start date limit
 
   // Type guard to ensure we're working with actual workout objects (not placeholder strings)
   const isWorkoutObject = (w: any): w is Workout => {
@@ -122,7 +124,12 @@ export default function StatsOverview() {
     if (!isWorkoutObject(w)) return false
     const dateValue = (w as any).created_at || w.createdAt || w.date
     const workoutDate = parseSafeDate(dateValue)
-    return workoutDate && workoutDate >= rangeStart && workoutDate <= now
+    // For 'all' time, include all workouts with valid dates
+    if (timeRange === 'all') {
+      return workoutDate !== null
+    }
+    // For specific time ranges, filter by date range
+    return workoutDate && rangeStart && workoutDate >= rangeStart && workoutDate <= now
   })
 
   // Calculate comprehensive stats with safe parsing
@@ -146,7 +153,18 @@ export default function StatsOverview() {
     .filter((d): d is string => d !== null)
   const daysWithWorkouts = new Set(workoutDates).size
   
-  const periodDays = differenceInDays(now, rangeStart)
+  // For 'all' time, calculate period from first workout to now
+  const periodDays = rangeStart 
+    ? differenceInDays(now, rangeStart)
+    : filteredWorkouts.length > 0
+      ? (() => {
+          const dates = filteredWorkouts
+            .map(w => parseSafeDate((w as any).created_at || w.createdAt || w.date))
+            .filter((d): d is Date => d !== null)
+          const earliestDate = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : now
+          return differenceInDays(now, earliestDate)
+        })()
+      : 0
   const workoutFrequency = periodDays > 0 ? (daysWithWorkouts / periodDays * 100) : 0
 
   // Category breakdown
@@ -166,7 +184,15 @@ export default function StatsOverview() {
   }))
 
   // Daily workout trend
-  const dailyData = eachDayOfInterval({ start: rangeStart, end: now }).map(date => {
+  // For 'all' time, use earliest workout date as start
+  const effectiveRangeStart = rangeStart || (() => {
+    const dates = filteredWorkouts
+      .map(w => parseSafeDate((w as any).created_at || w.createdAt || w.date))
+      .filter((d): d is Date => d !== null)
+    return dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : now
+  })()
+  
+  const dailyData = eachDayOfInterval({ start: effectiveRangeStart, end: now }).map(date => {
     const dateStr = format(date, 'yyyy-MM-dd')
     const dayWorkouts = filteredWorkouts.filter(w => {
       const workoutDateValue = (w as any).created_at || w.createdAt || w.date
@@ -181,9 +207,9 @@ export default function StatsOverview() {
     }
   })
 
-  // Weekly aggregation for better visualization in month/year view
+  // Weekly aggregation for better visualization in month/year/all view
   const weeklyData = []
-  if (timeRange === 'month' || timeRange === 'year') {
+  if (timeRange === 'month' || timeRange === 'year' || timeRange === 'all') {
     const weeks = Math.ceil(periodDays / 7)
     for (let i = 0; i < weeks; i++) {
       const weekStart = subWeeks(now, weeks - i - 1)
@@ -222,7 +248,12 @@ export default function StatsOverview() {
   const recentPRs = prs.filter(pr => {
     const dateValue = pr.date || (pr as any).created_at || pr.createdAt
     const prDate = parseSafeDate(dateValue)
-    return prDate && prDate >= rangeStart && prDate <= now
+    // For 'all' time, include all PRs with valid dates
+    if (timeRange === 'all') {
+      return prDate !== null
+    }
+    // For specific time ranges, filter by date range
+    return prDate && rangeStart && prDate >= rangeStart && prDate <= now
   })
 
   // Best performing day - only from valid dates
@@ -388,7 +419,7 @@ export default function StatsOverview() {
 
       {/* Time Range Selector */}
       <div className="flex gap-2">
-        {(['week', 'month', 'year'] as const).map(range => (
+        {(['week', 'month', 'year', 'all'] as const).map(range => (
           <Button
             key={range}
             variant={timeRange === range ? 'primary' : 'secondary'}
@@ -397,7 +428,7 @@ export default function StatsOverview() {
             data-testid={`range-${range}`}
             className="flex-1"
           >
-            {range === 'week' ? 'Last Week' : range === 'month' ? 'Last Month' : 'Last Year'}
+            {range === 'week' ? 'Last Week' : range === 'month' ? 'Last Month' : range === 'year' ? 'Last Year' : 'All Time'}
           </Button>
         ))}
       </div>
@@ -413,8 +444,10 @@ export default function StatsOverview() {
               <h3 className="text-subheading font-semibold text-foreground">No workouts in this time range</h3>
               <p className="text-body text-muted-foreground">
                 You have {actualWorkoutCount} workout{actualWorkoutCount === 1 ? '' : 's'} total, but none in the selected{' '}
-                <span className="font-medium">{timeRange === 'week' ? 'Last Week' : timeRange === 'month' ? 'Last Month' : 'Last Year'}</span> period.
-                Try selecting a longer time range to see your workout history.
+                <span className="font-medium">
+                  {timeRange === 'week' ? 'Last Week' : timeRange === 'month' ? 'Last Month' : timeRange === 'year' ? 'Last Year' : 'All Time'}
+                </span> period.
+                {timeRange !== 'all' && ' Try selecting a longer time range to see your workout history.'}
               </p>
             </div>
           </div>
