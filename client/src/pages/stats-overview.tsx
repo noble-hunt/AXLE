@@ -69,18 +69,32 @@ const CATEGORY_COLORS = {
   [Category.MOBILITY]: '#84cc16',
 }
 
+// Helper to safely parse dates
+const parseSafeDate = (dateValue: any): Date | null => {
+  if (!dateValue) return null
+  const date = new Date(dateValue)
+  return isNaN(date.getTime()) ? null : date
+}
+
+// Helper to safely get duration
+const getSafeDuration = (workout: any): number => {
+  const duration = workout.request?.availableMinutes || workout.duration || 0
+  const parsed = Number(duration)
+  return isNaN(parsed) ? 0 : parsed
+}
+
 export default function StatsOverview() {
   const { user } = useAppStore()
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month')
 
   // Fetch workouts
-  const { data: workouts = [], isLoading } = useQuery<any[]>({
+  const { data: workouts = [], isLoading, error: workoutsError } = useQuery<any[]>({
     queryKey: ['/api/workouts'],
     enabled: !!user,
   })
 
   // Fetch PRs
-  const { data: prs = [] } = useQuery<any[]>({
+  const { data: prs = [], error: prsError } = useQuery<any[]>({
     queryKey: ['/api/prs'],
     enabled: !!user,
   })
@@ -93,28 +107,32 @@ export default function StatsOverview() {
     ? subMonths(now, 1)
     : subMonths(now, 12)
 
-  // Filter workouts by time range
+  // Filter workouts by time range - only include valid dates
   const filteredWorkouts = workouts.filter(w => {
-    const workoutDate = new Date(w.created_at || w.createdAt || w.date || 0)
-    return workoutDate >= rangeStart && workoutDate <= now
+    const dateValue = w.created_at || w.createdAt || w.date
+    const workoutDate = parseSafeDate(dateValue)
+    return workoutDate && workoutDate >= rangeStart && workoutDate <= now
   })
 
-  // Calculate comprehensive stats
+  // Calculate comprehensive stats with safe parsing
   const totalWorkouts = filteredWorkouts.length
   const completedWorkouts = filteredWorkouts.filter(w => w.completed).length
   const completionRate = totalWorkouts > 0 ? Math.round((completedWorkouts / totalWorkouts) * 100) : 0
   
   const totalMinutes = filteredWorkouts.reduce((sum, w) => {
-    const duration = w.request?.availableMinutes || w.request?.duration || w.duration || 0
-    return sum + duration
+    return sum + getSafeDuration(w)
   }, 0)
   
   const avgDuration = totalWorkouts > 0 ? Math.round(totalMinutes / totalWorkouts) : 0
   
-  // Calculate workout frequency
-  const workoutDates = filteredWorkouts.map(w => 
-    format(new Date((w.created_at || w.createdAt || w.date) as Date), 'yyyy-MM-dd')
-  )
+  // Calculate workout frequency - only count valid dates
+  const workoutDates = filteredWorkouts
+    .map(w => {
+      const dateValue = w.created_at || w.createdAt || w.date
+      const date = parseSafeDate(dateValue)
+      return date ? format(date, 'yyyy-MM-dd') : null
+    })
+    .filter((d): d is string => d !== null)
   const daysWithWorkouts = new Set(workoutDates).size
   
   const periodDays = differenceInDays(now, rangeStart)
@@ -136,13 +154,15 @@ export default function StatsOverview() {
   // Daily workout trend
   const dailyData = eachDayOfInterval({ start: rangeStart, end: now }).map(date => {
     const dateStr = format(date, 'yyyy-MM-dd')
-    const dayWorkouts = filteredWorkouts.filter(w => 
-      format(new Date((w.created_at || w.createdAt || w.date) as Date), 'yyyy-MM-dd') === dateStr
-    )
+    const dayWorkouts = filteredWorkouts.filter(w => {
+      const workoutDateValue = w.created_at || w.createdAt || w.date
+      const workoutDate = parseSafeDate(workoutDateValue)
+      return workoutDate && format(workoutDate, 'yyyy-MM-dd') === dateStr
+    })
     return {
       date: format(date, 'MMM d'),
       workouts: dayWorkouts.length,
-      minutes: dayWorkouts.reduce((sum, w) => sum + ((w.request?.availableMinutes || w.duration || 0) as number), 0),
+      minutes: dayWorkouts.reduce((sum, w) => sum + getSafeDuration(w), 0),
       completed: dayWorkouts.filter(w => w.completed).length
     }
   })
@@ -155,13 +175,14 @@ export default function StatsOverview() {
       const weekStart = subWeeks(now, weeks - i - 1)
       const weekEnd = endOfWeek(weekStart)
       const weekWorkouts = filteredWorkouts.filter(w => {
-        const date = new Date(w.created_at || w.createdAt || w.date)
-        return date >= weekStart && date <= weekEnd
+        const dateValue = w.created_at || w.createdAt || w.date
+        const date = parseSafeDate(dateValue)
+        return date && date >= weekStart && date <= weekEnd
       })
       weeklyData.push({
         week: `Week ${i + 1}`,
         workouts: weekWorkouts.length,
-        minutes: weekWorkouts.reduce((sum, w) => sum + (w.request?.availableMinutes || w.duration || 0), 0),
+        minutes: weekWorkouts.reduce((sum, w) => sum + getSafeDuration(w), 0),
         completed: weekWorkouts.filter(w => w.completed).length
       })
     }
@@ -183,27 +204,36 @@ export default function StatsOverview() {
     else intensityData[3].count++
   })
 
-  // Recent PRs in time range
+  // Recent PRs in time range - with safe date parsing
   const recentPRs = prs.filter(pr => {
-    const prDate = new Date(pr.date || pr.created_at || pr.createdAt)
-    return prDate >= rangeStart && prDate <= now
+    const dateValue = pr.date || pr.created_at || pr.createdAt
+    const prDate = parseSafeDate(dateValue)
+    return prDate && prDate >= rangeStart && prDate <= now
   })
 
-  // Best performing day
+  // Best performing day - only from valid dates
   const dayOfWeekMap = filteredWorkouts.reduce((acc, w) => {
-    const day = format(new Date(w.created_at || w.createdAt || w.date), 'EEEE')
-    acc[day] = (acc[day] || 0) + 1
+    const dateValue = w.created_at || w.createdAt || w.date
+    const date = parseSafeDate(dateValue)
+    if (date) {
+      const day = format(date, 'EEEE')
+      acc[day] = (acc[day] || 0) + 1
+    }
     return acc
   }, {} as Record<string, number>)
   
-  const bestDay = Object.entries(dayOfWeekMap).sort((a, b) => b[1] - a[1])[0]
+  const bestDay = Object.entries(dayOfWeekMap).sort((a, b) => (b[1] as number) - (a[1] as number))[0] as [string, number] | undefined
   
-  // Longest streak calculation
-  const sortedDates = [...new Set(
-    filteredWorkouts
-      .map(w => format(new Date(w.created_at || w.createdAt || w.date), 'yyyy-MM-dd'))
-      .sort()
-  )]
+  // Longest streak calculation - only from valid dates
+  const workoutDateStrings = filteredWorkouts
+    .map(w => {
+      const dateValue = w.created_at || w.createdAt || w.date
+      const date = parseSafeDate(dateValue)
+      return date ? format(date, 'yyyy-MM-dd') : null
+    })
+    .filter((d): d is string => d !== null)
+    .sort()
+  const sortedDates = Array.from(new Set(workoutDateStrings))
   
   let currentStreak = 0
   let longestStreak = 0
@@ -245,6 +275,72 @@ export default function StatsOverview() {
           <div className="h-8 bg-muted rounded-2xl w-48 animate-pulse" />
           <div className="h-96 bg-muted rounded-2xl animate-pulse" />
         </div>
+      </motion.div>
+    )
+  }
+
+  if (workoutsError || prsError) {
+    return (
+      <motion.div 
+        className="space-y-6 pb-24"
+        variants={fadeIn}
+        initial="initial"
+        animate="animate"
+      >
+        <Card className="p-5">
+          <div className="text-center space-y-3">
+            <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center mx-auto">
+              <Activity className="w-6 h-6 text-destructive" />
+            </div>
+            <h3 className="text-subheading font-semibold text-foreground">Unable to load stats</h3>
+            <p className="text-body text-muted-foreground">
+              There was an error loading your workout data. Please try again later.
+            </p>
+            <Link href="/history">
+              <Button variant="primary" className="mt-4">
+                Back to History
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      </motion.div>
+    )
+  }
+
+  if (!user || (workouts.length === 0 && prs.length === 0)) {
+    return (
+      <motion.div 
+        className="space-y-6 pb-24"
+        variants={fadeIn}
+        initial="initial"
+        animate="animate"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/history">
+              <Button variant="ghost" className="w-10 h-10 p-0 rounded-full" data-testid="back-button">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <h1 className="text-heading font-bold text-foreground">Detailed Stats</h1>
+          </div>
+        </div>
+        <Card className="p-5">
+          <div className="text-center space-y-3">
+            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
+              <Sparkles className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <h3 className="text-subheading font-semibold text-foreground">No workout data yet</h3>
+            <p className="text-body text-muted-foreground">
+              Start tracking your workouts to see detailed stats and insights about your fitness journey.
+            </p>
+            <Link href="/workout/generate">
+              <Button variant="primary" className="mt-4">
+                Generate Workout
+              </Button>
+            </Link>
+          </div>
+        </Card>
       </motion.div>
     )
   }
@@ -501,7 +597,7 @@ export default function StatsOverview() {
                   {bestDay[0]} is your most active day
                 </p>
                 <p className="text-caption text-muted-foreground">
-                  {bestDay[1]} workouts completed on {bestDay[0]}s
+                  {String(bestDay[1])} workouts completed on {bestDay[0]}s
                 </p>
               </div>
             </div>

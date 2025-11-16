@@ -1195,6 +1195,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET endpoint for PRs (for REST API access)
+  app.get("/api/prs", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const prs = await listPRs(authReq.user.id);
+      return res.json(prs);
+    } catch (error) {
+      console.error("Error fetching PRs:", error);
+      return res.status(500).json({ error: "Failed to fetch PRs" });
+    }
+  });
+
   // Action-based PRs endpoint (for Vercel compatibility)
   app.post("/api/prs", requireAuth, async (req, res) => {
     try {
