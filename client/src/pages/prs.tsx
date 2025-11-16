@@ -11,13 +11,14 @@ import { Sheet, SheetContent } from "@/components/swift/sheet"
 import { Field } from "@/components/swift/field"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
-import { Trophy, TrendingUp, Calendar as CalendarIcon, Target, Dumbbell, Plus, Award, BarChart3, Star } from "lucide-react"
+import { Trophy, TrendingUp, Calendar as CalendarIcon, Target, Dumbbell, Plus, Award, BarChart3, Star, Sparkles } from "lucide-react"
 import { MovementCard } from "@/components/common/movement-card"
 import { celebratePR, celebrateFirstPR } from "@/lib/confetti"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { Link } from "wouter"
 
 // Special category type for "All" and "Favorites"
 type CategoryType = 'ALL' | 'FAVORITES' | MovementCategory
@@ -250,6 +251,20 @@ export default function PRs() {
           label={categoryOptions.find(c => c.value === activeCategory)?.label || "Current"}
           data-testid="category-prs"
         />
+      </div>
+
+      {/* View More Stats Button */}
+      <div className="mt-6">
+        <Link href="/stats">
+          <Button 
+            variant="secondary" 
+            className="w-full h-12"
+            data-testid="view-more-stats-button"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            View More Stats
+          </Button>
+        </Link>
       </div>
 
       {/* Filter Controls - Multi-row Pills */}
