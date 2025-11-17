@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { format } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrendingUp } from 'lucide-react'
@@ -34,7 +34,7 @@ const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | unde
 }
 
 export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariants = false }: PRProgressChartProps) {
-  // Filter and sort ALL PRs for this movement (no rep max filtering for single unified chart)
+  // Filter and sort ALL PRs for this movement
   const filteredPRs = prs
     .filter(pr => pr.movement === movement)
     .sort((a, b) => {
@@ -61,36 +61,81 @@ export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariant
     )
   }
 
-  // Prepare chart data with rep max info if needed
-  const chartData = filteredPRs.map((pr, index) => {
-    let displayValue: number
-    
-    // Handle TIME unit - convert "mm:ss" string to seconds
+  // Convert value to number for chart
+  const convertValueToNumber = (value: any): number => {
     if (unit === Unit.TIME) {
-      const timeValue = String(pr.value || '0:00')
+      const timeValue = String(value || '0:00')
       const parts = timeValue.split(':')
       const minutes = parts.length > 0 ? parseInt(parts[0]) || 0 : 0
       const seconds = parts.length > 1 ? parseInt(parts[1]) || 0 : 0
-      displayValue = minutes * 60 + seconds
-    } else if (typeof pr.value === 'number') {
-      displayValue = pr.value
+      return minutes * 60 + seconds
+    } else if (typeof value === 'number') {
+      return value
     } else {
-      // Fallback: try to parse as number
-      displayValue = typeof pr.value === 'string' ? parseFloat(pr.value) || 0 : 0
+      return typeof value === 'string' ? parseFloat(value) || 0 : 0
     }
+  }
 
+  // Process PRs into chart format with rep max grouping
+  const processedPRs = filteredPRs.map((pr) => {
     const prDate = pr.date instanceof Date ? pr.date : new Date(pr.date)
     const prRepMaxEnum = mapRepMaxToEnum(pr.repMax)
     
     return {
-      date: format(prDate, 'MMM dd'),
-      value: displayValue,
-      originalValue: pr.value,
-      fullDate: prDate,
-      id: pr.id,
-      repMax: prRepMaxEnum || undefined,
+      date: format(prDate, 'MMM dd, yyyy'),
+      timestamp: prDate.getTime(),
+      value: convertValueToNumber(pr.value),
+      repMax: prRepMaxEnum,
     }
   })
+
+  // Group by rep max if needed
+  const chartData: any[] = []
+  
+  if (showRepMaxVariants) {
+    // Group PRs by rep max
+    const grouped = new Map<string, typeof processedPRs>()
+    processedPRs.forEach(pr => {
+      const key = pr.repMax || 'ALL'
+      if (!grouped.has(key)) {
+        grouped.set(key, [])
+      }
+      grouped.get(key)!.push(pr)
+    })
+
+    // Collect all unique timestamps
+    const allTimestamps = Array.from(new Set(processedPRs.map(p => p.timestamp))).sort((a, b) => a - b)
+    
+    // Build chart data with a row for each timestamp
+    allTimestamps.forEach(ts => {
+      const row: any = {
+        date: processedPRs.find(p => p.timestamp === ts)?.date || '',
+        timestamp: ts
+      }
+      
+      // For each rep max group, add the value if it exists for this timestamp
+      grouped.forEach((groupPRs, repMaxKey) => {
+        const prAtTimestamp = groupPRs.find(p => p.timestamp === ts)
+        row[repMaxKey] = prAtTimestamp ? prAtTimestamp.value : undefined
+      })
+      
+      chartData.push(row)
+    })
+  } else {
+    // Simple case - all PRs in one line
+    processedPRs.forEach(pr => {
+      chartData.push({
+        date: pr.date,
+        timestamp: pr.timestamp,
+        value: pr.value
+      })
+    })
+  }
+
+  // Get unique rep max groups for rendering lines
+  const repMaxGroups = showRepMaxVariants 
+    ? Array.from(new Set(processedPRs.map(pr => pr.repMax || 'ALL')))
+    : []
 
   const formatTooltipValue = (value: number) => {
     if (unit === Unit.TIME) {
@@ -127,21 +172,24 @@ export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariant
     }
   }
 
-  const improvement = filteredPRs.length > 1 
-    ? ((chartData[chartData.length - 1].value - chartData[0].value) / chartData[0].value * 100).toFixed(1)
-    : '0'
+  // Get rep max label for display
+  const getRepMaxLabel = (rm?: RepMaxType) => {
+    if (!rm) return 'All PRs'
+    switch (rm) {
+      case RepMaxType.ONE_RM: return '1RM'
+      case RepMaxType.THREE_RM: return '3RM'
+      case RepMaxType.FIVE_RM: return '5RM'
+      case RepMaxType.TEN_RM: return '10RM'
+      case RepMaxType.TWENTY_RM: return '20RM'
+      default: return 'All PRs'
+    }
+  }
 
   return (
     <Card className="w-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center justify-between">
-          <span>All PR History</span>
-          {filteredPRs.length > 1 && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />
-              {improvement}% improvement
-            </span>
-          )}
+          <span>PR Progress Over Time</span>
         </CardTitle>
         <p className="text-xs text-muted-foreground">{filteredPRs.length} total entries</p>
       </CardHeader>
@@ -160,7 +208,10 @@ export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariant
               tickFormatter={formatYAxisValue}
             />
             <Tooltip
-              formatter={(value: number) => [formatTooltipValue(value), 'PR']}
+              formatter={(value: number, name: string) => {
+                if (value === null) return [null, name]
+                return [formatTooltipValue(value), name]
+              }}
               labelFormatter={(label) => `Date: ${label}`}
               contentStyle={{
                 backgroundColor: 'hsl(var(--card))',
@@ -169,28 +220,41 @@ export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariant
                 fontSize: '12px'
               }}
             />
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={getRepMaxColor()}
-              strokeWidth={2}
-              dot={(props) => {
-                const { cx, cy, payload, index } = props
-                const color = showRepMaxVariants ? getRepMaxColor(payload.repMax) : getRepMaxColor()
+            {showRepMaxVariants && repMaxGroups.length > 0 ? (
+              // Multiple lines - one for each rep max type
+              repMaxGroups.map((repMaxKey) => {
+                const repMaxEnum = repMaxKey !== 'ALL' ? (repMaxKey as RepMaxType) : undefined
+                const color = getRepMaxColor(repMaxEnum)
+                const label = getRepMaxLabel(repMaxEnum)
+                
                 return (
-                  <circle
-                    key={`dot-${payload.id || index}`}
-                    cx={cx}
-                    cy={cy}
-                    r={4}
-                    fill={color}
+                  <Line
+                    key={repMaxKey}
+                    type="monotone"
+                    dataKey={repMaxKey}
+                    name={label}
                     stroke={color}
                     strokeWidth={2}
+                    dot={{ fill: color, r: 4 }}
+                    activeDot={{ r: 6 }}
+                    connectNulls={true}
                   />
                 )
-              }}
-              activeDot={{ r: 6, strokeWidth: 2 }}
-            />
+              })
+            ) : (
+              // Single line for all data
+              <Line
+                type="monotone"
+                dataKey="value"
+                name="PR"
+                stroke={getRepMaxColor()}
+                strokeWidth={2}
+                dot={{ fill: getRepMaxColor(), r: 4 }}
+                activeDot={{ r: 6 }}
+                connectNulls={true}
+              />
+            )}
+            {showRepMaxVariants && repMaxGroups.length > 1 && <Legend />}
           </LineChart>
         </ResponsiveContainer>
       </CardContent>
