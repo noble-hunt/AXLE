@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trophy, Calendar, ChevronDown, ChevronUp, TrendingUp, Star } from 'lucide-react'
+import { Plus, Trophy, Calendar, ChevronDown, ChevronUp, TrendingUp, Star, Maximize2 } from 'lucide-react'
 import { Movement, RepMaxType, Unit, MovementCategory, PR, getDefaultUnitForMovement, shouldShowRepMaxForMovement } from '../../types'
 import { PRProgressChart } from './pr-progress-chart'
+import { PRDetailModal } from './pr-detail-modal'
 import { useAppStore } from '@/store/useAppStore'
 import { format } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -39,6 +40,7 @@ const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | unde
 
 export function MovementCard({ movement, category, onAddPR }: MovementCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const { getPRsByMovement, getBestPRByMovement, profile, patchProfile } = useAppStore()
   const { toast } = useToast()
   
@@ -48,7 +50,7 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
     e.stopPropagation()
     
     const newFavorites = isFavorite
-      ? (profile?.favoriteMovements || []).filter(m => m !== movement)
+      ? (profile?.favoriteMovements || []).filter((m: Movement) => m !== movement)
       : [...(profile?.favoriteMovements || []), movement]
     
     try {
@@ -258,6 +260,23 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
                       unit={(movementPRs[0].unit as Unit) || defaultUnit}
                       showRepMaxVariants={showRepMax}
                     />
+                    
+                    {/* See More Button */}
+                    <div className="flex justify-center pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setIsDetailModalOpen(true)
+                        }}
+                        className="w-full"
+                        data-testid={`button-see-more-${movement.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`}
+                      >
+                        <Maximize2 className="w-4 h-4 mr-2" />
+                        See More
+                      </Button>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -280,6 +299,17 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
           </div>
         )}
       </CardContent>
+      
+      {/* PR Detail Modal */}
+      <PRDetailModal
+        movement={movement}
+        category={category}
+        prs={movementPRs}
+        unit={(movementPRs[0]?.unit as Unit) || defaultUnit}
+        showRepMax={showRepMax}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+      />
     </Card>
   )
 }

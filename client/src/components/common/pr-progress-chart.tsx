@@ -10,6 +10,8 @@ interface PRProgressChartProps {
   repMax?: RepMaxType
   unit: Unit
   showRepMaxVariants?: boolean
+  height?: number
+  showCard?: boolean
 }
 
 // Helper to convert numeric rep max to RepMaxType enum
@@ -33,7 +35,7 @@ const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | unde
   }
 }
 
-export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariants = false }: PRProgressChartProps) {
+export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariants = false, height = 150, showCard = true }: PRProgressChartProps) {
   // Filter and sort ALL PRs for this movement
   const filteredPRs = prs
     .filter(pr => pr.movement === movement)
@@ -185,16 +187,8 @@ export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariant
     }
   }
 
-  return (
-    <Card className="w-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center justify-between">
-          <span>PR Progress Over Time</span>
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">{filteredPRs.length} total entries</p>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={150}>
+  const chartContent = (
+    <ResponsiveContainer width="100%" height={height}>
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis 
@@ -257,6 +251,22 @@ export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariant
             {showRepMaxVariants && repMaxGroups.length > 1 && <Legend />}
           </LineChart>
         </ResponsiveContainer>
+  )
+
+  if (!showCard) {
+    return chartContent
+  }
+
+  return (
+    <Card className="w-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium flex items-center justify-between">
+          <span>PR Progress Over Time</span>
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">{filteredPRs.length} total entries</p>
+      </CardHeader>
+      <CardContent>
+        {chartContent}
       </CardContent>
     </Card>
   )
