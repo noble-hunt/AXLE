@@ -2023,9 +2023,15 @@ export const useAppStore = create<AppState>()(
           const transformedPRs = data.prs.map((pr: any) => {
             // Preserve string values for TIME units, parse numeric values for other units
             const unit = pr.unit || Unit.LBS;
-            const value = unit === Unit.TIME || unit === 'time'
-              ? pr.value // Keep as string for time-based PRs (e.g., "22:45")
-              : (typeof pr.value === 'string' ? parseFloat(pr.value) : pr.value);
+            let value: number | string;
+            
+            if (unit === Unit.TIME || unit === 'time') {
+              // Keep as string for time-based PRs (e.g., "22:45")
+              value = pr.value;
+            } else {
+              // Always convert to number for weight/distance/reps
+              value = typeof pr.value === 'string' ? parseFloat(pr.value) : Number(pr.value);
+            }
             
             return {
               id: pr.id,
