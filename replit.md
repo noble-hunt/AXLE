@@ -3,6 +3,11 @@
 ## Overview
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It allows users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation, focusing on business vision and market potential in the fitness technology sector.
 
+## Recent Updates (November 2025)
+- **PR Projections Enhancement**: Fixed critical bug where bodybuilding movements (Bench Press, Deadlift, Bicep Curl, etc.) were not recognized as weight-based, preventing PR projection calculations. Now all powerlifting, Olympic weightlifting, AND bodybuilding movements correctly show Epley Formula-based rep max projections.
+- **Graph Visibility Improvements**: Enhanced visibility of workout analytics charts on stats overview page by increasing gradient opacity (30% → 80%) for workout activity graph and changing intensity levels graph to use accent color for better contrast.
+- **Data Layer Fix**: Implemented production-grade handling of PostgreSQL numeric-to-string conversion with parseFloat transformation and NaN validation across PR projection pipeline.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
@@ -15,6 +20,7 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: Zustand for client-side, TanStack Query for server-side data.
 - **Error Handling**: Structured `HttpError` objects.
 - **Key Features**: Unified PR charting, global unit preference system, enhanced group messaging, and comprehensive AXLE Reports with advanced visualizations (Training Load Chart, Enhanced Consistency Card, PR Sparklines Grid, Recovery Correlation Chart). Advanced analytics dashboards for PRs and Achievements, including visualizations for trends, distributions, and progress. Dynamic and interactive visualizations for health metrics (Physics Container, Multi-Layered Crystal, Organic Blob, L-System Procedural Tree) with sophisticated animations (anime.js) and real-time data binding.
+- **PR Projections**: Epley Formula-based rep max projections for all weight-based movements (powerlifting, Olympic weightlifting, bodybuilding). Handles NULL rep_max values as 1RM with robust parseFloat data transformation.
 
 ### Backend Architecture
 - **Server**: Express.js with a RESTful API in TypeScript.

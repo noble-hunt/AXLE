@@ -67,22 +67,12 @@ const getRepCountFromType = (repMaxType: RepMaxType): number => {
 export function PRDetailModal({ movement, category, prs, unit, showRepMax, isOpen, onClose }: PRDetailModalProps) {
   const isWeightBased = isWeightBasedMovement(movement)
 
-  // DEBUG: Log modal data
-  console.log('🔍 PR Detail Modal:', {
-    movement,
-    showRepMax,
-    isWeightBased,
-    prsCount: prs.length,
-    prs: prs.map(pr => ({ value: pr.value, repMax: pr.repMax, date: pr.date }))
-  })
-
   // Get current PRs for each rep max type
   const currentPRs: Map<RepMaxType, PR> = new Map()
   
   if (showRepMax && isWeightBased) {
     prs.forEach(pr => {
       const repMaxType = mapRepMaxToEnum(pr.repMax)
-      console.log('  🔄 Mapped PR:', { repMax: pr.repMax, mapped: repMaxType, value: pr.value })
       if (repMaxType) {
         // Get the best (highest) PR for each rep max type
         const existing = currentPRs.get(repMaxType)
@@ -92,11 +82,6 @@ export function PRDetailModal({ movement, category, prs, unit, showRepMax, isOpe
       }
     })
   }
-
-  console.log('  📊 Final currentPRs Map:', Array.from(currentPRs.entries()).map(([type, pr]) => ({
-    type,
-    value: pr.value
-  })))
 
   // Calculate theoretical 1RM from all available PRs
   const calculate1RM = (): number | null => {
@@ -126,7 +111,6 @@ export function PRDetailModal({ movement, category, prs, unit, showRepMax, isOpe
   }
 
   const theoretical1RM = calculate1RM()
-  console.log('  💪 Theoretical 1RM:', theoretical1RM)
 
   // Generate projections for all rep max types
   const repMaxTypes = [
@@ -172,8 +156,6 @@ export function PRDetailModal({ movement, category, prs, unit, showRepMax, isOpe
       label: repMaxType.replace('_', '')
     }
   })
-
-  console.log('  📈 Projections:', projections.map(p => ({ label: p.label, value: p.value, isActual: p.isActual })))
 
   const formatValue = (value: number | null): string => {
     if (value === null) return 'N/A'

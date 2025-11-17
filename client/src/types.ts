@@ -182,6 +182,7 @@ export const isWeightBasedMovement = (movement: Movement): boolean => {
   const category = getMovementCategory(movement);
   return category === MovementCategory.POWERLIFTING || 
          category === MovementCategory.OLYMPIC_WEIGHTLIFTING ||
+         category === MovementCategory.BODYBUILDING || // Bodybuilding movements use weight tracking
          category === MovementCategory.OTHER || // Custom movements default to weight-based
          movement.includes('Weighted');
 };
