@@ -2029,8 +2029,18 @@ export const useAppStore = create<AppState>()(
               // Keep as string for time-based PRs (e.g., "22:45")
               value = pr.value;
             } else {
-              // Always convert to number for weight/distance/reps
-              value = typeof pr.value === 'string' ? parseFloat(pr.value) : Number(pr.value);
+              // PRODUCTION FIX: Always convert to number for weight/distance/reps
+              // PostgreSQL numeric returns as string, must parse to enable math operations
+              const rawValue = pr.value;
+              if (typeof rawValue === 'string') {
+                const parsed = parseFloat(rawValue);
+                value = isNaN(parsed) ? 0 : parsed;
+              } else if (typeof rawValue === 'number') {
+                value = rawValue;
+              } else {
+                // Fallback for null/undefined
+                value = 0;
+              }
             }
             
             return {

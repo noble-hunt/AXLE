@@ -91,9 +91,12 @@ export function PRDetailModal({ movement, category, prs, unit, showRepMax, isOpe
     // Calculate from other rep maxes and take the highest
     let highest1RM = 0
     currentPRs.forEach((pr, repMaxType) => {
-      if (typeof pr.value === 'number') {
+      // PRODUCTION FIX: Ensure value is always a number for calculations
+      const prValue = typeof pr.value === 'string' ? parseFloat(pr.value) : pr.value
+      
+      if (typeof prValue === 'number' && !isNaN(prValue) && prValue > 0) {
         const reps = getRepCountFromType(repMaxType)
-        const calculated1RM = calculateEpley(pr.value, reps)
+        const calculated1RM = calculateEpley(prValue, reps)
         if (calculated1RM > highest1RM) {
           highest1RM = calculated1RM
         }
@@ -121,12 +124,19 @@ export function PRDetailModal({ movement, category, prs, unit, showRepMax, isOpe
     let projectedValue: number | null = null
     let isActual = false
     
-    if (actualPR && typeof actualPR.value === 'number') {
-      // Use actual PR
-      projectedValue = actualPR.value
-      isActual = true
-    } else if (theoretical1RM) {
-      // Calculate from theoretical 1RM
+    if (actualPR) {
+      // PRODUCTION FIX: Ensure value is always a number for calculations
+      const prValue = typeof actualPR.value === 'string' ? parseFloat(actualPR.value) : actualPR.value
+      
+      if (typeof prValue === 'number' && !isNaN(prValue) && prValue > 0) {
+        // Use actual PR
+        projectedValue = prValue
+        isActual = true
+      }
+    }
+    
+    // If no actual PR, calculate from theoretical 1RM
+    if (projectedValue === null && theoretical1RM) {
       if (repMaxType === RepMaxType.ONE_RM) {
         projectedValue = theoretical1RM
       } else {
