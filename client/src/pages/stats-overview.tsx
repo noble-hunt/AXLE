@@ -548,8 +548,8 @@ export default function StatsOverview() {
               <AreaChart data={timeRange === 'week' ? dailyData : weeklyData}>
                 <defs>
                   <linearGradient id="colorWorkouts" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
@@ -569,7 +569,7 @@ export default function StatsOverview() {
                 <Area 
                   type="monotone" 
                   dataKey="workouts" 
-                  stroke={COLORS.primary}
+                  stroke="#8b5cf6"
                   strokeWidth={3}
                   fillOpacity={1}
                   fill="url(#colorWorkouts)"
@@ -646,7 +646,7 @@ export default function StatsOverview() {
                     borderRadius: '12px'
                   }}
                 />
-                <Bar dataKey="count" fill={COLORS.accent} radius={[8, 8, 0, 0]} />
+                <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
