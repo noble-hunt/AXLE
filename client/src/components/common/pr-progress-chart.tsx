@@ -28,6 +28,7 @@ const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | unde
     case 3: return RepMaxType.THREE_RM
     case 5: return RepMaxType.FIVE_RM
     case 10: return RepMaxType.TEN_RM
+    case 20: return RepMaxType.TWENTY_RM
     default: return undefined
   }
 }
@@ -119,6 +120,8 @@ export function PRProgressChart({ movement, prs, repMax, unit, showRepMaxVariant
         return '#eab308' // yellow
       case RepMaxType.TEN_RM:
         return '#22c55e' // green
+      case RepMaxType.TWENTY_RM:
+        return '#8b5cf6' // purple
       default:
         return '#3b82f6' // blue (default for non-weight movements)
     }
