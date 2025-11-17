@@ -6,8 +6,12 @@ import { Movement, RepMaxType, Unit, MovementCategory, PR, isWeightBasedMovement
 import { PRProgressChart } from './pr-progress-chart'
 
 // Helper to convert numeric rep max to RepMaxType enum
-const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | undefined => {
-  if (!repMax) return undefined
+const mapRepMaxToEnum = (repMax: number | string | undefined | null): RepMaxType | undefined => {
+  // PRODUCTION FIX: Treat null/undefined as 1RM for weight-based movements
+  // When users log max weight without specifying reps, it's their 1 rep max
+  if (!repMax || repMax === null || repMax === undefined) {
+    return RepMaxType.ONE_RM
+  }
   
   // If it's already a RepMaxType string enum, return it
   if (Object.values(RepMaxType).includes(repMax as RepMaxType)) {
@@ -22,7 +26,7 @@ const mapRepMaxToEnum = (repMax: number | string | undefined): RepMaxType | unde
     case 5: return RepMaxType.FIVE_RM
     case 10: return RepMaxType.TEN_RM
     case 20: return RepMaxType.TWENTY_RM
-    default: return undefined
+    default: return RepMaxType.ONE_RM // Fallback to 1RM for unrecognized values
   }
 }
 
