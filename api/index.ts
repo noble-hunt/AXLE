@@ -6,9 +6,8 @@ let app: any = null;
 
 async function getApp() {
   if (!app) {
-    // Import the Express app from server/app.ts
-    // Vercel's file tracer will bundle all dependencies
-    const { default: expressApp } = await import('../server/app');
+    // Import the Express app with .js extension (required for Node ESM)
+    const { default: expressApp } = await import('../server/app.js');
     app = expressApp;
   }
   return app;

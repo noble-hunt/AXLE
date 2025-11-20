@@ -1,0 +1,144 @@
+Fix Vercel ERR_MODULE_NOT_FOUND in /api
+
+You are working on the AXLE repo that deploys to Vercel.
+In production, every /api/* route returns HTTP 500. The Vercel log shows:
+
+[SERVERLESS] Fatal error: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/app' imported from /var/task/api/index.js
+
+Goal: Fix the serverless API entrypoint so that, in the deployed bundle, /var/task/api/index.js successfully imports the Express app module and runs without ERR_MODULE_NOT_FOUND.
+
+Follow these steps exactly and report each step and file path you touch:
+
+1. Find the API entry file and Express app file
+
+Locate the file that Vercel uses for the /api serverless function. It is likely at the repo root in api/index.ts or api/index.js.
+
+Show its full path and current contents, especially the imports at the top.
+
+Locate the Express app definition used by that entrypoint (probably something like server/app.ts or src/server/app.ts).
+
+Show its full path.
+
+2. Fix the import path to use a valid relative JS path
+
+Right now, in production, Vercel is trying to import '/var/task/server/app'. That means the built api/index.js is attempting something like:
+
+import app from './server/app';
+
+
+or
+
+import app from '../server/app';
+
+
+or from an alias like 'server/app'.
+
+We must satisfy two constraints:
+
+The import must be a relative path from the built api/index.js file to the location of the built Express app file.
+
+If the project is ESM ("type": "module" in package.json), then the import should include the .js extension.
+
+Do the following:
+
+Decide where the built Express app file will live after compilation (see Step 3). Target something simple like server/app.js at the repo root.
+
+Update the TypeScript source for the API entrypoint to import that file using a relative path that will still be valid after compilation. For example, if the API entry file is api/index.ts and the server app source is server/app.ts at the repo root, then the TS import should be:
+
+For ESM runtime:
+
+import app from '../server/app.js';
+export default app;
+
+
+For CommonJS runtime:
+
+import app from '../server/app';
+export default app;
+
+
+Make sure the import does not rely on TS path aliases (like 'server/app' or '@/server/app'). It must be real relative filesystem paths.
+
+3. Ensure the server code is actually compiled into the build
+
+Right now Vercel says Cannot find module '/var/task/server/app', which likely means there is no compiled JS for the Express app. Fix this:
+
+Inspect package.json to see the current build script.
+
+If it only builds the frontend (e.g. vite build or next build), add a step to compile the server TypeScript with tsc.
+
+If there is no dedicated server TS config, create tsconfig.server.json (or similar) that:
+
+Includes the server files (like server/**/*.ts),
+
+Outputs JavaScript to a location that matches the import in Step 2, for example:
+
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".",
+    "module": "esnext",
+    "target": "ES2020"
+  },
+  "include": ["server/**/*.ts", "api/**/*.ts"]
+}
+
+
+Adjust paths as needed.
+
+Update the build script in package.json so that it:
+
+Runs the existing frontend build,
+
+Then runs the server build. Example:
+
+"scripts": {
+  "build": "vite build && tsc -p tsconfig.server.json"
+}
+
+
+Do not break existing behavior; extend it.
+
+Run the build in the Replit environment:
+
+npm run build
+
+
+After it completes, confirm that there is a compiled JS file for the server app at the path your import expects (e.g. server/app.js).
+
+4. Verify the compiled output
+
+After npm run build:
+
+Open the compiled api/index.js file that will run on Vercel.
+
+Show the import line where it pulls in the app.
+
+Confirm the path matches an actual JS file in the build output.
+
+Confirm that the target file (e.g. server/app.js) actually exists and exports the Express app correctly.
+
+If possible, run a local Node test from the repo root:
+
+node -e "import app from './api/index.js'; console.log('app type:', typeof app)"
+
+
+For CommonJS, adjust accordingly.
+
+5. Commit, push, and summarize
+
+Commit all changes and push to GitHub so that Vercel deploys a new build.
+
+In your final response, include:
+
+The before/after of the import line in the API entry file.
+
+The new or updated build script from package.json.
+
+The final paths of:
+
+The compiled API entry (api/index.js),
+
+The compiled server app (e.g. server/app.js).
+
+A note explaining why this fixes the ERR_MODULE_NOT_FOUND situation.
