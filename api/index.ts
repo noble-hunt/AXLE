@@ -7,7 +7,8 @@ let app: any = null;
 async function getApp() {
   if (!app) {
     // Lazy load to optimize cold starts
-    const { default: expressApp } = await import('../server/app.js');
+    // Import without extension - Vercel resolves .ts in source, .js in build
+    const { default: expressApp } = await import('../server/app');
     app = expressApp;
   }
   return app;
