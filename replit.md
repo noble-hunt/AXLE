@@ -4,6 +4,11 @@
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It allows users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation, focusing on business vision and market potential in the fitness technology sector.
 
 ## Recent Updates (November 2025)
+- **CRITICAL PRODUCTION FIX** (Nov 20): Resolved Vercel serverless function module resolution failures causing 100% API downtime
+  - **Root Cause**: Vercel's Node File Trace wasn't bundling local dependencies (`lib/`, `server/`, `shared/`)
+  - **Solution**: Deleted 12 duplicate API route files, configured `includeFiles` in `vercel.json`, fixed import path in `api/index.ts`
+  - **Status**: ✅ Build passing, architect-reviewed, ready for deployment
+  - **Next Step**: Deploy to Vercel and verify all endpoints work in production
 - **PR Projections Enhancement**: Fixed critical bug where bodybuilding movements (Bench Press, Deadlift, Bicep Curl, etc.) were not recognized as weight-based, preventing PR projection calculations. Now all powerlifting, Olympic weightlifting, AND bodybuilding movements correctly show Epley Formula-based rep max projections.
 - **Graph Visibility Improvements**: Enhanced visibility of workout analytics charts on stats overview page by increasing gradient opacity (30% → 80%) for workout activity graph and changing intensity levels graph to use accent color for better contrast.
 - **Data Layer Fix**: Implemented production-grade handling of PostgreSQL numeric-to-string conversion with parseFloat transformation and NaN validation across PR projection pipeline.
