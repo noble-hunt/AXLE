@@ -1,0 +1,329 @@
+[
+  {
+    "id": "warmup-bw-general",
+    "type": "warmup",
+    "durationMin": 8,
+    "minEquipment": [],
+    "contraindications": [],
+    "experience": "beginner",
+    "energySystems": [
+      "alactic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "push",
+      "core"
+    ],
+    "progressionKey": "general-warmup",
+    "variants": [
+      {
+        "name": "General Dynamic Warmup",
+        "movements": [
+          "arm circles",
+          "leg swings",
+          "bodyweight squats",
+          "lunges",
+          "inchworms",
+          "mountain climbers"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-bw-upper",
+    "type": "warmup",
+    "durationMin": 6,
+    "minEquipment": [],
+    "contraindications": [],
+    "experience": "beginner",
+    "energySystems": [
+      "alactic"
+    ],
+    "movementPatterns": [
+      "push",
+      "pull",
+      "core"
+    ],
+    "progressionKey": "upper-warmup",
+    "variants": [
+      {
+        "name": "Upper Body Activation",
+        "movements": [
+          "arm circles",
+          "shoulder dislocations",
+          "wall slides",
+          "cat-cow",
+          "push-up to downward dog"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-bw-lower",
+    "type": "warmup",
+    "durationMin": 6,
+    "minEquipment": [],
+    "contraindications": [],
+    "experience": "beginner",
+    "energySystems": [
+      "alactic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "locomotion"
+    ],
+    "progressionKey": "lower-warmup",
+    "variants": [
+      {
+        "name": "Lower Body Activation",
+        "movements": [
+          "leg swings",
+          "hip circles",
+          "walking lunges",
+          "glute bridges",
+          "calf raises"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-db-general",
+    "type": "warmup",
+    "durationMin": 8,
+    "minEquipment": [
+      "dumbbells"
+    ],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "alactic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "push",
+      "pull"
+    ],
+    "progressionKey": "db-warmup",
+    "variants": [
+      {
+        "name": "Dumbbell Movement Prep",
+        "movements": [
+          "db goblet squats",
+          "db romanian deadlifts",
+          "db shoulder press",
+          "db rows",
+          "db swings"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-db-upper",
+    "type": "warmup",
+    "durationMin": 6,
+    "minEquipment": [
+      "dumbbells"
+    ],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "alactic"
+    ],
+    "movementPatterns": [
+      "push",
+      "pull"
+    ],
+    "progressionKey": "db-upper-warmup",
+    "variants": [
+      {
+        "name": "DB Upper Body Prep",
+        "movements": [
+          "db arm circles",
+          "db external rotations",
+          "db press variations",
+          "db reverse flyes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-kb-flow",
+    "type": "warmup",
+    "durationMin": 8,
+    "minEquipment": [
+      "kettlebells"
+    ],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "alactic"
+    ],
+    "movementPatterns": [
+      "hinge",
+      "squat",
+      "pull",
+      "core"
+    ],
+    "progressionKey": "kb-warmup",
+    "variants": [
+      {
+        "name": "Kettlebell Flow",
+        "movements": [
+          "kb deadlifts",
+          "kb swings",
+          "kb goblet squats",
+          "kb halos",
+          "kb good mornings"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-bb-general",
+    "type": "warmup",
+    "durationMin": 10,
+    "minEquipment": [
+      "barbell"
+    ],
+    "contraindications": [],
+    "experience": "intermediate",
+    "energySystems": [
+      "alactic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "push",
+      "pull"
+    ],
+    "progressionKey": "bb-warmup",
+    "variants": [
+      {
+        "name": "Barbell Movement Prep",
+        "movements": [
+          "empty bar squats",
+          "RDLs",
+          "overhead press",
+          "bent rows",
+          "good mornings"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-rower",
+    "type": "warmup",
+    "durationMin": 5,
+    "minEquipment": [
+      "rowing machine"
+    ],
+    "contraindications": [],
+    "experience": "beginner",
+    "energySystems": [
+      "aerobicZ1"
+    ],
+    "movementPatterns": [
+      "pull",
+      "hinge"
+    ],
+    "progressionKey": "row-warmup",
+    "variants": [
+      {
+        "name": "Rowing Prep",
+        "movements": [
+          "easy rowing",
+          "rowing technique drills",
+          "stroke rate buildup"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-bike",
+    "type": "warmup",
+    "durationMin": 5,
+    "minEquipment": [
+      "bike"
+    ],
+    "contraindications": [],
+    "experience": "beginner",
+    "energySystems": [
+      "aerobicZ1"
+    ],
+    "movementPatterns": [
+      "locomotion"
+    ],
+    "progressionKey": "bike-warmup",
+    "variants": [
+      {
+        "name": "Bike Warmup",
+        "movements": [
+          "easy cycling",
+          "cadence buildup",
+          "standing/sitting intervals"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-run",
+    "type": "warmup",
+    "durationMin": 8,
+    "minEquipment": [],
+    "contraindications": [
+      "knee injury"
+    ],
+    "experience": "beginner",
+    "energySystems": [
+      "aerobicZ1"
+    ],
+    "movementPatterns": [
+      "locomotion"
+    ],
+    "progressionKey": "run-warmup",
+    "variants": [
+      {
+        "name": "Running Warmup",
+        "movements": [
+          "easy jog",
+          "high knees",
+          "butt kicks",
+          "leg swings",
+          "gradual pace increase"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warmup-mobility",
+    "type": "warmup",
+    "durationMin": 10,
+    "minEquipment": [],
+    "contraindications": [],
+    "experience": "beginner",
+    "energySystems": [
+      "alactic"
+    ],
+    "movementPatterns": [
+      "squat",
+      "hinge",
+      "core"
+    ],
+    "progressionKey": "mobility-warmup",
+    "variants": [
+      {
+        "name": "Mobility Flow",
+        "movements": [
+          "world's greatest stretch",
+          "deep squat holds",
+          "spinal waves",
+          "shoulder dislocations",
+          "hip flow"
+        ]
+      }
+    ]
+  }
+]

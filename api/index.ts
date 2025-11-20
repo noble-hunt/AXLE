@@ -6,9 +6,9 @@ let app: any = null;
 
 async function getApp() {
   if (!app) {
-    // Lazy load to optimize cold starts
-    // Import without extension - Vercel resolves .ts in source, .js in build
-    const { default: expressApp } = await import('../server/app');
+    // Import the pre-built ESM server bundle (built by build-server.cjs)
+    // This ensures all dependencies are bundled and import.meta is preserved
+    const { default: expressApp } = await import('../dist-server/app.js');
     app = expressApp;
   }
   return app;
@@ -27,12 +27,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error: any) {
     console.error('[SERVERLESS] Fatal error:', error);
+    console.error('[SERVERLESS] Error stack:', error?.stack);
+    console.error('[SERVERLESS] Current directory:', process.cwd());
+    console.error('[SERVERLESS] Module paths:', require.resolve.paths?.(''));
+    
     return res.status(500).json({
       ok: false,
       error: {
         code: 'SERVERLESS_ERROR',
         message: error?.message || 'Internal server error',
-        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+        stack: error?.stack,
+        cwd: process.cwd()
       }
     });
   }
