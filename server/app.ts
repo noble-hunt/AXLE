@@ -35,9 +35,58 @@ import debugAiRouter from "./routes/_debug-ai";
 initSentry();
 
 // Server startup guard - ensure required environment variables are present
-["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].forEach((k) => {
-  if (!process.env[k]) throw new Error(`Missing required server env: ${k}`);
-});
+const criticalEnvVars = [
+  "SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY"
+];
+
+const importantEnvVars = [
+  "DATABASE_URL" // Required for groups and advanced features
+];
+
+const missingCritical = criticalEnvVars.filter(k => !process.env[k]);
+const missingImportant = importantEnvVars.filter(k => !process.env[k]);
+
+if (missingCritical.length > 0) {
+  const errorMsg = `
+╔════════════════════════════════════════════════════════════════╗
+║ FATAL: Missing Critical Environment Variables                 ║
+╠════════════════════════════════════════════════════════════════╣
+║ The following CRITICAL environment variables are missing:     ║
+║ ${missingCritical.map(v => `• ${v}`).join('\n║ ')}                                ║
+║                                                                ║
+║ For Vercel deployment:                                        ║
+║ 1. Go to your Vercel project settings                         ║
+║ 2. Navigate to: Settings → Environment Variables              ║
+║ 3. Add the missing variables for Production environment       ║
+║ 4. Redeploy your application                                  ║
+║                                                                ║
+║ Get these values from your Supabase project settings          ║
+╚════════════════════════════════════════════════════════════════╝
+  `.trim();
+  
+  console.error(errorMsg);
+  throw new Error(`Missing critical environment variables: ${missingCritical.join(', ')}`);
+}
+
+if (missingImportant.length > 0) {
+  const warnMsg = `
+╔════════════════════════════════════════════════════════════════╗
+║ WARNING: Missing Important Environment Variables              ║
+╠════════════════════════════════════════════════════════════════╣
+║ The following IMPORTANT environment variables are missing:    ║
+║ ${missingImportant.map(v => `• ${v}`).join('\n║ ')}                                ║
+║                                                                ║
+║ Some features may be limited:                                 ║
+║ • Groups functionality requires DATABASE_URL                  ║
+║ • Advanced analytics require DATABASE_URL                     ║
+║                                                                ║
+║ See PRODUCTION_DEPLOYMENT.md for setup instructions           ║
+╚════════════════════════════════════════════════════════════════╝
+  `.trim();
+  
+  console.warn(warnMsg);
+}
 
 const app = express();
 

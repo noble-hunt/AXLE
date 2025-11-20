@@ -1,4 +1,3 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { db } from "../db";
 import { 
   groups, 
@@ -12,6 +11,14 @@ import {
   profiles 
 } from "@shared/schema";
 import { eq, and, desc, asc, gte, sql } from "drizzle-orm";
+
+// Helper to ensure database is available
+function ensureDb() {
+  if (!db) {
+    throw new Error('Groups feature unavailable - DATABASE_URL not configured. This feature requires direct database access.');
+  }
+  return db;
+}
 
 export interface CreateGroupParams {
   name: string;
@@ -40,16 +47,27 @@ export interface RsvpParams {
 
 // Set user context for RLS
 async function setUserContext(userId: string) {
-  // Use string interpolation for session variables as they don't support parameterization
-  await db.execute(sql.raw(`SET LOCAL app.user_id = '${userId}'`));
+  const database = ensureDb();
+  try {
+    // Use string interpolation for session variables as they don't support parameterization
+    await database.execute(sql.raw(`SET LOCAL app.user_id = '${userId}'`));
+  } catch (error) {
+    console.error('[DAL:groups] Failed to set user context for RLS:', {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+      hint: 'This may indicate a database connection issue or missing DATABASE_URL environment variable'
+    });
+    throw new Error(`Database connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 // CREATE GROUP + ADD CREATOR AS OWNER
 export async function createGroup(userId: string, params: CreateGroupParams) {
+  const database = ensureDb();
   // Use Drizzle with RLS for group creation
   await setUserContext(userId);
   
-  const groupResult = await db
+  const groupResult = await database
     .insert(groups)
     .values({
       name: params.name,
@@ -65,7 +83,7 @@ export async function createGroup(userId: string, params: CreateGroupParams) {
   }
 
   // Add creator as owner member
-  await db
+  await database
     .insert(groupMembers)
     .values({
       groupId: groupResult[0].id,
@@ -78,34 +96,46 @@ export async function createGroup(userId: string, params: CreateGroupParams) {
 
 // GET GROUPS I BELONG TO (with role)
 export async function getUserGroups(userId: string) {
-  await setUserContext(userId);
+  const database = ensureDb();
+  try {
+    await setUserContext(userId);
 
-  const userGroups = await db
-    .select({
-      id: groups.id,
-      name: groups.name,
-      description: groups.description,
-      photoUrl: groups.photoUrl,
-      isPublic: groups.isPublic,
-      ownerId: groups.ownerId,
-      createdAt: groups.createdAt,
-      role: groupMembers.role,
-      joinedAt: groupMembers.joinedAt,
-    })
-    .from(groups)
-    .innerJoin(groupMembers, eq(groups.id, groupMembers.groupId))
-    .where(eq(groupMembers.userId, userId))
-    .orderBy(desc(groupMembers.joinedAt));
+    const userGroups = await database
+      .select({
+        id: groups.id,
+        name: groups.name,
+        description: groups.description,
+        photoUrl: groups.photoUrl,
+        isPublic: groups.isPublic,
+        ownerId: groups.ownerId,
+        createdAt: groups.createdAt,
+        role: groupMembers.role,
+        joinedAt: groupMembers.joinedAt,
+      })
+      .from(groups)
+      .innerJoin(groupMembers, eq(groups.id, groupMembers.groupId))
+      .where(eq(groupMembers.userId, userId))
+      .orderBy(desc(groupMembers.joinedAt));
 
-  return userGroups;
+    return userGroups;
+  } catch (error) {
+    console.error('[DAL:groups:getUserGroups] Failed to fetch user groups:', {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      hint: 'Check DATABASE_URL, SUPABASE_URL, and SUPABASE_SERVICE_ROLE_KEY environment variables'
+    });
+    throw error;
+  }
 }
 
 // MODERATION: Delete post from group (owners/admins only)
 export async function deleteGroupPost(userId: string, groupId: string, postId: string) {
+  const database = ensureDb();
   await setUserContext(userId);
   
   // Check if user is owner or admin
-  const membership = await db
+  const membership = await database
     .select({ role: groupMembers.role })
     .from(groupMembers)
     .where(
@@ -120,7 +150,7 @@ export async function deleteGroupPost(userId: string, groupId: string, postId: s
   }
   
   // Delete group_posts mapping (keep canonical post if cross-posted elsewhere)
-  const deleted = await db
+  const deleted = await database
     .delete(groupPosts)
     .where(
       and(
@@ -135,7 +165,7 @@ export async function deleteGroupPost(userId: string, groupId: string, postId: s
   }
   
   // Also delete reactions for this post in this group
-  await db
+  await database
     .delete(groupReactions)
     .where(
       and(
@@ -149,10 +179,11 @@ export async function deleteGroupPost(userId: string, groupId: string, postId: s
 
 // MODERATION: Remove member from group (owners/admins only)
 export async function removeMemberFromGroup(userId: string, groupId: string, targetUserId: string) {
+  const database = ensureDb();
   await setUserContext(userId);
   
   // Check if user is owner or admin
-  const membership = await db
+  const membership = await database
     .select({ role: groupMembers.role })
     .from(groupMembers)
     .where(
@@ -167,7 +198,7 @@ export async function removeMemberFromGroup(userId: string, groupId: string, tar
   }
   
   // Can't remove the owner
-  const targetMembership = await db
+  const targetMembership = await database
     .select({ role: groupMembers.role })
     .from(groupMembers) 
     .where(
@@ -182,7 +213,7 @@ export async function removeMemberFromGroup(userId: string, groupId: string, tar
   }
   
   // Remove member
-  const removed = await db
+  const removed = await database
     .delete(groupMembers)
     .where(
       and(
@@ -201,10 +232,11 @@ export async function removeMemberFromGroup(userId: string, groupId: string, tar
 
 // GET GROUP PROFILE + MEMBERSHIP ROLE + BASIC COUNTS
 export async function getGroupProfile(userId: string, groupId: string) {
+  const database = ensureDb();
   await setUserContext(userId);
 
   // Get group info and user's membership
-  const groupInfo = await db
+  const groupInfo = await database
     .select({
       id: groups.id,
       name: groups.name,
@@ -231,13 +263,13 @@ export async function getGroupProfile(userId: string, groupId: string) {
   }
 
   // Get member count
-  const memberCount = await db
+  const memberCount = await database
     .select({ count: sql<number>`count(*)` })
     .from(groupMembers)
     .where(eq(groupMembers.groupId, groupId));
 
   // Get post count
-  const postCount = await db
+  const postCount = await database
     .select({ count: sql<number>`count(*)` })
     .from(groupPosts)
     .where(eq(groupPosts.groupId, groupId));
@@ -251,10 +283,11 @@ export async function getGroupProfile(userId: string, groupId: string) {
 
 // JOIN GROUP (requires valid invite for private groups)
 export async function joinGroup(userId: string, groupId: string, inviteCode?: string) {
+  const database = ensureDb();
   await setUserContext(userId);
 
   // Check if group exists and get its info
-  const group = await db
+  const group = await database
     .select()
     .from(groups)
     .where(eq(groups.id, groupId))
@@ -265,7 +298,7 @@ export async function joinGroup(userId: string, groupId: string, inviteCode?: st
   }
 
   // Check if already a member
-  const existingMember = await db
+  const existingMember = await database
     .select()
     .from(groupMembers)
     .where(
@@ -287,7 +320,7 @@ export async function joinGroup(userId: string, groupId: string, inviteCode?: st
     }
 
     // Validate invite code (admin operation)
-    const invite = await db
+    const invite = await database
       .select()
       .from(groupInvites)
       .where(
@@ -305,7 +338,7 @@ export async function joinGroup(userId: string, groupId: string, inviteCode?: st
   }
 
   // Add user as member
-  const newMember = await db
+  const newMember = await database
     .insert(groupMembers)
     .values({
       groupId,
@@ -319,10 +352,11 @@ export async function joinGroup(userId: string, groupId: string, inviteCode?: st
 
 // LEAVE GROUP (owner transfer required if last owner)
 export async function leaveGroup(userId: string, groupId: string) {
+  const database = ensureDb();
   await setUserContext(userId);
 
   // Check current membership
-  const membership = await db
+  const membership = await database
     .select()
     .from(groupMembers)
     .where(
@@ -339,7 +373,7 @@ export async function leaveGroup(userId: string, groupId: string) {
 
   // If user is owner, check if they're the last owner
   if (membership[0].role === "owner") {
-    const ownerCount = await db
+    const ownerCount = await database
       .select({ count: sql<number>`count(*)` })
       .from(groupMembers)
       .where(
@@ -355,7 +389,7 @@ export async function leaveGroup(userId: string, groupId: string) {
   }
 
   // Remove membership
-  await db
+  await database
     .delete(groupMembers)
     .where(
       and(
@@ -369,8 +403,9 @@ export async function leaveGroup(userId: string, groupId: string) {
 
 // CREATE INVITE (admin/owner only)
 export async function createGroupInvite(userId: string, groupId: string, invitedEmail?: string) {
+  const database = ensureDb();
   // Check if user is admin/owner (admin operation - no RLS needed)
-  const membership = await db
+  const membership = await database
     .select()
     .from(groupMembers)
     .where(
@@ -388,7 +423,7 @@ export async function createGroupInvite(userId: string, groupId: string, invited
   // Generate unique invite code
   const code = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
-  const invite = await db
+  const invite = await database
     .insert(groupInvites)
     .values({
       groupId,
@@ -403,8 +438,9 @@ export async function createGroupInvite(userId: string, groupId: string, invited
 
 // ACCEPT INVITE (creates membership + referral)
 export async function acceptInvite(userId: string, inviteCode: string) {
+  const database = ensureDb();
   // Find and validate invite (admin operation)
-  const invite = await db
+  const invite = await database
     .select()
     .from(groupInvites)
     .where(
@@ -422,7 +458,7 @@ export async function acceptInvite(userId: string, inviteCode: string) {
   await setUserContext(userId);
 
   // Check if already a member
-  const existingMember = await db
+  const existingMember = await database
     .select()
     .from(groupMembers)
     .where(
@@ -438,7 +474,7 @@ export async function acceptInvite(userId: string, inviteCode: string) {
   }
 
   // Add membership
-  const membership = await db
+  const membership = await database
     .insert(groupMembers)
     .values({
       groupId: invite[0].groupId,
@@ -448,7 +484,7 @@ export async function acceptInvite(userId: string, inviteCode: string) {
     .returning();
 
   // Create referral record
-  await db
+  await database
     .insert(referrals)
     .values({
       referrerUserId: invite[0].createdBy,
@@ -464,10 +500,11 @@ export async function acceptInvite(userId: string, inviteCode: string) {
 
 // CREATE POST (cross-post to multiple groups)
 export async function createPost(userId: string, params: CreatePostParams) {
+  const database = ensureDb();
   await setUserContext(userId);
 
   // Create canonical post
-  const post = await db
+  const post = await database
     .insert(posts)
     .values({
       userId,
@@ -482,7 +519,7 @@ export async function createPost(userId: string, params: CreatePostParams) {
 
   // Cross-post to each group
   const groupPostPromises = params.groupIds.map(groupId =>
-    db
+    database
       .insert(groupPosts)
       .values({
         groupId,
@@ -502,6 +539,7 @@ export async function getGroupFeed(
   groupId: string,
   options: { after?: string; limit?: number } = {}
 ) {
+  const database = ensureDb();
   const { after, limit = 30 } = options;
 
   await setUserContext(userId);
@@ -514,7 +552,7 @@ export async function getGroupFeed(
       )
     : eq(groupPosts.groupId, groupId);
 
-  const query = db
+  const query = database
     .select({
       id: posts.id,
       userId: posts.userId,
@@ -541,10 +579,11 @@ export async function getGroupFeed(
 
 // ADD/REMOVE REACTION (toggle)
 export async function toggleReaction(userId: string, params: ReactionParams) {
+  const database = ensureDb();
   await setUserContext(userId);
 
   // Check if reaction already exists
-  const existing = await db
+  const existing = await database
     .select()
     .from(groupReactions)
     .where(
@@ -559,7 +598,7 @@ export async function toggleReaction(userId: string, params: ReactionParams) {
 
   if (existing[0]) {
     // Remove reaction
-    await db
+    await database
       .delete(groupReactions)
       .where(
         and(
@@ -572,7 +611,7 @@ export async function toggleReaction(userId: string, params: ReactionParams) {
     return { action: "removed" };
   } else {
     // Add reaction
-    const reaction = await db
+    const reaction = await database
       .insert(groupReactions)
       .values({
         groupId: params.groupId,
@@ -587,9 +626,10 @@ export async function toggleReaction(userId: string, params: ReactionParams) {
 
 // GET REACTION SUMMARY FOR POST
 export async function getReactionSummary(userId: string, groupId: string, postId: string) {
+  const database = ensureDb();
   await setUserContext(userId);
 
-  const reactions = await db
+  const reactions = await database
     .select({
       emoji: groupReactions.emoji,
       count: sql<number>`count(*)`,
@@ -609,10 +649,11 @@ export async function getReactionSummary(userId: string, groupId: string, postId
 
 // RSVP TO EVENT POST
 export async function upsertRsvp(userId: string, params: RsvpParams) {
+  const database = ensureDb();
   await setUserContext(userId);
 
   // Check if RSVP already exists
-  const existing = await db
+  const existing = await database
     .select()
     .from(groupEventRsvps)
     .where(
@@ -626,7 +667,7 @@ export async function upsertRsvp(userId: string, params: RsvpParams) {
 
   if (existing[0]) {
     // Update existing RSVP
-    const updated = await db
+    const updated = await database
       .update(groupEventRsvps)
       .set({ status: params.status })
       .where(
@@ -640,7 +681,7 @@ export async function upsertRsvp(userId: string, params: RsvpParams) {
     return { action: "updated", rsvp: updated[0] };
   } else {
     // Create new RSVP
-    const rsvp = await db
+    const rsvp = await database
       .insert(groupEventRsvps)
       .values({
         groupId: params.groupId,
@@ -655,9 +696,10 @@ export async function upsertRsvp(userId: string, params: RsvpParams) {
 
 // REMOVE RSVP
 export async function removeRsvp(userId: string, groupId: string, postId: string) {
+  const database = ensureDb();
   await setUserContext(userId);
 
-  await db
+  await database
     .delete(groupEventRsvps)
     .where(
       and(
@@ -672,9 +714,10 @@ export async function removeRsvp(userId: string, groupId: string, postId: string
 
 // GET RSVPS FOR POST
 export async function getPostRsvps(userId: string, groupId: string, postId: string) {
+  const database = ensureDb();
   await setUserContext(userId);
 
-  const rsvps = await db
+  const rsvps = await database
     .select({
       userId: groupEventRsvps.userId,
       status: groupEventRsvps.status,
@@ -706,10 +749,11 @@ export async function getPostRsvps(userId: string, groupId: string, postId: stri
 
 // DELETE GROUP (owners only)
 export async function deleteGroup(userId: string, groupId: string) {
+  const database = ensureDb();
   await setUserContext(userId);
 
   // Check if user is owner
-  const membership = await db
+  const membership = await database
     .select({ role: groupMembers.role })
     .from(groupMembers)
     .where(
@@ -729,7 +773,7 @@ export async function deleteGroup(userId: string, groupId: string) {
   }
 
   // Perform all deletions in a transaction for data integrity
-  const result = await db.transaction(async (tx) => {
+  const result = await database.transaction(async (tx) => {
     // Delete all related data (cascade deletion)
     // Order matters: delete child records first, then parent records
     
@@ -785,10 +829,11 @@ export async function updateGroup(userId: string, groupId: string, updates: {
   description?: string;
   photoUrl?: string;
 }) {
+  const database = ensureDb();
   await setUserContext(userId);
   
   // Verify user is owner
-  const membership = await db
+  const membership = await database
     .select()
     .from(groupMembers)
     .where(and(
@@ -810,7 +855,7 @@ export async function updateGroup(userId: string, groupId: string, updates: {
     throw new Error('No fields to update');
   }
 
-  const updatedGroup = await db
+  const updatedGroup = await database
     .update(groups)
     .set(updateData)
     .where(eq(groups.id, groupId))
@@ -825,10 +870,11 @@ export async function updateGroup(userId: string, groupId: string, updates: {
 
 // GET GROUP MEMBERS - all members can see this
 export async function getGroupMembers(userId: string, groupId: string) {
+  const database = ensureDb();
   await setUserContext(userId);
   
   // Verify user is a member
-  const membership = await db
+  const membership = await database
     .select()
     .from(groupMembers)
     .where(and(
@@ -840,7 +886,7 @@ export async function getGroupMembers(userId: string, groupId: string) {
     throw new Error('Only group members can view member list');
   }
 
-  const members = await db
+  const members = await database
     .select({
       userId: groupMembers.userId,
       role: groupMembers.role,
@@ -860,10 +906,11 @@ export async function getGroupMembers(userId: string, groupId: string) {
 
 // ADD MEMBER TO GROUP - owners/admins only
 export async function addMemberToGroup(userId: string, groupId: string, memberUserId: string, role: string = "member") {
+  const database = ensureDb();
   await setUserContext(userId);
   
   // Verify user is owner or admin
-  const membership = await db
+  const membership = await database
     .select()
     .from(groupMembers)
     .where(and(
@@ -877,7 +924,7 @@ export async function addMemberToGroup(userId: string, groupId: string, memberUs
   }
 
   // Check if member already exists
-  const existingMember = await db
+  const existingMember = await database
     .select()
     .from(groupMembers)
     .where(and(
@@ -890,7 +937,7 @@ export async function addMemberToGroup(userId: string, groupId: string, memberUs
   }
 
   // Add the member
-  const newMember = await db
+  const newMember = await database
     .insert(groupMembers)
     .values({
       groupId: groupId,

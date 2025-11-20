@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import os from 'node:os';
+import { pool } from '../db';
 
 export const router = Router();
 
-router.get('/', (_req, res) => {
+router.get('/', async (_req, res) => {
   // Check critical environment variables (without exposing values)
   const checkEnvVar = (name: string): 'configured' | 'missing' => {
     return process.env[name] ? 'configured' : 'missing';
@@ -11,7 +12,6 @@ router.get('/', (_req, res) => {
 
   // Categorize environment variables by importance
   const criticalVars = {
-    DATABASE_URL: checkEnvVar('DATABASE_URL'),
     SUPABASE_URL: checkEnvVar('SUPABASE_URL'),
     SUPABASE_SERVICE_ROLE_KEY: checkEnvVar('SUPABASE_SERVICE_ROLE_KEY'),
   };
@@ -23,6 +23,7 @@ router.get('/', (_req, res) => {
   };
 
   const importantVars = {
+    DATABASE_URL: checkEnvVar('DATABASE_URL'),  // Required for Groups & Advanced features
     OPENAI_API_KEY: checkEnvVar('OPENAI_API_KEY'),
   };
 
@@ -76,16 +77,43 @@ router.get('/', (_req, res) => {
     .filter(([_, status]) => status === 'missing')
     .map(([name]) => name);
 
-  // Determine overall health status
-  let status: 'healthy' | 'degraded' | 'critical';
+  // Initialize warnings array
   const warnings: string[] = [];
 
-  if (missingCritical.length > 0) {
+  // Test database connectivity
+  let dbStatus: 'healthy' | 'unhealthy' | 'unconfigured' = 'unconfigured';
+  let dbMessage = '';
+  let dbError = null;
+  
+  if (process.env.DATABASE_URL) {
+    try {
+      const dbTest = await pool.query('SELECT NOW() as current_time');
+      dbStatus = 'healthy';
+      dbMessage = `Connected - server time: ${dbTest.rows[0]?.current_time}`;
+    } catch (error) {
+      dbStatus = 'unhealthy';
+      dbMessage = 'Connection failed';
+      dbError = error instanceof Error ? error.message : String(error);
+      warnings.push(`❌ Database connection failed: ${dbError}`);
+    }
+  } else {
+    dbStatus = 'unconfigured';
+    dbMessage = 'DATABASE_URL not configured';
+  }
+
+  // Determine overall health status
+  let status: 'healthy' | 'degraded' | 'critical';
+
+  if (missingCritical.length > 0 || dbStatus === 'unhealthy') {
     status = 'critical';
-    warnings.push(`❌ CRITICAL: ${missingCritical.length} critical variable(s) missing - app may crash: ${missingCritical.join(', ')}`);
-  } else if (missingRequired.length > 0) {
+    if (missingCritical.length > 0) {
+      warnings.push(`❌ CRITICAL: ${missingCritical.length} critical variable(s) missing - app may crash: ${missingCritical.join(', ')}`);
+    }
+  } else if (missingRequired.length > 0 || dbStatus === 'unconfigured') {
     status = 'degraded';
-    warnings.push(`⚠️ ${missingRequired.length} required variable(s) missing - core features unavailable: ${missingRequired.join(', ')}`);
+    if (missingRequired.length > 0) {
+      warnings.push(`⚠️ ${missingRequired.length} required variable(s) missing - core features unavailable: ${missingRequired.join(', ')}`);
+    }
   } else if (missingImportant.length > 0) {
     status = 'degraded';
     warnings.push(`⚠️ ${missingImportant.length} important variable(s) missing - some features limited: ${missingImportant.join(', ')}`);
@@ -116,6 +144,11 @@ router.get('/', (_req, res) => {
         important: missingImportant,
       },
       warnings
+    },
+    database: {
+      status: dbStatus,
+      message: dbMessage,
+      ...(dbError && { error: dbError })
     }
   });
 });

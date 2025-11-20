@@ -1,7 +1,5 @@
 import { supabaseAdmin } from "../lib/supabaseAdmin";
-import pg from 'pg';
-
-const { Client } = pg;
+import { pool } from '../db';
 
 // Helper function to map database fields (snake_case) to frontend fields (camelCase)
 function mapProfileToFrontend(dbProfile: any) {
@@ -82,10 +80,15 @@ export async function updateProfileProviders(userId: string, provider: string) {
 }
 
 export async function getProfile(userId: string) {
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
-  
+  if (!process.env.DATABASE_URL) {
+    console.error('[DAL:profiles:getProfile] FATAL: DATABASE_URL environment variable is not set');
+    throw new Error('Database connection not configured. DATABASE_URL environment variable is missing.');
+  }
+
+  let client;
   try {
-    await client.connect();
+    // Use pool to get a client (automatic connection management)
+    client = await pool.connect();
     
     // Query with explicit column selection to ensure PostgreSQL arrays are returned correctly
     const result = await client.query(
@@ -104,9 +107,16 @@ export async function getProfile(userId: string) {
     
     return mapProfileToFrontend(result.rows[0]);
   } catch (error: any) {
+    console.error('[DAL:profiles:getProfile] Failed to fetch profile:', {
+      userId,
+      error: error.message,
+      code: error.code,
+      hint: 'Check DATABASE_URL environment variable and database connection. Ensure SSL is configured for production.',
+      stack: error.stack
+    });
     throw new Error(`Failed to get profile: ${error.message}`);
   } finally {
-    await client.end();
+    if (client) client.release(); // Release client back to pool
   }
 }
 
@@ -119,6 +129,11 @@ export async function updateProfile(userId: string, updates: {
   preferredUnit?: string;
   favoriteMovements?: string[];
 }) {
+  if (!process.env.DATABASE_URL) {
+    console.error('[DAL:profiles:updateProfile] FATAL: DATABASE_URL environment variable is not set');
+    throw new Error('Database connection not configured. DATABASE_URL environment variable is missing.');
+  }
+
   // Build SET clauses for SQL update
   const setClauses: string[] = [];
   const values: any[] = [];
@@ -226,9 +241,8 @@ export async function updateProfile(userId: string, updates: {
       throw new Error(`Failed to fetch profile for update: ${queryError.message}`);
     }
 
-    // Try direct SQL via connection
-    const client = new Client({ connectionString: process.env.DATABASE_URL });
-    await client.connect();
+    // Try direct SQL via pool
+    const client = await pool.connect();
 
     try {
       const result = await client.query(updateQuery, values);
@@ -251,14 +265,14 @@ export async function updateProfile(userId: string, updates: {
         const insertQuery = `INSERT INTO profiles (${insertCols.join(', ')}) VALUES (${placeholders}) RETURNING *;`;
         
         const insertResult = await client.query(insertQuery, insertVals);
-        await client.end();
+        client.release();
         return mapProfileToFrontend(insertResult.rows[0]);
       }
 
-      await client.end();
+      client.release();
       return mapProfileToFrontend(result.rows[0]);
     } catch (pgError: any) {
-      await client.end();
+      client.release();
       throw new Error(`Failed to update profile via direct connection: ${pgError.message}`);
     }
   }

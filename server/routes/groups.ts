@@ -1,4 +1,4 @@
-import { Express } from "express";
+import { Express, Response } from "express";
 import { requireAuth, AuthenticatedRequest } from "../middleware/requireAuth";
 import { reactionRateLimit } from "../middleware/reactionRateLimit";
 import {
@@ -28,6 +28,34 @@ import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../da
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
 import { z } from "zod";
 
+// Helper to handle database unavailability errors
+function handleGroupError(res: Response, error: unknown, defaultMessage: string): Response | void {
+  console.error(`[Groups API] ${defaultMessage}:`, error);
+  
+  // Check if error is due to missing DATABASE_URL
+  if (error instanceof Error && error.message.includes('Groups feature unavailable')) {
+    return res.status(503).json({ 
+      message: "Groups feature unavailable",
+      error: "This feature requires DATABASE_URL to be configured. Please contact your administrator.",
+      feature: "groups"
+    });
+  }
+  
+  // Handle Zod validation errors
+  if (error instanceof z.ZodError) {
+    return res.status(400).json({ 
+      message: "Invalid input", 
+      errors: error.errors 
+    });
+  }
+  
+  // Generic error
+  return res.status(500).json({ 
+    message: defaultMessage,
+    error: error instanceof Error ? error.message : "Unknown error"
+  });
+}
+
 export function registerGroupRoutes(app: Express) {
   
   // GET /api/groups → groups I belong to (with role) - matches frontend expectation
@@ -39,11 +67,7 @@ export function registerGroupRoutes(app: Express) {
       const groups = await getUserGroups(userId);
       res.json(groups);
     } catch (error) {
-      console.error("Error fetching user groups:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch groups",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to fetch groups");
     }
   });
 
@@ -65,17 +89,7 @@ export function registerGroupRoutes(app: Express) {
 
       res.status(201).json(group);
     } catch (error) {
-      console.error("Error creating group:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid input", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ 
-        message: "Failed to create group",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to create group");
     }
   });
 
@@ -88,11 +102,7 @@ export function registerGroupRoutes(app: Express) {
       const groups = await getUserGroups(userId);
       res.json(groups);
     } catch (error) {
-      console.error("Error fetching user groups:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch groups",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to fetch groups");
     }
   });
 
@@ -111,11 +121,7 @@ export function registerGroupRoutes(app: Express) {
 
       res.json(groupProfile);
     } catch (error) {
-      console.error("Error fetching group profile:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch group profile",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to fetch group profile");
     }
   });
 
@@ -130,11 +136,7 @@ export function registerGroupRoutes(app: Express) {
       const membership = await joinGroup(userId, groupId, inviteCode);
       res.status(201).json(membership);
     } catch (error) {
-      console.error("Error joining group:", error);
-      res.status(500).json({ 
-        message: "Failed to join group",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to join group");
     }
   });
 
@@ -148,11 +150,7 @@ export function registerGroupRoutes(app: Express) {
       const result = await leaveGroup(userId, groupId);
       res.json(result);
     } catch (error) {
-      console.error("Error leaving group:", error);
-      res.status(500).json({ 
-        message: "Failed to leave group",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to leave group");
     }
   });
 
@@ -174,15 +172,7 @@ export function registerGroupRoutes(app: Express) {
       const updatedGroup = await updateGroup(userId, groupId, validatedData);
       res.json(updatedGroup);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid input", errors: error.errors });
-      }
-      console.error("Error updating group:", error);
-      const statusCode = error instanceof Error && error.message.includes('Only group owners') ? 403 : 500;
-      res.status(statusCode).json({ 
-        message: "Failed to update group",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to update group");
     }
   });
 
@@ -196,12 +186,7 @@ export function registerGroupRoutes(app: Express) {
       const members = await getGroupMembers(userId, groupId);
       res.json(members);
     } catch (error) {
-      console.error("Error fetching group members:", error);
-      const statusCode = error instanceof Error && error.message.includes('Only group members') ? 403 : 500;
-      res.status(statusCode).json({ 
-        message: "Failed to fetch group members",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to fetch group members");
     }
   });
 
@@ -222,16 +207,7 @@ export function registerGroupRoutes(app: Express) {
       const newMember = await addMemberToGroup(userId, groupId, validatedData.userId, validatedData.role);
       res.status(201).json(newMember);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid input", errors: error.errors });
-      }
-      console.error("Error adding member:", error);
-      const statusCode = error instanceof Error && 
-        (error.message.includes('Only group owners') || error.message.includes('already a member')) ? 403 : 500;
-      res.status(statusCode).json({ 
-        message: "Failed to add member",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to add member");
     }
   });
 
@@ -246,11 +222,7 @@ export function registerGroupRoutes(app: Express) {
       const invite = await createGroupInvite(userId, groupId, invitedEmail);
       res.status(201).json(invite);
     } catch (error) {
-      console.error("Error creating invite:", error);
-      res.status(500).json({ 
-        message: "Failed to create invite",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to create invite");
     }
   });
 
@@ -268,11 +240,7 @@ export function registerGroupRoutes(app: Express) {
       const result = await acceptInvite(userId, code);
       res.json(result);
     } catch (error) {
-      console.error("Error accepting invite:", error);
-      res.status(500).json({ 
-        message: "Failed to accept invite",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to accept invite");
     }
   });
 
@@ -311,17 +279,7 @@ export function registerGroupRoutes(app: Express) {
       
       res.status(201).json(post);
     } catch (error) {
-      console.error("Error creating post:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid input", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ 
-        message: "Failed to create post",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to create post");
     }
   });
 
@@ -341,11 +299,7 @@ export function registerGroupRoutes(app: Express) {
       const feed = await getGroupFeed(userId, groupId, options);
       res.json(feed);
     } catch (error) {
-      console.error("Error fetching group feed:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch group feed",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to fetch group feed");
     }
   });
 
@@ -376,17 +330,7 @@ export function registerGroupRoutes(app: Express) {
       
       res.json(result);
     } catch (error) {
-      console.error("Error toggling reaction:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid input", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ 
-        message: "Failed to toggle reaction",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to toggle reaction");
     }
   });
 
@@ -417,17 +361,7 @@ export function registerGroupRoutes(app: Express) {
       
       res.json(result);
     } catch (error) {
-      console.error("Error removing reaction:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          message: "Invalid input", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ 
-        message: "Failed to remove reaction",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to remove reaction");
     }
   });
 
@@ -451,11 +385,7 @@ export function registerGroupRoutes(app: Express) {
       const reactions = await getReactionSummary(userId, groupId, String(postId));
       res.json(reactions);
     } catch (error) {
-      console.error("Error fetching reaction summary:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch reaction summary",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to fetch reaction summary");
     }
   });
 
@@ -478,11 +408,7 @@ export function registerGroupRoutes(app: Express) {
       const result = await upsertRsvp(userId, { groupId, postId, status });
       res.json(result);
     } catch (error) {
-      console.error("Error updating RSVP:", error);
-      res.status(500).json({ 
-        message: "Failed to update RSVP",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to update RSVP");
     }
   });
 
@@ -496,11 +422,7 @@ export function registerGroupRoutes(app: Express) {
       const result = await removeRsvp(userId, groupId, postId);
       res.json(result);
     } catch (error) {
-      console.error("Error removing RSVP:", error);
-      res.status(500).json({ 
-        message: "Failed to remove RSVP",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to remove RSVP");
     }
   });
 
@@ -514,11 +436,7 @@ export function registerGroupRoutes(app: Express) {
       const rsvps = await getPostRsvps(userId, groupId, postId);
       res.json(rsvps);
     } catch (error) {
-      console.error("Error fetching RSVPs:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch RSVPs",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to fetch RSVPs");
     }
   });
 
@@ -530,11 +448,7 @@ export function registerGroupRoutes(app: Express) {
       const achievements = await getGroupAchievements(groupId);
       res.json(achievements);
     } catch (error) {
-      console.error("Error fetching group achievements:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch group achievements",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to fetch group achievements");
     }
   });
 
@@ -548,12 +462,7 @@ export function registerGroupRoutes(app: Express) {
       const result = await deleteGroupPost(userId, groupId, postId);
       res.json(result);
     } catch (error) {
-      console.error("Error deleting group post:", error);
-      const statusCode = error instanceof Error && error.message.includes('Only owners') ? 403 : 500;
-      res.status(statusCode).json({ 
-        message: "Failed to delete post",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to delete post");
     }
   });
 
@@ -567,12 +476,7 @@ export function registerGroupRoutes(app: Express) {
       const result = await removeMemberFromGroup(currentUserId, groupId, targetUserId);
       res.json(result);
     } catch (error) {
-      console.error("Error removing group member:", error);
-      const statusCode = error instanceof Error && error.message.includes('Only owners') ? 403 : 500;
-      res.status(statusCode).json({ 
-        message: "Failed to remove member",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to remove member");
     }
   });
 
@@ -586,12 +490,7 @@ export function registerGroupRoutes(app: Express) {
       const result = await deleteGroup(userId, groupId);
       res.json(result);
     } catch (error) {
-      console.error("Error deleting group:", error);
-      const statusCode = error instanceof Error && error.message.includes('Only group owners') ? 403 : 500;
-      res.status(statusCode).json({ 
-        message: "Failed to delete group",
-        error: error instanceof Error ? error.message : "Unknown error"
-      });
+      handleGroupError(res, error, "Failed to delete group");
     }
   });
 
