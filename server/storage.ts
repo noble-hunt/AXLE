@@ -88,6 +88,12 @@ export class MemStorage implements IStorage {
       latitude: insertUser.latitude ?? null,
       longitude: insertUser.longitude ?? null,
       timezone: insertUser.timezone ?? null,
+      reportFrequency: insertUser.reportFrequency ?? 'weekly',
+      reportWeeklyDay: insertUser.reportWeeklyDay ?? null,
+      reportMonthlyDay: insertUser.reportMonthlyDay ?? null,
+      reportDeliveryTime: insertUser.reportDeliveryTime ?? '09:00:00',
+      enableNotifications: insertUser.enableNotifications ?? true,
+      enableEmail: insertUser.enableEmail ?? false,
       createdAt: new Date()
     };
     this.users.set(userId, user);

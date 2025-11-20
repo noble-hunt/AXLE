@@ -19,7 +19,8 @@ export function mapWorkoutToFrontend(workout: any) {
     createdAt: workout.created_at,
     totalActiveMinutes: workout.total_active_minutes,
     intensity: workout.intensity,
-    energySystem: workout.energy_system
+    energySystem: workout.energy_system,
+    generationId: workout.generation_id
   };
 }
 

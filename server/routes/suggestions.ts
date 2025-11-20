@@ -357,6 +357,15 @@ export function registerSuggestionRoutes(app: Express) {
 
       const dbWorkout = await insertWorkout(workoutData);
 
+      // Null check - insertWorkout can return null if DB insert fails
+      if (!dbWorkout) {
+        console.error({ requestId }, "Failed to insert workout into database");
+        return res.status(500).json({ 
+          error: 'Failed to save workout to database',
+          requestId 
+        });
+      }
+
       // Update the suggestion to link to the generated workout using Drizzle
       try {
         await db

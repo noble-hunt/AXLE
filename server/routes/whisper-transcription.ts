@@ -118,7 +118,9 @@ router.post('/whisper', requireAuth, upload.single('audio'), async (req, res) =>
       return res.status(400).json({ error: 'Audio file too large (max 25MB)' });
     }
 
-    const file = new File([f.buffer], f.originalname || 'audio.webm', { 
+    // Convert Buffer to Uint8Array (proper BlobPart type) for File constructor
+    const uint8Array = new Uint8Array(f.buffer);
+    const file = new File([uint8Array], f.originalname || 'audio.webm', { 
       type: f.mimetype || 'audio/webm' 
     });
 
