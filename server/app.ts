@@ -37,11 +37,12 @@ initSentry();
 // Server startup guard - ensure required environment variables are present
 const criticalEnvVars = [
   "SUPABASE_URL",
-  "SUPABASE_SERVICE_ROLE_KEY"
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "DATABASE_URL"
 ];
 
 const importantEnvVars = [
-  "DATABASE_URL" // Required for groups and advanced features
+  "OPENAI_API_KEY" // Required for workout generation
 ];
 
 const missingCritical = criticalEnvVars.filter(k => !process.env[k]);

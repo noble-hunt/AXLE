@@ -12,14 +12,6 @@ import {
 } from "@shared/schema";
 import { eq, and, desc, asc, gte, sql } from "drizzle-orm";
 
-// Helper to ensure database is available
-function ensureDb() {
-  if (!db) {
-    throw new Error('Groups feature unavailable - DATABASE_URL not configured. This feature requires direct database access.');
-  }
-  return db;
-}
-
 export interface CreateGroupParams {
   name: string;
   description?: string;
@@ -47,7 +39,7 @@ export interface RsvpParams {
 
 // Set user context for RLS
 async function setUserContext(userId: string) {
-  const database = ensureDb();
+  const database = db;
   try {
     // Use string interpolation for session variables as they don't support parameterization
     await database.execute(sql.raw(`SET LOCAL app.user_id = '${userId}'`));
@@ -63,7 +55,7 @@ async function setUserContext(userId: string) {
 
 // CREATE GROUP + ADD CREATOR AS OWNER
 export async function createGroup(userId: string, params: CreateGroupParams) {
-  const database = ensureDb();
+  const database = db;
   // Use Drizzle with RLS for group creation
   await setUserContext(userId);
   
@@ -96,7 +88,7 @@ export async function createGroup(userId: string, params: CreateGroupParams) {
 
 // GET GROUPS I BELONG TO (with role)
 export async function getUserGroups(userId: string) {
-  const database = ensureDb();
+  const database = db;
   try {
     await setUserContext(userId);
 
@@ -131,7 +123,7 @@ export async function getUserGroups(userId: string) {
 
 // MODERATION: Delete post from group (owners/admins only)
 export async function deleteGroupPost(userId: string, groupId: string, postId: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
   
   // Check if user is owner or admin
@@ -179,7 +171,7 @@ export async function deleteGroupPost(userId: string, groupId: string, postId: s
 
 // MODERATION: Remove member from group (owners/admins only)
 export async function removeMemberFromGroup(userId: string, groupId: string, targetUserId: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
   
   // Check if user is owner or admin
@@ -232,7 +224,7 @@ export async function removeMemberFromGroup(userId: string, groupId: string, tar
 
 // GET GROUP PROFILE + MEMBERSHIP ROLE + BASIC COUNTS
 export async function getGroupProfile(userId: string, groupId: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   // Get group info and user's membership
@@ -283,7 +275,7 @@ export async function getGroupProfile(userId: string, groupId: string) {
 
 // JOIN GROUP (requires valid invite for private groups)
 export async function joinGroup(userId: string, groupId: string, inviteCode?: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   // Check if group exists and get its info
@@ -352,7 +344,7 @@ export async function joinGroup(userId: string, groupId: string, inviteCode?: st
 
 // LEAVE GROUP (owner transfer required if last owner)
 export async function leaveGroup(userId: string, groupId: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   // Check current membership
@@ -403,7 +395,7 @@ export async function leaveGroup(userId: string, groupId: string) {
 
 // CREATE INVITE (admin/owner only)
 export async function createGroupInvite(userId: string, groupId: string, invitedEmail?: string) {
-  const database = ensureDb();
+  const database = db;
   // Check if user is admin/owner (admin operation - no RLS needed)
   const membership = await database
     .select()
@@ -438,7 +430,7 @@ export async function createGroupInvite(userId: string, groupId: string, invited
 
 // ACCEPT INVITE (creates membership + referral)
 export async function acceptInvite(userId: string, inviteCode: string) {
-  const database = ensureDb();
+  const database = db;
   // Find and validate invite (admin operation)
   const invite = await database
     .select()
@@ -500,7 +492,7 @@ export async function acceptInvite(userId: string, inviteCode: string) {
 
 // CREATE POST (cross-post to multiple groups)
 export async function createPost(userId: string, params: CreatePostParams) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   // Create canonical post
@@ -539,7 +531,7 @@ export async function getGroupFeed(
   groupId: string,
   options: { after?: string; limit?: number } = {}
 ) {
-  const database = ensureDb();
+  const database = db;
   const { after, limit = 30 } = options;
 
   await setUserContext(userId);
@@ -579,7 +571,7 @@ export async function getGroupFeed(
 
 // ADD/REMOVE REACTION (toggle)
 export async function toggleReaction(userId: string, params: ReactionParams) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   // Check if reaction already exists
@@ -626,7 +618,7 @@ export async function toggleReaction(userId: string, params: ReactionParams) {
 
 // GET REACTION SUMMARY FOR POST
 export async function getReactionSummary(userId: string, groupId: string, postId: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   const reactions = await database
@@ -649,7 +641,7 @@ export async function getReactionSummary(userId: string, groupId: string, postId
 
 // RSVP TO EVENT POST
 export async function upsertRsvp(userId: string, params: RsvpParams) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   // Check if RSVP already exists
@@ -696,7 +688,7 @@ export async function upsertRsvp(userId: string, params: RsvpParams) {
 
 // REMOVE RSVP
 export async function removeRsvp(userId: string, groupId: string, postId: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   await database
@@ -714,7 +706,7 @@ export async function removeRsvp(userId: string, groupId: string, postId: string
 
 // GET RSVPS FOR POST
 export async function getPostRsvps(userId: string, groupId: string, postId: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   const rsvps = await database
@@ -749,7 +741,7 @@ export async function getPostRsvps(userId: string, groupId: string, postId: stri
 
 // DELETE GROUP (owners only)
 export async function deleteGroup(userId: string, groupId: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
 
   // Check if user is owner
@@ -829,7 +821,7 @@ export async function updateGroup(userId: string, groupId: string, updates: {
   description?: string;
   photoUrl?: string;
 }) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
   
   // Verify user is owner
@@ -870,7 +862,7 @@ export async function updateGroup(userId: string, groupId: string, updates: {
 
 // GET GROUP MEMBERS - all members can see this
 export async function getGroupMembers(userId: string, groupId: string) {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
   
   // Verify user is a member
@@ -906,7 +898,7 @@ export async function getGroupMembers(userId: string, groupId: string) {
 
 // ADD MEMBER TO GROUP - owners/admins only
 export async function addMemberToGroup(userId: string, groupId: string, memberUserId: string, role: string = "member") {
-  const database = ensureDb();
+  const database = db;
   await setUserContext(userId);
   
   // Verify user is owner or admin

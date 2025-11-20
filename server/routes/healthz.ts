@@ -14,6 +14,7 @@ router.get('/', async (_req, res) => {
   const criticalVars = {
     SUPABASE_URL: checkEnvVar('SUPABASE_URL'),
     SUPABASE_SERVICE_ROLE_KEY: checkEnvVar('SUPABASE_SERVICE_ROLE_KEY'),
+    DATABASE_URL: checkEnvVar('DATABASE_URL'),
   };
 
   const requiredVars = {
@@ -23,7 +24,6 @@ router.get('/', async (_req, res) => {
   };
 
   const importantVars = {
-    DATABASE_URL: checkEnvVar('DATABASE_URL'),  // Required for Groups & Advanced features
     OPENAI_API_KEY: checkEnvVar('OPENAI_API_KEY'),
   };
 
