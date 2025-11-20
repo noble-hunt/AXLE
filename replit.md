@@ -5,10 +5,14 @@ AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness track
 
 ## Recent Updates (November 2025)
 - **CRITICAL PRODUCTION FIX** (Nov 20): Resolved Vercel serverless function module resolution failures causing 100% API downtime
-  - **Root Cause**: Vercel's Node File Trace wasn't bundling local dependencies (`lib/`, `server/`, `shared/`)
-  - **Solution**: Deleted 12 duplicate API route files, configured `includeFiles` in `vercel.json`, fixed import path in `api/index.ts`
-  - **Status**: ✅ Build passing, architect-reviewed, ready for deployment
-  - **Next Step**: Deploy to Vercel and verify all endpoints work in production
+  - **Root Cause**: Workout library used dynamic `fs.readFileSync()` which Vercel's file tracer cannot statically analyze
+  - **Solution**: Refactored workout library to use static JSON imports instead of dynamic file reading
+  - **Changes Made**:
+    - Replaced `fs.readFileSync()` with `import warmupBlocksRaw from './blocks/warmup.json'` for all 6 block categories
+    - Removed file system dependencies (fs, path, url) from workout library
+    - Simplified `vercel.json` to use `includeFiles: "{server,lib,shared}/**"`
+  - **Status**: ✅ Build passing locally, ready for Vercel deployment
+  - **Next Step**: Deploy to Vercel preview and verify all endpoints work
 - **PR Projections Enhancement**: Fixed critical bug where bodybuilding movements (Bench Press, Deadlift, Bicep Curl, etc.) were not recognized as weight-based, preventing PR projection calculations. Now all powerlifting, Olympic weightlifting, AND bodybuilding movements correctly show Epley Formula-based rep max projections.
 - **Graph Visibility Improvements**: Enhanced visibility of workout analytics charts on stats overview page by increasing gradient opacity (30% → 80%) for workout activity graph and changing intensity levels graph to use accent color for better contrast.
 - **Data Layer Fix**: Implemented production-grade handling of PostgreSQL numeric-to-string conversion with parseFloat transformation and NaN validation across PR projection pipeline.

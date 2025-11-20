@@ -5,9 +5,14 @@
  */
 
 import { z } from 'zod';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+
+// Static imports for Vercel compatibility - bundler can trace these
+import warmupBlocksRaw from './blocks/warmup.json';
+import primaryBlocksRaw from './blocks/primary.json';
+import accessoryBlocksRaw from './blocks/accessory.json';
+import conditioningBlocksRaw from './blocks/conditioning.json';
+import finisherBlocksRaw from './blocks/finisher.json';
+import cooldownBlocksRaw from './blocks/cooldown.json';
 
 // Zod schema for workout block validation
 const BlockVariantSchema = z.object({
@@ -49,44 +54,41 @@ let blocksCache: WorkoutBlock[] = [];
 let isLoaded = false;
 
 /**
- * Load and validate all workout blocks from JSON files
+ * Load and validate all workout blocks from statically imported JSON
  */
 export function loadBlocks(): { blocks: WorkoutBlock[]; errors: string[] } {
   const errors: string[] = [];
   const allBlocks: WorkoutBlock[] = [];
   
-  const blockCategories = ['warmup', 'primary', 'accessory', 'conditioning', 'finisher'];
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  const libraryPath = join(__dirname, 'blocks');
+  // Map of category name to imported JSON data
+  const blockData: Record<string, any[]> = {
+    warmup: warmupBlocksRaw as any[],
+    primary: primaryBlocksRaw as any[],
+    accessory: accessoryBlocksRaw as any[],
+    conditioning: conditioningBlocksRaw as any[],
+    finisher: finisherBlocksRaw as any[],
+    cooldown: cooldownBlocksRaw as any[],
+  };
   
-  for (const category of blockCategories) {
-    try {
-      const filePath = join(libraryPath, `${category}.json`);
-      const fileContent = readFileSync(filePath, 'utf-8');
-      const rawBlocks = JSON.parse(fileContent);
-      
-      if (!Array.isArray(rawBlocks)) {
-        errors.push(`${category}.json: Expected array of blocks`);
-        continue;
-      }
-      
-      for (let i = 0; i < rawBlocks.length; i++) {
-        try {
-          const validatedBlock = WorkoutBlockSchema.parse(rawBlocks[i]);
-          allBlocks.push(validatedBlock);
-        } catch (validationError) {
-          if (validationError instanceof z.ZodError) {
-            errors.push(`${category}.json[${i}]: ${validationError.issues.map(issue => 
-              `${issue.path.join('.')}: ${issue.message}`
-            ).join(', ')}`);
-          } else {
-            errors.push(`${category}.json[${i}]: Validation failed`);
-          }
+  for (const [category, rawBlocks] of Object.entries(blockData)) {
+    if (!Array.isArray(rawBlocks)) {
+      errors.push(`${category}.json: Expected array of blocks`);
+      continue;
+    }
+    
+    for (let i = 0; i < rawBlocks.length; i++) {
+      try {
+        const validatedBlock = WorkoutBlockSchema.parse(rawBlocks[i]);
+        allBlocks.push(validatedBlock);
+      } catch (validationError) {
+        if (validationError instanceof z.ZodError) {
+          errors.push(`${category}.json[${i}]: ${validationError.issues.map(issue => 
+            `${issue.path.join('.')}: ${issue.message}`
+          ).join(', ')}`);
+        } else {
+          errors.push(`${category}.json[${i}]: Validation failed`);
         }
       }
-    } catch (fileError) {
-      errors.push(`Failed to load ${category}.json: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
     }
   }
   

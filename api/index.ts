@@ -6,9 +6,9 @@ let app: any = null;
 
 async function getApp() {
   if (!app) {
-    // Import the pre-built ESM server bundle (built by build-server.cjs)
-    // This ensures all dependencies are bundled and import.meta is preserved
-    const { default: expressApp } = await import('../dist-server/app.js');
+    // Import the Express app from server/app.ts
+    // Vercel's file tracer will bundle all dependencies
+    const { default: expressApp } = await import('../server/app');
     app = expressApp;
   }
   return app;
