@@ -7,12 +7,12 @@
 import { z } from 'zod';
 
 // Static imports for Vercel compatibility - bundler can trace these
-import warmupBlocksRaw from './blocks/warmup.json';
-import primaryBlocksRaw from './blocks/primary.json';
-import accessoryBlocksRaw from './blocks/accessory.json';
-import conditioningBlocksRaw from './blocks/conditioning.json';
-import finisherBlocksRaw from './blocks/finisher.json';
-import cooldownBlocksRaw from './blocks/cooldown.json';
+import warmupBlocksRaw from './blocks/warmup.json' with { type: 'json' };
+import primaryBlocksRaw from './blocks/primary.json' with { type: 'json' };
+import accessoryBlocksRaw from './blocks/accessory.json' with { type: 'json' };
+import conditioningBlocksRaw from './blocks/conditioning.json' with { type: 'json' };
+import finisherBlocksRaw from './blocks/finisher.json' with { type: 'json' };
+import cooldownBlocksRaw from './blocks/cooldown.json' with { type: 'json' };
 
 // Zod schema for workout block validation
 const BlockVariantSchema = z.object({
