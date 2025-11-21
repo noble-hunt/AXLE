@@ -7,7 +7,7 @@ import { buildOlympicPack, buildEndurancePack } from '../config/patternPackBuild
 import type { PatternPack as BuilderPatternPack } from '../config/patternPackBuilders.js';
 import { queryMovements, findMovement } from '../movementService.js';
 import type { Movement } from '../../types/movements.js';
-import registryData from '../../data/movements.registry.json';
+import registryData from '../../data/movements.registry.json' with { type: 'json' };
 import { STYLE_POLICIES } from '../config/stylePolicies.js';
 import type { StylePolicy } from '../config/stylePolicies.js';
 import { STYLE_SPECS } from '../config/styleSpecs.js';

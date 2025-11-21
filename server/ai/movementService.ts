@@ -1,6 +1,6 @@
 import type { Movement, MovementRegistry } from '../types/movements.js';
 import seedrandom from 'seedrandom';
-import registryData from '../data/movements.registry.min.json';
+import registryData from '../data/movements.registry.min.json' with { type: 'json' };
 
 type Query = {
   categories?: string[];        // e.g., ['crossfit','olympic_weightlifting']
