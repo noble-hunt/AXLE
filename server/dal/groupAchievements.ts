@@ -150,6 +150,7 @@ export async function upsertGroupAchievements(groupId: string, achievements: Gro
     .onConflictDoUpdate({
       target: [groupAchievements.groupId, groupAchievements.name],
       set: {
+        description: sql`excluded.description`,
         progress: sql`excluded.progress`,
         unlocked: sql`excluded.unlocked`, 
         updatedAt: sql`excluded.updated_at`
