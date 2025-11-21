@@ -66,7 +66,7 @@ async function tokenRefresh(refreshToken: string) {
   return res.json() as Promise<{ access_token: string; refresh_token?: string; expires_in?: number }>;
 }
 
-async function authedFetch(userId: string, input: RequestInfo, init?: RequestInit): Promise<{ response: Response; tokenRefreshed: boolean }> {
+async function authedFetch(userId: string, input: any, init?: RequestInit): Promise<{ response: Response; tokenRefreshed: boolean }> {
   let tok = await getDecryptedTokens(userId, "Whoop");
   if (!tok) throw new Error("No WHOOP token on file");
   
@@ -206,7 +206,7 @@ export class WhoopHealthProvider implements HealthProvider {
         
         if (cyclesRes.ok) {
           const cycles = await cyclesRes.json();
-          latestCycle = cycles?.records?.[0] || null;
+          latestCycle = (cycles as any)?.records?.[0] || null;
         } else {
           console.warn(`WHOOP cycles API returned ${cyclesRes.status}`);
         }
@@ -224,7 +224,7 @@ export class WhoopHealthProvider implements HealthProvider {
         
         if (recRes.ok) {
           const recData = await recRes.json();
-          latestRecovery = recData?.records?.[0] || null;
+          latestRecovery = (recData as any)?.records?.[0] || null;
         } else {
           console.warn(`WHOOP recovery API returned ${recRes.status}`);
         }
@@ -242,7 +242,7 @@ export class WhoopHealthProvider implements HealthProvider {
         
         if (sleepRes.ok) {
           const sleepData = await sleepRes.json();
-          latestSleep = sleepData?.records?.[0] || null;
+          latestSleep = (sleepData as any)?.records?.[0] || null;
         } else {
           console.warn(`WHOOP sleep API returned ${sleepRes.status}`);
         }
@@ -259,7 +259,7 @@ export class WhoopHealthProvider implements HealthProvider {
         tokenRefreshed = tokenRefreshed || refreshed4;
         
         if (wRes.ok) {
-          workouts = await wRes.json();
+          workouts = await wRes.json() as any;
         } else {
           console.warn(`WHOOP workout API returned ${wRes.status}`);
         }

@@ -99,12 +99,14 @@ export async function upsertGroupAchievements(groupId, achievements) {
         unlocked: achievement.unlocked,
         updatedAt: new Date()
     }));
+    // Using type assertion to bypass Drizzle's strict typing for excluded values
     await db
         .insert(groupAchievements)
         .values(insertData)
         .onConflictDoUpdate({
         target: [groupAchievements.groupId, groupAchievements.name],
         set: {
+            description: sql `excluded.description`,
             progress: sql `excluded.progress`,
             unlocked: sql `excluded.unlocked`,
             updatedAt: sql `excluded.updated_at`

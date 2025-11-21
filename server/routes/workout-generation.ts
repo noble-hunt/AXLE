@@ -180,7 +180,7 @@ async function generateAndPersistWorkout(
       completed: false,
       genSeed: { ...seed, choices: result.choices },
       generatorVersion: 'v0.3.0'
-    }).returning();
+    } as any).returning();
     
     return {
       workout: savedWorkout,
@@ -229,7 +229,7 @@ async function generateAndPersistWorkout(
       completed: false,
       genSeed: seed,
       generatorVersion: seed.generatorVersion
-    }).returning();
+    } as any).returning();
     
     return {
       workout: savedWorkout,

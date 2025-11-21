@@ -135,7 +135,7 @@ export function registerSuggestionRoutes(app: Express) {
           request: suggestionResult.request,
           rationale: suggestionResult.rationale,
           workoutId: null // Will be set when user generates the actual workout
-        })
+        } as any)
         .returning();
         
       if (!insertedSuggestion[0]) {
@@ -236,7 +236,7 @@ export function registerSuggestionRoutes(app: Express) {
               request: suggestionResult.request,
               rationale: suggestionResult.rationale,
               workoutId: null
-            })
+            } as any)
             .where(and(
               eq(suggestedWorkouts.userId, userId),
               eq(suggestedWorkouts.date, today)
@@ -254,7 +254,7 @@ export function registerSuggestionRoutes(app: Express) {
               request: suggestionResult.request,
               rationale: suggestionResult.rationale,
               workoutId: null
-            })
+            } as any)
             .returning();
             
           suggestion = inserted[0];
@@ -335,7 +335,7 @@ export function registerSuggestionRoutes(app: Express) {
       const workoutData = {
         userId: authReq.user.id,
         workout: {
-          title: generatedWorkout.name,
+          title: (generatedWorkout as any).name,
           request: {
             ...enhancedRequest,
             meta: {
@@ -345,15 +345,15 @@ export function registerSuggestionRoutes(app: Express) {
               rationale: suggestion.rationale
             }
           },
-          sets: generatedWorkout.blocks?.map((block: any, index: number) => ({
+          sets: (generatedWorkout as any).blocks?.map((block: any, index: number) => ({
             id: `block-${index}`,
             exercise: block.name || block.type || 'Exercise',
             notes: block.notes || block.description || ''
           })) || [],
-          notes: generatedWorkout.description,
+          notes: (generatedWorkout as any).description,
           completed: false
         }
-      };
+      } as any;
 
       const dbWorkout = await insertWorkout(workoutData);
 
@@ -370,7 +370,7 @@ export function registerSuggestionRoutes(app: Express) {
       try {
         await db
           .update(suggestedWorkouts)
-          .set({ workoutId: dbWorkout.id })
+          .set({ workoutId: dbWorkout.id } as any)
           .where(eq(suggestedWorkouts.id, suggestion.id));
       } catch (updateError) {
         console.error({ requestId }, "Error linking workout to suggestion:", updateError);

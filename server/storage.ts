@@ -77,23 +77,23 @@ export class MemStorage implements IStorage {
     const userId = randomUUID();
     const user: User = { 
       userId,
-      username: insertUser.username ?? null,
-      firstName: insertUser.firstName ?? null,
-      lastName: insertUser.lastName ?? null,
-      avatarUrl: insertUser.avatarUrl ?? null,
-      dateOfBirth: insertUser.dateOfBirth ?? null,
-      preferredUnit: insertUser.preferredUnit ?? 'lbs',
-      favoriteMovements: Array.isArray(insertUser.favoriteMovements) ? insertUser.favoriteMovements : [],
-      providers: Array.isArray(insertUser.providers) ? insertUser.providers : [],
-      latitude: insertUser.latitude ?? null,
-      longitude: insertUser.longitude ?? null,
-      timezone: insertUser.timezone ?? null,
-      reportFrequency: insertUser.reportFrequency ?? 'weekly',
-      reportWeeklyDay: insertUser.reportWeeklyDay ?? null,
-      reportMonthlyDay: insertUser.reportMonthlyDay ?? null,
-      reportDeliveryTime: insertUser.reportDeliveryTime ?? '09:00:00',
-      enableNotifications: insertUser.enableNotifications ?? true,
-      enableEmail: insertUser.enableEmail ?? false,
+      username: (insertUser.username ?? null) as any,
+      firstName: (insertUser.firstName ?? null) as any,
+      lastName: (insertUser.lastName ?? null) as any,
+      avatarUrl: (insertUser.avatarUrl ?? null) as any,
+      dateOfBirth: (insertUser.dateOfBirth ?? null) as any,
+      preferredUnit: (insertUser.preferredUnit ?? 'lbs') as any,
+      favoriteMovements: (Array.isArray(insertUser.favoriteMovements) ? insertUser.favoriteMovements : []) as any,
+      providers: (Array.isArray(insertUser.providers) ? insertUser.providers : []) as any,
+      latitude: (insertUser.latitude ?? null) as any,
+      longitude: (insertUser.longitude ?? null) as any,
+      timezone: (insertUser.timezone ?? null) as any,
+      reportFrequency: (insertUser.reportFrequency ?? 'weekly') as any,
+      reportWeeklyDay: (insertUser.reportWeeklyDay ?? null) as any,
+      reportMonthlyDay: (insertUser.reportMonthlyDay ?? null) as any,
+      reportDeliveryTime: (insertUser.reportDeliveryTime ?? '09:00:00') as any,
+      enableNotifications: (insertUser.enableNotifications ?? true) as any,
+      enableEmail: (insertUser.enableEmail ?? false) as any,
       createdAt: new Date()
     };
     this.users.set(userId, user);
@@ -121,14 +121,14 @@ export class MemStorage implements IStorage {
       ...insertWorkout,
       id,
       notes: insertWorkout.notes ?? null,
-      completed: insertWorkout.completed ?? null,
+      completed: (insertWorkout.completed ?? null) as any,
       feedback: insertWorkout.feedback ?? null,
       seed: insertWorkout.seed ?? null,
       genSeed: insertWorkout.genSeed ?? {},
       generatorVersion: insertWorkout.generatorVersion ?? 'v0.3.0',
       generationId: insertWorkout.generationId ?? null,
       rationale: insertWorkout.rationale ?? null,
-      criticScore: insertWorkout.criticScore ?? null,
+      criticScore: (insertWorkout.criticScore ?? null) as any,
       criticIssues: insertWorkout.criticIssues 
         ? (Array.isArray(insertWorkout.criticIssues) ? insertWorkout.criticIssues : [insertWorkout.criticIssues])
         : null,
@@ -136,7 +136,7 @@ export class MemStorage implements IStorage {
       userScore: insertWorkout.userScore ?? null,
       startedAt: null,
       createdAt: new Date()
-    };
+    } as any;
     this.workouts.set(id, workout);
     return workout;
   }
@@ -151,7 +151,7 @@ export class MemStorage implements IStorage {
       criticIssues: updateData.criticIssues 
         ? (Array.isArray(updateData.criticIssues) ? updateData.criticIssues : [updateData.criticIssues])
         : existing.criticIssues
-    };
+    } as any;
     this.workouts.set(id, updated);
     return updated;
   }
@@ -175,7 +175,7 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const pr: PersonalRecord = {
       id,
-      userId: insertPR.userId,
+      userId: insertPR.userId as any,
       category: insertPR.category,
       movement: insertPR.movement,
       value: String(insertPR.value),
@@ -200,7 +200,7 @@ export class MemStorage implements IStorage {
       ...updateData,
       value: updateData.value ? String(updateData.value) : existing.value,
       weightKg: updateData.weightKg ? String(updateData.weightKg) : existing.weightKg
-    };
+    } as any;
     this.personalRecords.set(id, updated);
     return updated;
   }
@@ -224,11 +224,11 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const achievement: Achievement = {
       id,
-      userId: insertAchievement.userId,
-      name: insertAchievement.name,
-      description: insertAchievement.description,
+      userId: insertAchievement.userId as any,
+      name: insertAchievement.name as any,
+      description: insertAchievement.description as any,
       progress: insertAchievement.progress ? String(insertAchievement.progress) : '0',
-      unlocked: insertAchievement.unlocked ?? false,
+      unlocked: (insertAchievement.unlocked ?? false) as any,
       updatedAt: new Date()
     };
     this.achievements.set(id, achievement);
@@ -248,13 +248,13 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const event: WorkoutEvent = {
       id,
-      userId: insertEvent.userId,
-      event: insertEvent.event,
-      workoutId: insertEvent.workoutId ?? null,
-      generationId: insertEvent.generationId ?? null,
-      requestHash: insertEvent.requestHash ?? null,
+      userId: insertEvent.userId as any,
+      event: insertEvent.event as any,
+      workoutId: (insertEvent.workoutId ?? null) as any,
+      generationId: (insertEvent.generationId ?? null) as any,
+      requestHash: (insertEvent.requestHash ?? null) as any,
       payload: insertEvent.payload,
-      responseTimeMs: insertEvent.responseTimeMs ?? null,
+      responseTimeMs: (insertEvent.responseTimeMs ?? null) as any,
       createdAt: new Date()
     };
     this.workoutEvents.set(id, event);

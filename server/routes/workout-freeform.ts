@@ -196,7 +196,7 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
         userId,
         perceivedIntensity,
         notes: notes || ''
-      });
+      } as any);
     } catch (error: any) {
       // Handle duplicate feedback submission
       if (error.message.includes('Feedback already submitted for this workout')) {
@@ -216,7 +216,7 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
       
       await logFeedbackEvent(userId, workoutId, generationId, {
         feedbackType: 'rpe',
-        rpe: perceivedIntensity,
+        rpe: perceivedIntensity as any,
         comments: notes || undefined
       });
     } catch (telemetryError) {

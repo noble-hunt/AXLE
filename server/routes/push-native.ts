@@ -30,13 +30,13 @@ router.post('/register-device', requireAuth, async (req, res) => {
         userId,
         platform,
         token,
-      })
+      } as any)
       .onConflictDoUpdate({
         target: [deviceTokens.userId, deviceTokens.token],
         set: {
           lastSeen: new Date(),
           platform, // Update platform in case it changed
-        },
+        } as any,
       });
     
     console.log(`[PUSH_NATIVE] Device token registered successfully for user ${userId}`);

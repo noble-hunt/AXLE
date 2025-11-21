@@ -111,7 +111,7 @@ export async function backfillAxleScores(
           .update(healthReports)
           .set({
             metrics: updatedMetrics
-          })
+          } as any)
           .where(
             and(
               eq(healthReports.userId, userId),

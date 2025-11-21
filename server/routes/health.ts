@@ -94,7 +94,7 @@ router.post('/connect/:provider/start', requireAuth, async (req, res) => {
             status: 'connected',
             lastSync: new Date(),
             error: null,
-          })
+          } as any)
           .where(and(
             eq(wearableConnections.userId, userId),
             eq(wearableConnections.provider, provider.id)
@@ -109,7 +109,7 @@ router.post('/connect/:provider/start', requireAuth, async (req, res) => {
             connected: true,
             status: 'connected',
             lastSync: new Date(),
-          });
+          } as any);
       }
 
       return res.json({ success: true, connected: true });
@@ -177,7 +177,7 @@ router.get('/connect/:provider/callback', requireAuth, async (req, res) => {
         status: 'connected',
         lastSync: new Date(),
         error: null,
-      })
+      } as any)
       .where(and(
         eq(wearableConnections.userId, userId),
         eq(wearableConnections.provider, provider.id)
@@ -218,7 +218,7 @@ router.post('/connect/:provider/disconnect', requireAuth, async (req, res) => {
           connected: false,
           status: 'disconnected',
           error: null,
-        })
+        } as any)
         .where(and(
           eq(wearableConnections.userId, userId),
           eq(wearableConnections.provider, providerName)
@@ -384,7 +384,7 @@ router.post('/health/sync', requireAuth, async (req, res) => {
         lastSync: new Date(),
         status: 'connected',
         error: null,
-      })
+      } as any)
       .where(and(
         eq(wearableConnections.userId, userId),
         eq(wearableConnections.provider, providerName)
@@ -407,7 +407,7 @@ router.post('/health/sync', requireAuth, async (req, res) => {
           .set({
             status: 'error',
             error: error instanceof Error ? error.message : 'Unknown error',
-          })
+          } as any)
           .where(and(
             eq(wearableConnections.userId, (req as AuthenticatedRequest).user.id),
             eq(wearableConnections.provider, providerName)
@@ -677,7 +677,7 @@ router.post('/health/compute/daily', requireAuth, async (req, res) => {
         .update(healthReports)
         .set({
           metrics: mergedMetrics,
-        })
+        } as any)
         .where(and(
           eq(healthReports.userId, userId),
           eq(healthReports.date, targetDate)
@@ -693,7 +693,7 @@ router.post('/health/compute/daily', requireAuth, async (req, res) => {
           date: targetDate,
           metrics: reportData,
           suggestions: [],
-        });
+        } as any);
         
       console.log(`[COMPUTE] Created new report for ${targetDate}`);
     }
@@ -808,7 +808,7 @@ router.post('/health/compute/backfill', requireAdmin, async (req, res) => {
             .update(healthReports)
             .set({
               metrics: mergedMetrics,
-            })
+            } as any)
             .where(and(
               eq(healthReports.userId, userId),
               eq(healthReports.date, dateStr)
@@ -822,7 +822,7 @@ router.post('/health/compute/backfill', requireAdmin, async (req, res) => {
               date: dateStr,
               metrics: reportData,
               suggestions: [],
-            });
+            } as any);
         }
         
         results.push({

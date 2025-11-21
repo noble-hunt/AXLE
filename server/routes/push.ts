@@ -31,14 +31,14 @@ pushRouter.post('/subscribe', requireAuth, async (req, res) => {
         endpoint,
         p256dh,
         auth,
-      })
+      } as any)
       .onConflictDoUpdate({
         target: [pushSubscriptions.userId, pushSubscriptions.endpoint],
         set: {
           p256dh,
           auth,
           lastUsed: new Date(),
-        },
+        } as any,
       });
     
     console.log(`[PUSH_WEB] Web push subscription registered successfully for user ${userId}`);

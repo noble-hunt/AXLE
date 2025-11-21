@@ -18,23 +18,23 @@ export class MemStorage {
         const userId = randomUUID();
         const user = {
             userId,
-            username: insertUser.username ?? null,
-            firstName: insertUser.firstName ?? null,
-            lastName: insertUser.lastName ?? null,
-            avatarUrl: insertUser.avatarUrl ?? null,
-            dateOfBirth: insertUser.dateOfBirth ?? null,
-            preferredUnit: insertUser.preferredUnit ?? 'lbs',
-            favoriteMovements: Array.isArray(insertUser.favoriteMovements) ? insertUser.favoriteMovements : [],
-            providers: Array.isArray(insertUser.providers) ? insertUser.providers : [],
-            latitude: insertUser.latitude ?? null,
-            longitude: insertUser.longitude ?? null,
-            timezone: insertUser.timezone ?? null,
-            reportFrequency: insertUser.reportFrequency ?? 'weekly',
-            reportWeeklyDay: insertUser.reportWeeklyDay ?? null,
-            reportMonthlyDay: insertUser.reportMonthlyDay ?? null,
-            reportDeliveryTime: insertUser.reportDeliveryTime ?? '09:00:00',
-            enableNotifications: insertUser.enableNotifications ?? true,
-            enableEmail: insertUser.enableEmail ?? false,
+            username: (insertUser.username ?? null),
+            firstName: (insertUser.firstName ?? null),
+            lastName: (insertUser.lastName ?? null),
+            avatarUrl: (insertUser.avatarUrl ?? null),
+            dateOfBirth: (insertUser.dateOfBirth ?? null),
+            preferredUnit: (insertUser.preferredUnit ?? 'lbs'),
+            favoriteMovements: (Array.isArray(insertUser.favoriteMovements) ? insertUser.favoriteMovements : []),
+            providers: (Array.isArray(insertUser.providers) ? insertUser.providers : []),
+            latitude: (insertUser.latitude ?? null),
+            longitude: (insertUser.longitude ?? null),
+            timezone: (insertUser.timezone ?? null),
+            reportFrequency: (insertUser.reportFrequency ?? 'weekly'),
+            reportWeeklyDay: (insertUser.reportWeeklyDay ?? null),
+            reportMonthlyDay: (insertUser.reportMonthlyDay ?? null),
+            reportDeliveryTime: (insertUser.reportDeliveryTime ?? '09:00:00'),
+            enableNotifications: (insertUser.enableNotifications ?? true),
+            enableEmail: (insertUser.enableEmail ?? false),
             createdAt: new Date()
         };
         this.users.set(userId, user);
@@ -59,14 +59,14 @@ export class MemStorage {
             ...insertWorkout,
             id,
             notes: insertWorkout.notes ?? null,
-            completed: insertWorkout.completed ?? null,
+            completed: (insertWorkout.completed ?? null),
             feedback: insertWorkout.feedback ?? null,
             seed: insertWorkout.seed ?? null,
             genSeed: insertWorkout.genSeed ?? {},
             generatorVersion: insertWorkout.generatorVersion ?? 'v0.3.0',
             generationId: insertWorkout.generationId ?? null,
             rationale: insertWorkout.rationale ?? null,
-            criticScore: insertWorkout.criticScore ?? null,
+            criticScore: (insertWorkout.criticScore ?? null),
             criticIssues: insertWorkout.criticIssues
                 ? (Array.isArray(insertWorkout.criticIssues) ? insertWorkout.criticIssues : [insertWorkout.criticIssues])
                 : null,
@@ -157,7 +157,7 @@ export class MemStorage {
             name: insertAchievement.name,
             description: insertAchievement.description,
             progress: insertAchievement.progress ? String(insertAchievement.progress) : '0',
-            unlocked: insertAchievement.unlocked ?? false,
+            unlocked: (insertAchievement.unlocked ?? false),
             updatedAt: new Date()
         };
         this.achievements.set(id, achievement);
@@ -177,11 +177,11 @@ export class MemStorage {
             id,
             userId: insertEvent.userId,
             event: insertEvent.event,
-            workoutId: insertEvent.workoutId ?? null,
-            generationId: insertEvent.generationId ?? null,
-            requestHash: insertEvent.requestHash ?? null,
+            workoutId: (insertEvent.workoutId ?? null),
+            generationId: (insertEvent.generationId ?? null),
+            requestHash: (insertEvent.requestHash ?? null),
             payload: insertEvent.payload,
-            responseTimeMs: insertEvent.responseTimeMs ?? null,
+            responseTimeMs: (insertEvent.responseTimeMs ?? null),
             createdAt: new Date()
         };
         this.workoutEvents.set(id, event);

@@ -38,7 +38,7 @@ export async function storeEncryptedTokens(
         expiresAt: tokens.expiresAt,
         scope: tokens.scope,
         updatedAt: new Date(),
-      })
+      } as any)
       .where(and(
         eq(wearableTokens.userId, userId),
         eq(wearableTokens.provider, provider)
@@ -54,7 +54,7 @@ export async function storeEncryptedTokens(
         refreshToken: encryptedRefreshToken,
         expiresAt: tokens.expiresAt,
         scope: tokens.scope,
-      });
+      } as any);
   }
 }
 

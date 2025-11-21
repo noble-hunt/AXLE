@@ -83,7 +83,7 @@ export function registerGroupRoutes(app: Express) {
       const group = await createGroup(userId, {
         name: createGroupData.name,
         description: createGroupData.description || undefined,
-        isPublic: createGroupData.isPublic ?? false,
+        isPublic: (createGroupData.isPublic ?? false) as any,
         photoUrl: createGroupData.photoUrl || undefined,
       });
 
@@ -316,7 +316,7 @@ export function registerGroupRoutes(app: Express) {
       });
 
       const params = schema.parse(req.body);
-      const result = await toggleReaction(userId, params);
+      const result = await toggleReaction(userId, params as any);
       
       // Recompute achievements for the group (async, don't block response)
       try {
@@ -347,7 +347,7 @@ export function registerGroupRoutes(app: Express) {
       });
 
       const params = schema.parse(req.body);
-      const result = await toggleReaction(userId, params);
+      const result = await toggleReaction(userId, params as any);
       
       // Recompute achievements for the group (async, don't block response)
       try {

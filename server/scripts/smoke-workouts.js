@@ -38,11 +38,7 @@ async function testWorkout(name, request, seed) {
         const workout = await generatePremiumWorkout(request, seed);
         const elapsedTime = Date.now() - startTime;
         // Convert to UI format
-        const converted = convertPremiumToGenerated(workout, {
-            category: request.category,
-            duration: request.duration,
-            intensity: request.intensity
-        });
+        const converted = convertPremiumToGenerated(workout);
         console.log('\nOutput:');
         printResult('  ✓ Generator', converted.meta.generator, colors.green);
         printResult('  ✓ Title', `"${workout.title}"`, colors.cyan);

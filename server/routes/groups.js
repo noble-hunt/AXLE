@@ -52,7 +52,7 @@ export function registerGroupRoutes(app) {
             const group = await createGroup(userId, {
                 name: createGroupData.name,
                 description: createGroupData.description || undefined,
-                isPublic: createGroupData.isPublic ?? false,
+                isPublic: (createGroupData.isPublic ?? false),
                 photoUrl: createGroupData.photoUrl || undefined,
             });
             res.status(201).json(group);

@@ -42,25 +42,25 @@ export async function createWorkoutFromSeed(args: Args) {
     const [savedWorkout] = await db.insert(workouts).values({
       id,
       userId: args.userId,
-      title: workout.name || `${args.focus} Workout`,
+      title: (workout as any).name || `${args.focus} Workout`,
       request: {
         focus: args.focus,
         minutes: args.minutes,
-        intensity: args.intensity,
+        intensity: args.intensity as any,
         source: args.source,
         generatedAt: new Date().toISOString()
-      },
-      sets: workout.blocks?.map((block: any, index: number) => ({
+      } as any,
+      sets: (workout as any).blocks?.map((block: any, index: number) => ({
         id: `block-${index}`,
         exercise: block.name || block.type || 'Exercise',
         notes: block.notes || block.description || ''
-      })) || [],
-      notes: workout.coaching_notes || workout.description || '',
+      })) as any || [],
+      notes: (workout as any).coaching_notes || (workout as any).description || '',
       completed: false,
-      genSeed: args.seed,
+      genSeed: args.seed as any,
       generatorVersion: args.generatorVersion,
-      generationId: args.seed.rngSeed || uuid()
-    }).returning();
+      generationId: (args.seed.rngSeed || uuid()) as any
+    } as any).returning();
 
     return { id: savedWorkout.id };
   } catch (e) {

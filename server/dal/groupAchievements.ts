@@ -144,6 +144,7 @@ export async function upsertGroupAchievements(groupId: string, achievements: Gro
     updatedAt: new Date()
   }));
 
+  // Using type assertion to bypass Drizzle's strict typing for excluded values
   await db
     .insert(groupAchievements)
     .values(insertData)
@@ -154,7 +155,7 @@ export async function upsertGroupAchievements(groupId: string, achievements: Gro
         progress: sql`excluded.progress`,
         unlocked: sql`excluded.unlocked`, 
         updatedAt: sql`excluded.updated_at`
-      }
+      } as any
     });
 }
 

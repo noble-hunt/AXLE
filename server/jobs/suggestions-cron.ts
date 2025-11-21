@@ -175,7 +175,7 @@ async function syncHealthDataIfNeeded(userId: string, today: string): Promise<vo
         .set({ 
           lastSync: new Date(),
           status: 'connected'
-        })
+        } as any)
         .where(and(
           eq(wearableConnections.userId, userId),
           eq(wearableConnections.provider, device.provider)
@@ -192,7 +192,7 @@ async function syncHealthDataIfNeeded(userId: string, today: string): Promise<vo
         .set({ 
           status: 'error',
           error: error instanceof Error ? error.message : 'Unknown error'
-        })
+        } as any)
         .where(and(
           eq(wearableConnections.userId, userId),
           eq(wearableConnections.provider, device.provider)
@@ -261,7 +261,7 @@ export async function generateDailySuggestions(): Promise<{ processed: number; c
               request: suggestionResult.request,
               rationale: suggestionResult.rationale,
               workoutId: null
-            })
+            } as any)
             .returning();
             
           if (inserted[0]) {

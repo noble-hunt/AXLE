@@ -45,7 +45,7 @@ export async function createWorkoutFromSeed(args) {
             completed: false,
             genSeed: args.seed,
             generatorVersion: args.generatorVersion,
-            generationId: args.seed.rngSeed || uuid()
+            generationId: (args.seed.rngSeed || uuid())
         }).returning();
         return { id: savedWorkout.id };
     }

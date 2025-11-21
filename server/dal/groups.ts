@@ -67,7 +67,7 @@ export async function createGroup(userId: string, params: CreateGroupParams) {
       isPublic: params.isPublic,
       photoUrl: params.photoUrl,
       ownerId: userId,
-    })
+    } as any)
     .returning();
 
   if (!groupResult[0]) {
@@ -81,7 +81,7 @@ export async function createGroup(userId: string, params: CreateGroupParams) {
       groupId: groupResult[0].id,
       userId: userId,
       role: "owner",
-    });
+    } as any);
 
   return groupResult[0];
 }
@@ -336,7 +336,7 @@ export async function joinGroup(userId: string, groupId: string, inviteCode?: st
       groupId,
       userId,
       role: "member",
-    })
+    } as any)
     .returning();
 
   return newMember[0];
@@ -422,7 +422,7 @@ export async function createGroupInvite(userId: string, groupId: string, invited
       code,
       invitedEmail,
       createdBy: userId,
-    })
+    } as any)
     .returning();
 
   return invite[0];
@@ -472,7 +472,7 @@ export async function acceptInvite(userId: string, inviteCode: string) {
       groupId: invite[0].groupId,
       userId,
       role: "member",
-    })
+    } as any)
     .returning();
 
   // Create referral record
@@ -482,7 +482,7 @@ export async function acceptInvite(userId: string, inviteCode: string) {
       referrerUserId: invite[0].createdBy,
       referredUserId: userId,
       groupId: invite[0].groupId,
-    });
+    } as any);
 
   return {
     membership: membership[0],
@@ -935,7 +935,7 @@ export async function addMemberToGroup(userId: string, groupId: string, memberUs
       groupId: groupId,
       userId: memberUserId,
       role: role === "admin" && membership[0].role === "owner" ? "admin" : "member",
-    })
+    } as any)
     .returning();
 
   if (newMember.length === 0) {

@@ -241,7 +241,7 @@ export async function createReport(data: {
       insights: data.insights,
       status: 'ready',
       deliveryChannel: [],
-    })
+    } as any)
     .returning();
 
   return report;
@@ -256,7 +256,7 @@ export async function updateReportStatus(
 ): Promise<void> {
   await db
     .update(axleReports)
-    .set({ status })
+    .set({ status } as any)
     .where(eq(axleReports.id, reportId));
 }
 
@@ -266,7 +266,7 @@ export async function updateReportStatus(
 export async function markReportAsViewed(reportId: string): Promise<void> {
   await db
     .update(axleReports)
-    .set({ viewedAt: new Date() })
+    .set({ viewedAt: new Date() } as any)
     .where(
       and(
         eq(axleReports.id, reportId),
@@ -301,7 +301,7 @@ export async function markReportAsDelivered(
       deliveredAt: new Date(),
       deliveryChannel: channels,
       status: 'delivered',
-    })
+    } as any)
     .where(eq(axleReports.id, reportId));
 }
 
@@ -341,7 +341,7 @@ export async function updateReportPreferences(
 ): Promise<void> {
   await db
     .update(profiles)
-    .set(preferences)
+    .set(preferences as any)
     .where(eq(profiles.userId, userId));
 }
 

@@ -71,13 +71,13 @@ export class FitbitHealthProvider implements HealthProvider {
       body,
     });
     const tokens = await tokenRes.json();
-    if (!tokenRes.ok) throw new Error(tokens?.errors?.[0]?.message || 'token exchange failed');
+    if (!tokenRes.ok) throw new Error((tokens as any)?.errors?.[0]?.message || 'token exchange failed');
 
     await storeEncryptedTokens(userId, 'Fitbit', {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt: tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000) : undefined,
-      scope: tokens.scope,
+      accessToken: (tokens as any).access_token,
+      refreshToken: (tokens as any).refresh_token,
+      expiresAt: (tokens as any).expires_in ? new Date(Date.now() + (tokens as any).expires_in * 1000) : undefined,
+      scope: (tokens as any).scope,
     });
     await upsertWearable({ 
       userId, 
@@ -112,12 +112,12 @@ export class FitbitHealthProvider implements HealthProvider {
       const j = await res.json();
       if (res.ok) {
         await storeEncryptedTokens(userId, 'Fitbit', {
-          accessToken: j.access_token,
-          refreshToken: j.refresh_token ?? t.refreshToken,
-          expiresAt: j.expires_in ? new Date(Date.now() + j.expires_in * 1000) : t.expiresAt,
-          scope: j.scope ?? t.scope,
+          accessToken: (j as any).access_token,
+          refreshToken: (j as any).refresh_token ?? t.refreshToken,
+          expiresAt: (j as any).expires_in ? new Date(Date.now() + (j as any).expires_in * 1000) : t.expiresAt,
+          scope: (j as any).scope ?? t.scope,
         });
-        return j.access_token as string;
+        return (j as any).access_token as string;
       }
       // if refresh fails, fall through and try with old token (may 401)
     }
@@ -153,20 +153,20 @@ export class FitbitHealthProvider implements HealthProvider {
       if (hrvRes.ok) {
         const hrv = await hrvRes.json();
         // pick a reasonable field if present
-        const v = hrv?.hrv?.[0]?.value?.dailyRmssd; // rmssd ms (if returned)
+        const v = (hrv as any)?.hrv?.[0]?.value?.dailyRmssd; // rmssd ms (if returned)
         hrv_ms = typeof v === 'number' ? v : null;
       }
     } catch {}
 
-    const steps = act?.summary?.steps ?? null;
+    const steps = (act as any)?.summary?.steps ?? null;
     const calories =
-      act?.summary?.caloriesOut ??
-      act?.summary?.calories ??
+      (act as any)?.summary?.caloriesOut ??
+      (act as any)?.summary?.calories ??
       null;
-    const resting_hr_bpm = hr?.['activities-heart']?.[0]?.value?.restingHeartRate ?? null;
+    const resting_hr_bpm = (hr as any)?.['activities-heart']?.[0]?.value?.restingHeartRate ?? null;
     const sleep_score =
-      sleep?.summary?.['stages']?.score ??
-      sleep?.sleep?.[0]?.score ??
+      (sleep as any)?.summary?.['stages']?.score ??
+      (sleep as any)?.sleep?.[0]?.score ??
       null;
 
     const snapshot = {

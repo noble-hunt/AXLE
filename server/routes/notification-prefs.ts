@@ -30,7 +30,7 @@ router.post('/', requireAuth, async (req, res) => {
         dailyReminders: prefs.dailyReminders,
         reminderTime: prefs.reminderTime,
         platform: prefs.platform,
-      })
+      } as any)
       .onConflictDoUpdate({
         target: [notificationPrefs.userId],
         set: {
@@ -39,7 +39,7 @@ router.post('/', requireAuth, async (req, res) => {
           reminderTime: prefs.reminderTime,
           platform: prefs.platform,
           updatedAt: new Date(),
-        },
+        } as any,
       });
     
     console.log(`[NOTIFICATION_PREFS] Preferences saved successfully for user ${userId}`);

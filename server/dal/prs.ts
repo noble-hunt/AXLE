@@ -34,7 +34,7 @@ export async function insertPR(params: InsertPRParams) {
       notes: params.notes || null,
       workoutId: params.workoutId || null,
       date: params.date || new Date().toISOString().split('T')[0]
-    })
+    } as any)
     .returning();
 
   if (!result || result.length === 0) {

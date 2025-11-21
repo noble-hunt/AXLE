@@ -24,13 +24,13 @@ r.post("/api/notifications/topics/enable", requireAuth, async (req, res) => {
         topic,
         enabled,
         updatedAt: new Date(),
-      })
+      } as any)
       .onConflictDoUpdate({
         target: [notificationTopics.userId, notificationTopics.topic],
         set: {
           enabled,
           updatedAt: new Date(),
-        },
+        } as any,
       });
     
     res.json({ ok: true });

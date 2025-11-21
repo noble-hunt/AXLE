@@ -794,7 +794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: validatedData.notes || undefined,
         completed: validatedData.completed || false,
         feedback: validatedData.feedback as Record<string, any> | undefined
-      };
+      } as any;
       
       // Insert workout using data access layer
       const workout = await insertWorkout({ userId: authReq.user.id, workout: workoutData });
@@ -1849,7 +1849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const validatedData = enhancedWorkoutRequestSchema.parse(req.body);
-      const generatedWorkout = await generateWorkout(validatedData);
+      const generatedWorkout = await generateWorkout(validatedData as any);
       
       // Insert workout into database
       console.log(`📝 About to insert workout for user: ${authReq.user.id}`);

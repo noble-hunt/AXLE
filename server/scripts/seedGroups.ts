@@ -99,7 +99,7 @@ async function seedUsers() {
       avatarUrl: user.avatarUrl,
       providers: ['email'],
       username: `${user.firstName.toLowerCase()}${user.lastName.toLowerCase()}`
-    }).onConflictDoNothing();
+    } as any).onConflictDoNothing();
   }
   
   console.log(`✅ Seeded ${SEED_USERS.length} users`);
@@ -143,7 +143,7 @@ async function seedGroups() {
       groupId: createdGroup.id,
       userId: createdGroup.ownerId,
       role: "owner"
-    }).onConflictDoNothing();
+    } as any).onConflictDoNothing();
   }
 
   console.log(`✅ Seeded ${createdGroups.length} groups`);
@@ -164,7 +164,7 @@ async function seedMembers(groupsData: any[]) {
         groupId: group.id,
         userId: member.id,
         role: "member"
-      }).onConflictDoNothing();
+      } as any).onConflictDoNothing();
       memberCount++;
     }
   }
@@ -199,10 +199,10 @@ async function seedPosts(groupsData: any[]) {
       // Create canonical post
       const postResult = await db.insert(posts).values({
         userId: randomMember.userId,
-        kind: postData.kind,
+        kind: postData.kind as any,
         content: postData.content,
         createdAt: new Date(Date.now() - (numPosts - i) * 3600000) // Spread posts over time
-      }).returning();
+      } as any).returning();
       
       if (postResult[0]) {
         // Cross-post to group
@@ -210,7 +210,7 @@ async function seedPosts(groupsData: any[]) {
           groupId: group.id,
           postId: postResult[0].id,
           createdAt: postResult[0].createdAt
-        });
+        } as any);
         postCount++;
       }
     }

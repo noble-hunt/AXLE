@@ -88,7 +88,7 @@ export function registerSeedRoutes(app: Express) {
         
         seed = workoutWithSeed.genSeed as GeneratorSeed;
       } else if (validatedData.seed) {
-        seed = validatedData.seed;
+        seed = validatedData.seed as any;
       } else {
         return res.status(400).json({ error: "Either workoutId or seed must be provided" });
       }
@@ -159,7 +159,7 @@ export function registerSeedRoutes(app: Express) {
         completed: false,
         genSeed: seed,
         generatorVersion: seed.generatorVersion
-      }).returning();
+      } as any).returning();
       
       res.json({
         workout: savedWorkout,
@@ -204,7 +204,7 @@ export function registerSeedRoutes(app: Express) {
       const seed: GeneratorSeed = {
         rngSeed: validatedData.rngSeed,
         generatorVersion: validatedData.generatorVersion,
-        inputs: validatedData.inputs,
+        inputs: validatedData.inputs as any,
         context: {
           dateISO: new Date().toISOString(),
           userId: userId
