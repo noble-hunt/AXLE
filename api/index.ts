@@ -3,8 +3,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    // Dynamic import to handle cases where server/app.js might not be built yet
-    const { default: expressApp } = await import('../server/app.js');
+    // Import TypeScript source directly - Vercel compiles automatically
+    const { default: expressApp } = await import('../server/app.ts');
     
     // Pass request directly to Express
     return new Promise((resolve, reject) => {

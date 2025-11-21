@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm exec tsc -- -p tsconfig.server.json --noEmitOnError false && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
     { 
@@ -10,8 +10,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 30,
-      "memory": 1024,
-      "includeFiles": "{server,shared}/**"
+      "memory": 1024
     }
   }
 }
