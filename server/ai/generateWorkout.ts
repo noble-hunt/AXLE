@@ -1,8 +1,8 @@
 import OpenAI from 'openai';
-import { WorkoutSchema, buildUserContextString, intensityGuidelines } from '../../client/src/ai/schemas';
-import { parseAndValidate } from '../../client/src/ai/json';
+import { WorkoutSchema, buildUserContextString, intensityGuidelines } from '../../client/src/ai/schemas.js';
+import { parseAndValidate } from '../../client/src/ai/json.js';
 import type { WorkoutRequest } from '@shared/schema';
-import { critiqueAndRepair } from './critic';
+import { critiqueAndRepair } from './critic.js';
 
 // Initialize OpenAI client
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;

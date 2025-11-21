@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { GENERATOR_STAMP } from '../workoutGenerator';
+import { GENERATOR_STAMP } from '../workoutGenerator.js';
 
 export function jsonError(err: any, req: Request, res: Response, _next: NextFunction) {
   const status = err.statusCode || err.status || 500;

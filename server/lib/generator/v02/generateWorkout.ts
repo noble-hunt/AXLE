@@ -4,8 +4,8 @@
  * This wraps the existing AI generators and workoutGenerator for fallback
  */
 
-import { generateWorkout as legacyGenerateWorkout } from '../../../workoutGenerator';
-import { Category } from '../../../../shared/schema';
+import { generateWorkout as legacyGenerateWorkout } from '../../../workoutGenerator.js';
+import { Category } from '../../../../shared/schema.js';
 
 // Define types locally since they're not exported from workoutGenerator
 type EnhancedWorkoutRequest = {

@@ -10,11 +10,11 @@
  * - ML policy integration when workouts.v2.useMLPolicy flag is enabled
  * - Backward compatibility maintained for existing v1 endpoints
  */
-import { requireAuth } from "../middleware/auth";
+import { requireAuth } from "../middleware/auth.js";
 import { z } from "zod";
-import { render } from "../../client/src/ai/render";
-import { isWorkoutV2Enabled, shouldShowMetricsDebug } from "../config/flags";
-import { generateWorkoutPlan } from "../workouts/engine";
+import { render } from "../../client/src/ai/render.js";
+import { isWorkoutV2Enabled, shouldShowMetricsDebug } from "../config/flags.js";
+import { generateWorkoutPlan } from "../workouts/engine.js";
 // Telemetry for RL training data collection
 import { logGenerationEvent, extractMetricsSnapshot } from "../workouts/telemetry.js";
 import { randomUUID } from "crypto";
@@ -44,10 +44,10 @@ const generateWorkoutSchema = z.object({
 async function composeUserContext(userId) {
     try {
         // Get user's recent workout history
-        const { listWorkouts } = await import("../dal/workouts");
+        const { listWorkouts } = await import("../dal/workouts.js");
         const recentWorkouts = await listWorkouts(userId, { limit: 7 });
         // Get latest health report
-        const { listReports } = await import("../dal/reports");
+        const { listReports } = await import("../dal/reports.js");
         const healthReports = await listReports(userId, { days: 1 });
         const latestHealth = healthReports[0];
         // Find yesterday's workout
@@ -109,8 +109,8 @@ async function composeUserContext(userId) {
  */
 async function generateAndPersistWorkout(userId, category, request) {
     // Import new generator
-    const { generateWithFallback } = await import("../lib/generator/generate");
-    const { generateWorkoutSeed, convertLegacyRequestToInputs } = await import("../utils/seed-generator");
+    const { generateWithFallback } = await import("../lib/generator/generate.js");
+    const { generateWorkoutSeed, convertLegacyRequestToInputs } = await import("../utils/seed-generator.js");
     // Convert request to GeneratorInputs format
     const inputs = convertLegacyRequestToInputs(request);
     // Get user context
@@ -118,7 +118,7 @@ async function generateAndPersistWorkout(userId, category, request) {
     // Generate seed for deterministic reproduction
     const seed = generateWorkoutSeed(inputs, userId);
     // Get user's workout history for progression
-    const { listWorkouts } = await import("../dal/workouts");
+    const { listWorkouts } = await import("../dal/workouts.js");
     const recentWorkouts = await listWorkouts(userId, { limit: 28 });
     try {
         // Generate workout using new fallback system
@@ -128,8 +128,8 @@ async function generateAndPersistWorkout(userId, category, request) {
             recentWorkouts
         });
         // Persist to database with seed data
-        const { db } = await import("../db");
-        const { workouts } = await import("../../shared/schema");
+        const { db } = await import("../db.js");
+        const { workouts } = await import("../../shared/schema.js");
         const [savedWorkout] = await db.insert(workouts).values({
             userId,
             title: result.workout.name,
@@ -156,10 +156,10 @@ async function generateAndPersistWorkout(userId, category, request) {
     catch (error) {
         console.warn('New generator failed, falling back to legacy system:', error);
         // Fallback to legacy system
-        const { generateCrossFitWorkout } = await import("../ai/generators/crossfit");
-        const { generateOlympicWorkout } = await import("../ai/generators/olympic");
-        const { generateWorkoutTitle } = await import("../ai/title");
-        const { critiqueAndRepair } = await import("../ai/critic");
+        const { generateCrossFitWorkout } = await import("../ai/generators/crossfit.js");
+        const { generateOlympicWorkout } = await import("../ai/generators/olympic.js");
+        const { generateWorkoutTitle } = await import("../ai/title.js");
+        const { critiqueAndRepair } = await import("../ai/critic.js");
         const generator = category === 'CrossFit/HIIT' ? generateCrossFitWorkout : generateOlympicWorkout;
         const workout = await generator(request);
         if (!workout.name || workout.name === 'CrossFit Workout' || workout.name === 'Olympic Training') {
@@ -170,8 +170,8 @@ async function generateAndPersistWorkout(userId, category, request) {
             originalWorkout: workout
         });
         const renderedWorkout = render(critique.workout);
-        const { db } = await import("../db");
-        const { workouts } = await import("../../shared/schema");
+        const { db } = await import("../db.js");
+        const { workouts } = await import("../../shared/schema.js");
         const [savedWorkout] = await db.insert(workouts).values({
             userId,
             title: critique.workout.name,
@@ -205,7 +205,7 @@ async function hydrateMetricsFromHealthReport(userId, requestMetrics) {
         if (requestMetrics) {
             return requestMetrics; // Use provided metrics
         }
-        const { listReports } = await import("../dal/reports");
+        const { listReports } = await import("../dal/reports.js");
         const reports = await listReports(userId, { days: 1 });
         const latestReport = reports[0];
         if (!latestReport?.metrics) {
@@ -236,7 +236,7 @@ async function hydrateMetricsFromHealthReport(userId, requestMetrics) {
  */
 async function getEnergySystemsHistory(userId) {
     try {
-        const { listReports } = await import("../dal/reports");
+        const { listReports } = await import("../dal/reports.js");
         const reports = await listReports(userId, { days: 7 });
         const energySystems = {
             alactic: 0,

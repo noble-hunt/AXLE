@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 export async function sendGroupMessage(userId, groupId, body, id, meta) {
     // Validate message body
     const trimmedBody = body.trim();

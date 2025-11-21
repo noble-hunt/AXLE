@@ -1,8 +1,8 @@
-import { garmin, isGarminConfigured } from "../../config";
-import { makePkce } from "../../lib/pkce";
-import { signState, verifyState } from "../../lib/oauthState";
-import { storeEncryptedTokens, getDecryptedTokens } from "../../dal/tokens";
-import { upsertWearable } from "../../dal/wearables";
+import { garmin, isGarminConfigured } from "../../config.js";
+import { makePkce } from "../../lib/pkce.js";
+import { signState, verifyState } from "../../lib/oauthState.js";
+import { storeEncryptedTokens, getDecryptedTokens } from "../../dal/tokens.js";
+import { upsertWearable } from "../../dal/wearables.js";
 const AUTH_URL = "https://connect.garmin.com/oauth2Confirm";
 const TOKEN_URL = "https://diauth.garmin.com/di-oauth2-service/oauth/token";
 const USER_ID_URL = "https://apis.garmin.com/wellness-api/rest/user/id";

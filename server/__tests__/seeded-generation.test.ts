@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SeededRandom } from '../lib/seededRandom';
+import { SeededRandom } from '../lib/seededRandom.js';
 
 describe('Seeded Random Generation', () => {
   it('should produce identical sequences with same seed', () => {

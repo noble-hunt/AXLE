@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateWorkoutPlan, type BiometricInputs, type WorkoutHistory } from '../engine';
-import type { WorkoutRequest } from '../types';
+import { generateWorkoutPlan, type BiometricInputs, type WorkoutHistory } from '../engine.js';
+import type { WorkoutRequest } from '../types.js';
 
 // Mock the block library loader
 vi.mock('../library/loader', () => ({

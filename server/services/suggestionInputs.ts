@@ -1,7 +1,7 @@
-import { type GeneratorInputs, type GeneratorContext } from '../../shared/generator-types';
-import { getProfile } from '../dal/profiles';
-import { listReports } from '../dal/reports';
-import { listWorkouts } from '../dal/workouts';
+import { type GeneratorInputs, type GeneratorContext } from '../../shared/generator-types.js';
+import { getProfile } from '../dal/profiles.js';
+import { listReports } from '../dal/reports.js';
+import { listWorkouts } from '../dal/workouts.js';
 
 export async function deriveSuggestionSeed(userId: string) {
   // Fetch data with safe fallbacks

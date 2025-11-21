@@ -9,7 +9,7 @@
  */
 export async function enrichWorkoutHistoryWithRPE(userId, workouts) {
     try {
-        const { getRecentRPEs } = await import('../../dal/workouts');
+        const { getRecentRPEs } = await import('../../dal/workouts.js');
         const rpeData = await getRecentRPEs(userId, 20); // Get more than we need
         // Create lookup map for RPE by workout ID
         const rpeMap = new Map();

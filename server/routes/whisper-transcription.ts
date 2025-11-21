@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth";
-import { openai } from '../lib/openai';
+import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { openai } from '../lib/openai.js';
 import multer from "multer";
 
 // Use memory storage

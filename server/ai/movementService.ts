@@ -1,4 +1,4 @@
-import type { Movement, MovementRegistry } from '../types/movements';
+import type { Movement, MovementRegistry } from '../types/movements.js';
 import seedrandom from 'seedrandom';
 import registryData from '../data/movements.registry.min.json';
 

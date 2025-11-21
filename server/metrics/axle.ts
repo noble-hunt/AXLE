@@ -1,6 +1,6 @@
 import { MetricsEnvelope } from "@shared/health/types";
-import { getUserRecentWorkouts } from "../dal/workouts"; // existing DAL
-import { get7DaySleepSummary, getRHRTrend } from "../dal/reports"; // helper you have or add thin wrappers
+import { getUserRecentWorkouts } from "../dal/workouts.js"; // existing DAL
+import { get7DaySleepSummary, getRHRTrend } from "../dal/reports.js"; // helper you have or add thin wrappers
 
 type Inputs = {
   userId: string;

@@ -7,9 +7,9 @@
  */
 
 import type { Express } from "express";
-import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
-import { simulatePayloadSchema } from "../../shared/types/workouts";
-import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator";
+import { requireAuth, AuthenticatedRequest } from "../middleware/auth.js";
+import { simulatePayloadSchema } from "../../shared/types/workouts.js";
+import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator.js";
 
 export function registerSimulateRoutes(app: Express) {
   /**

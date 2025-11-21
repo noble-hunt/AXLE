@@ -1,1 +1,1 @@
-export { generateWorkout } from './generateWorkout';
+export { generateWorkout } from './generateWorkout.js';

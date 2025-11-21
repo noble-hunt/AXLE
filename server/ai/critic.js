@@ -9,7 +9,7 @@
  * - Variety & movement balance (10%)
  */
 import OpenAI from 'openai';
-import { WorkoutSchema } from '../../client/src/ai/schemas';
+import { WorkoutSchema } from '../../client/src/ai/schemas.js';
 // Initialize OpenAI client
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY,

@@ -1,6 +1,6 @@
 import { format, subDays, parseISO } from 'date-fns';
-import { supabaseAdmin } from '../../lib/supabaseAdmin';
-import { getEnvironment } from '../environment';
+import { supabaseAdmin } from '../../lib/supabaseAdmin.js';
+import { getEnvironment } from '../environment/index.js';
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================

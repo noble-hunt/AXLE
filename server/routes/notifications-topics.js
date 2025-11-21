@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth";
-import { db } from "../db";
+import { requireAuth } from "../middleware/auth.js";
+import { db } from "../db.js";
 import { notificationTopics } from "@shared/schema";
 import { eq } from "drizzle-orm";
 const r = Router();

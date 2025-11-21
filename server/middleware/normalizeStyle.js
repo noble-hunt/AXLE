@@ -1,4 +1,4 @@
-import { normalizeStyle } from '../lib/style';
+import { normalizeStyle } from '../lib/style.js';
 export function normalizeStyleMiddleware(req, res, next) {
     const originalBody = { ...req.body };
     const style = normalizeStyle(req.body?.style ?? req.body?.goal ?? req.body?.focus);

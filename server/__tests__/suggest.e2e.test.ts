@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
-import { registerWorkoutSuggestionRoutes } from '../routes/workout-suggest';
-import { requireAuth } from '../middleware/auth';
-import { requireJSON } from '../middleware/accept-json';
+import { registerWorkoutSuggestionRoutes } from '../routes/workout-suggest.js';
+import { requireAuth } from '../middleware/auth.js';
+import { requireJSON } from '../middleware/accept-json.js';
 import { API_ENDPOINTS } from '@shared/endpoints';
 
 // Mock OpenAI to prevent browser environment error
@@ -36,7 +36,7 @@ vi.mock('../lib/openai', () => ({
 }));
 
 // Import mocked services
-const { computeTodaySuggestion, startSuggestion } = await import('../services/suggestions');
+const { computeTodaySuggestion, startSuggestion } = await import('../services/suggestions.js');
 
 describe('Workout Suggestion API E2E Tests', () => {
   
@@ -50,8 +50,8 @@ describe('Workout Suggestion API E2E Tests', () => {
     
     it('endpoint constants are used in both client and server', async () => {
       // Verify the constants are actually imported and used
-      const clientApiFile = await import('../../client/src/features/workouts/suggest/api.ts');
-      const serverRouteFile = await import('../routes/workout-suggest.ts');
+      const clientApiFile = await import('../../client/src/features/workouts/suggest/api.ts.js');
+      const serverRouteFile = await import('../routes/workout-suggest.ts.js');
       
       // This will fail at compile time if the imports are removed
       expect(API_ENDPOINTS).toBeDefined();
@@ -282,7 +282,7 @@ Then replace the manual request simulation with:
 
 ```typescript
 import request from 'supertest';
-import { app } from '../index'; // Export app from main server
+import { app } from '../index.js'; // Export app from main server
 
 it('returns JSON for /api/workouts/suggest/today', async () => {
   const res = await request(app)

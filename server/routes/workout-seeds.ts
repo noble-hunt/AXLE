@@ -7,17 +7,17 @@
  */
 
 import type { Express } from "express";
-import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
+import { requireAuth, AuthenticatedRequest } from "../middleware/auth.js";
 import { z } from "zod";
-import { generateCrossFitWorkout } from "../ai/generators/crossfit";
-import { generateOlympicWorkout } from "../ai/generators/olympic";
-import { critiqueAndRepair } from "../ai/critic";
-import { generateWorkoutTitle } from "../ai/title";
-import { render } from "../../client/src/ai/render";
-import type { WorkoutGenerationRequest } from "../ai/generateWorkout";
-import type { GeneratorSeed } from "../../shared/generator-types";
-import { generatorSeedSchema } from "../../shared/generator-types";
-import { generateWorkoutSeed, convertLegacyRequestToInputs, createSeededRandom } from "../utils/seed-generator";
+import { generateCrossFitWorkout } from "../ai/generators/crossfit.js";
+import { generateOlympicWorkout } from "../ai/generators/olympic.js";
+import { critiqueAndRepair } from "../ai/critic.js";
+import { generateWorkoutTitle } from "../ai/title.js";
+import { render } from "../../client/src/ai/render.js";
+import type { WorkoutGenerationRequest } from "../ai/generateWorkout.js";
+import type { GeneratorSeed } from "../../shared/generator-types.js";
+import { generatorSeedSchema } from "../../shared/generator-types.js";
+import { generateWorkoutSeed, convertLegacyRequestToInputs, createSeededRandom } from "../utils/seed-generator.js";
 
 // Schema for regenerate endpoint
 const regenerateSchema = z.object({
@@ -67,7 +67,7 @@ export function registerSeedRoutes(app: Express) {
       
       if (validatedData.workoutId) {
         // Fetch seed from existing workout
-        const { getWorkout } = await import("../dal/workouts");
+        const { getWorkout } = await import("../dal/workouts.js");
         const workout = await getWorkout(userId, validatedData.workoutId);
         
         if (!workout) {
@@ -144,8 +144,8 @@ export function registerSeedRoutes(app: Express) {
       const renderedWorkout = render(critique.workout);
       
       // Persist to database with same seed - using direct database insert to include genSeed
-      const { db } = await import("../db");
-      const { workouts } = await import("../../shared/schema");
+      const { db } = await import("../db.js");
+      const { workouts } = await import("../../shared/schema.js");
       const [savedWorkout] = await db.insert(workouts).values({
         userId,
         title: critique.workout.name,

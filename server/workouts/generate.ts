@@ -1,6 +1,6 @@
-import { MOVEMENTS } from "./movements";
-import { WorkoutPlan, WorkoutPlanZ, BlockZ } from "../../shared/workoutSchema";
-import { mulberry32, strSeed } from "./rand";
+import { MOVEMENTS } from "./movements.js";
+import { WorkoutPlan, WorkoutPlanZ, BlockZ } from "../../shared/workoutSchema.js";
+import { mulberry32, strSeed } from "./rand.js";
 import { z } from "zod";
 
 type Input = {

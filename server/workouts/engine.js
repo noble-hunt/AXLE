@@ -4,7 +4,7 @@
  * Deterministically assembles workouts with progression, safety guardrails,
  * and biometric-driven adaptation.
  */
-import { getBlocks } from './library/index';
+import { getBlocks } from './library/index.js';
 // Main engine function
 export function generateWorkoutPlan(request, history = [], progressionStates = [], biometrics = {}, energySystemsHistory) {
     const rationale = [];

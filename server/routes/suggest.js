@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth";
-import { startSuggestion } from "../services/suggestions";
+import { requireAuth } from "../middleware/auth.js";
+import { startSuggestion } from "../services/suggestions.js";
 export const suggest = Router();
 suggest.post("/start", requireAuth, async (req, res) => {
     const authReq = req;

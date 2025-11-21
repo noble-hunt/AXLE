@@ -1,6 +1,6 @@
-import { verifyState, signState } from '../../lib/oauthState';
-import { storeEncryptedTokens, getDecryptedTokens, deleteTokens, } from '../../dal/tokens';
-import { upsertWearable } from '../../dal/wearables';
+import { verifyState, signState } from '../../lib/oauthState.js';
+import { storeEncryptedTokens, getDecryptedTokens, deleteTokens, } from '../../dal/tokens.js';
+import { upsertWearable } from '../../dal/wearables.js';
 const FITBIT_AUTH = 'https://www.fitbit.com/oauth2/authorize';
 const FITBIT_TOKEN = 'https://api.fitbit.com/oauth2/token';
 const FITBIT_REVOKE = 'https://api.fitbit.com/oauth2/revoke';

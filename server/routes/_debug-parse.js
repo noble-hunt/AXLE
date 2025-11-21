@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { generatePayloadSchema } from '../../shared/types/workouts';
+import { generatePayloadSchema } from '../../shared/types/workouts.js';
 const router = Router();
 router.post('/api/_debug/parse', (req, res) => {
     try {

@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
-import { db } from '../db';
-import { notificationPrefs, insertNotificationPrefsSchema } from '../../shared/schema';
+import { requireAuth } from '../middleware/auth.js';
+import { db } from '../db.js';
+import { notificationPrefs, insertNotificationPrefsSchema } from '../../shared/schema.js';
 import { eq } from 'drizzle-orm';
 const router = Router();
 // POST /api/notification-prefs - Save/update user notification preferences

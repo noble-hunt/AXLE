@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 export async function requireAuth(req, res, next) {
     try {
         const authHeader = req.headers.authorization;

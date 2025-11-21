@@ -1,7 +1,7 @@
-import { db } from "../db";
+import { db } from "../db.js";
 import { healthReports } from "@shared/schema";
 import { eq, gte, and } from "drizzle-orm";
-import { sendEmail } from "./email";
+import { sendEmail } from "./email.js";
 export async function buildWeeklyReportHtml(userId) {
     // Get last 7 days health_reports
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

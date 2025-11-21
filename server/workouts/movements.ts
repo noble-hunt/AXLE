@@ -1,4 +1,4 @@
-import { Movement } from "../../shared/workoutSchema";
+import { Movement } from "../../shared/workoutSchema.js";
 
 export const MOVEMENTS: Movement[] = [
   // Bodyweight - Lower

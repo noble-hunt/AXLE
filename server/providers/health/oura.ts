@@ -1,7 +1,7 @@
-import type { HealthProvider, HealthSnapshot } from './types';
-import { storeEncryptedTokens, getDecryptedTokens } from '../../dal/tokens';
-import { upsertWearable } from '../../dal/wearables';
-import { verifyState, signState } from '../../lib/oauthState';
+import type { HealthProvider, HealthSnapshot } from './types.js';
+import { storeEncryptedTokens, getDecryptedTokens } from '../../dal/tokens.js';
+import { upsertWearable } from '../../dal/wearables.js';
+import { verifyState, signState } from '../../lib/oauthState.js';
 
 const OURA_AUTH = 'https://cloud.ouraring.com/oauth/authorize';
 const OURA_TOKEN = 'https://cloud.ouraring.com/oauth/token';

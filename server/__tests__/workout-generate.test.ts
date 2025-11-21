@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-import type { AuthenticatedRequest } from '../middleware/auth';
+import type { AuthenticatedRequest } from '../middleware/auth.js';
 
 // Mock dependencies that might cause issues in test environment
 vi.mock('openai', () => ({
@@ -63,10 +63,10 @@ describe('POST /api/workouts/generate endpoint', () => {
     vi.clearAllMocks();
     
     // Import mocked functions
-    const { listWorkouts, insertWorkout } = await import('../dal/workouts');
-    const { listReports } = await import('../dal/reports');
-    const { generateWorkoutPlan } = await import('../workouts/engine');
-    const { logGenerationEvent } = await import('../workouts/telemetry');
+    const { listWorkouts, insertWorkout } = await import('../dal/workouts.js');
+    const { listReports } = await import('../dal/reports.js');
+    const { generateWorkoutPlan } = await import('../workouts/engine.js');
+    const { logGenerationEvent } = await import('../workouts/telemetry.js');
     
     mockListWorkouts = vi.mocked(listWorkouts);
     mockInsertWorkout = vi.mocked(insertWorkout);

@@ -1,5 +1,5 @@
 // server/lib/initStorage.ts
-import { supabaseAdmin } from './supabaseAdmin';
+import { supabaseAdmin } from './supabaseAdmin.js';
 
 export async function ensureStorageBuckets() {
   try {

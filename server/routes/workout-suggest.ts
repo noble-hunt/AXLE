@@ -1,8 +1,8 @@
 // server/routes/workout-suggest.ts
 import type { Express } from 'express';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
-import { requireJSON } from '../middleware/accept-json';
-import { computeTodaySuggestion, startSuggestion } from '../services/suggestions';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
+import { requireJSON } from '../middleware/accept-json.js';
+import { computeTodaySuggestion, startSuggestion } from '../services/suggestions.js';
 import { API_ENDPOINTS } from '@shared/endpoints';
 
 /**

@@ -1,7 +1,7 @@
-import { db } from '../db';
-import { wearableTokens } from '../../shared/schema';
+import { db } from '../db.js';
+import { wearableTokens } from '../../shared/schema.js';
 import { eq, and } from 'drizzle-orm';
-import { seal, open } from '../lib/crypto';
+import { seal, open } from '../lib/crypto.js';
 
 export interface TokenData {
   accessToken: string;

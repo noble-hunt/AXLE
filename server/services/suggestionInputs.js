@@ -1,6 +1,6 @@
-import { getProfile } from '../dal/profiles';
-import { listReports } from '../dal/reports';
-import { listWorkouts } from '../dal/workouts';
+import { getProfile } from '../dal/profiles.js';
+import { listReports } from '../dal/reports.js';
+import { listWorkouts } from '../dal/workouts.js';
 export async function deriveSuggestionSeed(userId) {
     // Fetch data with safe fallbacks
     const profile = await getProfile(userId).catch(() => null);

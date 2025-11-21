@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { generatePlan } from "./generate";
-import { WorkoutPlanZ } from "../../shared/workoutSchema";
+import { generatePlan } from "./generate.js";
+import { WorkoutPlanZ } from "../../shared/workoutSchema.js";
 
 test.each([
   ["strength",["barbell"]],

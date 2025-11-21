@@ -3,9 +3,9 @@
  * Smoke test for workout generation
  * Tests 3 canned payloads and prints generator, hardness, and flags
  */
-import { generatePremiumWorkout } from '../ai/generators/premium';
-import { convertPremiumToGenerated } from '../workoutGenerator';
-import { Category } from '../../shared/schema';
+import { generatePremiumWorkout } from '../ai/generators/premium.js';
+import { convertPremiumToGenerated } from '../workoutGenerator.js';
+import { Category } from '../../shared/schema.js';
 // ANSI color codes for terminal output
 const colors = {
     reset: '\x1b[0m',

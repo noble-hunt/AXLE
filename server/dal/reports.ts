@@ -1,7 +1,7 @@
-import { db } from "../db";
+import { db } from "../db.js";
 import { axleReports, profiles, type AxleReport, type ReportMetrics, type ReportInsights } from "@shared/schema";
 import { eq, and, desc, gte, lte, isNull } from "drizzle-orm";
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 
 // ============================================================================
 // HEALTH REPORTS (Legacy - for health integrations like Oura, Fitbit, etc.)

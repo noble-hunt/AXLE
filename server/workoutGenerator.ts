@@ -1,12 +1,12 @@
 import OpenAI from "openai";
-import type { WorkoutRequest, GeneratedWorkout, WorkoutSet } from "../shared/schema";
-import { Category } from "../shared/schema";
-import { generatedWorkoutSchema } from "../shared/schema";
-import { generatePremiumWorkout, computeHardness } from "./ai/generators/premium";
-import type { WorkoutGenerationRequest } from "./ai/generateWorkout";
-import { DISABLE_SIMPLE, DISABLE_MOCK, FORCE_PREMIUM } from './config/env';
-import { normalizeStyle } from './lib/style';
-import { MOVEMENTS } from './workouts/movements';
+import type { WorkoutRequest, GeneratedWorkout, WorkoutSet } from "../shared/schema.js";
+import { Category } from "../shared/schema.js";
+import { generatedWorkoutSchema } from "../shared/schema.js";
+import { generatePremiumWorkout, computeHardness } from "./ai/generators/premium.js";
+import type { WorkoutGenerationRequest } from "./ai/generateWorkout.js";
+import { DISABLE_SIMPLE, DISABLE_MOCK, FORCE_PREMIUM } from './config/env.js';
+import { normalizeStyle } from './lib/style.js';
+import { MOVEMENTS } from './workouts/movements.js';
 
 // Orchestrator version stamp for debugging
 export const GENERATOR_STAMP = 'WG-ORCH@1.0.5';

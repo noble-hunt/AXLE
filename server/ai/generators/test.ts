@@ -8,11 +8,11 @@
  * - Meet duration requirements
  */
 
-import { generateCrossFitWorkout } from './crossfit';
-import { generateOlympicWorkout } from './olympic';
-import { WorkoutSchema } from '../../../client/src/ai/schemas';
-import { render } from '../../../src/ai/render';
-import type { WorkoutGenerationRequest } from '../generateWorkout';
+import { generateCrossFitWorkout } from './crossfit.js';
+import { generateOlympicWorkout } from './olympic.js';
+import { WorkoutSchema } from '../../../client/src/ai/schemas.js';
+import { render } from '../../../src/ai/render.js';
+import type { WorkoutGenerationRequest } from '../generateWorkout.js';
 
 async function testCrossFitGenerations() {
   console.log('🏋️ Testing CrossFit Generations...\n');

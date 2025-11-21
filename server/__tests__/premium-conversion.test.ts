@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { convertPremiumToGenerated } from '../workoutGenerator';
-import type { Category } from '../../shared/schema';
+import { convertPremiumToGenerated } from '../workoutGenerator.js';
+import type { Category } from '../../shared/schema.js';
 
 describe('Premium Workout Conversion', () => {
   it('should not generate synthetic placeholders like "Bird Dog x 270s"', () => {

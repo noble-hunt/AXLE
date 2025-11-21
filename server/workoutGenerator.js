@@ -1,10 +1,10 @@
 import OpenAI from "openai";
-import { Category } from "../shared/schema";
-import { generatedWorkoutSchema } from "../shared/schema";
-import { computeHardness } from "./ai/generators/premium";
-import { DISABLE_MOCK } from './config/env';
-import { normalizeStyle } from './lib/style';
-import { MOVEMENTS } from './workouts/movements';
+import { Category } from "../shared/schema.js";
+import { generatedWorkoutSchema } from "../shared/schema.js";
+import { computeHardness } from "./ai/generators/premium.js";
+import { DISABLE_MOCK } from './config/env.js';
+import { normalizeStyle } from './lib/style.js';
+import { MOVEMENTS } from './workouts/movements.js';
 // Orchestrator version stamp for debugging
 export const GENERATOR_STAMP = 'WG-ORCH@1.0.5';
 // Canonical style resolver - normalizes goal/style/focus to pattern pack keys

@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { requireAuth } from "../middleware/auth";
-import { openai } from '../lib/openai';
-import { supabaseFromReq } from '../lib/supabaseFromReq';
+import { requireAuth } from "../middleware/auth.js";
+import { openai } from '../lib/openai.js';
+import { supabaseFromReq } from '../lib/supabaseFromReq.js';
 const router = Router();
 // Parse freeform workout description
 router.post('/parse-freeform', requireAuth, async (req, res) => {
@@ -150,7 +150,7 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
         const userId = authReq.user.id;
         const workoutId = req.params.id;
         // Validate request body with Zod schema
-        const { insertWorkoutFeedbackSchema } = await import('../../shared/schema');
+        const { insertWorkoutFeedbackSchema } = await import('../../shared/schema.js');
         const validationResult = insertWorkoutFeedbackSchema.safeParse({
             workoutId,
             userId,
@@ -165,7 +165,7 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
         }
         const { perceivedIntensity, notes } = validationResult.data;
         // Verify workout exists and belongs to user
-        const { getWorkout, insertWorkoutFeedback } = await import('../dal/workouts');
+        const { getWorkout, insertWorkoutFeedback } = await import('../dal/workouts.js');
         const workout = await getWorkout(userId, workoutId);
         if (!workout) {
             return res.status(404).json({ error: 'Workout not found' });
@@ -191,7 +191,7 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
         }
         // Log telemetry for ML training data
         try {
-            const { logFeedbackEvent } = await import('../workouts/telemetry');
+            const { logFeedbackEvent } = await import('../workouts/telemetry.js');
             // Get generation ID from workout if available
             const generationId = workout.generationId || 'unknown';
             await logFeedbackEvent(userId, workoutId, generationId, {

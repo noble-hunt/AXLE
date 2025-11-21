@@ -1,13 +1,13 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
-import { PACKS } from '../config/patternPacks';
-import { buildOlympicPack, buildEndurancePack } from '../config/patternPackBuilders';
-import { queryMovements, findMovement } from '../movementService';
+import { PACKS } from '../config/patternPacks.js';
+import { buildOlympicPack, buildEndurancePack } from '../config/patternPackBuilders.js';
+import { queryMovements, findMovement } from '../movementService.js';
 import registryData from '../../data/movements.registry.json';
-import { STYLE_POLICIES } from '../config/stylePolicies';
-import { STYLE_SPECS } from '../config/styleSpecs';
-import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL, PREMIUM_STRICT } from '../../config/env';
-import { normalizeStyle } from '../../lib/style';
+import { STYLE_POLICIES } from '../config/stylePolicies.js';
+import { STYLE_SPECS } from '../config/styleSpecs.js';
+import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL, PREMIUM_STRICT } from '../../config/env.js';
+import { normalizeStyle } from '../../lib/style.js';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Load movement registry into a Map for fast lookup
 const REG = new Map(registryData.map((m) => [m.id, m]));

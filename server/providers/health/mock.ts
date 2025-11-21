@@ -1,5 +1,5 @@
-import { HealthProvider, HealthSnapshot } from './types';
-import { storeEncryptedTokens } from '../../dal/tokens';
+import { HealthProvider, HealthSnapshot } from './types.js';
+import { storeEncryptedTokens } from '../../dal/tokens.js';
 
 export class MockHealthProvider implements HealthProvider {
   id = "Mock" as const;

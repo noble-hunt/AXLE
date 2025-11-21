@@ -4,9 +4,9 @@
  * Handles POST /api/workouts/generate - Final workout generation with persistence
  * All generation goes through the orchestrator (generateWorkout)
  */
-import { requireAuth } from "../middleware/auth";
-import { generatePayloadSchema } from "../../shared/types/workouts";
-import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator";
+import { requireAuth } from "../middleware/auth.js";
+import { generatePayloadSchema } from "../../shared/types/workouts.js";
+import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator.js";
 export function registerGenerateRoutes(app) {
     /**
      * POST /api/workouts/generate
@@ -45,7 +45,7 @@ export function registerGenerateRoutes(app) {
             res.setHeader('X-AXLE-Generator', meta.generator || 'unknown');
             res.setHeader('X-AXLE-Style', meta.style || req.body?.style || 'unknown');
             // Save to database
-            const { insertWorkout } = await import("../dal/workouts");
+            const { insertWorkout } = await import("../dal/workouts.js");
             const workoutData = generatedWorkout;
             const workoutParams = {
                 userId,

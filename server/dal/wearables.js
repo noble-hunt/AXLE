@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 export async function upsertWearable(params) {
     const { data, error } = await supabaseAdmin
         .from('wearable_connections')

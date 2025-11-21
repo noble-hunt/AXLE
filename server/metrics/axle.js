@@ -1,5 +1,5 @@
-import { getUserRecentWorkouts } from "../dal/workouts"; // existing DAL
-import { getRHRTrend } from "../dal/reports"; // helper you have or add thin wrappers
+import { getUserRecentWorkouts } from "../dal/workouts.js"; // existing DAL
+import { getRHRTrend } from "../dal/reports.js"; // helper you have or add thin wrappers
 export async function computeAxleScores({ userId, dateISO, metrics }) {
     const p = metrics.provider;
     const w = metrics.weather;

@@ -12,18 +12,18 @@
  */
 
 import type { Express } from "express";
-import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
+import { requireAuth, AuthenticatedRequest } from "../middleware/auth.js";
 import { z } from "zod";
-import { generateCrossFitWorkout } from "../ai/generators/crossfit";
-import { generateOlympicWorkout } from "../ai/generators/olympic";
-import { critiqueAndRepair } from "../ai/critic";
-import { generateWorkoutTitle } from "../ai/title";
-import { render } from "../../client/src/ai/render";
-import type { WorkoutGenerationRequest } from "../ai/generateWorkout";
+import { generateCrossFitWorkout } from "../ai/generators/crossfit.js";
+import { generateOlympicWorkout } from "../ai/generators/olympic.js";
+import { critiqueAndRepair } from "../ai/critic.js";
+import { generateWorkoutTitle } from "../ai/title.js";
+import { render } from "../../client/src/ai/render.js";
+import type { WorkoutGenerationRequest } from "../ai/generateWorkout.js";
 // V2 Generator Types and Configuration
-import type { WorkoutRequest, WorkoutPlan, MetricsSnapshot } from "../workouts/types";
-import { isWorkoutV2Enabled, useMLPolicy, shouldShowMetricsDebug } from "../config/flags";
-import { generateWorkoutPlan } from "../workouts/engine";
+import type { WorkoutRequest, WorkoutPlan, MetricsSnapshot } from "../workouts/types.js";
+import { isWorkoutV2Enabled, useMLPolicy, shouldShowMetricsDebug } from "../config/flags.js";
+import { generateWorkoutPlan } from "../workouts/engine.js";
 // Telemetry for RL training data collection
 import { logGenerationEvent, extractMetricsSnapshot, createRequestHash } from "../workouts/telemetry.js";
 import { randomUUID } from "crypto";
@@ -56,11 +56,11 @@ const generateWorkoutSchema = z.object({
 async function composeUserContext(userId: string): Promise<WorkoutGenerationRequest['context']> {
   try {
     // Get user's recent workout history
-    const { listWorkouts } = await import("../dal/workouts");
+    const { listWorkouts } = await import("../dal/workouts.js");
     const recentWorkouts = await listWorkouts(userId, { limit: 7 });
     
     // Get latest health report
-    const { listReports } = await import("../dal/reports");
+    const { listReports } = await import("../dal/reports.js");
     const healthReports = await listReports(userId, { days: 1 });
     const latestHealth = healthReports[0];
     
@@ -137,8 +137,8 @@ async function generateAndPersistWorkout(
   request: WorkoutGenerationRequest
 ) {
   // Import new generator
-  const { generateWithFallback } = await import("../lib/generator/generate");
-  const { generateWorkoutSeed, convertLegacyRequestToInputs } = await import("../utils/seed-generator");
+  const { generateWithFallback } = await import("../lib/generator/generate.js");
+  const { generateWorkoutSeed, convertLegacyRequestToInputs } = await import("../utils/seed-generator.js");
   
   // Convert request to GeneratorInputs format
   const inputs = convertLegacyRequestToInputs(request);
@@ -150,7 +150,7 @@ async function generateAndPersistWorkout(
   const seed = generateWorkoutSeed(inputs, userId);
   
   // Get user's workout history for progression
-  const { listWorkouts } = await import("../dal/workouts");
+  const { listWorkouts } = await import("../dal/workouts.js");
   const recentWorkouts = await listWorkouts(userId, { limit: 28 });
   
   try {
@@ -165,8 +165,8 @@ async function generateAndPersistWorkout(
     );
     
     // Persist to database with seed data
-    const { db } = await import("../db");
-    const { workouts } = await import("../../shared/schema");
+    const { db } = await import("../db.js");
+    const { workouts } = await import("../../shared/schema.js");
     const [savedWorkout] = await db.insert(workouts).values({
       userId,
       title: result.workout.name,
@@ -195,10 +195,10 @@ async function generateAndPersistWorkout(
     console.warn('New generator failed, falling back to legacy system:', error);
     
     // Fallback to legacy system
-    const { generateCrossFitWorkout } = await import("../ai/generators/crossfit");
-    const { generateOlympicWorkout } = await import("../ai/generators/olympic");
-    const { generateWorkoutTitle } = await import("../ai/title");
-    const { critiqueAndRepair } = await import("../ai/critic");
+    const { generateCrossFitWorkout } = await import("../ai/generators/crossfit.js");
+    const { generateOlympicWorkout } = await import("../ai/generators/olympic.js");
+    const { generateWorkoutTitle } = await import("../ai/title.js");
+    const { critiqueAndRepair } = await import("../ai/critic.js");
     
     const generator = category === 'CrossFit/HIIT' ? generateCrossFitWorkout : generateOlympicWorkout;
     const workout = await generator(request);
@@ -214,8 +214,8 @@ async function generateAndPersistWorkout(
     
     const renderedWorkout = render(critique.workout);
     
-    const { db } = await import("../db");
-    const { workouts } = await import("../../shared/schema");
+    const { db } = await import("../db.js");
+    const { workouts } = await import("../../shared/schema.js");
     const [savedWorkout] = await db.insert(workouts).values({
       userId,
       title: critique.workout.name,
@@ -252,7 +252,7 @@ async function hydrateMetricsFromHealthReport(userId: string, requestMetrics?: a
       return requestMetrics; // Use provided metrics
     }
 
-    const { listReports } = await import("../dal/reports");
+    const { listReports } = await import("../dal/reports.js");
     const reports = await listReports(userId, { days: 1 });
     const latestReport = reports[0];
     
@@ -286,7 +286,7 @@ async function hydrateMetricsFromHealthReport(userId: string, requestMetrics?: a
  */
 async function getEnergySystemsHistory(userId: string) {
   try {
-    const { listReports } = await import("../dal/reports");
+    const { listReports } = await import("../dal/reports.js");
     const reports = await listReports(userId, { days: 7 });
     
     const energySystems = {

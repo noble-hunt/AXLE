@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../lib/supabaseAdmin';
+import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
 /**
  * Boot-time migration guard to ensure critical database schema exists in Supabase.

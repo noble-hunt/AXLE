@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { normalizeStyle, SUPPORTED_STYLES } from '../lib/style';
+import { normalizeStyle, SUPPORTED_STYLES } from '../lib/style.js';
 const router = Router();
 // POST /api/_debug/resolve-style - Test style normalization
 router.post('/api/_debug/resolve-style', (req, res) => {

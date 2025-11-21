@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { supabaseAdmin } from '../lib/supabaseAdmin';
-import { startWorkoutAtomic } from '../dal/workouts';
+import { supabaseAdmin } from '../lib/supabaseAdmin.js';
+import { startWorkoutAtomic } from '../dal/workouts.js';
 
 // Real integration test - tests actual Supabase integration with atomic operations
 describe('Workout Start Integration Tests', () => {

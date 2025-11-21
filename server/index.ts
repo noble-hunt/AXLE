@@ -1,16 +1,16 @@
 // server/index.ts
-import './config/env';
+import './config/env.js';
 import express, { type Request, Response, NextFunction } from "express";
 import cors from 'cors';
-import { registerRoutes } from "./routes";
-import { workouts } from "./routes/workouts";
-import { setupVite, serveStatic, log } from "./vite";
-import { startSuggestionsCron } from "./jobs/suggestions-cron";
-import { initSentry, Sentry } from "./sentry";
-import { logging } from "./middleware/logging";
-import { jsonError } from "./middleware/error";
-import { runBootMigrationGuard } from "./migrations/boot-guard";
-import { ensureStorageBuckets } from "./lib/initStorage";
+import { registerRoutes } from "./routes.js";
+import { workouts } from "./routes/workouts.js";
+import { setupVite, serveStatic, log } from "./vite.js";
+import { startSuggestionsCron } from "./jobs/suggestions-cron.js";
+import { initSentry, Sentry } from "./sentry.js";
+import { logging } from "./middleware/logging.js";
+import { jsonError } from "./middleware/error.js";
+import { runBootMigrationGuard } from "./migrations/boot-guard.js";
+import { ensureStorageBuckets } from "./lib/initStorage.js";
 import fs from 'node:fs';
 import path from 'node:path';
 

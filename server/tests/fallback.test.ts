@@ -7,7 +7,7 @@
  * Usage: node -r tsx/cjs server/tests/fallback.test.ts
  */
 
-import { generateWithFallback } from '../lib/generator/generate';
+import { generateWithFallback } from '../lib/generator/generate.js';
 
 async function testFallbackSystem() {
   console.log('🧪 Testing Generator Fallback System\n');

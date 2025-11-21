@@ -1,7 +1,7 @@
-import { db } from "../db";
+import { db } from "../db.js";
 import { axleReports, profiles } from "@shared/schema";
 import { eq, and, desc, gte, lte, isNull } from "drizzle-orm";
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 export async function insertReport(params) {
     const { data, error } = await supabaseAdmin
         .from('health_reports')

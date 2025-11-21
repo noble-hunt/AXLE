@@ -3,7 +3,7 @@
  *
  * This wraps the existing AI generators and workoutGenerator for fallback
  */
-import { generateWorkout as legacyGenerateWorkout } from '../../../workoutGenerator';
+import { generateWorkout as legacyGenerateWorkout } from '../../../workoutGenerator.js';
 export async function generateWorkout(seed, opts) {
     // Convert seed to legacy format
     const legacyRequest = {

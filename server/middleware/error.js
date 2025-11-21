@@ -1,4 +1,4 @@
-import { GENERATOR_STAMP } from '../workoutGenerator';
+import { GENERATOR_STAMP } from '../workoutGenerator.js';
 export function jsonError(err, req, res, _next) {
     const status = err.statusCode || err.status || 500;
     const code = err.code ? String(err.code).toLowerCase() : null;

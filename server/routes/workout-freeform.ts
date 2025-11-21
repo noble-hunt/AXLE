@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
-import { openai } from '../lib/openai';
-import { supabaseFromReq } from '../lib/supabaseFromReq';
+import { requireAuth, AuthenticatedRequest } from "../middleware/auth.js";
+import { openai } from '../lib/openai.js';
+import { supabaseFromReq } from '../lib/supabaseFromReq.js';
 
 const router = Router();
 
@@ -163,7 +163,7 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
     const workoutId = req.params.id;
     
     // Validate request body with Zod schema
-    const { insertWorkoutFeedbackSchema } = await import('../../shared/schema');
+    const { insertWorkoutFeedbackSchema } = await import('../../shared/schema.js');
     const validationResult = insertWorkoutFeedbackSchema.safeParse({
       workoutId,
       userId,
@@ -181,7 +181,7 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
     const { perceivedIntensity, notes } = validationResult.data;
     
     // Verify workout exists and belongs to user
-    const { getWorkout, insertWorkoutFeedback } = await import('../dal/workouts');
+    const { getWorkout, insertWorkoutFeedback } = await import('../dal/workouts.js');
     const workout = await getWorkout(userId, workoutId);
     
     if (!workout) {
@@ -209,7 +209,7 @@ router.post('/:id/feedback', requireAuth, async (req, res) => {
     
     // Log telemetry for ML training data
     try {
-      const { logFeedbackEvent } = await import('../workouts/telemetry');
+      const { logFeedbackEvent } = await import('../workouts/telemetry.js');
       
       // Get generation ID from workout if available
       const generationId = workout.generationId || 'unknown';

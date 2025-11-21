@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { adaptToPlanV1 } from "../workouts/adapter";
+import { adaptToPlanV1 } from "../workouts/adapter.js";
 export const workouts = Router();
 // Helper function to transform sets to blocks (Wodify-style)
 function transformSetsToBlocks(sets, durationMin) {
@@ -119,7 +119,7 @@ workouts.post("/preview", async (req, res) => {
         const { focus, durationMin, equipment, intensity, seed } = parsed.data;
         const workoutSeed = seed ?? Math.random().toString(16).slice(2).toUpperCase();
         // Use the OpenAI-first generator for maximum variety
-        const { generateWorkout } = await import('../workoutGenerator');
+        const { generateWorkout } = await import('../workoutGenerator.js');
         console.log('[WORKOUTS ROUTER /preview] OpenAI-first generation:', {
             style: focus,
             duration: durationMin,

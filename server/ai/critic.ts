@@ -10,9 +10,9 @@
  */
 
 import OpenAI from 'openai';
-import { WorkoutSchema, type Workout } from '../../client/src/ai/schemas';
-import { parseAndValidate } from '../../client/src/ai/json';
-import type { WorkoutGenerationRequest } from './generateWorkout';
+import { WorkoutSchema, type Workout } from '../../client/src/ai/schemas.js';
+import { parseAndValidate } from '../../client/src/ai/json.js';
+import type { WorkoutGenerationRequest } from './generateWorkout.js';
 
 // Initialize OpenAI client
 const openai = new OpenAI({

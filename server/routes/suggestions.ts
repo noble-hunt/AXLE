@@ -3,12 +3,12 @@ import { z } from "zod";
 import crypto from "crypto";
 import { nanoid } from "nanoid";
 import * as Sentry from "@sentry/node";
-import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
-import { computeSuggestion } from "../logic/suggestions";
-import { generateWithFallback } from "../lib/generator/generate";
-import { insertWorkout } from "../dal/workouts";
-import { deriveSuggestionSeed } from "../services/suggestionInputs";
-import { db } from "../db";
+import { requireAuth, AuthenticatedRequest } from "../middleware/auth.js";
+import { computeSuggestion } from "../logic/suggestions.js";
+import { generateWithFallback } from "../lib/generator/generate.js";
+import { insertWorkout } from "../dal/workouts.js";
+import { deriveSuggestionSeed } from "../services/suggestionInputs.js";
+import { db } from "../db.js";
 import { suggestedWorkouts, workouts, prs, healthReports } from "@shared/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 
@@ -444,7 +444,7 @@ export function registerSuggestionRoutes(app: Express) {
       console.log({ requestId, userId }, 'GET /api/suggestions/debug');
 
       // Import functions from our suggestion engine
-      const { fetchWorkoutData, fetchLatestHealthReport } = await import("../logic/suggestions");
+      const { fetchWorkoutData, fetchLatestHealthReport } = await import("../logic/suggestions.js");
       
       const today = new Date();
       

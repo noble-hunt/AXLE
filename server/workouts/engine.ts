@@ -17,8 +17,8 @@ import {
   BlockType,
   EnergySystem,
   MovementCategory
-} from './types';
-import { getBlocks, getBlockById, type WorkoutBlock, type BlockFilter } from './library/index';
+} from './types.js';
+import { getBlocks, getBlockById, type WorkoutBlock, type BlockFilter } from './library/index.js';
 
 // Engine-specific types  
 export interface InternalWorkoutFocus {

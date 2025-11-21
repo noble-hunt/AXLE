@@ -1,5 +1,5 @@
-import { generateWorkout as generateV03 } from './v03';
-import { generateWorkout as generateV02 } from './v02';
+import { generateWorkout as generateV03 } from './v03/index.js';
+import { generateWorkout as generateV02 } from './v02/index.js';
 import * as Sentry from '@sentry/node';
 // Feature flags for controlled rollout
 const GENERATOR_VERSION_DEFAULT = process.env.GENERATOR_VERSION_DEFAULT || 'v0.3.0';

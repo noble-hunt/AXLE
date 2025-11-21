@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 export async function upsertMany(userId, items) {
     const insertData = items.map(item => ({
         user_id: userId,

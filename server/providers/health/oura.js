@@ -1,6 +1,6 @@
-import { storeEncryptedTokens, getDecryptedTokens } from '../../dal/tokens';
-import { upsertWearable } from '../../dal/wearables';
-import { verifyState, signState } from '../../lib/oauthState';
+import { storeEncryptedTokens, getDecryptedTokens } from '../../dal/tokens.js';
+import { upsertWearable } from '../../dal/wearables.js';
+import { verifyState, signState } from '../../lib/oauthState.js';
 const OURA_AUTH = 'https://cloud.ouraring.com/oauth/authorize';
 const OURA_TOKEN = 'https://cloud.ouraring.com/oauth/token';
 const OURA_API = 'https://api.ouraring.com/v2/usercollection';

@@ -1,8 +1,8 @@
 import { v4 as uuid } from 'uuid';
 import * as Sentry from '@sentry/node';
-import { generateWithFallback } from '../../lib/generator/generate';
-import { db } from '../../db';
-import { workouts } from '../../../shared/schema';
+import { generateWithFallback } from '../../lib/generator/generate.js';
+import { db } from '../../db.js';
+import { workouts } from '../../../shared/schema.js';
 export async function createWorkoutFromSeed(args) {
     try {
         // Convert suggestion data to generator inputs format

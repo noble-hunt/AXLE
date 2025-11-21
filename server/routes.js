@@ -1,41 +1,41 @@
 import { createServer } from "http";
-import { storage } from "./storage";
+import { storage } from "./storage.js";
 import { insertWorkoutSchema, insertPRSchema, insertWorkoutFeedbackSchema } from "@shared/schema";
-import { generateWorkout } from "./workoutGenerator";
-import { workoutRequestSchema } from "../shared/schema";
+import { generateWorkout } from "./workoutGenerator.js";
+import { workoutRequestSchema } from "../shared/schema.js";
 import { z } from "zod";
-import { requireAuth } from "./middleware/auth";
-import { listWorkouts, getWorkout, insertWorkout, updateWorkout, deleteWorkout, startWorkoutAtomic, getRecentRPE, getZoneMinutes14d, getStrain } from "./dal/workouts";
-import { listPRs } from "./dal/prs";
-import { list as listAchievements } from "./dal/achievements";
-import { listReports, getReportsByUserId, getReportById, createReport, markReportAsViewed, getReportPreferences, updateReportPreferences } from "./dal/reports";
-import { listWearables } from "./dal/wearables";
-import { registerSuggestionRoutes } from "./routes/suggestions";
-import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron";
-import workoutFreeformRouter from "./routes/workout-freeform";
-import whisperRouter from "./routes/whisper-transcription";
-import { registerGroupRoutes } from "./routes/groups";
-import { registerWorkoutGenerationRoutes } from "./routes/workout-generation";
-import { registerSeedRoutes } from "./routes/workout-seeds";
-import { registerSimulateRoutes } from "./routes/workout-simulate";
-import { registerGenerateRoutes } from "./routes/workout-generate";
-import { startSuggestedWorkout } from "./routes/workouts.start";
-import { registerWorkoutSuggestionRoutes } from "./routes/workout-suggest";
-import { initializeBlockLibrary, getBlocks } from "./workouts/library/index";
-import healthRoutes from "./routes/health";
-import healthMetricsRouter from "./routes/health-metrics";
-import pushNativeRouter from "./routes/push-native";
-import pushRouter from "./routes/push";
-import notificationPrefsRouter from "./routes/notification-prefs";
-import notificationTopicsRouter from "./routes/notifications-topics";
-import cronWeeklyRouter from "./routes/cron-weekly";
-import storageRouter from "./routes/storage";
-import { router as healthzRouter } from "./routes/healthz";
-import { suggest } from "./routes/suggest";
-import debugStyleRouter from "./routes/_debug-style";
-import debugTraceRouter from "./routes/_debug-trace";
-import debugParseRouter from "./routes/_debug-parse";
-import debugAiRouter from "./routes/_debug-ai";
+import { requireAuth } from "./middleware/auth.js";
+import { listWorkouts, getWorkout, insertWorkout, updateWorkout, deleteWorkout, startWorkoutAtomic, getRecentRPE, getZoneMinutes14d, getStrain } from "./dal/workouts.js";
+import { listPRs } from "./dal/prs.js";
+import { list as listAchievements } from "./dal/achievements.js";
+import { listReports, getReportsByUserId, getReportById, createReport, markReportAsViewed, getReportPreferences, updateReportPreferences } from "./dal/reports.js";
+import { listWearables } from "./dal/wearables.js";
+import { registerSuggestionRoutes } from "./routes/suggestions.js";
+import { getTodaySuggestionsCount, getLastRunAt, generateDailySuggestions } from "./jobs/suggestions-cron.js";
+import workoutFreeformRouter from "./routes/workout-freeform.js";
+import whisperRouter from "./routes/whisper-transcription.js";
+import { registerGroupRoutes } from "./routes/groups.js";
+import { registerWorkoutGenerationRoutes } from "./routes/workout-generation.js";
+import { registerSeedRoutes } from "./routes/workout-seeds.js";
+import { registerSimulateRoutes } from "./routes/workout-simulate.js";
+import { registerGenerateRoutes } from "./routes/workout-generate.js";
+import { startSuggestedWorkout } from "./routes/workouts.start.js";
+import { registerWorkoutSuggestionRoutes } from "./routes/workout-suggest.js";
+import { initializeBlockLibrary, getBlocks } from "./workouts/library/index.js";
+import healthRoutes from "./routes/health.js";
+import healthMetricsRouter from "./routes/health-metrics.js";
+import pushNativeRouter from "./routes/push-native.js";
+import pushRouter from "./routes/push.js";
+import notificationPrefsRouter from "./routes/notification-prefs.js";
+import notificationTopicsRouter from "./routes/notifications-topics.js";
+import cronWeeklyRouter from "./routes/cron-weekly.js";
+import storageRouter from "./routes/storage.js";
+import { router as healthzRouter } from "./routes/healthz.js";
+import { suggest } from "./routes/suggest.js";
+import debugStyleRouter from "./routes/_debug-style.js";
+import debugTraceRouter from "./routes/_debug-trace.js";
+import debugParseRouter from "./routes/_debug-parse.js";
+import debugAiRouter from "./routes/_debug-ai.js";
 export async function registerRoutes(app) {
     // Initialize workout block library
     initializeBlockLibrary();
@@ -69,7 +69,7 @@ export async function registerRoutes(app) {
             return res.status(404).json({ error: 'Not found' });
         }
         try {
-            const { generateWorkoutPlan } = await import("./workouts/engine");
+            const { generateWorkoutPlan } = await import("./workouts/engine.js");
             // Parse request parameters
             const { duration = 45, intensity = 6, equipment = [], vitality = 65, performancePotential = 70 } = req.body;
             // Build mock request
@@ -137,7 +137,7 @@ export async function registerRoutes(app) {
             return res.status(404).json({ error: 'Not found' });
         }
         try {
-            const { generateWorkoutPlan } = await import("./workouts/engine");
+            const { generateWorkoutPlan } = await import("./workouts/engine.js");
             // Parse query parameters
             const { days = 7, profile = 'intermediate', equipment = '' } = req.query;
             const numDays = Math.min(parseInt(days) || 7, 14); // Cap at 14 days
@@ -275,8 +275,8 @@ export async function registerRoutes(app) {
                 });
             }
             // Use the new OpenAI-first generator
-            const { generateWorkout } = await import('./workoutGenerator');
-            const { generateSeed } = await import('./lib/seededRandom');
+            const { generateWorkout } = await import('./workoutGenerator.js');
+            const { generateSeed } = await import('./lib/seededRandom.js');
             const equipmentList = equipment || ['bodyweight'];
             const workoutSeed = providedSeed || generateSeed();
             const workoutStyle = style || focus || goal || archetype || 'crossfit';
@@ -466,7 +466,7 @@ export async function registerRoutes(app) {
         try {
             const authReq = req;
             // Import the profiles get function
-            const { getProfile } = await import("./dal/profiles");
+            const { getProfile } = await import("./dal/profiles.js");
             // Get current profile using authenticated user ID
             const profile = await getProfile(authReq.user.id);
             if (!profile) {
@@ -490,7 +490,7 @@ export async function registerRoutes(app) {
                 return res.status(400).json({ message: "Invalid provider" });
             }
             // Import the profiles update function
-            const { updateProfileProviders } = await import("./dal/profiles");
+            const { updateProfileProviders } = await import("./dal/profiles.js");
             // Use authenticated user ID from middleware (security fix)
             const updatedProfile = await updateProfileProviders(authReq.user.id, provider);
             if (!updatedProfile) {
@@ -518,7 +518,7 @@ export async function registerRoutes(app) {
             const authReq = req;
             const validatedData = updateProfileSchema.parse(req.body);
             // Import the profiles update function
-            const { updateProfile } = await import("./dal/profiles");
+            const { updateProfile } = await import("./dal/profiles.js");
             // Update profile with validated data
             const updatedProfile = await updateProfile(authReq.user.id, validatedData);
             if (!updatedProfile) {
@@ -539,7 +539,7 @@ export async function registerRoutes(app) {
         try {
             const authReq = req;
             const { avatarUrl } = z.object({ avatarUrl: z.string() }).parse(req.body);
-            const { updateProfile } = await import("./dal/profiles");
+            const { updateProfile } = await import("./dal/profiles.js");
             const updatedProfile = await updateProfile(authReq.user.id, { avatarUrl });
             if (!updatedProfile) {
                 return res.status(404).json({ message: "Profile not found" });
@@ -569,7 +569,7 @@ export async function registerRoutes(app) {
             const authReq = req;
             const validatedData = upsertProfileSchema.parse(req.body);
             // Import the profiles functions
-            const { updateProfile, getProfile } = await import("./dal/profiles");
+            const { updateProfile, getProfile } = await import("./dal/profiles.js");
             // Try to get existing profile first
             let profile = await getProfile(authReq.user.id);
             if (!profile) {
@@ -597,7 +597,7 @@ export async function registerRoutes(app) {
             const action = req.body?.action || 'update';
             // ACTION: get - Get profile data
             if (action === 'get') {
-                const { getProfile } = await import("./dal/profiles");
+                const { getProfile } = await import("./dal/profiles.js");
                 const profile = await getProfile(authReq.user.id);
                 if (!profile)
                     return res.status(404).json({ message: 'Profile not found' });
@@ -608,7 +608,7 @@ export async function registerRoutes(app) {
                 const { provider } = req.body;
                 // Get providers if no provider specified
                 if (!provider) {
-                    const { getProfile } = await import("./dal/profiles");
+                    const { getProfile } = await import("./dal/profiles.js");
                     const profile = await getProfile(authReq.user.id);
                     return res.status(200).json({ profile: profile || { providers: [] } });
                 }
@@ -617,7 +617,7 @@ export async function registerRoutes(app) {
                 if (!allowedProviders.includes(provider)) {
                     return res.status(400).json({ message: "Invalid provider" });
                 }
-                const { updateProfileProviders } = await import("./dal/profiles");
+                const { updateProfileProviders } = await import("./dal/profiles.js");
                 const updatedProfile = await updateProfileProviders(authReq.user.id, provider);
                 if (!updatedProfile)
                     return res.status(500).json({ message: 'Failed to link provider' });
@@ -627,7 +627,7 @@ export async function registerRoutes(app) {
             if (action === 'upsert') {
                 try {
                     const validatedData = upsertProfileSchema.parse(req.body);
-                    const { updateProfile, getProfile } = await import("./dal/profiles");
+                    const { updateProfile, getProfile } = await import("./dal/profiles.js");
                     let profile = await getProfile(authReq.user.id);
                     if (!profile) {
                         profile = await updateProfile(authReq.user.id, validatedData);
@@ -650,7 +650,7 @@ export async function registerRoutes(app) {
             // ACTION: update - Update profile (default)
             if (action === 'update') {
                 const validatedData = updateProfileSchema.parse(req.body);
-                const { updateProfile } = await import("./dal/profiles");
+                const { updateProfile } = await import("./dal/profiles.js");
                 const profile = await updateProfile(authReq.user.id, validatedData);
                 if (!profile)
                     return res.status(500).json({ message: 'Failed to update profile' });
@@ -705,7 +705,7 @@ export async function registerRoutes(app) {
         try {
             const authReq = req;
             const userId = authReq.user.id;
-            const { db } = await import("./db");
+            const { db } = await import("./db.js");
             const { sql } = await import("drizzle-orm");
             const result = await db.execute(sql `
         SELECT last_lat, last_lon, timezone
@@ -737,7 +737,7 @@ export async function registerRoutes(app) {
         try {
             const authReq = req;
             const validatedData = locationUpdateSchema.parse(req.body);
-            const { db } = await import("./db");
+            const { db } = await import("./db.js");
             const { sql } = await import("drizzle-orm");
             let updateSql;
             if (validatedData.optIn) {
@@ -818,7 +818,7 @@ export async function registerRoutes(app) {
             const authReq = req;
             const body = putProfileSchema.parse(req.body ?? {});
             // Use direct SQL to bypass Supabase schema cache issues
-            const { db } = await import("./db");
+            const { db } = await import("./db.js");
             const { sql } = await import("drizzle-orm");
             const updateData = {
                 user_id: authReq.user.id,
@@ -1010,7 +1010,7 @@ export async function registerRoutes(app) {
                 workoutId: req.body.workoutId || null,
                 date: req.body.date || new Date().toISOString().split('T')[0]
             });
-            const { insertPR } = await import("./dal/prs");
+            const { insertPR } = await import("./dal/prs.js");
             const pr = await insertPR({
                 userId: authReq.user.id,
                 category: validatedData.category,
@@ -1036,7 +1036,7 @@ export async function registerRoutes(app) {
     app.delete("/api/personal-records/:id", requireAuth, async (req, res) => {
         try {
             const authReq = req;
-            const { deletePR } = await import("./dal/prs");
+            const { deletePR } = await import("./dal/prs.js");
             const success = await deletePR(authReq.user.id, req.params.id);
             if (!success) {
                 return res.status(404).json({ message: "Personal record not found" });
@@ -1090,7 +1090,7 @@ export async function registerRoutes(app) {
                 };
                 console.log('DATA TO VALIDATE:', JSON.stringify(dataToValidate, null, 2));
                 const validatedData = insertPRSchema.parse(dataToValidate);
-                const { insertPR } = await import("./dal/prs");
+                const { insertPR } = await import("./dal/prs.js");
                 const pr = await insertPR({
                     userId: authReq.user.id,
                     category: validatedData.category,
@@ -1109,7 +1109,7 @@ export async function registerRoutes(app) {
                 const { id } = req.body;
                 if (!id)
                     return res.status(400).json({ message: 'PR ID required' });
-                const { deletePR } = await import("./dal/prs");
+                const { deletePR } = await import("./dal/prs.js");
                 const success = await deletePR(authReq.user.id, id);
                 if (!success)
                     return res.status(404).json({ message: "PR not found" });
@@ -1119,7 +1119,7 @@ export async function registerRoutes(app) {
                 const { movement, category } = req.body;
                 if (!movement)
                     return res.status(400).json({ message: 'Movement required' });
-                const { getPRHistory } = await import("./dal/prs");
+                const { getPRHistory } = await import("./dal/prs.js");
                 const history = await getPRHistory(authReq.user.id, movement, category);
                 return res.json(history);
             }
@@ -1343,7 +1343,7 @@ export async function registerRoutes(app) {
                 }))
             });
             const validatedData = achievementBatchSchema.parse({ achievements });
-            const { upsertMany } = await import("./dal/achievements");
+            const { upsertMany } = await import("./dal/achievements.js");
             const results = await upsertMany(authReq.user.id, validatedData.achievements.map(a => ({
                 name: a.id, // Map client ID to achievement name
                 description: a.description || '',
@@ -1373,14 +1373,14 @@ export async function registerRoutes(app) {
             // ACTION: reports - Get health reports
             if (action === 'reports') {
                 const days = parseInt(req.body.days) || 14;
-                const { listReports } = await import("./dal/reports");
+                const { listReports } = await import("./dal/reports.js");
                 const reports = await listReports(authReq.user.id, { days });
                 return res.json(reports);
             }
             // ACTION: metrics - Get health metrics
             if (action === 'metrics') {
                 const days = parseInt(req.body.days) || 14;
-                const { listReports } = await import("./dal/reports");
+                const { listReports } = await import("./dal/reports.js");
                 const reports = await listReports(authReq.user.id, { days });
                 // Compute aggregated metrics from reports
                 const metrics = reports.map(report => ({
@@ -1405,10 +1405,10 @@ export async function registerRoutes(app) {
             const authReq = req;
             const days = parseInt(req.query.days) || 14;
             // Get base health reports
-            const { listReports } = await import("./dal/reports");
+            const { listReports } = await import("./dal/reports.js");
             const reports = await listReports(authReq.user.id, { days });
             // Check if user has location consent and cached coordinates (using raw SQL like /api/me/location)
-            const { db } = await import("./db");
+            const { db } = await import("./db.js");
             const { sql } = await import("drizzle-orm");
             const profileResult = await db.execute(sql `
         SELECT last_lat, last_lon 
@@ -1422,7 +1422,7 @@ export async function registerRoutes(app) {
                 profileRow?.last_lon !== null;
             if (hasLocationConsent) {
                 // Fetch environmental data for reports with cached coordinates
-                const { getEnvironment } = await import("./services/environment");
+                const { getEnvironment } = await import("./services/environment/index.js");
                 const lat = Number(profileRow.last_lat);
                 const lon = Number(profileRow.last_lon);
                 // Enrich each report with environmental data for its date
@@ -1476,7 +1476,7 @@ export async function registerRoutes(app) {
                 return res.status(404).json({ message: "Wearable not found" });
             }
             // Use upsert to update the wearable
-            const { upsertWearable } = await import("./dal/wearables");
+            const { upsertWearable } = await import("./dal/wearables.js");
             const wearable = await upsertWearable({
                 userId: authReq.user.id,
                 provider: existingWearable.provider,
@@ -1498,7 +1498,7 @@ export async function registerRoutes(app) {
         try {
             const authReq = req;
             const { provider, connected } = req.body;
-            const { upsertWearable } = await import("./dal/wearables");
+            const { upsertWearable } = await import("./dal/wearables.js");
             const wearable = await upsertWearable({
                 userId: authReq.user.id,
                 provider,
@@ -1523,7 +1523,7 @@ export async function registerRoutes(app) {
                 return res.status(404).json({ message: "Wearable not found" });
             }
             // Generate and insert mock health report for today
-            const { insertReport } = await import("./dal/reports");
+            const { insertReport } = await import("./dal/reports.js");
             const today = new Date().toISOString().split('T')[0];
             const mockMetrics = {
                 restingHeartRate: Math.floor(Math.random() * (75 - 45) + 45),
@@ -1562,7 +1562,7 @@ export async function registerRoutes(app) {
             const authReq = req;
             const { provider } = req.body;
             // Update wearable last sync
-            const { upsertWearable } = await import("./dal/wearables");
+            const { upsertWearable } = await import("./dal/wearables.js");
             await upsertWearable({
                 userId: authReq.user.id,
                 provider,
@@ -1570,7 +1570,7 @@ export async function registerRoutes(app) {
                 lastSync: new Date().toISOString()
             });
             // Insert mock health report for today
-            const { insertReport } = await import("./dal/reports");
+            const { insertReport } = await import("./dal/reports.js");
             const today = new Date().toISOString().split('T')[0];
             const mockMetrics = {
                 restingHeartRate: Math.floor(Math.random() * (75 - 45) + 45),
@@ -1730,7 +1730,7 @@ export async function registerRoutes(app) {
             let canQuery = false;
             if (serverEnvPresent) {
                 try {
-                    const { supabaseAdmin } = await import("./lib/supabaseAdmin");
+                    const { supabaseAdmin } = await import("./lib/supabaseAdmin.js");
                     await supabaseAdmin.from("workouts").select("id").limit(1);
                     canQuery = true;
                 }
@@ -1760,7 +1760,7 @@ export async function registerRoutes(app) {
             if (process.env.NODE_ENV === 'production') {
                 return res.status(404).json({ message: "Not found" });
             }
-            const { supabaseAdmin } = await import("./lib/supabaseAdmin");
+            const { supabaseAdmin } = await import("./lib/supabaseAdmin.js");
             // Create test user with email confirmation bypassed
             const testEmail = "athlete@axlapp.com";
             const testPassword = "password123!";
@@ -1821,7 +1821,7 @@ export async function registerRoutes(app) {
                 });
             }
             try {
-                const { supabaseAdmin } = await import("./lib/supabaseAdmin");
+                const { supabaseAdmin } = await import("./lib/supabaseAdmin.js");
                 // Test basic admin API connectivity
                 const { data: testData, error: testError } = await supabaseAdmin.auth.admin.listUsers();
                 if (testError) {
@@ -1870,7 +1870,7 @@ export async function registerRoutes(app) {
     app.get("/api/test/dal", async (req, res) => {
         try {
             // Import DAL methods
-            const { insertWorkout, listWorkouts } = await import("./dal/workouts");
+            const { insertWorkout, listWorkouts } = await import("./dal/workouts.js");
             console.log("🧪 Testing DAL connectivity...");
             // Test user ID for demonstration
             const testUserId = "00000000-0000-0000-0000-000000000000"; // Test UUID
@@ -1963,7 +1963,7 @@ export async function registerRoutes(app) {
         try {
             const authReq = req;
             // Get count and last 5 workout IDs
-            const { supabaseAdmin } = await import("./lib/supabaseAdmin");
+            const { supabaseAdmin } = await import("./lib/supabaseAdmin.js");
             const { data: workouts, error: workoutsError } = await supabaseAdmin
                 .from('workouts')
                 .select('id, created_at')
@@ -2027,7 +2027,7 @@ export async function registerRoutes(app) {
                 });
             }
             // Update workout feedback in database
-            const { updateWorkout } = await import("./dal/workouts");
+            const { updateWorkout } = await import("./dal/workouts.js");
             const feedbackData = {
                 intensityFeedback,
                 difficultyRating,
@@ -2115,7 +2115,7 @@ export async function registerRoutes(app) {
                 notes: notes || null,
             });
             // Insert into workout_feedback table
-            const { supabaseAdmin } = await import("./lib/supabaseAdmin");
+            const { supabaseAdmin } = await import("./lib/supabaseAdmin.js");
             const { data, error } = await supabaseAdmin
                 .from('workout_feedback')
                 .insert({
@@ -2239,7 +2239,7 @@ export async function registerRoutes(app) {
             const authReq = req;
             const userId = authReq.user.id;
             const reportId = req.params.id;
-            const { deleteReport } = await import("./dal/reports");
+            const { deleteReport } = await import("./dal/reports.js");
             const deleted = await deleteReport(reportId, userId);
             if (!deleted) {
                 return res.status(404).json({ error: "Report not found" });
@@ -2271,7 +2271,7 @@ export async function registerRoutes(app) {
                 timeframeStart.setMonth(now.getMonth() - 1);
             }
             // Generate full report with real metrics and insights
-            const { generateReport } = await import("./services/reportGenerator");
+            const { generateReport } = await import("./services/reportGenerator.js");
             const { metrics, insights } = await generateReport(userId, frequency, timeframeStart, timeframeEnd);
             const report = await createReport({
                 userId,

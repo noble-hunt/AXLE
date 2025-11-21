@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
-import { db } from '../db';
-import { deviceTokens } from '../../shared/schema';
+import { requireAuth } from '../middleware/auth.js';
+import { db } from '../db.js';
+import { deviceTokens } from '../../shared/schema.js';
 import { eq, and } from 'drizzle-orm';
-import { sendAPNs, isAPNsConfigured } from '../lib/apns';
+import { sendAPNs, isAPNsConfigured } from '../lib/apns.js';
 const router = Router();
 // POST /api/push/register-device - Register device token for push notifications
 router.post('/register-device', requireAuth, async (req, res) => {

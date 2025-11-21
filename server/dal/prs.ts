@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { db } from "../db.js";
 import { prs } from "@shared/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 

@@ -5,9 +5,9 @@
  * Used for preview generation without persisting to database
  * All generation goes through the orchestrator (generateWorkout)
  */
-import { requireAuth } from "../middleware/auth";
-import { simulatePayloadSchema } from "../../shared/types/workouts";
-import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator";
+import { requireAuth } from "../middleware/auth.js";
+import { simulatePayloadSchema } from "../../shared/types/workouts.js";
+import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator.js";
 export function registerSimulateRoutes(app) {
     /**
      * POST /api/workouts/simulate

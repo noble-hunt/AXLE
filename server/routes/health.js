@@ -1,18 +1,18 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth, requireAdmin } from '../middleware/auth';
-import { db } from '../db';
-import { wearableConnections, healthReports, profiles, workouts } from '../../shared/schema';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { db } from '../db.js';
+import { wearableConnections, healthReports, profiles, workouts } from '../../shared/schema.js';
 import { eq, and, desc, gte, sql } from 'drizzle-orm';
-import { getDecryptedTokens, deleteTokens } from '../dal/tokens';
-import { getProviderRegistry } from '../providers/health';
-import { backfillDailies, backfillSleeps, backfillHRV } from '../providers/health/garminBackfill';
-import { computeDailyMetrics } from '../services/metrics/index';
-import { computeAxleScores } from '../metrics/axle';
-import { upsertDailyReport } from '../dal/reports';
-import { getEnvironment } from '../services/environment';
-import { computeFatigue } from '../logic/suggestions';
-import { backfillAxleScores } from '../scripts/backfill-axle';
+import { getDecryptedTokens, deleteTokens } from '../dal/tokens.js';
+import { getProviderRegistry } from '../providers/health/index.js';
+import { backfillDailies, backfillSleeps, backfillHRV } from '../providers/health/garminBackfill.js';
+import { computeDailyMetrics } from '../services/metrics/index.js';
+import { computeAxleScores } from '../metrics/axle.js';
+import { upsertDailyReport } from '../dal/reports.js';
+import { getEnvironment } from '../services/environment/index.js';
+import { computeFatigue } from '../logic/suggestions.js';
+import { backfillAxleScores } from '../scripts/backfill-axle.js';
 const router = Router();
 // GET /api/connect/providers → list providers with { id, supported: boolean, connected, last_sync, status }
 router.get('/connect/providers', requireAuth, async (req, res) => {

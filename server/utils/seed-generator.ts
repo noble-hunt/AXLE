@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { GeneratorSeed, GeneratorInputs, GeneratorContext, GeneratorChoices } from "../../shared/generator-types";
+import type { GeneratorSeed, GeneratorInputs, GeneratorContext, GeneratorChoices } from "../../shared/generator-types.js";
 
 /**
  * Generate a deterministic seed for workout generation

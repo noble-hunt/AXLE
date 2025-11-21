@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { db } from "../db.js";
 import { workouts, prs, type ReportMetrics, type ReportInsights } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import { startOfDay, endOfDay, differenceInDays, format, startOfWeek } from "date-fns";

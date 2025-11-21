@@ -1,8 +1,8 @@
 // server/routes/storage.ts (Express dev)
 import { Router } from 'express';
-import { requireAuth } from '../middleware/requireAuth';
-import { supabaseFromReq } from '../lib/supabaseFromReq';
-import { supabaseAdmin } from '../lib/supabaseAdmin';
+import { requireAuth } from '../middleware/requireAuth.js';
+import { supabaseFromReq } from '../lib/supabaseFromReq.js';
+import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 const router = Router();
 const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 router.post('/group-photos/signed-upload', requireAuth, async (req, res) => {

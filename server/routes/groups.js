@@ -1,8 +1,8 @@
-import { requireAuth } from "../middleware/requireAuth";
-import { reactionRateLimit } from "../middleware/reactionRateLimit";
-import { createGroup, getUserGroups, getGroupProfile, joinGroup, leaveGroup, createGroupInvite, acceptInvite, createPost, getGroupFeed, toggleReaction, getReactionSummary, upsertRsvp, removeRsvp, getPostRsvps, deleteGroupPost, removeMemberFromGroup, deleteGroup, updateGroup, getGroupMembers, addMemberToGroup } from "../dal/groups";
-import { supabaseFromReq } from '../lib/supabaseFromReq';
-import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { reactionRateLimit } from "../middleware/reactionRateLimit.js";
+import { createGroup, getUserGroups, getGroupProfile, joinGroup, leaveGroup, createGroupInvite, acceptInvite, createPost, getGroupFeed, toggleReaction, getReactionSummary, upsertRsvp, removeRsvp, getPostRsvps, deleteGroupPost, removeMemberFromGroup, deleteGroup, updateGroup, getGroupMembers, addMemberToGroup } from "../dal/groups.js";
+import { supabaseFromReq } from '../lib/supabaseFromReq.js';
+import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements.js";
 import { insertGroupSchema } from "@shared/schema";
 import { z } from "zod";
 // Helper to handle database unavailability errors

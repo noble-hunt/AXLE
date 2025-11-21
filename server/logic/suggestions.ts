@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { db } from '../db.js';
 import { workouts, healthReports } from '@shared/schema';
 import { Category, type Workout, type HealthReport, type WorkoutRequest, type SuggestionRationale } from '@shared/schema';
 import { eq, desc, gte, sql, and } from 'drizzle-orm';

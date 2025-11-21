@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 import { z, ZodError } from 'zod';
-import { createWorkoutFromSeed } from '../services/workouts/createFromSeed';
+import { createWorkoutFromSeed } from '../services/workouts/createFromSeed.js';
 const StartSchema = z.object({
     // minimal set the client will send from the suggestion card
     focus: z.string().min(1),

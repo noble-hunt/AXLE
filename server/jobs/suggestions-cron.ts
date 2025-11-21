@@ -1,18 +1,18 @@
 import * as cron from "node-cron";
-import { db } from "../db";
+import { db } from "../db.js";
 import { workouts, suggestedWorkouts, wearableConnections, healthReports } from "@shared/schema";
 import { sql, eq, and, gte, desc } from "drizzle-orm";
-import { computeSuggestion, computeFatigue } from "../logic/suggestions";
-import { MockHealthProvider } from "../providers/health/mock";
-import { FitbitHealthProvider } from "../providers/health/fitbit";
-import { OuraHealthProvider } from "../providers/health/oura";
-import { WhoopHealthProvider } from "../providers/health/whoop";
-import { GarminHealthProvider } from "../providers/health/garmin";
-import { HealthProvider } from "../providers/health/types";
+import { computeSuggestion, computeFatigue } from "../logic/suggestions.js";
+import { MockHealthProvider } from "../providers/health/mock.js";
+import { FitbitHealthProvider } from "../providers/health/fitbit.js";
+import { OuraHealthProvider } from "../providers/health/oura.js";
+import { WhoopHealthProvider } from "../providers/health/whoop.js";
+import { GarminHealthProvider } from "../providers/health/garmin.js";
+import { HealthProvider } from "../providers/health/types.js";
 import { MetricsEnvelope } from "@shared/health/types";
-import { computeAxleScores } from "../metrics/axle";
-import { upsertDailyReport } from "../dal/reports";
-import { getEnvironment } from "../services/environment";
+import { computeAxleScores } from "../metrics/axle.js";
+import { upsertDailyReport } from "../dal/reports.js";
+import { getEnvironment } from '../services/environment/index.js';
 
 /**
  * Last run timestamp for health reporting

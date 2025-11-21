@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Request, Response } from 'express';
-import { startSuggestedWorkout } from '../workouts.start';
-import type { AuthenticatedRequest } from '../../middleware/auth';
+import { startSuggestedWorkout } from '../workouts.start.js';
+import type { AuthenticatedRequest } from '../../middleware/auth.js';
 
 // Mock the service layer
 vi.mock('../../services/workouts/createFromSeed', () => ({
@@ -44,7 +44,7 @@ describe('/api/workouts/start endpoint', () => {
     it('should start workout successfully with minimal body and return 201 with id', async () => {
       // Arrange
       const mockWorkoutId = 'workout-abc123';
-      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed');
+      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed.js');
       vi.mocked(createWorkoutFromSeed).mockResolvedValue({
         id: mockWorkoutId,
         title: 'Test Workout'
@@ -78,7 +78,7 @@ describe('/api/workouts/start endpoint', () => {
     it('should handle full body with all optional fields', async () => {
       // Arrange
       const mockWorkoutId = 'workout-xyz789';
-      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed');
+      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed.js');
       vi.mocked(createWorkoutFromSeed).mockResolvedValue({
         id: mockWorkoutId,
         title: 'Custom Workout'
@@ -115,7 +115,7 @@ describe('/api/workouts/start endpoint', () => {
     it('should return id in correct string format', async () => {
       // Arrange
       const mockWorkoutId = 'workout-uuid-format-123';
-      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed');
+      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed.js');
       vi.mocked(createWorkoutFromSeed).mockResolvedValue({
         id: mockWorkoutId,
         title: 'Test'
@@ -359,7 +359,7 @@ describe('/api/workouts/start endpoint', () => {
   describe('Service Layer Errors', () => {
     it('should handle service errors gracefully', async () => {
       // Arrange
-      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed');
+      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed.js');
       vi.mocked(createWorkoutFromSeed).mockRejectedValue(new Error('Database connection failed'));
 
       mockReq.body = {
@@ -384,7 +384,7 @@ describe('/api/workouts/start endpoint', () => {
       const customError = new Error('Workout generation failed') as any;
       customError.statusCode = 422;
       
-      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed');
+      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed.js');
       vi.mocked(createWorkoutFromSeed).mockRejectedValue(customError);
 
       mockReq.body = {
@@ -406,7 +406,7 @@ describe('/api/workouts/start endpoint', () => {
 
     it('should return 502 when service returns invalid workout id', async () => {
       // Arrange
-      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed');
+      const { createWorkoutFromSeed } = await import('../../services/workouts/createFromSeed.js');
       vi.mocked(createWorkoutFromSeed).mockResolvedValue({
         id: '', // empty id fails validation
         title: 'Test Workout'

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { parseFreeform } from '../freeform';
+import { parseFreeform } from '../freeform.js';
 
 const mockCreate = vi.fn();
 

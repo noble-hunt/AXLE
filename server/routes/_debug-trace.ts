@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { normalizeStyle } from '../lib/style';
+import { normalizeStyle } from '../lib/style.js';
 const router = Router();
 
 router.post('/api/_debug/trace', (req, res) => {

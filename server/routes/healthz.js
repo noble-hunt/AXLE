@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import os from 'node:os';
-import { pool } from '../db';
+import { pool } from '../db.js';
 export const router = Router();
 router.get('/', async (_req, res) => {
     // Check critical environment variables (without exposing values)

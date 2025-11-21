@@ -2,7 +2,7 @@
  * Quick test for workout generation acceptance criteria
  */
 
-import { generateWorkout, type WorkoutGenerationRequest } from '../generateWorkout';
+import { generateWorkout, type WorkoutGenerationRequest } from '../generateWorkout.js';
 
 async function quickTest() {
   console.log('🧪 Quick Workout Generation Test\n');

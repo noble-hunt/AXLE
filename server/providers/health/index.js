@@ -1,8 +1,8 @@
-import { MockHealthProvider } from './mock';
-import { OuraHealthProvider } from './oura';
-import { FitbitHealthProvider } from './fitbit';
-import { WhoopHealthProvider } from './whoop';
-import { GarminHealthProvider } from './garmin';
+import { MockHealthProvider } from './mock.js';
+import { OuraHealthProvider } from './oura.js';
+import { FitbitHealthProvider } from './fitbit.js';
+import { WhoopHealthProvider } from './whoop.js';
+import { GarminHealthProvider } from './garmin.js';
 export function getProviderRegistry() {
     const hasOura = !!(process.env.OURA_CLIENT_ID && process.env.OURA_CLIENT_SECRET);
     const hasFitbit = !!(process.env.FITBIT_CLIENT_ID && process.env.FITBIT_CLIENT_SECRET);

@@ -1,4 +1,4 @@
-import { WorkoutPlanZ } from "../../shared/workoutSchema";
+import { WorkoutPlanZ } from "../../shared/workoutSchema.js";
 
 // Helper to coerce numeric values for schema validation
 function coerceNumber(value: any, options: { min?: number, requireInt?: boolean } = {}): number | null {

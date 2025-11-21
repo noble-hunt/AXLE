@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { normalizeStyle } from '../lib/style';
+import { normalizeStyle } from '../lib/style.js';
 
 export function normalizeStyleMiddleware(req: Request, res: Response, next: NextFunction) {
   const originalBody = { ...(req.body as any) };

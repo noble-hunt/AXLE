@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { normalizeStyle, SUPPORTED_STYLES } from '../lib/style';
+import { normalizeStyle, SUPPORTED_STYLES } from '../lib/style.js';
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Request, Response } from 'express';
-import type { AuthenticatedRequest } from '../middleware/auth';
+import type { AuthenticatedRequest } from '../middleware/auth.js';
 
 // Mock the DAL functions
 vi.mock('../dal/workouts', () => ({
@@ -20,7 +20,7 @@ describe('POST /api/workouts/:id/start endpoint', () => {
     vi.clearAllMocks();
     
     // Import mocked functions
-    const { getWorkout, updateWorkout } = await import('../dal/workouts');
+    const { getWorkout, updateWorkout } = await import('../dal/workouts.js');
     mockGetWorkout = vi.mocked(getWorkout);
     mockUpdateWorkout = vi.mocked(updateWorkout);
     

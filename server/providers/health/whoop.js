@@ -1,10 +1,10 @@
-import { verifyState, signState } from '../../lib/oauthState';
-import { storeEncryptedTokens, getDecryptedTokens, deleteTokens } from "../../dal/tokens";
-import { upsertWearable } from "../../dal/wearables";
+import { verifyState, signState } from '../../lib/oauthState.js';
+import { storeEncryptedTokens, getDecryptedTokens, deleteTokens } from "../../dal/tokens.js";
+import { upsertWearable } from "../../dal/wearables.js";
 import { subDays, subMinutes } from "date-fns";
-import { toSnapshot, createNullSnapshot } from "../whoop/map";
-import { db } from "../../db";
-import { wearableConnections } from "../../../shared/schema";
+import { toSnapshot, createNullSnapshot } from "../whoop/map.js";
+import { db } from "../../db.js";
+import { wearableConnections } from "../../../shared/schema.js";
 import { eq, and } from "drizzle-orm";
 const WHOOP_AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth";
 const WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";

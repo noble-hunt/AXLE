@@ -1,4 +1,4 @@
-import { storeEncryptedTokens } from '../../dal/tokens';
+import { storeEncryptedTokens } from '../../dal/tokens.js';
 export class MockHealthProvider {
     constructor() {
         this.id = "Mock";

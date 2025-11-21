@@ -8,8 +8,8 @@
  * - Proper strength progression patterns
  */
 import OpenAI from 'openai';
-import { WorkoutSchema } from '../../../client/src/ai/schemas';
-import { extractAndValidate } from '../../../client/src/ai/json';
+import { WorkoutSchema } from '../../../client/src/ai/schemas.js';
+import { extractAndValidate } from '../../../client/src/ai/json.js';
 // Initialize OpenAI client
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY,

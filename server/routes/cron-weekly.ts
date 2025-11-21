@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { db } from "../db";
+import { db } from "../db.js";
 import { notificationTopics } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
-import { sendWeeklyReport } from "../services/weeklyReport";
-import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
+import { sendWeeklyReport } from "../services/weeklyReport.js";
+import { requireAuth, AuthenticatedRequest } from "../middleware/auth.js";
 
 const r = Router();
 
@@ -24,7 +24,7 @@ r.post("/api/cron/weekly-reports-run", requireAuth, async (req, res) => {
     console.log('[CRON] Starting weekly reports job');
     
     // Import Supabase admin client
-    const { supabaseAdmin } = await import("../lib/supabaseAdmin");
+    const { supabaseAdmin } = await import("../lib/supabaseAdmin.js");
     
     // Get all users from Supabase auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({

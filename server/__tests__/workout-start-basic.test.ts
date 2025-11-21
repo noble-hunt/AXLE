@@ -14,7 +14,7 @@ describe('Workout Start Logic Tests', () => {
     vi.clearAllMocks();
     
     // Import mocked functions
-    const { getWorkout, updateWorkout } = await import('../dal/workouts');
+    const { getWorkout, updateWorkout } = await import('../dal/workouts.js');
     mockGetWorkout = vi.mocked(getWorkout);
     mockUpdateWorkout = vi.mocked(updateWorkout);
   });

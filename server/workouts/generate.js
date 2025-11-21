@@ -1,6 +1,6 @@
-import { MOVEMENTS } from "./movements";
-import { WorkoutPlanZ } from "../../shared/workoutSchema";
-import { mulberry32, strSeed } from "./rand";
+import { MOVEMENTS } from "./movements.js";
+import { WorkoutPlanZ } from "../../shared/workoutSchema.js";
+import { mulberry32, strSeed } from "./rand.js";
 function pick(rng, arr) {
     return arr[Math.floor(rng() * arr.length)];
 }

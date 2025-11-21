@@ -1,6 +1,6 @@
 // server/services/suggestions.ts
-import { computeSuggestion } from '../logic/suggestions';
-import { createWorkoutFromSeed } from './workouts/createFromSeed';
+import { computeSuggestion } from '../logic/suggestions.js';
+import { createWorkoutFromSeed } from './workouts/createFromSeed.js';
 import { nanoid } from 'nanoid';
 
 /**

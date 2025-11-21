@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { generatePremiumWorkout } from '../ai/generators/premium';
-import { convertPremiumToGenerated } from '../workoutGenerator';
-import type { WorkoutGenerationRequest } from '../ai/generateWorkout';
-import { Category } from '../../shared/schema';
+import { generatePremiumWorkout } from '../ai/generators/premium.js';
+import { convertPremiumToGenerated } from '../workoutGenerator.js';
+import type { WorkoutGenerationRequest } from '../ai/generateWorkout.js';
+import { Category } from '../../shared/schema.js';
 
 describe('Premium Generator Integration Tests', () => {
   beforeAll(() => {

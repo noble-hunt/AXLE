@@ -1,1 +1,1 @@
-export { generateWorkout, generateDeterministicWorkout } from './generateWorkout';
+export { generateWorkout, generateDeterministicWorkout } from './generateWorkout.js';

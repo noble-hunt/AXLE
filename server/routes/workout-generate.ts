@@ -6,9 +6,9 @@
  */
 
 import type { Express } from "express";
-import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
-import { generatePayloadSchema } from "../../shared/types/workouts";
-import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator";
+import { requireAuth, AuthenticatedRequest } from "../middleware/auth.js";
+import { generatePayloadSchema } from "../../shared/types/workouts.js";
+import { generateWorkout, GENERATOR_STAMP } from "../workoutGenerator.js";
 
 export function registerGenerateRoutes(app: Express) {
   /**
@@ -54,7 +54,7 @@ export function registerGenerateRoutes(app: Express) {
       res.setHeader('X-AXLE-Style', meta.style || req.body?.style || 'unknown');
       
       // Save to database
-      const { insertWorkout } = await import("../dal/workouts");
+      const { insertWorkout } = await import("../dal/workouts.js");
       const workoutData = generatedWorkout as any;
       const workoutParams = {
         userId,

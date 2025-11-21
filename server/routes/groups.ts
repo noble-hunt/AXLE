@@ -1,6 +1,6 @@
 import { Express, Response } from "express";
-import { requireAuth, AuthenticatedRequest } from "../middleware/requireAuth";
-import { reactionRateLimit } from "../middleware/reactionRateLimit";
+import { requireAuth, AuthenticatedRequest } from "../middleware/requireAuth.js";
+import { reactionRateLimit } from "../middleware/reactionRateLimit.js";
 import {
   createGroup,
   getUserGroups,
@@ -22,9 +22,9 @@ import {
   updateGroup,
   getGroupMembers,
   addMemberToGroup
-} from "../dal/groups";
-import { supabaseFromReq } from '../lib/supabaseFromReq';
-import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements";
+} from "../dal/groups.js";
+import { supabaseFromReq } from '../lib/supabaseFromReq.js';
+import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements.js";
 import { insertGroupSchema, insertPostSchema } from "@shared/schema";
 import { z } from "zod";
 

@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { db } from '../db.js';
 import { workouts, healthReports } from '@shared/schema';
 import { Category } from '@shared/schema';
 import { eq, desc, gte, and } from 'drizzle-orm';

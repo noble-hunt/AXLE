@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-import { db } from "../db";
+import { db } from "../db.js";
 import { groups, groupMembers, posts, groupPosts, groupReactions, profiles } from "@shared/schema";
 import { sql } from "drizzle-orm";
 // Mock users for seeding

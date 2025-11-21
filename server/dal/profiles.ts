@@ -1,5 +1,5 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin";
-import { pool } from '../db';
+import { supabaseAdmin } from "../lib/supabaseAdmin.js";
+import { pool } from '../db.js';
 
 // Helper function to map database fields (snake_case) to frontend fields (camelCase)
 function mapProfileToFrontend(dbProfile: any) {

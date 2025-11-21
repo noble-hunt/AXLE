@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
 import * as Sentry from '@sentry/node';
 import { z, ZodError } from 'zod';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
-import { createWorkoutFromSeed } from '../services/workouts/createFromSeed';
+import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
+import { createWorkoutFromSeed } from '../services/workouts/createFromSeed.js';
 
 const StartSchema = z.object({
   // minimal set the client will send from the suggestion card

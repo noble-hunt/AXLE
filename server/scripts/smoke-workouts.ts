@@ -4,10 +4,10 @@
  * Tests 3 canned payloads and prints generator, hardness, and flags
  */
 
-import { generatePremiumWorkout } from '../ai/generators/premium';
-import { convertPremiumToGenerated } from '../workoutGenerator';
-import type { WorkoutGenerationRequest } from '../ai/generateWorkout';
-import { Category } from '../../shared/schema';
+import { generatePremiumWorkout } from '../ai/generators/premium.js';
+import { convertPremiumToGenerated } from '../workoutGenerator.js';
+import type { WorkoutGenerationRequest } from '../ai/generateWorkout.js';
+import { Category } from '../../shared/schema.js';
 
 // ANSI color codes for terminal output
 const colors = {

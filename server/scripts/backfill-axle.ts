@@ -1,8 +1,8 @@
-import { db } from "../db";
-import { healthReports } from "../../shared/schema";
+import { db } from "../db.js";
+import { healthReports } from "../../shared/schema.js";
 import { eq, and, gte } from "drizzle-orm";
-import { computeAxleScores } from "../metrics/axle";
-import { MetricsEnvelope } from "../../shared/health/types";
+import { computeAxleScores } from "../metrics/axle.js";
+import { MetricsEnvelope } from "../../shared/health/types.js";
 
 /**
  * Backfill Axle scores for a user's health reports
