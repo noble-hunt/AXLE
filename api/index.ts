@@ -1,21 +1,10 @@
 // api/index.ts - Vercel serverless function entry point
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-// Import the Express app
-let app: any = null;
-
-async function getApp() {
-  if (!app) {
-    // Import the Express app with .js extension (required for Node ESM)
-    const { default: expressApp } = await import('../server/app.js');
-    app = expressApp;
-  }
-  return app;
-}
+import app from '../server/app.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    const expressApp = await getApp();
+    const expressApp = app;
     
     // Pass request directly to Express
     return new Promise((resolve, reject) => {
