@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx tsc -p tsconfig.server.json --noEmitOnError false && npm run build",
+  "buildCommand": "npm exec tsc -- -p tsconfig.server.json --noEmitOnError false && npm run build",
   "outputDirectory": "dist",
   "rewrites": [
     { 
