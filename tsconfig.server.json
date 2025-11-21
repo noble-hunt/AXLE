@@ -33,6 +33,7 @@
   ],
   "exclude": [
     "api/**",
+    "server/ai/generators/test.ts",
     "node_modules",
     "dist",
     ".vercel",
