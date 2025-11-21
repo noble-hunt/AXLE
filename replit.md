@@ -1,5 +1,15 @@
 # AXLE - Fitness Tracking Application
 
+## Recent Production Deployment Fixes (Nov 21, 2025)
+**Issue**: Complete production failure - all endpoints returning 500 errors, no data loading  
+**Root Cause**: Stale committed `server/**/*.js` build artifacts missing `with { type: 'json' }` import assertions  
+**Solution**:
+1. ✅ Added `includeFiles: "{server,shared}/**"` to vercel.json to bundle server files in serverless function
+2. ✅ Fixed buildCommand to fail on TypeScript errors (removed `|| true` guard)
+3. ✅ Added server/shared .js files to .gitignore - build artifacts now generated fresh on each deploy
+4. ✅ Removed `require()` call from api/index.ts for ESM compatibility  
+**Status**: Vercel build now generates fresh .js files with proper ESM import assertions on each deployment
+
 ## Overview
 AXLE is a mobile-first Progressive Web App (PWA) designed for comprehensive fitness tracking. Its core purpose is to enable users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project's vision includes integrating a fine-tuned ML model for workout generation, targeting significant market potential in the fitness technology sector.
 

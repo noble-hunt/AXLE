@@ -10,6 +10,14 @@ vite.config.ts.*
 api/*.js
 api/**/*.js
 
+# Build artifacts - generated during build, not committed
+server/**/*.js
+server/**/*.js.map
+shared/**/*.js
+shared/**/*.js.map
+lib/**/*.js
+lib/**/*.js.map
+
 # iOS
 ios/App/Pods/
 ios/Pods/
