@@ -6,6 +6,10 @@ vite.config.ts.*
 *.tar.gz
 .dev-server.pid
 
+# Prevent compiled JS in api/ directory (conflicts with Vercel routing)
+api/*.js
+api/**/*.js
+
 # iOS
 ios/App/Pods/
 ios/Pods/

@@ -1,0 +1,134 @@
+Fix Vercel conflict "api/index.js" vs "api/index.ts" and keep server build
+
+We just tried to deploy to Vercel and got:
+
+Error: Two or more files have conflicting paths or names. The path "api/index.js" has conflicts with "api/index.ts".
+
+The repo currently has both api/index.ts and a compiled api/index.js. Vercel’s file system routing requires each API route to have a unique base path, so we must have only one of these.
+
+Goals:
+
+api/index.ts should be the only source file for the /api serverless function.
+
+The server app (server/app.ts) should still be compiled to server/app.js during the build so that the import in api/index.ts works.
+
+The TypeScript server build must not emit JS files inside api/** anymore.
+
+Do the following, step by step, and explain each change:
+
+1. Clean up conflicting files
+
+Check the repo for api/index.js.
+
+If it exists, delete the file from the working tree and make sure it is not tracked by git anymore.
+
+If there are other compiled JS files in api/ (like api/*.js, api/**/*.js), delete those too.
+
+Update .gitignore so that any future compiled JS for the server does not get accidentally committed under api/. For example, add:
+
+api/*.js
+api/**/*.js
+
+
+(Or a more targeted pattern if you prefer.)
+
+2. Fix tsconfig.server.json so tsc doesn’t touch api/**
+
+Open tsconfig.server.json and adjust it so that:
+
+It only compiles the server code, not the API entrypoint.
+
+It does not include api/**.
+
+A valid configuration would be something like (adapt to the current file):
+
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".",
+    "noEmit": false,
+    "declaration": false,
+    "emitDeclarationOnly": false
+  },
+  "include": [
+    "server/**/*.ts"
+  ],
+  "exclude": [
+    "api/**",
+    "node_modules",
+    "dist",
+    ".vercel"
+  ]
+}
+
+
+Key requirements:
+
+include MUST NOT have api/**/*.ts.
+
+exclude SHOULD explicitly exclude api/** just to be safe.
+
+After updating, run:
+
+npx tsc -p tsconfig.server.json
+
+
+and verify:
+
+server/app.js exists (and other server JS as needed),
+
+No new api/index.js or other JS files under api/ are generated.
+
+3. Make sure api/index.ts imports the built server correctly
+
+Open api/index.ts and ensure it imports the server app using a relative JS path that matches the compiled output. For example, if server/app.ts compiles to server/app.js at the repo root level, then api/index.ts should contain:
+
+import app from '../server/app.js';
+
+export default app;
+
+
+Requirements:
+
+This should be a static import, not a dynamic await import(...), unless there is a strong reason otherwise.
+
+The path must match the runtime layout: after build, Node should load /var/task/server/app.js.
+
+4. Verify build configuration
+
+Confirm that the Vercel build command (in vercel.json) still compiles the server before the frontend build. It might look like:
+
+{
+  "buildCommand": "(npx tsc -p tsconfig.server.json --noEmitOnError false || true) && npm run build"
+}
+
+
+That’s fine, as long as:
+
+tsc now compiles only the server/** TS files to JS.
+
+It no longer emits anything inside api/**.
+
+5. Final checks and commit
+
+After running npx tsc -p tsconfig.server.json, list the api directory and show that it contains only .ts files, no .js.
+
+Confirm that:
+
+api/index.ts exists,
+
+api/index.js does NOT exist,
+
+server/app.ts and server/app.js both exist.
+
+Commit all changes (including the tsconfig.server.json update, .gitignore, and deletions) and push to main so Vercel can redeploy.
+
+In your final message, summarize:
+
+The before/after of tsconfig.server.json include / exclude,
+
+The current contents of api/ (no .js files),
+
+The current import statement in api/index.ts,
+
+Confirmation that server/app.js is generated successfully by the server build.
