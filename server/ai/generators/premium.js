@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { PACKS } from '../config/patternPacks.js';
 import { buildOlympicPack, buildEndurancePack } from '../config/patternPackBuilders.js';
 import { queryMovements, findMovement } from '../movementService.js';
-import registryData from '../../data/movements.registry.json';
+import registryData from '../../data/movements.registry.json' with { type: 'json' };
 import { STYLE_POLICIES } from '../config/stylePolicies.js';
 import { STYLE_SPECS } from '../config/styleSpecs.js';
 import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL, PREMIUM_STRICT } from '../../config/env.js';

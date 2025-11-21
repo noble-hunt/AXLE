@@ -1,5 +1,5 @@
 import seedrandom from 'seedrandom';
-import registryData from '../data/movements.registry.min.json';
+import registryData from '../data/movements.registry.min.json' with { type: 'json' };
 const MOVES = registryData;
 function hasAny(arr, set) {
     if (!arr || !set)
