@@ -29,11 +29,13 @@
   "include": [
     "server/**/*.ts",
     "lib/**/*.ts",
-    "shared/**/*.ts",
-    "api/**/*.ts"
+    "shared/**/*.ts"
   ],
   "exclude": [
+    "api/**",
     "node_modules",
+    "dist",
+    ".vercel",
     "**/*.test.ts",
     "**/__tests__/**",
     "server/index.ts"
