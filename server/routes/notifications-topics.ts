@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth.js";
 import { db } from "../db.js";
-import { notificationTopics } from "@shared/schema";
+import { notificationTopics } from '../../shared/schema.js';
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 

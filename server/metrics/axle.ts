@@ -1,4 +1,4 @@
-import { MetricsEnvelope } from "@shared/health/types";
+import { MetricsEnvelope } from '../../shared/health/types.js';
 import { getUserRecentWorkouts } from "../dal/workouts.js"; // existing DAL
 import { get7DaySleepSummary, getRHRTrend } from "../dal/reports.js"; // helper you have or add thin wrappers
 

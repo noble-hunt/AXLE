@@ -6,7 +6,7 @@ import {
   groupPosts,
   groupReactions,
   posts
-} from "@shared/schema";
+} from '../../shared/schema.js';
 import { eq, and, desc, asc, gte, sql, count } from "drizzle-orm";
 
 export interface GroupAchievementItem {

@@ -3,7 +3,7 @@ import type { Express } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
 import { requireJSON } from '../middleware/accept-json.js';
 import { computeTodaySuggestion, startSuggestion } from '../services/suggestions.js';
-import { API_ENDPOINTS } from '@shared/endpoints';
+import { API_ENDPOINTS } from '../../shared/endpoints.js';
 
 /**
  * Register workout suggestion routes as specified in the backend requirements

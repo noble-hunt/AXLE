@@ -9,7 +9,7 @@ import {
   type InsertAchievement,
   type WorkoutEvent,
   type InsertWorkoutEvent
-} from "@shared/schema";
+} from '../shared/schema.js';
 import { randomUUID } from "crypto";
 
 export interface IStorage {

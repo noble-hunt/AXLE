@@ -9,7 +9,7 @@ import {
   groupInvites, 
   referrals,
   profiles 
-} from "@shared/schema";
+} from '../../shared/schema.js';
 import { eq, and, desc, asc, gte, sql } from "drizzle-orm";
 
 export interface CreateGroupParams {

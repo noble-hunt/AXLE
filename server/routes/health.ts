@@ -9,7 +9,7 @@ import { storeEncryptedTokens, getDecryptedTokens, deleteTokens } from '../dal/t
 import { getProviderRegistry, listAvailableProviders } from '../providers/health/index.js';
 import { backfillDailies, backfillSleeps, backfillHRV } from '../providers/health/garminBackfill.js';
 import { computeDailyMetrics } from '../services/metrics/index.js';
-import { MetricsEnvelope } from '@shared/health/types';
+import { MetricsEnvelope } from '../../shared/health/types.js';
 import { computeAxleScores } from '../metrics/axle.js';
 import { upsertDailyReport } from '../dal/reports.js';
 import { getEnvironment } from '../services/environment/index.js';

@@ -1,6 +1,6 @@
 import { db } from '../db.js';
-import { workouts, healthReports } from '@shared/schema';
-import { Category, type Workout, type HealthReport, type WorkoutRequest, type SuggestionRationale } from '@shared/schema';
+import { workouts, healthReports } from '../../shared/schema.js';
+import { Category, type Workout, type HealthReport, type WorkoutRequest, type SuggestionRationale } from '../../shared/schema.js';
 import { eq, desc, gte, sql, and } from 'drizzle-orm';
 
 // Category sets adapted to our actual enum

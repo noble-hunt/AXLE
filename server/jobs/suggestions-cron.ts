@@ -1,6 +1,6 @@
 import * as cron from "node-cron";
 import { db } from "../db.js";
-import { workouts, suggestedWorkouts, wearableConnections, healthReports } from "@shared/schema";
+import { workouts, suggestedWorkouts, wearableConnections, healthReports } from '../../shared/schema.js';
 import { sql, eq, and, gte, desc } from "drizzle-orm";
 import { computeSuggestion, computeFatigue } from "../logic/suggestions.js";
 import { MockHealthProvider } from "../providers/health/mock.js";
@@ -9,7 +9,7 @@ import { OuraHealthProvider } from "../providers/health/oura.js";
 import { WhoopHealthProvider } from "../providers/health/whoop.js";
 import { GarminHealthProvider } from "../providers/health/garmin.js";
 import { HealthProvider } from "../providers/health/types.js";
-import { MetricsEnvelope } from "@shared/health/types";
+import { MetricsEnvelope } from '../../shared/health/types.js';
 import { computeAxleScores } from "../metrics/axle.js";
 import { upsertDailyReport } from "../dal/reports.js";
 import { getEnvironment } from '../services/environment/index.js';

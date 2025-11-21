@@ -7,7 +7,7 @@ import {
   groupPosts, 
   groupReactions,
   profiles
-} from "@shared/schema";
+} from '../../shared/schema.js';
 import { sql } from "drizzle-orm";
 
 interface SeedUser {

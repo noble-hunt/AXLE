@@ -25,7 +25,7 @@ import {
 } from "../dal/groups.js";
 import { supabaseFromReq } from '../lib/supabaseFromReq.js';
 import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements.js";
-import { insertGroupSchema, insertPostSchema } from "@shared/schema";
+import { insertGroupSchema, insertPostSchema } from '../../shared/schema.js';
 import { z } from "zod";
 
 // Helper to handle database unavailability errors

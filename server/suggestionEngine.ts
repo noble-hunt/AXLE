@@ -1,4 +1,4 @@
-import { Category, HealthReport, Workout } from '@shared/schema';
+import { Category, HealthReport, Workout } from '../shared/schema.js';
 import { parseISO, isToday, subDays, differenceInDays } from 'date-fns';
 
 export interface SuggestionTarget {

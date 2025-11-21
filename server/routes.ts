@@ -7,7 +7,7 @@ import {
   insertPRSchema, 
   insertAchievementSchema,
   insertWorkoutFeedbackSchema
-} from "@shared/schema";
+} from '../shared/schema.js';
 import { generateWorkout } from "./workoutGenerator.js";
 import { workoutRequestSchema, WorkoutRequest } from "../shared/schema.js";
 import { z } from "zod";

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Category, workoutRequestSchema, type Workout } from "@shared/schema";
+import { Category, workoutRequestSchema, type Workout } from '../../shared/schema.js';
 
 // Suggestion system Zod schemas
 export const suggestionRationaleSchema = z.object({
@@ -37,5 +37,5 @@ export type SuggestionRationaleParsed = z.infer<typeof suggestionRationaleSchema
 export type SuggestedWorkoutDataParsed = z.infer<typeof suggestedWorkoutDataSchema>;
 
 // Re-export the existing WorkoutRequest schema for convenience
-export { workoutRequestSchema } from "@shared/schema";
+export { workoutRequestSchema } from '../../shared/schema.js';
 export type WorkoutRequestParsed = z.infer<typeof workoutRequestSchema>;

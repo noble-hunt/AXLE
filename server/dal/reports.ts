@@ -1,5 +1,5 @@
 import { db } from "../db.js";
-import { axleReports, profiles, type AxleReport, type ReportMetrics, type ReportInsights } from "@shared/schema";
+import { axleReports, profiles, type AxleReport, type ReportMetrics, type ReportInsights } from '../../shared/schema.js';
 import { eq, and, desc, gte, lte, isNull } from "drizzle-orm";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 
