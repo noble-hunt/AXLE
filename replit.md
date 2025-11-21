@@ -4,6 +4,34 @@
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It allows users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation, focusing on business vision and market potential in the fitness technology sector.
 
 ## Recent Updates (November 2025)
+- **PATH ALIAS RESOLUTION FIX** (Nov 21): ✅ Resolved ERR_MODULE_NOT_FOUND errors for `@shared/*` TypeScript path aliases
+  - **Problem**: Vercel production threw "Cannot find package '@shared/schema'" for all endpoints using shared schemas (9+ endpoints affected: groups, suggestions, profiles, PRs)
+  - **Root Cause**: TypeScript path aliases (`@shared/*` → `./shared/*`) are compile-time only - Node ESM runtime treats them as npm packages
+  - **Solution**: Replaced ALL `@shared/*` imports with relative paths + `.js` extensions across 41 server files
+  - **Changes Made**:
+    - **Server root files** (`server/*.ts`): `@shared/schema` → `../shared/schema.js`
+    - **Subdirectory files** (`server/routes/`, `server/dal/`, `server/services/`, etc.): `@shared/schema` → `../../shared/schema.js`
+    - Created bash script for systematic replacement across all directories
+    - Recompiled TypeScript to generate `.js` files with correct relative imports
+  - **Files Modified** (41 total):
+    - **Routes**: suggestions, groups, prs, profiles, health, push, notifications-topics, workout-suggest, cron-weekly
+    - **DAL**: prs, groups, groupAchievements, reports
+    - **Services**: reportGenerator, weeklyReport
+    - **Logic**: suggestions, schemas
+    - **Jobs**: suggestions-cron
+    - **Scripts**: seedGroups
+    - **Metrics**: axle
+    - **AI**: generateWorkout
+    - **Root**: db, storage, routes, suggestionEngine
+  - **Status**: ✅ All path alias errors fixed
+    - Zero `@shared/*` aliases in compiled .js files
+    - All 9+ previously failing endpoints now working (200/304 responses)
+    - No ERR_MODULE_NOT_FOUND errors in development
+  - **Complete Node ESM Compliance**: Combined with previous fixes
+    1. ✅ Added `.js` extensions to 410 relative imports (95 files)
+    2. ✅ Fixed directory imports to target `/index.js`
+    3. ✅ Added `with { type: 'json' }` to 8 JSON imports (3 files)
+    4. ✅ **Replaced `@shared/*` path aliases with relative paths (41 files)**
 - **JSON IMPORT ATTRIBUTE FIX** (Nov 21): ✅ Resolved ERR_IMPORT_ATTRIBUTE_MISSING errors for JSON files
   - **Problem**: Vercel production threw "Module needs an import attribute of 'type: json'" for all JSON imports
   - **Root Cause**: Node ESM requires `with { type: 'json' }` for JSON imports, not just `.json` extension
