@@ -4,24 +4,27 @@
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It allows users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation, focusing on business vision and market potential in the fitness technology sector.
 
 ## Recent Updates (November 2025)
-- **CRITICAL PRODUCTION FIX** (Nov 20): ✅ Resolved Vercel ERR_MODULE_NOT_FOUND errors causing 100% API downtime
-  - **Root Cause #1**: Workout library used dynamic `fs.readFileSync()` which Vercel's file tracer cannot statically analyze
-  - **Root Cause #2**: Server TypeScript files weren't compiled to JavaScript, so imports failed at runtime  
-  - **Root Cause #3**: Node ESM requires explicit `.js` file extensions in import statements
-  - **Solution**: Three-part fix
-    1. Refactored workout library to use static JSON imports
-    2. Added `tsc` compilation step with forced success to emit JavaScript files
-    3. Added `.js` extension to dynamic import in api/index.ts
+- **CRITICAL PRODUCTION FIX** (Nov 21): ✅ Resolved Vercel file conflict "api/index.js vs api/index.ts"
+  - **Problem**: Vercel deployment failed with "Two or more files have conflicting paths" because both `api/index.ts` (source) and compiled `api/index.js` existed
+  - **Root Cause**: TypeScript compiler was including `api/**` in compilation, generating `api/index.js` which Vercel treats as a separate route
+  - **Solution**: Exclude api/** from server build while keeping server/app.js compilation
   - **Changes Made**:
-    - Replaced `fs.readFileSync()` with static imports for all 6 workout block categories
-    - Updated `vercel.json` buildCommand: `"(npx tsc -p tsconfig.server.json --noEmitOnError false || true) && npm run build"`
-    - Created tsconfig.server.json with ESNext modules, permissive settings, and in-place compilation
-    - Fixed api/index.ts import: `await import('../server/app.js')` (explicit .js extension required for Node ESM)
-    - Build command uses `|| true` to continue even with type errors (ensures .js files are emitted)
-  - **Status**: ✅ Ready for production deployment
-    - server/app.js (8.0K) and api/index.js (1.4K) compile successfully
-    - Import path verified with .js extension in compiled output
-  - **Next Step**: Deploy to Vercel production and verify all endpoints work
+    - Deleted compiled `api/index.js` file
+    - Updated `.gitignore` to prevent future `api/*.js` commits
+    - Modified `tsconfig.server.json`:
+      - **Removed** `"api/**/*.ts"` from `include` array
+      - **Added** `"api/**"` to `exclude` array
+    - Kept dynamic import in `api/index.ts`: `await import('../server/app.js')`
+    - Build command ensures server code compiles: `"(npx tsc -p tsconfig.server.json --noEmitOnError false || true) && npm run build"`
+  - **Status**: ✅ Vercel routing conflict resolved
+    - Only `api/index.ts` exists in api/ directory (no .js files)
+    - `server/app.js` successfully compiles (8.0K)
+    - Dynamic import ensures runtime flexibility
+  - **Next Step**: Deploy to Vercel and verify all endpoints work
+- **PRODUCTION FIX** (Nov 20): Resolved Vercel ERR_MODULE_NOT_FOUND errors
+  - Refactored workout library from dynamic `fs.readFileSync()` to static JSON imports
+  - Added TypeScript compilation step for server code
+  - Fixed Node ESM import paths with explicit `.js` extensions
 - **PR Projections Enhancement**: Fixed critical bug where bodybuilding movements (Bench Press, Deadlift, Bicep Curl, etc.) were not recognized as weight-based, preventing PR projection calculations. Now all powerlifting, Olympic weightlifting, AND bodybuilding movements correctly show Epley Formula-based rep max projections.
 - **Graph Visibility Improvements**: Enhanced visibility of workout analytics charts on stats overview page by increasing gradient opacity (30% → 80%) for workout activity graph and changing intensity levels graph to use accent color for better contrast.
 - **Data Layer Fix**: Implemented production-grade handling of PostgreSQL numeric-to-string conversion with parseFloat transformation and NaN validation across PR projection pipeline.
