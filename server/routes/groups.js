@@ -3,7 +3,7 @@ import { reactionRateLimit } from "../middleware/reactionRateLimit.js";
 import { createGroup, getUserGroups, getGroupProfile, joinGroup, leaveGroup, createGroupInvite, acceptInvite, createPost, getGroupFeed, toggleReaction, getReactionSummary, upsertRsvp, removeRsvp, getPostRsvps, deleteGroupPost, removeMemberFromGroup, deleteGroup, updateGroup, getGroupMembers, addMemberToGroup } from "../dal/groups.js";
 import { supabaseFromReq } from '../lib/supabaseFromReq.js';
 import { recomputeAndUpdateGroupAchievements, getGroupAchievements } from "../dal/groupAchievements.js";
-import { insertGroupSchema } from "@shared/schema";
+import { insertGroupSchema } from '../../shared/schema.js';
 import { z } from "zod";
 // Helper to handle database unavailability errors
 function handleGroupError(res, error, defaultMessage) {

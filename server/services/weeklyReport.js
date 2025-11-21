@@ -1,5 +1,5 @@
 import { db } from "../db.js";
-import { healthReports } from "@shared/schema";
+import { healthReports } from '../../shared/schema.js';
 import { eq, gte, and } from "drizzle-orm";
 import { sendEmail } from "./email.js";
 export async function buildWeeklyReportHtml(userId) {

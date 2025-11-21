@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { db } from "../db.js";
-import { notificationTopics } from "@shared/schema";
+import { notificationTopics } from '../../shared/schema.js';
 import { eq } from "drizzle-orm";
 const r = Router();
 r.post("/api/notifications/topics/enable", requireAuth, async (req, res) => {

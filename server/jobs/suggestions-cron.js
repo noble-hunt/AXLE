@@ -1,6 +1,6 @@
 import * as cron from "node-cron";
 import { db } from "../db.js";
-import { workouts, suggestedWorkouts, wearableConnections, healthReports } from "@shared/schema";
+import { workouts, suggestedWorkouts, wearableConnections, healthReports } from '../../shared/schema.js';
 import { sql, eq, and, gte, desc } from "drizzle-orm";
 import { computeSuggestion, computeFatigue } from "../logic/suggestions.js";
 import { MockHealthProvider } from "../providers/health/mock.js";

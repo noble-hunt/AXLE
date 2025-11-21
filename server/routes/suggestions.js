@@ -8,7 +8,7 @@ import { generateWithFallback } from "../lib/generator/generate.js";
 import { insertWorkout } from "../dal/workouts.js";
 import { deriveSuggestionSeed } from "../services/suggestionInputs.js";
 import { db } from "../db.js";
-import { suggestedWorkouts, workouts, prs, healthReports } from "@shared/schema";
+import { suggestedWorkouts, workouts, prs, healthReports } from '../../shared/schema.js';
 import { eq, desc, and, sql } from "drizzle-orm";
 /**
  * Register suggestion-related API routes

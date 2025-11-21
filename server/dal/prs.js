@@ -1,5 +1,5 @@
 import { db } from "../db.js";
-import { prs } from "@shared/schema";
+import { prs } from '../../shared/schema.js';
 import { eq, and, desc, asc } from "drizzle-orm";
 export async function insertPR(params) {
     const result = await db

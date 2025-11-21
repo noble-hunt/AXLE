@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { db } from "../db.js";
-import { pushSubscriptions } from "@shared/schema";
+import { pushSubscriptions } from '../../shared/schema.js';
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 const pushRouter = Router();

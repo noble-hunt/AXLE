@@ -1,7 +1,7 @@
 import { requireAuth } from '../middleware/auth.js';
 import { requireJSON } from '../middleware/accept-json.js';
 import { computeTodaySuggestion, startSuggestion } from '../services/suggestions.js';
-import { API_ENDPOINTS } from '@shared/endpoints';
+import { API_ENDPOINTS } from '../../shared/endpoints.js';
 /**
  * Register workout suggestion routes as specified in the backend requirements
  * These routes provide JSON-only endpoints for fetching and starting suggestions

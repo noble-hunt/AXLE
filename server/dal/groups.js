@@ -1,5 +1,5 @@
 import { db } from "../db.js";
-import { groups, groupMembers, posts, groupPosts, groupReactions, groupEventRsvps, groupInvites, referrals, profiles } from "@shared/schema";
+import { groups, groupMembers, posts, groupPosts, groupReactions, groupEventRsvps, groupInvites, referrals, profiles } from '../../shared/schema.js';
 import { eq, and, desc, asc, gte, sql } from "drizzle-orm";
 // Set user context for RLS
 async function setUserContext(userId) {

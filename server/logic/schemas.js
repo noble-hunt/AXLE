@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Category, workoutRequestSchema } from "@shared/schema";
+import { Category, workoutRequestSchema } from '../../shared/schema.js';
 // Suggestion system Zod schemas
 export const suggestionRationaleSchema = z.object({
     rulesApplied: z.array(z.string()),
@@ -30,4 +30,4 @@ export const suggestedWorkoutDataSchema = z.object({
     workoutId: z.string().nullable().optional(),
 });
 // Re-export the existing WorkoutRequest schema for convenience
-export { workoutRequestSchema } from "@shared/schema";
+export { workoutRequestSchema } from '../../shared/schema.js';

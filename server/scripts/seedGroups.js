@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { db } from "../db.js";
-import { groups, groupMembers, posts, groupPosts, groupReactions, profiles } from "@shared/schema";
+import { groups, groupMembers, posts, groupPosts, groupReactions, profiles } from '../../shared/schema.js';
 import { sql } from "drizzle-orm";
 // Mock users for seeding
 const SEED_USERS = [

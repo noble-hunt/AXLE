@@ -1,5 +1,5 @@
 import { db } from "../db.js";
-import { workouts, prs } from "@shared/schema";
+import { workouts, prs } from '../../shared/schema.js';
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { startOfDay, endOfDay, differenceInDays, format, startOfWeek } from "date-fns";
 /**

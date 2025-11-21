@@ -1,6 +1,6 @@
 import { db } from '../db.js';
-import { workouts, healthReports } from '@shared/schema';
-import { Category } from '@shared/schema';
+import { workouts, healthReports } from '../../shared/schema.js';
+import { Category } from '../../shared/schema.js';
 import { eq, desc, gte, and } from 'drizzle-orm';
 // Category sets adapted to our actual enum
 const LEG_HEAVY = [Category.POWERLIFTING, Category.STRENGTH];

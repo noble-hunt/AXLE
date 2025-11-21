@@ -1,6 +1,6 @@
 import { createServer } from "http";
 import { storage } from "./storage.js";
-import { insertWorkoutSchema, insertPRSchema, insertWorkoutFeedbackSchema } from "@shared/schema";
+import { insertWorkoutSchema, insertPRSchema, insertWorkoutFeedbackSchema } from '../shared/schema.js';
 import { generateWorkout } from "./workoutGenerator.js";
 import { workoutRequestSchema } from "../shared/schema.js";
 import { z } from "zod";

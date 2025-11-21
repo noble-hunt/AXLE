@@ -1,5 +1,5 @@
 import { db } from "../db.js";
-import { groupAchievements, groupPosts, groupReactions, posts } from "@shared/schema";
+import { groupAchievements, groupPosts, groupReactions, posts } from '../../shared/schema.js';
 import { eq, and, desc, gte, sql, count } from "drizzle-orm";
 // Define the three group achievements
 export const GROUP_ACHIEVEMENT_DEFINITIONS = {

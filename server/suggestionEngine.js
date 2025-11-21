@@ -1,4 +1,4 @@
-import { Category } from '@shared/schema';
+import { Category } from '../shared/schema.js';
 import { subDays, differenceInDays } from 'date-fns';
 // Category groupings for intelligent variation
 const CATEGORY_GROUPS = {
