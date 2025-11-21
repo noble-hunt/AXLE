@@ -1,9 +1,19 @@
--- AXLE Production Schema Hardening Migration
--- Generated: 2025-11-21
+-- AXLE Production Schema Complete Migration
+-- Generated: 2025-11-21 (UPDATED)
 -- Purpose: Add ALL missing columns from shared/schema.ts to production Supabase
 -- Safe to run multiple times (uses IF NOT EXISTS)
 
 BEGIN;
+
+-- ============================================
+-- PROFILES TABLE
+-- ============================================
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS preferred_unit TEXT NOT NULL DEFAULT 'lbs';
+
+-- ============================================
+-- PRS TABLE
+-- ============================================
+ALTER TABLE prs ADD COLUMN IF NOT EXISTS value NUMERIC NOT NULL DEFAULT 0;
 
 -- ============================================
 -- WORKOUTS TABLE
@@ -37,6 +47,20 @@ COMMIT;
 -- ============================================
 -- VERIFICATION - Run these to confirm all columns exist
 -- ============================================
+
+-- Verify profiles columns
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns 
+WHERE table_name = 'profiles' 
+  AND column_name = 'preferred_unit'
+ORDER BY column_name;
+
+-- Verify prs columns
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns 
+WHERE table_name = 'prs' 
+  AND column_name = 'value'
+ORDER BY column_name;
 
 -- Verify workouts columns
 SELECT column_name, data_type, is_nullable, column_default
