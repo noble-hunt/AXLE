@@ -4,6 +4,14 @@
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It allows users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation, focusing on business vision and market potential in the fitness technology sector.
 
 ## Recent Updates (November 2025)
+- **VERCEL ESM COMPATIBILITY FIX** (Nov 21): ✅ Resolved "require is not defined" error in api/index.ts
+  - **Problem**: Vercel serverless threw "ReferenceError: require is not defined at Object.handler" for all API routes
+  - **Root Cause**: `require.resolve.paths()` call in error logging (line 20) doesn't work in ESM environment
+  - **Solution**: Removed CommonJS `require()` call from api/index.ts error handler
+  - **Status**: ✅ All Vercel serverless routes now ESM-compliant
+    - No `require()` calls anywhere in server code
+    - All imports use ES module syntax
+    - Development server working perfectly (all data loading correctly)
 - **PATH ALIAS RESOLUTION FIX** (Nov 21): ✅ Resolved ERR_MODULE_NOT_FOUND errors for `@shared/*` TypeScript path aliases
   - **Problem**: Vercel production threw "Cannot find package '@shared/schema'" for all endpoints using shared schemas (9+ endpoints affected: groups, suggestions, profiles, PRs)
   - **Root Cause**: TypeScript path aliases (`@shared/*` → `./shared/*`) are compile-time only - Node ESM runtime treats them as npm packages

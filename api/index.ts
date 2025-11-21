@@ -17,7 +17,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[SERVERLESS] Fatal error:', error);
     console.error('[SERVERLESS] Error stack:', error?.stack);
     console.error('[SERVERLESS] Current directory:', process.cwd());
-    console.error('[SERVERLESS] Module paths:', require.resolve.paths?.(''));
     
     return res.status(500).json({
       ok: false,
