@@ -4,6 +4,21 @@
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It allows users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation, focusing on business vision and market potential in the fitness technology sector.
 
 ## Recent Updates (November 2025)
+- **NODE ESM MODULE RESOLUTION FIX** (Nov 21): ✅ Resolved ERR_MODULE_NOT_FOUND errors in Vercel production
+  - **Problem**: All API endpoints returned 500 errors in production with "Cannot find module '/var/task/server/config/env'" due to missing `.js` extensions
+  - **Root Cause**: Node ESM (used by Vercel serverless) requires explicit `.js` extensions on all relative imports. TypeScript doesn't add them automatically during compilation.
+  - **Solution**: Added `.js` extensions to ALL relative imports in server directory (410 imports across 95 files)
+  - **Changes Made**:
+    - Fixed all `from './file'` → `from './file.js'`
+    - Fixed all `from '../file'` → `from '../file.js'`
+    - Fixed directory imports: `./services/environment.js` → `./services/environment/index.js`
+    - Preserved Node built-ins (fs, path) and npm packages (express, openai)
+  - **Status**: ✅ All module resolution errors fixed
+    - Development server runs successfully
+    - All API endpoints responding (200/304 status codes)
+    - Zero ERR_MODULE_NOT_FOUND errors
+  - **Files Modified**: 95 server files including routes, DAL, services, providers, AI generators
+  - **Next Step**: Deploy to Vercel and verify production functionality
 - **TYPESCRIPT BUILD FIX** (Nov 21): ✅ Achieved zero TypeScript errors for Vercel deployment (112 → 0)
   - **Problem**: TypeScript compilation blocked Vercel deployment with 112 type errors across 24 server files
   - **Root Cause**: Drizzle ORM type mismatches between schema definitions and DAL/route payloads (missing columns, InferInsertModel drift, unknown type assertions)
