@@ -4,6 +4,22 @@
 AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness tracking. It allows users to log workouts, track personal records, visualize achievements, and analyze fitness progress through an intuitive, mobile-optimized dashboard. The project aims to integrate a fine-tuned ML model for workout generation, focusing on business vision and market potential in the fitness technology sector.
 
 ## Recent Updates (November 2025)
+- **JSON IMPORT ATTRIBUTE FIX** (Nov 21): ✅ Resolved ERR_IMPORT_ATTRIBUTE_MISSING errors for JSON files
+  - **Problem**: Vercel production threw "Module needs an import attribute of 'type: json'" for all JSON imports
+  - **Root Cause**: Node ESM requires `with { type: 'json' }` for JSON imports, not just `.json` extension
+  - **Solution**: Added `with { type: 'json' }` to all 8 JSON imports across 3 server files
+  - **Changes Made**:
+    - **server/workouts/library/index.ts**: 6 JSON imports (warmup, primary, accessory, conditioning, finisher, cooldown)
+    - **server/ai/generators/premium.ts**: 1 JSON import (movements.registry.json)
+    - **server/ai/movementService.ts**: 1 JSON import (movements.registry.min.json)
+  - **Status**: ✅ All JSON import errors fixed
+    - TypeScript compilation passes with zero errors
+    - All API endpoints responding correctly
+    - Zero ERR_IMPORT_ATTRIBUTE_MISSING errors
+  - **Combined with Previous Fixes**: Complete Node ESM compliance for Vercel
+    1. ✅ Added `.js` extensions to 410 relative imports (95 files)
+    2. ✅ Fixed directory imports to target `/index.js`
+    3. ✅ Added `with { type: 'json' }` to 8 JSON imports (3 files)
 - **NODE ESM MODULE RESOLUTION FIX** (Nov 21): ✅ Resolved ERR_MODULE_NOT_FOUND errors in Vercel production
   - **Problem**: All API endpoints returned 500 errors in production with "Cannot find module '/var/task/server/config/env'" due to missing `.js` extensions
   - **Root Cause**: Node ESM (used by Vercel serverless) requires explicit `.js` extensions on all relative imports. TypeScript doesn't add them automatically during compilation.
@@ -18,7 +34,6 @@ AXLE is a mobile-first Progressive Web App (PWA) for comprehensive fitness track
     - All API endpoints responding (200/304 status codes)
     - Zero ERR_MODULE_NOT_FOUND errors
   - **Files Modified**: 95 server files including routes, DAL, services, providers, AI generators
-  - **Next Step**: Deploy to Vercel and verify production functionality
 - **TYPESCRIPT BUILD FIX** (Nov 21): ✅ Achieved zero TypeScript errors for Vercel deployment (112 → 0)
   - **Problem**: TypeScript compilation blocked Vercel deployment with 112 type errors across 24 server files
   - **Root Cause**: Drizzle ORM type mismatches between schema definitions and DAL/route payloads (missing columns, InferInsertModel drift, unknown type assertions)
