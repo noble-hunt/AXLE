@@ -1,6 +1,14 @@
 # AXLE - Fitness Tracking Application
 
 ## Recent Production Deployment Fixes (Nov 21, 2025)
+
+### CRITICAL SCHEMA FIX (Latest)
+**Issue**: Production queries failing with "column does not exist", profile updates failing, workouts/groups/reports not loading  
+**Root Cause**: All Supabase tables exist in `auth` schema, but Drizzle ORM was querying default `public` schema  
+**Solution**: Updated `server/db.ts` to set PostgreSQL search_path to `auth,public` in connection pool options  
+**Status**: ✅ Database now correctly queries auth schema where all tables actually exist
+
+### Build Artifacts Fix
 **Issue**: Complete production failure - all endpoints returning 500 errors, no data loading  
 **Root Cause**: Stale committed `server/**/*.js` build artifacts missing `with { type: 'json' }` import assertions  
 **Solution**:
