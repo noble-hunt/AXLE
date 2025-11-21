@@ -1,6 +1,10 @@
 // server/config/env.ts
 import * as dotenv from 'dotenv';
-dotenv.config();
+
+// Only load .env in development (not in Vercel production)
+if (!process.env.VERCEL) {
+  dotenv.config();
+}
 
 const mask = (v?: string | null) => (v ? `${v.slice(0,6)}…${v.slice(-4)}` : null);
 const asBool = (v?: string | null) => v === '1' || v === 'true';
