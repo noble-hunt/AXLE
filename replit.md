@@ -103,4 +103,4 @@ Preferred communication style: Simple, everyday language.
 
 ### Production Deployment
 - **Vercel Pro**: Production hosting.
-- **Supabase Storage**: User avatar uploads.
+- **Supabase Storage**: User avatar uploads.# Production schema updated: Sat Nov 22 04:20:10 PM UTC 2025
