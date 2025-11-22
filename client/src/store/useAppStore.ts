@@ -1077,9 +1077,14 @@ export const useAppStore = create<AppState>()(
           
           if (profileResponse.ok) {
             const profileData = await profileResponse.json();
+            console.log('🔍 [FRONTEND DEBUG] Raw profile response:', JSON.stringify(profileData, null, 2));
             if (profileData.profile) {
               set({ profile: profileData.profile });
               console.log('✅ Loaded profile:', profileData.profile.username || profileData.profile.email);
+              console.log('🔍 [FRONTEND DEBUG] Profile firstName:', profileData.profile.firstName);
+              console.log('🔍 [FRONTEND DEBUG] Profile lastName:', profileData.profile.lastName);
+              console.log('🔍 [FRONTEND DEBUG] Profile avatarUrl:', profileData.profile.avatarUrl);
+              console.log('🔍 [FRONTEND DEBUG] Profile savedWorkouts:', profileData.profile.savedWorkouts);
             } else {
               console.warn('⚠️ Profile data returned but empty - profile might not exist in database');
             }

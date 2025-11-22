@@ -30,6 +30,9 @@ export function SaveWorkoutButton({
     e.preventDefault()
     e.stopPropagation()
 
+    console.log('🔍 [SaveWorkoutButton] Profile state:', profile);
+    console.log('🔍 [SaveWorkoutButton] Profile exists?', !!profile);
+    
     if (!profile) {
       toast({
         title: "Error",
