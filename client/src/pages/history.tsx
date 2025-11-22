@@ -7,7 +7,6 @@ import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
 import { SaveWorkoutButton } from "@/components/workouts/SaveWorkoutButton"
-import { SegmentedControl, Segment } from "@/components/swift/segmented-control"
 import { StatBadge } from "@/components/swift/stat-badge"
 import {
   Dialog,
@@ -256,34 +255,38 @@ export default function History() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-body font-medium text-foreground">Status</label>
-                <SegmentedControl
-                  value={completionFilter}
-                  onValueChange={setCompletionFilter}
-                  data-testid="completion-filter"
-                >
+                <div className="grid grid-cols-3 gap-2">
                   {completionOptions.map((option) => (
-                    <Segment key={option.value} value={option.value}>
+                    <Button
+                      key={option.value}
+                      variant={completionFilter === option.value ? "primary" : "secondary"}
+                      onClick={() => setCompletionFilter(option.value)}
+                      className="h-10"
+                      data-testid={`completion-${option.value}`}
+                    >
                       {option.label}
-                    </Segment>
+                    </Button>
                   ))}
-                </SegmentedControl>
+                </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-body font-medium text-foreground">Source</label>
-                <SegmentedControl
-                  value={sourceFilter}
-                  onValueChange={setSourceFilter}
-                  data-testid="source-filter"
-                >
+                <div className="grid grid-cols-2 gap-2">
                   {sourceOptions.map((option) => (
-                    <Segment key={option.value} value={option.value}>
+                    <Button
+                      key={option.value}
+                      variant={sourceFilter === option.value ? "primary" : "secondary"}
+                      onClick={() => setSourceFilter(option.value)}
+                      className="h-10"
+                      data-testid={`source-${option.value}`}
+                    >
                       {option.label}
-                    </Segment>
+                    </Button>
                   ))}
-                </SegmentedControl>
+                </div>
               </div>
             </div>
           </DialogContent>
