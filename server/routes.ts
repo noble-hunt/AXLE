@@ -763,7 +763,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // ACTION: upsert - Upsert profile
       if (action === 'upsert') {
         try {
-          const validatedData = upsertProfileSchema.parse(req.body);
+          // Extract action from body before validation to avoid schema errors
+          const { action: _, ...profileData } = req.body;
+          const validatedData = upsertProfileSchema.parse(profileData);
           const { updateProfile, getProfile } = await import("./dal/profiles.js");
           
           let profile = await getProfile(authReq.user.id);
@@ -786,7 +788,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // ACTION: update - Update profile (default)
       if (action === 'update') {
-        const validatedData = updateProfileSchema.parse(req.body);
+        // Extract action from body before validation to avoid schema errors
+        const { action: _, ...profileData } = req.body;
+        const validatedData = updateProfileSchema.parse(profileData);
         const { updateProfile } = await import("./dal/profiles.js");
         
         const profile = await updateProfile(authReq.user.id, validatedData);

@@ -923,8 +923,13 @@ export const useAppStore = create<AppState>()(
               lastName: responseData.profile.lastName || responseData.profile.last_name,
               avatarUrl: responseData.profile.avatarUrl || responseData.profile.avatar_url,
               dateOfBirth: responseData.profile.dateOfBirth || responseData.profile.date_of_birth,
-              providers: responseData.profile.providers || ['email'],
+              preferredUnit: responseData.profile.preferredUnit || responseData.profile.preferred_unit || 'lbs',
+              favoriteMovements: responseData.profile.favoriteMovements || responseData.profile.favorite_movements || [],
               savedWorkouts: responseData.profile.savedWorkouts || responseData.profile.saved_workouts || [],
+              providers: responseData.profile.providers || ['email'],
+              latitude: responseData.profile.latitude,
+              longitude: responseData.profile.longitude,
+              timezone: responseData.profile.timezone,
               createdAt: responseData.profile.createdAt ? new Date(responseData.profile.createdAt) : (responseData.profile.created_at ? new Date(responseData.profile.created_at) : new Date())
             }
           });
