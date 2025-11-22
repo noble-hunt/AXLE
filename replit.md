@@ -2,7 +2,24 @@
 
 ## Recent Production Deployment Fixes (Nov 22, 2025)
 
-### SAVE WORKOUT PROFILE DATA FIX (Latest - Nov 22, 2025)
+### PROFILE UPSERT VALIDATION FIX (Latest - Nov 22, 2025)
+**Issue**: Profile upsert endpoint failing with 500 errors, causing:
+1. Profile data not loading (username, name, avatar not displaying)
+2. Save Workout button showing "need to be signed in" error despite being authenticated
+3. All profile-related features broken due to null profile state
+**Root Cause**: 
+1. Backend validation at `/api/profiles` endpoint (line 766, 789) was attempting to parse entire request body including the `action` field
+2. `upsertProfileSchema` and `updateProfileSchema` don't include `action` as a valid field
+3. Zod validation threw errors, causing 500 responses
+4. Frontend couldn't set profile in store, leaving it null
+**Solution**: 
+1. ✅ Extract `action` field from request body before schema validation in both 'upsert' and 'update' actions
+2. ✅ Enhanced frontend `upsertProfile` to store complete profile data including `preferredUnit`, `favoriteMovements`, and location metadata
+3. ✅ Profile upsert now returns 200 status, profile loads successfully
+4. ✅ Save Workout button and all profile-dependent features now working
+**Status**: Fixed and verified - production-grade implementation confirmed by architect review
+
+### SAVE WORKOUT PROFILE DATA FIX (Nov 22, 2025)
 **Issue**: After deploying Save Workout feature:
 1. Save Workout button showing "need to be signed in" error despite being authenticated
 2. Profile firstName, lastName, and avatarUrl not displaying in UI
