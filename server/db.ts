@@ -17,9 +17,6 @@ const pool = new Pool({
   max: 10, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
   connectionTimeoutMillis: 10000, // Timeout after 10 seconds when acquiring a client
-  // CRITICAL FIX: Set search_path to 'auth' schema where all tables actually exist
-  // Supabase created tables in 'auth' schema, not default 'public' schema
-  options: '-c search_path=auth,public',
 });
 
 const db = drizzle({ client: pool, schema });

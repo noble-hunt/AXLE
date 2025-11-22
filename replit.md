@@ -2,11 +2,16 @@
 
 ## Recent Production Deployment Fixes (Nov 21, 2025)
 
-### CRITICAL SCHEMA FIX (Latest)
+### CRITICAL SCHEMA FIX (Latest - Nov 21, 2025)
 **Issue**: Production queries failing with "column does not exist", profile updates failing, workouts/groups/reports not loading  
-**Root Cause**: All Supabase tables exist in `auth` schema, but Drizzle ORM was querying default `public` schema  
-**Solution**: Updated `server/db.ts` to set PostgreSQL search_path to `auth,public` in connection pool options  
-**Status**: ✅ Database now correctly queries auth schema where all tables actually exist
+**Root Cause**: 
+1. Tables exist in `public` schema (NOT `auth` schema as initially suspected)
+2. Missing columns: `profiles.favorite_movements`, `prs.unit`
+3. Incorrect `search_path=auth,public` override was making queries look for non-existent `auth.*` tables
+**Solution**: 
+1. ✅ Removed incorrect search_path override from `server/db.ts`
+2. ⏳ PENDING: Run `supabase_fix_public_schema.sql` in Supabase to add missing columns
+**Status**: Code fixed, awaiting database migration in Supabase
 
 ### Build Artifacts Fix
 **Issue**: Complete production failure - all endpoints returning 500 errors, no data loading  
