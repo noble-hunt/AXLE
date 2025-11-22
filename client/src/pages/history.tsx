@@ -6,6 +6,7 @@ import { Link } from "wouter"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
+import { SaveWorkoutButton } from "@/components/workouts/SaveWorkoutButton"
 import { SegmentedControl, Segment } from "@/components/swift/segmented-control"
 import { StatBadge } from "@/components/swift/stat-badge"
 import {
@@ -53,12 +54,13 @@ const completionOptions = [
 
 const sourceOptions = [
   { value: "all", label: "All" },
+  { value: "saved", label: "Saved Only" },
   { value: "suggested", label: "Suggested Only" },
   { value: "manual", label: "Manual Only" }
 ] as const
 
 export default function History() {
-  const { user } = useAppStore()
+  const { user, profile } = useAppStore()
   const { toast } = useToast()
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [completionFilter, setCompletionFilter] = useState<string>("all")
@@ -122,7 +124,12 @@ export default function History() {
       const matchesCompletion = completionFilter === "all" || 
         (completionFilter === "completed" && workout.completed) ||
         (completionFilter === "pending" && !workout.completed)
+      
+      // Check if workout is saved
+      const isSaved = profile?.savedWorkouts?.includes(workout.id) || false
+      
       const matchesSource = sourceFilter === "all" ||
+        (sourceFilter === "saved" && isSaved) ||
         (sourceFilter === "suggested" && isSuggestedWorkout(workout)) ||
         (sourceFilter === "manual" && !isSuggestedWorkout(workout))
       return matchesCategory && matchesCompletion && matchesSource
@@ -331,51 +338,58 @@ export default function History() {
               const exerciseCount = Array.isArray(workout.sets) ? workout.sets.length : 
                                   (workout.request?.blocks?.reduce((sum: number, block: any) => sum + (block.items?.length || 0), 0) || 0)
               return (
-                <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
-                  <Card className="p-5 active:scale-98 transition-transform" data-testid={`history-workout-${workout.id}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 space-y-3">
-                        {/* Header Row */}
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                            <CategoryIcon className="w-5 h-5 text-primary" />
+                <div key={workout.id} className="relative">
+                  <Link href={`/workout/${workout.id}`} className="block">
+                    <Card className="p-5 active:scale-98 transition-transform" data-testid={`history-workout-${workout.id}`}>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 space-y-3">
+                            {/* Header Row */}
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                <CategoryIcon className="w-5 h-5 text-primary" />
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="text-body font-semibold text-foreground">{workout.title || workout.name || 'Untitled Workout'}</h3>
+                                <p className="text-caption text-muted-foreground">{exerciseCount} exercises</p>
+                              </div>
+                            </div>
+                            
+                            {/* Chips Row */}
+                            <div className="flex items-center gap-4 flex-wrap">
+                              {workoutCategory && (
+                                <Chip variant="default" size="sm">
+                                  {workoutCategory}
+                                </Chip>
+                              )}
+                              {isSuggestedWorkout(workout) && (
+                                <Chip variant="accent" size="sm" data-testid="suggested-badge">
+                                  <Sparkles className="w-3 h-3 mr-1" />
+                                  Suggested
+                                </Chip>
+                              )}
+                              {workout.completed ? (
+                                <Chip variant="success" size="sm" data-testid="completion-completed">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Completed
+                                </Chip>
+                              ) : (
+                                <Chip variant="warning" size="sm" data-testid="completion-pending">
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  Pending
+                                </Chip>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h3 className="text-body font-semibold text-foreground">{workout.title || workout.name || 'Untitled Workout'}</h3>
-                            <p className="text-caption text-muted-foreground">{exerciseCount} exercises</p>
-                          </div>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                         </div>
                         
-                        {/* Chips Row */}
-                        <div className="flex items-center gap-4 flex-wrap">
-                          {workoutCategory && (
-                            <Chip variant="default" size="sm">
-                              {workoutCategory}
-                            </Chip>
-                          )}
-                          {isSuggestedWorkout(workout) && (
-                            <Chip variant="accent" size="sm" data-testid="suggested-badge">
-                              <Sparkles className="w-3 h-3 mr-1" />
-                              Suggested
-                            </Chip>
-                          )}
-                          {workout.completed ? (
-                            <Chip variant="success" size="sm" data-testid="completion-completed">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Completed
-                            </Chip>
-                          ) : (
-                            <Chip variant="warning" size="sm" data-testid="completion-pending">
-                              <XCircle className="w-3 h-3 mr-1" />
-                              Pending
-                            </Chip>
-                          )}
-                        </div>
+                        {/* Save Workout Button */}
+                        <SaveWorkoutButton workoutId={workout.id} fullWidth />
                       </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                    </div>
-                  </Card>
-                </Link>
+                    </Card>
+                  </Link>
+                </div>
               )
             })}
           </div>

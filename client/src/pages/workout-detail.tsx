@@ -38,6 +38,7 @@ const UUIDv4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
+import { SaveWorkoutButton } from "@/components/workouts/SaveWorkoutButton"
 import { Sheet } from "@/components/swift/sheet"
 import { Field } from "@/components/swift/field"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
@@ -323,6 +324,9 @@ Intensity {(workout as any)?.intensity}/10
             </Chip>
           )}
         </div>
+
+        {/* Save Workout Button */}
+        {workout.id && <SaveWorkoutButton workoutId={workout.id} fullWidth />}
 
         {/* Description */}
         {(workout as any)?.description && (

@@ -924,6 +924,7 @@ export const useAppStore = create<AppState>()(
               avatarUrl: responseData.profile.avatarUrl || responseData.profile.avatar_url,
               dateOfBirth: responseData.profile.dateOfBirth || responseData.profile.date_of_birth,
               providers: responseData.profile.providers || ['email'],
+              savedWorkouts: responseData.profile.savedWorkouts || responseData.profile.saved_workouts || [],
               createdAt: responseData.profile.createdAt ? new Date(responseData.profile.createdAt) : (responseData.profile.created_at ? new Date(responseData.profile.created_at) : new Date())
             }
           });
@@ -989,6 +990,7 @@ export const useAppStore = create<AppState>()(
           updateField('dateOfBirth', 'date_of_birth');
           updateField('preferredUnit', 'preferred_unit');
           updateField('favoriteMovements', 'favorite_movements');
+          updateField('savedWorkouts', 'saved_workouts');
           updateField('providers', 'providers');
           updateField('latitude', 'latitude');
           updateField('longitude', 'longitude');

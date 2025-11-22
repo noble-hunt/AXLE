@@ -4,6 +4,7 @@ import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
 import { Chip } from "@/components/swift/chip"
 import { DailySuggestionCard } from "@/components/workouts/DailySuggestionCard"
+import { SaveWorkoutButton } from "@/components/workouts/SaveWorkoutButton"
 import { Play, Plus, Timer, Dumbbell, ChevronRight, Clock, Zap, CheckCircle, Activity, Heart, Move, Weight, Lightbulb, Edit3 } from "lucide-react"
 import { useLocation, Link } from "wouter"
 import { useAppStore } from "@/store/useAppStore"
@@ -136,21 +137,24 @@ export default function Workout() {
               const exerciseCount = Array.isArray(workout.sets) ? workout.sets.length : Object.keys(workout.sets || {}).length
               
               return (
-                <Link key={workout.id} href={`/workout/${workout.id}`} className="block">
-                  <Card className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 space-y-3">
+                <div key={workout.id} className="relative">
+                  <Link href={`/workout/${workout.id}`} className="block">
+                    <Card className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
+                      <div className="space-y-3">
                         {/* Header Row */}
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                            <CategoryIcon className="w-4 h-4 text-primary" />
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                              <CategoryIcon className="w-4 h-4 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="text-sm font-semibold text-foreground">{workout.title}</h4>
+                              <p className="text-xs text-muted-foreground">
+                                {format(workoutDate, 'MMM d')} • {exerciseCount} exercises
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold text-foreground">{workout.title}</h4>
-                            <p className="text-xs text-muted-foreground">
-                              {format(workoutDate, 'MMM d')} • {exerciseCount} exercises
-                            </p>
-                          </div>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                         </div>
                         
                         {/* Chips Row */}
@@ -174,11 +178,13 @@ export default function Workout() {
                             Completed
                           </Chip>
                         </div>
+                        
+                        {/* Save Workout Button */}
+                        <SaveWorkoutButton workoutId={workout.id} fullWidth />
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    </div>
-                  </Card>
-                </Link>
+                    </Card>
+                  </Link>
+                </div>
               )
             })}
           </div>

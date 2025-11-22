@@ -14,6 +14,7 @@ function mapProfileToFrontend(dbProfile: any) {
     avatarUrl: dbProfile.avatar_url,
     preferredUnit: dbProfile.preferred_unit,
     favoriteMovements: dbProfile.favorite_movements || [],
+    savedWorkouts: dbProfile.saved_workouts || [],
     providers: dbProfile.providers,
     // Convert timestamp strings to Date objects for frontend
     createdAt: dbProfile.created_at ? new Date(dbProfile.created_at) : undefined,
@@ -94,7 +95,7 @@ export async function getProfile(userId: string) {
     const result = await client.query(
       `SELECT 
         user_id, first_name, last_name, username, date_of_birth, avatar_url, 
-        preferred_unit, favorite_movements, providers, created_at,
+        preferred_unit, favorite_movements, saved_workouts, providers, created_at,
         latitude, longitude, timezone
        FROM profiles 
        WHERE user_id = $1`,
@@ -128,6 +129,7 @@ export async function updateProfile(userId: string, updates: {
   avatarUrl?: string;
   preferredUnit?: string;
   favoriteMovements?: string[];
+  savedWorkouts?: string[];
 }) {
   if (!process.env.DATABASE_URL) {
     console.error('[DAL:profiles:updateProfile] FATAL: DATABASE_URL environment variable is not set');
@@ -166,6 +168,10 @@ export async function updateProfile(userId: string, updates: {
   if (updates.favoriteMovements !== undefined) {
     setClauses.push(`favorite_movements = $${paramIndex++}`);
     values.push(updates.favoriteMovements);
+  }
+  if (updates.savedWorkouts !== undefined) {
+    setClauses.push(`saved_workouts = $${paramIndex++}`);
+    values.push(updates.savedWorkouts);
   }
 
   if (setClauses.length === 0) {
