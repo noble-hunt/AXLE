@@ -8,7 +8,11 @@ import { STYLE_POLICIES } from '../config/stylePolicies.js';
 import { STYLE_SPECS } from '../config/styleSpecs.js';
 import { HAS_OPENAI_KEY, PREMIUM_NOTES_MODE_LOCAL, PREMIUM_STRICT } from '../../config/env.js';
 import { normalizeStyle } from '../../lib/style.js';
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    timeout: 50000,
+    maxRetries: 1
+});
 // Load movement registry into a Map for fast lookup
 const REG = new Map(registryData.map((m) => [m.id, m]));
 // Helper: Check if movement has external load

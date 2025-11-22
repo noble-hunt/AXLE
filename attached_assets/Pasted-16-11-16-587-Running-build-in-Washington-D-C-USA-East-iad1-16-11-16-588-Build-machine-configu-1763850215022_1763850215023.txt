@@ -1,0 +1,31 @@
+16:11:16.587 Running build in Washington, D.C., USA (East) – iad1
+16:11:16.588 Build machine configuration: 4 cores, 8 GB
+16:11:16.713 Cloning github.com/noble-hunt/AXLE (Branch: main, Commit: a3c3390)
+16:11:23.676 Cloning completed: 6.962s
+16:11:23.860 Restored build cache from previous deployment (HK6cXQogEr2aRPyQ3jagt4WeAeqc)
+16:11:24.863 Running "vercel build"
+16:11:25.270 Vercel CLI 48.10.5
+16:11:26.111 Running "install" command: `npm ci`...
+16:11:31.606 npm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+16:11:33.140 npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+16:11:35.664 npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+16:11:35.692 npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+16:11:36.440 npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+16:11:37.138 npm warn deprecated source-map@0.8.0-beta.0: The work that was done in this beta branch won't be included in future versions
+16:11:45.121 
+16:11:45.121 added 1238 packages, and audited 1239 packages in 19s
+16:11:45.121 
+16:11:45.121 212 packages are looking for funding
+16:11:45.121   run `npm fund` for details
+16:11:45.149 
+16:11:45.149 7 vulnerabilities (4 moderate, 3 high)
+16:11:45.149 
+16:11:45.149 To address issues that do not require attention, run:
+16:11:45.149   npm audit fix
+16:11:45.149 
+16:11:45.149 To address all issues (including breaking changes), run:
+16:11:45.149   npm audit fix --force
+16:11:45.149 
+16:11:45.149 Run `npm audit` for details.
+16:11:54.602 server/storage.ts(78,11): error TS2741: Property 'savedWorkouts' is missing in type '{ userId: `${string}-${string}-${string}-${string}-${string}`; username: any; firstName: any; lastName: any; avatarUrl: any; dateOfBirth: any; preferredUnit: any; favoriteMovements: any; providers: any; ... 9 more ...; createdAt: Date; }' but required in type '{ userId: string; username: string; firstName: string; lastName: string; avatarUrl: string; dateOfBirth: string; preferredUnit: string; favoriteMovements: string[]; savedWorkouts: string[]; providers: string[]; ... 9 more ...; createdAt: Date; }'.
+16:11:54.655 Error: Command "npm exec tsc -- -p tsconfig.server.json && npm run build" exited with 2

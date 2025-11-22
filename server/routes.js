@@ -503,6 +503,24 @@ export async function registerRoutes(app) {
             res.status(500).json({ message: "Failed to link provider" });
         }
     });
+    // Get current user's profile - GET /api/profiles/me
+    app.get("/api/profiles/me", requireAuth, async (req, res) => {
+        try {
+            const authReq = req;
+            // Import the profiles function
+            const { getProfile } = await import("./dal/profiles.js");
+            // Get profile for authenticated user
+            const profile = await getProfile(authReq.user.id);
+            if (!profile) {
+                return res.status(404).json({ message: "Profile not found" });
+            }
+            res.json({ profile });
+        }
+        catch (error) {
+            console.error("Failed to get profile:", error);
+            res.status(500).json({ message: "Failed to get profile" });
+        }
+    });
     // Profile update - PATCH to update profile fields
     const updateProfileSchema = z.object({
         firstName: z.string().optional(),
@@ -512,6 +530,7 @@ export async function registerRoutes(app) {
         avatarUrl: z.string().optional(),
         preferredUnit: z.enum(["lbs", "kg"]).optional(),
         favoriteMovements: z.array(z.string()).optional(),
+        savedWorkouts: z.array(z.string()).optional(),
     });
     app.patch("/api/profiles", requireAuth, async (req, res) => {
         try {

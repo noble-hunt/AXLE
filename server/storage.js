@@ -25,6 +25,7 @@ export class MemStorage {
             dateOfBirth: (insertUser.dateOfBirth ?? null),
             preferredUnit: (insertUser.preferredUnit ?? 'lbs'),
             favoriteMovements: (Array.isArray(insertUser.favoriteMovements) ? insertUser.favoriteMovements : []),
+            savedWorkouts: (Array.isArray(insertUser.savedWorkouts) ? insertUser.savedWorkouts : []),
             providers: (Array.isArray(insertUser.providers) ? insertUser.providers : []),
             latitude: (insertUser.latitude ?? null),
             longitude: (insertUser.longitude ?? null),

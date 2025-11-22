@@ -35,8 +35,8 @@ function resolveStyle(input) {
 const apiKey = process.env.OPENAI_API_KEY || process.env.MODEL_API_KEY;
 const openai = apiKey ? new OpenAI({
     apiKey,
-    timeout: 60000, // 60 second timeout for complex workout generation
-    maxRetries: 2
+    timeout: 50000,
+    maxRetries: 1
 }) : null;
 // ===== HOBH: upgradeIntensity (hard mode) =====
 const ROTATION = ["DB Box Step-Overs", "KB Swings", "Wall Balls", "Burpees"];

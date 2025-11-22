@@ -84,6 +84,7 @@ export class MemStorage implements IStorage {
       dateOfBirth: (insertUser.dateOfBirth ?? null) as any,
       preferredUnit: (insertUser.preferredUnit ?? 'lbs') as any,
       favoriteMovements: (Array.isArray(insertUser.favoriteMovements) ? insertUser.favoriteMovements : []) as any,
+      savedWorkouts: (Array.isArray(insertUser.savedWorkouts) ? insertUser.savedWorkouts : []) as any,
       providers: (Array.isArray(insertUser.providers) ? insertUser.providers : []) as any,
       latitude: (insertUser.latitude ?? null) as any,
       longitude: (insertUser.longitude ?? null) as any,

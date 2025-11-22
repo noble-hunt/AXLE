@@ -7,6 +7,7 @@ import { initSentry } from "./sentry.js";
 import { logging } from "./middleware/logging.js";
 import { jsonError } from "./middleware/error.js";
 import { initializeBlockLibrary } from "./workouts/library/index.js";
+import { registerRoutes } from "./routes.js";
 import { registerSuggestionRoutes } from "./routes/suggestions.js";
 import workoutFreeformRouter from "./routes/workout-freeform.js";
 import whisperRouter from "./routes/whisper-transcription.js";
@@ -135,6 +136,10 @@ app.use((req, res, next) => {
 });
 // Initialize workout block library
 initializeBlockLibrary();
+// Register legacy REST routes (includes POST /api/profiles, POST /api/prs, etc.)
+// CRITICAL: Must be called to register all routes from server/routes.ts
+// Note: registerRoutes is async but registers routes synchronously
+registerRoutes(app);
 // Debug routes
 app.use(debugStyleRouter);
 app.use(debugTraceRouter);
