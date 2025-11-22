@@ -1,6 +1,5 @@
 {
-  "buildCommand": "npm exec tsc -- -p tsconfig.server.json --noEmitOnError false && npm run build",
-  "outputDirectory": "dist",
+  "buildCommand": "npm exec tsc -- -p tsconfig.server.json && npm run build",
   "functions": {
     "api/[...slug].ts": {
       "maxDuration": 30,

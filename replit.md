@@ -1,17 +1,25 @@
 # AXLE - Fitness Tracking Application
 
-## Recent Production Deployment Fixes (Nov 21, 2025)
+## Recent Production Deployment Fixes (Nov 22, 2025)
 
-### CRITICAL SCHEMA FIX (Latest - Nov 21, 2025)
-**Issue**: Production queries failing with "column does not exist", profile updates failing, workouts/groups/reports not loading  
-**Root Cause**: 
-1. Tables exist in `public` schema (NOT `auth` schema as initially suspected)
-2. Missing columns: `profiles.favorite_movements`, `prs.unit`
-3. Incorrect `search_path=auth,public` override was making queries look for non-existent `auth.*` tables
+### CRITICAL VERCEL ROUTING FIX (Latest - Nov 22, 2025)
+**Issue**: ALL API endpoints returning 404 on production - complete application failure
+**Root Cause**: `"outputDirectory": "dist"` in vercel.json made Vercel treat deployment as static-only, preventing serverless function from being deployed
 **Solution**: 
-1. ✅ Removed incorrect search_path override from `server/db.ts`
-2. ⏳ PENDING: Run `supabase_fix_public_schema.sql` in Supabase to add missing columns
-**Status**: Code fixed, awaiting database migration in Supabase
+1. ✅ Removed `"outputDirectory": "dist"` from vercel.json
+2. ✅ Ran comprehensive database migration `COMPLETE_PRODUCTION_SYNC.sql` in Supabase
+3. ⏳ PENDING: Push code and redeploy on Vercel to activate serverless functions
+**Status**: Code fixed, awaiting redeploy
+
+### Database Schema Sync (Nov 22, 2025)
+**Issue**: Production database missing columns that code expects
+**Root Cause**: Schema evolved in development but production database not migrated
+**Solution**: 
+1. ✅ Created and ran `COMPLETE_PRODUCTION_SYNC.sql` migration
+2. ✅ Added missing columns: `profiles.providers`, `profiles.latitude/longitude`, AXLE Reports fields
+3. ✅ Added missing columns: `prs.notes`, `prs.workout_id`, `prs.created_at`
+4. ✅ Created missing tables: `axle_reports`, `posts`, `group_messages`, `group_event_rsvps`, `group_invites`, `referrals`
+**Status**: Database fully synced with code schema
 
 ### Build Artifacts Fix
 **Issue**: Complete production failure - all endpoints returning 500 errors, no data loading  
