@@ -190,97 +190,43 @@ export async function updateProfile(userId: string, updates: {
     RETURNING *;
   `;
 
+  let client;
   try {
-    const { data, error } = await supabaseAdmin.rpc('exec_sql', {
-      sql_query: updateQuery,
-      params: values
-    });
-
-    if (error) {
-      // If update didn't find the row, try to insert
-      if (error.message?.includes('0 rows') || error.code === 'PGRST116') {
-        // Build INSERT query
-        const insertCols = ['user_id', ...Object.keys(updates).map(k => {
-          if (k === 'firstName') return 'first_name';
-          if (k === 'lastName') return 'last_name';
-          if (k === 'dateOfBirth') return 'date_of_birth';
-          if (k === 'avatarUrl') return 'avatar_url';
-          if (k === 'preferredUnit') return 'preferred_unit';
-          if (k === 'favoriteMovements') return 'favorite_movements';
-          if (k === 'savedWorkouts') return 'saved_workouts';
-          return k;
-        })];
-        
-        const insertVals = [userId, ...Object.values(updates)];
-        const placeholders = insertVals.map((_, i) => `$${i + 1}`).join(', ');
-        
-        const insertQuery = `
-          INSERT INTO profiles (${insertCols.join(', ')})
-          VALUES (${placeholders})
-          RETURNING *;
-        `;
-        
-        const { data: insertData, error: insertError } = await supabaseAdmin.rpc('exec_sql', {
-          sql_query: insertQuery,
-          params: insertVals
-        });
-        
-        if (insertError) {
-          throw new Error(`Failed to create profile: ${insertError.message}`);
-        }
-        
-        return mapProfileToFrontend(insertData[0]);
-      }
+    // Use pool.query directly instead of supabaseAdmin.rpc to handle array parameters correctly
+    client = await pool.connect();
+    const result = await client.query(updateQuery, values);
+    
+    if (result.rowCount === 0) {
+      // No rows updated, try insert
+      const insertCols = ['user_id'];
+      const insertVals: any[] = [userId];
       
-      throw new Error(`Failed to update profile: ${error.message}`);
+      if (updates.firstName !== undefined) { insertCols.push('first_name'); insertVals.push(updates.firstName); }
+      if (updates.lastName !== undefined) { insertCols.push('last_name'); insertVals.push(updates.lastName); }
+      if (updates.username !== undefined) { insertCols.push('username'); insertVals.push(updates.username); }
+      if (updates.dateOfBirth !== undefined) { insertCols.push('date_of_birth'); insertVals.push(updates.dateOfBirth); }
+      if (updates.avatarUrl !== undefined) { insertCols.push('avatar_url'); insertVals.push(updates.avatarUrl); }
+      if (updates.preferredUnit !== undefined) { insertCols.push('preferred_unit'); insertVals.push(updates.preferredUnit); }
+      if (updates.favoriteMovements !== undefined) { insertCols.push('favorite_movements'); insertVals.push(updates.favoriteMovements); }
+      if (updates.savedWorkouts !== undefined) { insertCols.push('saved_workouts'); insertVals.push(updates.savedWorkouts); }
+      
+      const placeholders = insertVals.map((_, i) => `$${i + 1}`).join(', ');
+      const insertQuery = `INSERT INTO profiles (${insertCols.join(', ')}) VALUES (${placeholders}) RETURNING *;`;
+      
+      const insertResult = await client.query(insertQuery, insertVals);
+      return mapProfileToFrontend(insertResult.rows[0]);
     }
 
-    return mapProfileToFrontend(data[0]);
+    return mapProfileToFrontend(result.rows[0]);
   } catch (error: any) {
-    // If RPC doesn't exist, fall back to direct query
-    const { data: queryData, error: queryError } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (queryError && queryError.code !== 'PGRST116') {
-      throw new Error(`Failed to fetch profile for update: ${queryError.message}`);
-    }
-
-    // Try direct SQL via pool
-    const client = await pool.connect();
-
-    try {
-      const result = await client.query(updateQuery, values);
-      
-      if (result.rowCount === 0) {
-        // No rows updated, try insert
-        const insertCols = ['user_id'];
-        const insertVals: any[] = [userId];
-        let idx = 1;
-        
-        if (updates.firstName !== undefined) { insertCols.push('first_name'); insertVals.push(updates.firstName); }
-        if (updates.lastName !== undefined) { insertCols.push('last_name'); insertVals.push(updates.lastName); }
-        if (updates.username !== undefined) { insertCols.push('username'); insertVals.push(updates.username); }
-        if (updates.dateOfBirth !== undefined) { insertCols.push('date_of_birth'); insertVals.push(updates.dateOfBirth); }
-        if (updates.avatarUrl !== undefined) { insertCols.push('avatar_url'); insertVals.push(updates.avatarUrl); }
-        if (updates.preferredUnit !== undefined) { insertCols.push('preferred_unit'); insertVals.push(updates.preferredUnit); }
-        if (updates.favoriteMovements !== undefined) { insertCols.push('favorite_movements'); insertVals.push(updates.favoriteMovements); }
-        
-        const placeholders = insertVals.map((_, i) => `$${i + 1}`).join(', ');
-        const insertQuery = `INSERT INTO profiles (${insertCols.join(', ')}) VALUES (${placeholders}) RETURNING *;`;
-        
-        const insertResult = await client.query(insertQuery, insertVals);
-        client.release();
-        return mapProfileToFrontend(insertResult.rows[0]);
-      }
-
-      client.release();
-      return mapProfileToFrontend(result.rows[0]);
-    } catch (pgError: any) {
-      client.release();
-      throw new Error(`Failed to update profile via direct connection: ${pgError.message}`);
-    }
+    console.error('[DAL:profiles:updateProfile] Failed to update profile:', {
+      userId,
+      error: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to update profile: ${error.message}`);
+  } finally {
+    if (client) client.release();
   }
 }
