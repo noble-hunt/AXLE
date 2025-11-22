@@ -691,6 +691,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     avatarUrl: z.string().optional(),
     preferredUnit: z.enum(["lbs", "kg"]).optional(),
     favoriteMovements: z.array(z.string()).optional(),
+    savedWorkouts: z.array(z.string()).optional(),
   });
 
   app.post("/api/profiles/upsert", requireAuth, async (req, res) => {

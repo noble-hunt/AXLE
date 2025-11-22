@@ -207,6 +207,7 @@ export async function updateProfile(userId: string, updates: {
           if (k === 'avatarUrl') return 'avatar_url';
           if (k === 'preferredUnit') return 'preferred_unit';
           if (k === 'favoriteMovements') return 'favorite_movements';
+          if (k === 'savedWorkouts') return 'saved_workouts';
           return k;
         })];
         

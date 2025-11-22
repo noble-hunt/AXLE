@@ -2,6 +2,20 @@
 
 ## Recent Production Deployment Fixes (Nov 22, 2025)
 
+### SAVE WORKOUT PROFILE DATA FIX (Latest - Nov 22, 2025)
+**Issue**: After deploying Save Workout feature:
+1. Save Workout button showing "need to be signed in" error despite being authenticated
+2. Profile firstName, lastName, and avatarUrl not displaying in UI
+**Root Cause**: 
+1. `upsertProfileSchema` in server/routes.ts (line 686) missing `savedWorkouts` field - Zod validation stripped it out during profile hydration
+2. `updateProfile` INSERT fallback in server/dal/profiles.ts (line 203-211) missing `savedWorkouts → saved_workouts` field mapping
+**Solution**: 
+1. ✅ Added `savedWorkouts: z.array(z.string()).optional()` to upsertProfileSchema
+2. ✅ Added `if (k === 'savedWorkouts') return 'saved_workouts';` to INSERT field mapping
+3. ✅ Profile data now loads correctly with all fields (firstName, lastName, avatarUrl, savedWorkouts)
+4. ✅ Save Workout feature now working properly in development
+**Status**: Fixed in development, ready for production deployment
+
 ### WORKOUT GENERATOR TIMEOUT FIX (Latest - Nov 22, 2025)
 **Issue**: Workout generator failing in production with "FUNCTION_INVOCATION_TIMEOUT" errors
 **Root Cause**: 
