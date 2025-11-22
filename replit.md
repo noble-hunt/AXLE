@@ -2,14 +2,27 @@
 
 ## Recent Production Deployment Fixes (Nov 22, 2025)
 
-### CRITICAL VERCEL ROUTING FIX (Latest - Nov 22, 2025)
+### WORKOUT GENERATOR TIMEOUT FIX (Latest - Nov 22, 2025)
+**Issue**: Workout generator failing in production with "FUNCTION_INVOCATION_TIMEOUT" errors
+**Root Cause**: 
+1. Missing OPENAI_API_KEY secret in production environment
+2. Vercel serverless function timeout set to 30s, but OpenAI calls can take 40-50s
+3. OpenAI client configured with 60s timeout and 2 retries, exceeding Vercel's limits
+**Solution**: 
+1. ✅ Added OPENAI_API_KEY secret to Replit environment
+2. ✅ Increased Vercel function maxDuration from 30s to 60s in vercel.json
+3. ✅ Reduced OpenAI client timeout to 50s with maxRetries: 1 in both premium.ts and workoutGenerator.ts
+4. ⏳ PENDING: Push to production and test workout generation
+**Status**: Code fixed, ready for deployment testing
+
+### CRITICAL VERCEL ROUTING FIX (Nov 22, 2025)
 **Issue**: ALL API endpoints returning 404 on production - complete application failure
 **Root Cause**: `"outputDirectory": "dist"` in vercel.json made Vercel treat deployment as static-only, preventing serverless function from being deployed
 **Solution**: 
 1. ✅ Removed `"outputDirectory": "dist"` from vercel.json
 2. ✅ Ran comprehensive database migration `COMPLETE_PRODUCTION_SYNC.sql` in Supabase
-3. ⏳ PENDING: Push code and redeploy on Vercel to activate serverless functions
-**Status**: Code fixed, awaiting redeploy
+3. ✅ API endpoints now working in production
+**Status**: Fixed and deployed
 
 ### Database Schema Sync (Nov 22, 2025)
 **Issue**: Production database missing columns that code expects
