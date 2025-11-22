@@ -1,5 +1,11 @@
 {
   "buildCommand": "npm exec tsc -- -p tsconfig.server.json && npm run build",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/[...slug]"
+    }
+  ],
   "functions": {
     "api/[...slug].ts": {
       "maxDuration": 30,
