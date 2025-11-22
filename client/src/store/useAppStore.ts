@@ -1077,14 +1077,9 @@ export const useAppStore = create<AppState>()(
           
           if (profileResponse.ok) {
             const profileData = await profileResponse.json();
-            console.log('🔍 [FRONTEND DEBUG] Raw profile response:', JSON.stringify(profileData, null, 2));
             if (profileData.profile) {
               set({ profile: profileData.profile });
               console.log('✅ Loaded profile:', profileData.profile.username || profileData.profile.email);
-              console.log('🔍 [FRONTEND DEBUG] Profile firstName:', profileData.profile.firstName);
-              console.log('🔍 [FRONTEND DEBUG] Profile lastName:', profileData.profile.lastName);
-              console.log('🔍 [FRONTEND DEBUG] Profile avatarUrl:', profileData.profile.avatarUrl);
-              console.log('🔍 [FRONTEND DEBUG] Profile savedWorkouts:', profileData.profile.savedWorkouts);
             } else {
               console.warn('⚠️ Profile data returned but empty - profile might not exist in database');
             }
@@ -2236,6 +2231,28 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'axle-app-storage',
+      partialize: (state) => ({
+        // Persist everything EXCEPT profile, user, session, and authInitialized
+        // These are always loaded fresh from the server
+        workouts: state.workouts,
+        prs: state.prs,
+        achievements: state.achievements,
+        wearables: state.wearables,
+        reports: state.reports,
+        location: state.location,
+        offlineQueue: state.offlineQueue,
+      }),
+      migrate: (persistedState: any, version: number) => {
+        // Migration: Remove profile, user, session, authInitialized from localStorage
+        // These should always be loaded fresh from the server
+        if (persistedState) {
+          delete persistedState.profile;
+          delete persistedState.user;
+          delete persistedState.session;
+          delete persistedState.authInitialized;
+        }
+        return persistedState;
+      },
       onRehydrateStorage: () => (state) => {
         if (state) {
           // Hydrate all Date fields across the entire state
