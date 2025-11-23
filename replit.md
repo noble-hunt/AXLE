@@ -54,7 +54,7 @@ Preferred communication style: Simple, everyday language.
 - **Drizzle Kit**: Database migration and introspection.
 
 ### AI and Generation
-- **OpenAI**: Workout generation.
+- **OpenAI GPT-4o Mini**: Workout generation (gpt-4o-mini) and audio transcription (gpt-4o-mini-audio-preview for 50% cost savings vs Whisper-1).
 - **Seeded Random**: Deterministic workout generation.
 
 ### Development and Build Tools
