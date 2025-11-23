@@ -693,9 +693,7 @@ function SettingsSection() {
   }
 
   return (
-    <div>
-      <h3 className="text-subheading font-semibold text-foreground mb-4">Settings</h3>
-      <Card className="divide-y divide-border">
+    <Card className="divide-y divide-border">
           {settingsItems.map((item, index) => {
           if (item.type === "modal") {
             return (
@@ -746,8 +744,7 @@ function SettingsSection() {
           <LogOut className="w-5 h-5 text-destructive" />
           <span className="text-body font-medium text-destructive">Sign Out</span>
         </button>
-      </Card>
-    </div>
+    </Card>
   )
 }
 
@@ -884,11 +881,6 @@ export default function Profile() {
         initial="initial"
         animate="animate"
       >
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-heading font-bold text-foreground">Profile</h1>
-        </div>
-
         {/* User Info Section */}
         <motion.div className="text-center space-y-5" variants={slideUp}>
           <div className="relative">
