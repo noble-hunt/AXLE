@@ -225,6 +225,7 @@ export default function History() {
             {categoryOptions.map((option) => (
               <Chip 
                 key={option.value}
+                size="xl"
                 variant={categoryFilter === option.value ? "primary" : "default"}
                 onClick={() => setCategoryFilter(option.value)}
                 data-testid={`category-filter-${option.value}`}

@@ -20,6 +20,7 @@ const chipVariants = cva(
         sm: "h-6 px-3 text-[11px]",
         default: "h-8 px-3",
         lg: "h-10 px-4 text-body",
+        xl: "h-11 px-4 text-body",
       },
       interactive: {
         true: "cursor-pointer hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
