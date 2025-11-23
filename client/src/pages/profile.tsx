@@ -900,19 +900,19 @@ export default function Profile() {
       const publicUrl = data.publicUrl;
 
       // Update avatar in database via API (authFetch returns parsed data)
-      const { profile: updatedProfile } = await authFetch('/api/profile/avatar', {
+      const response = await authFetch('/api/profile/avatar', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ avatarUrl: publicUrl }),
-      });
+      }) as any;
 
       // Update local profile state with the server response
-      if (updatedProfile) {
+      if (response?.profile) {
         setProfile({
           ...profile,
-          ...updatedProfile,
+          ...response.profile,
           userId: user?.id || profile?.userId || '',
-          createdAt: updatedProfile.createdAt ? new Date(updatedProfile.createdAt) : profile?.createdAt || new Date()
+          createdAt: response.profile.createdAt ? new Date(response.profile.createdAt) : profile?.createdAt || new Date()
         });
       }
 
