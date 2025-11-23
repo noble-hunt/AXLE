@@ -704,7 +704,7 @@ function SettingsSection() {
             <button
               key={item.path}
               onClick={() => setLocation(item.path)}
-              className="w-full flex items-center justify-between p-5 hover:bg-muted/50 transition-colors"
+              className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/50 transition-colors"
               data-testid={`button-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
             >
               <div className="flex items-center gap-4">
@@ -727,7 +727,7 @@ function SettingsSection() {
               <Dialog key={index}>
                 <DialogTrigger asChild>
                   <button
-                    className="w-full flex items-center justify-between p-5 hover:bg-muted/50 transition-colors"
+                    className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/50 transition-colors"
                     data-testid={`settings-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                   >
                     <div className="flex items-center gap-4">
@@ -750,7 +750,7 @@ function SettingsSection() {
               <button
                 key={index}
                 onClick={() => setLocation(item.path!)}
-                className="w-full flex items-center justify-between p-5 hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/50 transition-colors"
                 data-testid={`settings-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               >
                 <div className="flex items-center gap-4">
@@ -765,7 +765,7 @@ function SettingsSection() {
         
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-4 p-5 hover:bg-muted/50 transition-colors"
+          className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-muted/50 transition-colors"
           data-testid="settings-sign-out"
         >
           <LogOut className="w-5 h-5 text-destructive" />
