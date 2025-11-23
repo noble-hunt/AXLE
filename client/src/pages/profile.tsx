@@ -107,47 +107,6 @@ function HealthConnections() {
   )
 }
 
-// Your Stats component
-function YourStats() {
-  const { workouts, prs } = useAppStore()
-  
-  // Calculate stats
-  const totalWorkouts = workouts.length
-  const totalPRs = prs.length
-  const activeDays = 123 // This could be calculated from workout dates
-  const totalVolume = "12.5K" // This could be calculated from workout data
-  
-  return (
-    <div>
-      <h3 className="text-subheading font-semibold text-foreground mb-4">Your Stats</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="text-center" data-testid="stat-card-workouts">
-          <Dumbbell className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="text-heading font-bold text-foreground">{totalWorkouts}</p>
-          <p className="text-caption text-muted-foreground">Total Workouts</p>
-        </Card>
-        
-        <Card className="text-center" data-testid="stat-card-prs">
-          <Trophy className="w-6 h-6 text-accent mx-auto mb-2" />
-          <p className="text-heading font-bold text-foreground">{totalPRs}</p>
-          <p className="text-caption text-muted-foreground">Personal Records</p>
-        </Card>
-        
-        <Card className="text-center" data-testid="stat-card-active-days">
-          <Calendar className="w-6 h-6 text-primary mx-auto mb-2" />
-          <p className="text-heading font-bold text-foreground">{activeDays}</p>
-          <p className="text-caption text-muted-foreground">Active Days</p>
-        </Card>
-        
-        <Card className="text-center" data-testid="stat-card-volume">
-          <Weight className="w-6 h-6 text-secondary mx-auto mb-2" />
-          <p className="text-heading font-bold text-foreground">{totalVolume} lbs</p>
-          <p className="text-caption text-muted-foreground">Total Volume</p>
-        </Card>
-      </div>
-    </div>
-  )
-}
 
 // Modal content components
 function NotificationModal() {
@@ -1034,11 +993,6 @@ export default function Profile() {
         {/* Health Connections */}
         <motion.div variants={slideUp}>
           <HealthConnections />
-        </motion.div>
-
-        {/* Your Stats */}
-        <motion.div variants={slideUp}>
-          <YourStats />
         </motion.div>
 
         {/* Settings */}

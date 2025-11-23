@@ -4,12 +4,14 @@ import { useAppStore } from "@/store/useAppStore"
 import { useQuery } from "@tanstack/react-query"
 import { Card } from "@/components/swift/card"
 import { Button } from "@/components/swift/button"
+import { Chip } from "@/components/swift/chip"
 import { Sheet } from "@/components/swift/sheet"
 import { DailySuggestionCard } from "@/components/workouts/DailySuggestionCard"
 import { SaveWorkoutButton } from "@/components/workouts/SaveWorkoutButton"
 import { GroupsShortcutCard } from "@/components/groups/GroupsShortcutCard"
 import { fadeIn, slideUp } from "@/lib/motion-variants"
 import { motion } from "framer-motion"
+import { Category } from "../types"
 import { 
   Dumbbell, 
   Clock, 
@@ -21,8 +23,72 @@ import {
   TrendingUp,
   ChevronRight,
   Sparkles,
-  User
+  User,
+  Zap,
+  Timer,
+  Weight,
+  Move,
+  CheckCircle,
+  XCircle
 } from "lucide-react"
+
+// Category icon mapping (same as history page)
+const getCategoryIcon = (category: Category): React.ComponentType<React.SVGProps<SVGSVGElement>> => {
+  const iconMap: Record<Category, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+    [Category.CROSSFIT]: Zap,
+    [Category.HIIT]: Timer,
+    [Category.POWERLIFTING]: Dumbbell,
+    [Category.OLYMPIC_LIFTING]: Weight,
+    [Category.GYMNASTICS]: Activity,
+    [Category.CARDIO]: Heart,
+    [Category.STRENGTH]: Dumbbell,
+    [Category.MOBILITY]: Move,
+  }
+  return iconMap[category] || Activity
+}
+
+// Helper function to determine if a workout is suggested (matching history page logic)
+const isSuggestedWorkout = (workout: any) => {
+  // Check if workout has explicit suggestion markers
+  if (workout.source === 'suggested' || workout.source === 'ai' || workout.suggested === true) {
+    return true
+  }
+  
+  // Check if the workout was generated from suggestions API
+  if (workout.request && typeof workout.request === 'object') {
+    // If request contains suggestion-specific fields
+    if (workout.request.fromSuggestion === true || workout.request.suggested === true) {
+      return true
+    }
+  }
+  
+  // Check for suggestion-related keywords in title or notes
+  const suggestionKeywords = ['suggested', 'daily suggestion', 'recommended', 'ai-generated', 'personalized', 'daily workout']
+  const hasSuggestionKeywords = suggestionKeywords.some(keyword => 
+    workout.notes?.toLowerCase().includes(keyword) ||
+    workout.title?.toLowerCase().includes(keyword)
+  )
+  
+  // Check for typical AI-generated workout names from our system
+  const aiGeneratedPatterns = [
+    'flow', 'blast', 'circuit', 'crusher', 'fury', 'storm', 'thunder', 'power', 
+    'endurance session', 'strength builder', 'cardio burn', 'hiit session'
+  ]
+  const hasAiPattern = aiGeneratedPatterns.some(pattern => 
+    workout.title?.toLowerCase().includes(pattern)
+  )
+  
+  // If workout was created recently (last 30 days) and has AI patterns, likely suggested
+  const dateValue = workout.created_at || workout.date || workout.createdAt || workout.startedAt
+  const workoutDate = dateValue ? new Date(dateValue) : null
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  
+  const isRecent = workoutDate ? workoutDate >= thirtyDaysAgo : false
+  
+  // Return true if keywords found, or if it has AI patterns and is recent
+  return hasSuggestionKeywords || (hasAiPattern && isRecent)
+}
 
 // Quick Stats Component
 function QuickStats() {
@@ -202,30 +268,66 @@ export default function Home() {
           
           <div className="space-y-5">
             {recentWorkouts.length > 0 ? (
-              recentWorkouts.slice(0, 3).map((workout) => (
-                <div key={workout.id} className="relative">
-                  <Link href={`/workout/${workout.id}`} className="block">
-                    <Card className="active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
-                            <Dumbbell className="w-5 h-5 text-success" />
+              recentWorkouts.slice(0, 3).map((workout) => {
+                const workoutCategory = workout.request?.focus || workout.request?.category || workout.category
+                const CategoryIcon = getCategoryIcon(workoutCategory)
+                const exerciseCount = Array.isArray(workout.sets) ? workout.sets.length : 
+                                    (workout.request?.blocks?.reduce((sum: number, block: any) => sum + (block.items?.length || 0), 0) || 0)
+                return (
+                  <div key={workout.id} className="relative">
+                    <Link href={`/workout/${workout.id}`} className="block">
+                      <Card className="active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 space-y-4">
+                              {/* Header Row */}
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                  <CategoryIcon className="w-5 h-5 text-primary" />
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-body font-semibold text-foreground">{workout.title || workout.name || 'Untitled Workout'}</h3>
+                                  <p className="text-caption text-muted-foreground">{exerciseCount} exercises</p>
+                                </div>
+                              </div>
+                              
+                              {/* Chips Row */}
+                              <div className="flex items-center gap-5 flex-wrap">
+                                {workoutCategory && (
+                                  <Chip variant="default" size="sm">
+                                    {workoutCategory}
+                                  </Chip>
+                                )}
+                                {isSuggestedWorkout(workout) && (
+                                  <Chip variant="accent" size="sm" data-testid="suggested-badge">
+                                    <Sparkles className="w-3 h-3 mr-1" />
+                                    Suggested
+                                  </Chip>
+                                )}
+                                {workout.completed ? (
+                                  <Chip variant="success" size="sm" data-testid="completion-completed">
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Completed
+                                  </Chip>
+                                ) : (
+                                  <Chip variant="warning" size="sm" data-testid="completion-pending">
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Pending
+                                  </Chip>
+                                )}
+                              </div>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                           </div>
-                          <div>
-                            <p className="text-body font-medium text-foreground">{workout.title}</p>
-                            <p className="text-caption text-muted-foreground">{workout.completed ? 'Completed' : 'In Progress'}</p>
-                          </div>
+                          
+                          {/* Save Workout Button */}
+                          <SaveWorkoutButton workoutId={workout.id} fullWidth />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-caption text-muted-foreground">{formatTimeAgo(new Date(workout.created_at || workout.createdAt))}</p>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                      </div>
-                      <SaveWorkoutButton workoutId={workout.id} fullWidth />
-                    </Card>
-                  </Link>
-                </div>
-              ))
+                      </Card>
+                    </Link>
+                  </div>
+                )
+              })
             ) : (
               <Card className="text-center">
                 <Dumbbell className="w-8 h-8 text-muted-foreground mx-auto mb-3" />

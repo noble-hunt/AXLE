@@ -121,8 +121,8 @@ export function GroupsShortcutCard() {
         data-testid="groups-shortcut-card" 
         className="w-full active:scale-98 transition-transform cursor-pointer hover:shadow-md"
       >
-        <div className="space-y-5 text-center">
-          <div className="flex items-center justify-center gap-3">
+        <div className="space-y-3 text-center">
+          <div className="flex items-center justify-center gap-2">
             <Users className="h-5 w-5 text-primary" />
             <h3 className="text-body font-medium text-foreground">Your Groups</h3>
             <div className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
