@@ -14,7 +14,7 @@ export function StartNowButton() {
     try {
       const id = await startSuggestion();
       if (!id) throw new Error("No workout ID returned");
-      navigate(`/workout/${id}`);
+      navigate(`/workout/generate?suggestionWorkoutId=${id}`);
     } catch (e: any) {
       toast({ 
         title: "Could not start workout", 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useLocation, useSearch } from "wouter"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { fetchPreview } from "./api"
 import { HttpError } from "@/lib/http"
@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Progress } from "@/components/ui/progress"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { WorkoutFocus } from "@/types/workouts"
+import type { WorkoutPlan } from "../../../../../shared/workoutSchema"
 // Removed dependency on shared types - using simpler local generation
 
 // Import step components
@@ -103,6 +104,61 @@ const STEP_TITLES = [
   "Preview & Generate"
 ];
 
+// Helper function to map workout data to WorkoutPreviewData format
+function mapWorkoutToPreviewData(workout: any): WorkoutPreviewData | null {
+  // If rawWorkoutJson exists and is a valid WorkoutPlan, use it directly
+  if (workout.rawWorkoutJson && workout.rawWorkoutJson.blocks) {
+    return {
+      preview: workout.rawWorkoutJson as WorkoutPlan,
+      seed: workout.genSeed?.rngSeed || workout.generationId || workout.id
+    };
+  }
+  
+  // Otherwise, try to reconstruct from sets and request data
+  if (!workout.sets || !Array.isArray(workout.sets)) {
+    return null;
+  }
+  
+  // Map sets to blocks format
+  const blocks = workout.sets.map((set: any, index: number) => ({
+    key: set.type || set.kind || (index === 0 ? 'warmup' : index === workout.sets.length - 1 ? 'cooldown' : 'main'),
+    title: set.exercise || set.title || set.name || `Block ${index + 1}`,
+    items: set.items || (set.exercise ? [{
+      movementId: `movement-${index}`,
+      name: set.exercise,
+      prescription: {
+        type: "reps" as const,
+        sets: set.sets || 1,
+        reps: set.reps || 10,
+        restSec: 0,
+        notes: set.notes || ''
+      }
+    }] : []),
+    targetSeconds: set.duration || 300,
+    workoutTitle: set.workoutTitle,
+    scoreType: set.scoreType,
+    coachingCues: set.notes || set.coachingCues
+  }));
+  
+  const request = workout.request || {};
+  
+  return {
+    preview: {
+      id: workout.id,
+      seed: workout.genSeed?.rngSeed || workout.generationId || workout.id,
+      focus: request.focus || request.archetype || 'mixed',
+      durationMin: request.minutes || request.duration || 30,
+      intensity: request.intensity || 5,
+      equipment: request.equipment || [],
+      blocks: blocks.length > 0 ? blocks : [],
+      totalSeconds: (request.minutes || request.duration || 30) * 60,
+      summary: workout.notes || `${request.focus || 'Mixed'} workout for ${request.minutes || 30} minutes`,
+      version: 1
+    } as WorkoutPlan,
+    seed: workout.genSeed?.rngSeed || workout.generationId || workout.id
+  };
+}
+
 export function WorkoutWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [wizardState, setWizardState] = useState<WizardState>({
@@ -114,6 +170,7 @@ export function WorkoutWizard() {
   const [previewData, setPreviewData] = useState<WorkoutPreviewData | null>(null);
   const [previewSeed, setPreviewSeed] = useState<any>(null);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [suggestionWorkoutId, setSuggestionWorkoutId] = useState<string | null>(null);
   
   const [, setLocation] = useLocation();
   const search = useSearch();
@@ -125,6 +182,52 @@ export function WorkoutWizard() {
     "dumbbells", "kettlebell", "barbell", "bands", "bodyweight", 
     "bike", "rower", "treadmill", "jump_rope"
   ];
+
+  // Detect suggestionWorkoutId from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const workoutId = params.get("suggestionWorkoutId");
+    if (workoutId) {
+      setSuggestionWorkoutId(workoutId);
+    }
+  }, [search]);
+
+  // Fetch suggestion workout if suggestionWorkoutId is present
+  const { data: suggestionWorkout, isLoading: isLoadingSuggestion } = useQuery<any>({
+    queryKey: [`/api/workouts/${suggestionWorkoutId}`],
+    enabled: !!suggestionWorkoutId,
+  });
+
+  // Load suggestion workout data when available
+  useEffect(() => {
+    if (suggestionWorkout && suggestionWorkoutId) {
+      // Map the workout data to preview format
+      const mappedPreview = mapWorkoutToPreviewData(suggestionWorkout);
+      
+      if (mappedPreview) {
+        setPreviewData(mappedPreview);
+        setPreviewSeed(mappedPreview.seed);
+        
+        // Extract wizard state from workout request
+        const request = suggestionWorkout.request || {};
+        setWizardState({
+          archetype: request.focus || request.archetype || 'mixed',
+          minutes: request.minutes || request.duration || 30,
+          equipment: request.equipment || [],
+          intensity: request.intensity || 5
+        });
+        
+        // Skip to preview step
+        setCurrentStep(5);
+      } else {
+        toast({
+          title: "Failed to load workout",
+          description: "Could not parse workout data. Please try generating a new workout.",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [suggestionWorkout, suggestionWorkoutId]);
 
   // Parse URL parameters and update state
   useEffect(() => {
@@ -333,6 +436,17 @@ export function WorkoutWizard() {
     }
     
     try {
+      // If this is a suggestion workout (already created), navigate directly to execution
+      if (suggestionWorkoutId) {
+        toast({
+          title: "Starting Workout",
+          description: "Taking you to the workout execution page...",
+        });
+        setLocation(`/workout/${suggestionWorkoutId}`);
+        return;
+      }
+      
+      // Otherwise, generate a new workout
       // Get auth token
       const { supabase } = await import('@/lib/supabase');
       const { data: { session } } = await supabase.auth.getSession();
@@ -468,6 +582,7 @@ export function WorkoutWizard() {
             onRegenerate={regeneratePreview}
             onUse={useWorkout}
             isGenerating={isSimulating}
+            isSuggestion={!!suggestionWorkoutId}
           />
         )}
       </Card>

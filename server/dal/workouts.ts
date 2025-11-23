@@ -21,7 +21,10 @@ export function mapWorkoutToFrontend(workout: any) {
     feedback: workout.feedback,
     startedAt: workout.startedAt,
     createdAt: workout.createdAt,
-    generationId: workout.generationId
+    generationId: workout.generationId,
+    genSeed: workout.genSeed,
+    rawWorkoutJson: workout.rawWorkoutJson,
+    generatorVersion: workout.generatorVersion
   };
 }
 

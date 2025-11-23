@@ -29,6 +29,7 @@ export interface WorkoutPreviewProps {
   onRegenerate: () => void;
   onUse: (feedback: { perceivedIntensity: number; notes?: string }) => void;
   isGenerating: boolean;
+  isSuggestion?: boolean;
 }
 
 const feedbackSchema = z.object({
@@ -42,7 +43,8 @@ export function WorkoutPreview({
   isLoading, 
   onRegenerate, 
   onUse, 
-  isGenerating 
+  isGenerating,
+  isSuggestion = false
 }: WorkoutPreviewProps) {
   const [explanationOpen, setExplanationOpen] = useState(false);
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
@@ -62,7 +64,13 @@ export function WorkoutPreview({
   const perceivedIntensity = form.watch("perceivedIntensity");
 
   const handleUseWorkout = () => {
-    // Clear any previous errors and open the feedback sheet
+    // For suggestion workouts, skip the feedback dialog and navigate directly
+    if (isSuggestion) {
+      onUse({ perceivedIntensity: 5, notes: "" });
+      return;
+    }
+    
+    // For normal generated workouts, show the feedback sheet
     setSubmitError(null);
     setShowFeedbackSheet(true);
   };
