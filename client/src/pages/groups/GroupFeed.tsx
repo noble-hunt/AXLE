@@ -1260,24 +1260,24 @@ export default function GroupFeedPage() {
     const reactions = postReactions[post.id] || [];
     
     return (
-      <Card key={post.id} className="rounded-2xl bg-zinc-900/70 border border-white/10 p-3 space-y-4" data-testid={`post-${post.id}`}>
-        <div className="flex gap-4">
-          <Avatar className="w-10 h-10 flex-shrink-0">
+      <div key={post.id} className="py-3" data-testid={`post-${post.id}`}>
+        <div className="flex gap-3">
+          <Avatar className="w-9 h-9 flex-shrink-0">
             <AvatarImage src={post.authorAvatar} alt={post.authorName} />
-            <AvatarFallback className="text-sm">
+            <AvatarFallback className="text-xs">
               {getInitials(post.authorName)}
             </AvatarFallback>
           </Avatar>
           
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg md:text-xl font-semibold text-white/90">{post.authorName}</span>
-              <span className="text-sm text-white/70">{timeAgo}</span>
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-body font-semibold text-white/90">{post.authorName}</span>
+              <span className="text-caption text-white/60">{timeAgo}</span>
             </div>
           
             {post.kind === "text" && (
               <div 
-                className="bg-white/5 rounded-xl px-4 py-3 cursor-pointer break-words"
+                className="cursor-pointer break-words"
                 onContextMenu={(e) => handlePostInteraction(e, post.id)}
                 onTouchStart={(e) => {
                   // Long-press detection
@@ -1292,13 +1292,13 @@ export default function GroupFeedPage() {
                   }
                 }}
               >
-                <p className="text-white/90 leading-relaxed">{post.content.message}</p>
+                <p className="text-body text-white/90 leading-relaxed">{post.content.message}</p>
               </div>
             )}
           
             {post.kind === "workout" && (
               <div 
-                className="bg-white/5 rounded-xl p-5 cursor-pointer break-words"
+                className="bg-white/5 rounded-xl p-3 cursor-pointer break-words"
                 onContextMenu={(e) => handlePostInteraction(e, post.id)}
                 onTouchStart={(e) => {
                   const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
@@ -1312,15 +1312,15 @@ export default function GroupFeedPage() {
                   }
                 }}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <Dumbbell className="w-5 h-5 text-primary" />
-                  <span className="font-semibold text-white/90">{post.content.name}</span>
+                <div className="flex items-center gap-2 mb-1">
+                  <Dumbbell className="w-4 h-4 text-primary" />
+                  <span className="text-body font-semibold text-white/90">{post.content.name}</span>
                 </div>
-                <div className="text-sm text-white/70 mb-3">
+                <div className="text-caption text-white/70 mb-2">
                   {post.content.category} • {post.content.duration}min • Intensity {post.content.intensity}/10
                 </div>
-                <Button size="sm" variant="outline" className="h-8 gap-2 leading-none" aria-label="View workout details">
-                  <ExternalLink className="w-4 h-4" />
+                <Button size="sm" variant="outline" className="h-8 gap-2 leading-none text-caption" aria-label="View workout details">
+                  <ExternalLink className="w-3 h-3" />
                   View workout
                 </Button>
               </div>
@@ -1328,7 +1328,7 @@ export default function GroupFeedPage() {
           
             {post.kind === "pr" && (
               <div 
-                className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl px-4 py-3 cursor-pointer break-words"
+                className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl px-3 py-2 cursor-pointer break-words"
                 onContextMenu={(e) => handlePostInteraction(e, post.id)}
                 onTouchStart={(e) => {
                   const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
@@ -1342,8 +1342,8 @@ export default function GroupFeedPage() {
                   }
                 }}
               >
-                <div className="flex items-center gap-2 text-white/90">
-                  <Trophy className="w-5 h-5 text-yellow-400" />
+                <div className="flex items-center gap-2 text-white/90 text-body">
+                  <Trophy className="w-4 h-4 text-yellow-400" />
                   <span className="font-semibold">New PR:</span>
                   <span>{post.content.reps}RM {post.content.movement} {post.content.weight}{post.content.unit}</span>
                   <span>🎉</span>
@@ -1374,7 +1374,7 @@ export default function GroupFeedPage() {
               />
             ) : (
               <div 
-                className="bg-white/5 rounded-xl p-5 cursor-pointer break-words"
+                className="bg-white/5 rounded-xl p-3 cursor-pointer break-words"
                 onContextMenu={(e) => handlePostInteraction(e, post.id)}
                 onTouchStart={(e) => {
                   const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
@@ -1388,13 +1388,13 @@ export default function GroupFeedPage() {
                   }
                 }}
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <Calendar className="w-5 h-5 text-primary" />
-                  <span className="font-semibold text-white/90">{post.content.title}</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <span className="text-body font-semibold text-white/90">{post.content.title}</span>
                 </div>
                 
                 {/* Event Details */}
-                <div className="text-sm text-white/70 mb-4 space-y-1">
+                <div className="text-caption text-white/70 mb-3 space-y-1">
                   <div>
                     📅 {new Date(post.content.start_at).toLocaleString()}
                   </div>
@@ -1418,7 +1418,7 @@ export default function GroupFeedPage() {
         </div>
         
         {/* Reactions */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 mt-2">
           {REACTION_EMOJIS.map((emoji) => {
             const reaction = reactions.find(r => r.emoji === emoji);
             const count = reaction?.count || 0;
@@ -1429,7 +1429,7 @@ export default function GroupFeedPage() {
               return (
                 <button
                   key={emoji}
-                  className="px-2 h-8 rounded-full bg-white/10 hover:bg-white/15 text-white/60 hover:text-white/90 text-sm transition-colors min-h-[36px]"
+                  className="px-2 h-7 rounded-full bg-white/10 hover:bg-white/15 text-white/60 hover:text-white/90 text-caption transition-colors"
                   onClick={() => toggleReaction(post.id, emoji)}
                   data-testid={`reaction-${emoji}-${post.id}`}
                   aria-label={`React with ${emoji}`}
@@ -1442,7 +1442,7 @@ export default function GroupFeedPage() {
             return (
               <button
                 key={emoji}
-                className={`px-2 h-8 rounded-full text-sm transition-colors min-h-[36px] ${
+                className={`px-2 h-7 rounded-full text-caption transition-colors ${
                   userReacted 
                     ? 'bg-primary/20 text-white/90 border border-primary/30' 
                     : 'bg-white/10 hover:bg-white/15 text-white/90 border border-white/10'
@@ -1458,7 +1458,7 @@ export default function GroupFeedPage() {
             );
           })}
         </div>
-      </Card>
+      </div>
     );
   };
 

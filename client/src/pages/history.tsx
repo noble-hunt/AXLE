@@ -218,10 +218,10 @@ export default function History() {
       </div>
 
       {/* Filter Chips */}
-      <div className="space-y-4">
-        <div className="space-y-2">
+      <div className="space-y-2">
+        <div className="space-y-1">
           <label className="text-body font-medium text-foreground">Category</label>
-          <div className="flex flex-wrap gap-4" data-testid="category-filter-chips">
+          <div className="flex flex-wrap gap-2" data-testid="category-filter-chips">
             {categoryOptions.map((option) => (
               <Chip 
                 key={option.value}
@@ -295,7 +295,7 @@ export default function History() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-5 pt-2">
+      <div className="grid grid-cols-3 gap-5">
         <StatBadge
           icon={<Calendar className="w-4 h-4" />}
           value={filteredWorkouts.length.toString()}

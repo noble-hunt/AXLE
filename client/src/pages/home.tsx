@@ -41,18 +41,18 @@ function QuickStats() {
 
   return (
     <div className="grid grid-cols-3 gap-4">
-      <Card className="text-center">
-        <Activity className="w-6 h-6 text-info mx-auto mb-2" />
+      <Card className="text-center p-4">
+        <Activity className="w-5 h-5 text-info mx-auto mb-1" />
         <p className="text-heading font-bold text-foreground">{thisWeekWorkouts}</p>
         <p className="text-caption text-muted-foreground">Workouts This Week</p>
       </Card>
-      <Card className="text-center">
-        <Trophy className="w-6 h-6 text-warning mx-auto mb-2" />
+      <Card className="text-center p-4">
+        <Trophy className="w-5 h-5 text-warning mx-auto mb-1" />
         <p className="text-heading font-bold text-foreground">{totalPRs}</p>
         <p className="text-caption text-muted-foreground">Personal Records</p>
       </Card>
-      <Card className="text-center">
-        <Flame className="w-6 h-6 text-accent mx-auto mb-2" />
+      <Card className="text-center p-4">
+        <Flame className="w-5 h-5 text-accent mx-auto mb-1" />
         <p className="text-heading font-bold text-foreground">{currentStreak}</p>
         <p className="text-caption text-muted-foreground">Day<br />Streak</p>
       </Card>
