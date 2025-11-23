@@ -10,12 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 - **Technology Stack**: React 18 with TypeScript, Vite, and Tailwind CSS.
-- **Design Principles**: Mobile-first, responsive, and card-based UI with a brand-optimized color palette.
-- **UI Components**: Leverages shadcn/ui (Radix UI), Lucide React for icons, and cmdk for a command palette.
+- **Design Principles**: Mobile-first, responsive, and card-based UI with a brand-optimized color palette. Optimized for iPhone 15 (393px width) with iOS 8-point grid system (8, 16, 24, 32, 44px) and iOS HIG-compliant touch targets (≥44×44px minimum).
+- **UI Components**: Leverages shadcn/ui (Radix UI), Lucide React for icons, and cmdk for a command palette. Swift Card component uses p-7 (28px) base padding, with p-8 (32px) for emphasized cards. Chip component offers sizes from h-6 (24px) to h-11 (44px) for touch-friendly interactions.
 - **State Management**: Uses Zustand for client-side state and TanStack Query for server-side data synchronization.
 - **Error Handling**: Implements structured `HttpError` objects.
 - **Key Features**: Unified Personal Record (PR) charting, global unit preference system, enhanced group messaging, and comprehensive AXLE Reports with advanced visualizations (Training Load Chart, Enhanced Consistency Card, PR Sparklines Grid, Recovery Correlation Chart). Advanced analytics dashboards provide visualizations for PR trends and progress. Dynamic and interactive visualizations for health metrics are implemented with sophisticated animations (anime.js) and real-time data binding.
 - **PR Projections**: Employs Epley Formula-based rep max projections for all weight-based movements.
+- **Mobile Optimization**: Systematic UI sizing increases (Nov 2024) across 20+ files improved mobile usability: card padding increased by one step (p-4→p-5, p-6→p-7), spacing expanded proportionally (gap-3→gap-4, space-y-3→space-y-4), ensuring comfortable touch targets and better screen utilization on modern iPhones.
 
 ### Backend Architecture
 - **Server**: Express.js with a RESTful API, developed in TypeScript.
