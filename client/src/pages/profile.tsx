@@ -661,12 +661,9 @@ function SettingsSection() {
     }
   }
   
-  const quickActions = [
-    { icon: Settings, label: "Edit Profile", path: "/profile/edit", color: "text-primary" },
-    { icon: Palette, label: "App Theme", path: "/profile/theme", color: "text-accent" },
-  ]
-
   const settingsItems = [
+    { icon: Settings, label: "Edit Profile", path: "/profile/edit", color: "text-primary", type: "navigate" },
+    { icon: Palette, label: "App Theme", path: "/profile/theme", color: "text-accent", type: "navigate" },
     { icon: Heart, label: "Health", path: "/health", color: "text-accent", type: "navigate" },
     { icon: Smartphone, label: "Connected Devices", path: "/connect", color: "text-primary", type: "navigate" },
     { icon: Award, label: "Achievements", path: "/achievements", color: "text-accent", type: "navigate" },
@@ -696,31 +693,9 @@ function SettingsSection() {
   }
 
   return (
-    <>
-      {/* Quick Actions Section */}
-      <div className="mb-6">
-        <Card className="divide-y divide-border">
-          {quickActions.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => setLocation(item.path)}
-              className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/50 transition-colors"
-              data-testid={`button-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-            >
-              <div className="flex items-center gap-4">
-                <item.icon className={`w-5 h-5 ${item.color}`} data-testid={`icon-${item.label.toLowerCase().replace(/\s+/g, '-')}`} />
-                <span className="text-body font-medium text-foreground">{item.label}</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
-          ))}
-        </Card>
-      </div>
-
-      {/* Settings Section */}
-      <div>
-        <h3 className="text-subheading font-semibold text-foreground mb-4">Settings</h3>
-        <Card className="divide-y divide-border">
+    <div>
+      <h3 className="text-subheading font-semibold text-foreground mb-4">Settings</h3>
+      <Card className="divide-y divide-border">
           {settingsItems.map((item, index) => {
           if (item.type === "modal") {
             return (
@@ -771,9 +746,8 @@ function SettingsSection() {
           <LogOut className="w-5 h-5 text-destructive" />
           <span className="text-body font-medium text-destructive">Sign Out</span>
         </button>
-        </Card>
-      </div>
-    </>
+      </Card>
+    </div>
   )
 }
 
