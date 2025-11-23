@@ -6,15 +6,15 @@
 
 :root {
   /* SwiftUI Design Tokens - Light Mode */
-  --background: hsl(0, 0%, 100%);
+  --background: hsl(40, 10%, 97%);
   --foreground: hsl(0, 0%, 0%);
   
   /* Surface tokens */
-  --surface: hsl(0, 0%, 100%);
+  --surface: hsl(40, 10%, 97%);
   --surface-foreground: hsl(0, 0%, 0%);
   
   /* Card tokens */
-  --card: hsl(0, 0%, 96.47%);
+  --card: hsl(40, 8%, 98.5%);
   --card-foreground: hsl(0, 0%, 0%);
   
   /* Primary tokens */
@@ -33,7 +33,7 @@
   --border: hsl(0, 0%, 96.47%);
   
   /* Legacy shadcn tokens for compatibility */
-  --popover: hsl(0, 0%, 100%);
+  --popover: hsl(40, 10%, 98%);
   --popover-foreground: hsl(0, 0%, 0%);
   --secondary: hsl(0, 0%, 0%);
   --secondary-foreground: hsl(0, 0%, 100%);
