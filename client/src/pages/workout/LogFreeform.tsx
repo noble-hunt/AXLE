@@ -213,13 +213,34 @@ export default function LogFreeform() {
   }
 
   async function onTranscribe(blob: Blob) {
+    let transcribedText = '';
     try {
       setDiag(null);
       setBusy(true);
-      const text = await transcribeAudio(blob);
-      setTranscript(text || '');
+      
+      // Step 1: Transcribe audio
+      transcribedText = await transcribeAudio(blob);
+      setTranscript(transcribedText || '');
+      
+      // Step 2: Auto-parse after successful transcription
+      if (transcribedText && transcribedText.trim()) {
+        try {
+          const parsed = await parseFreeform(transcribedText);
+          setParsed(parsed);
+        } catch (parseError: any) {
+          // Parsing failed but transcription succeeded - keep the text
+          toast({ 
+            variant: "destructive",
+            title: "Parsing failed", 
+            description: parseError?.message || 'Failed to parse workout. You can edit the text and try again.'
+          });
+        }
+      }
     } catch (e:any) {
-      setTranscript('');
+      // Transcription failed - only clear if we got no text
+      if (!transcribedText) {
+        setTranscript('');
+      }
       toast({ 
         variant: "destructive",
         title: "Transcription failed", 
@@ -502,36 +523,23 @@ export default function LogFreeform() {
         </div>
         
         <div className="flex gap-2 flex-wrap">
-          {/* Voice Recording Button (Web Speech API) */}
-          {isVoiceSupported && typeof window !== 'undefined' && window.isSecureContext && window.top === window && (
-            <Button
-              variant={isRecording ? "destructive" : "secondary"}
-              onClick={toggleRecording}
-              disabled={isBusy || isServerRecording}
-              data-testid="voice-button"
-            >
-              {isRecording ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
-              {isRecording ? 'Stop Recording' : 'Voice Dictation'}
-            </Button>
-          )}
-
-          {/* Server Recording Button (Whisper Fallback) */}
+          {/* Record Audio Button */}
           <Button
             variant={isServerRecording ? "destructive" : "secondary"}
             onClick={isServerRecording ? stopServerRecording : startServerRecording}
-            disabled={isBusy || isRecording}
+            disabled={isBusy}
             data-testid="server-voice-button"
           >
             {isServerRecording ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
             {isServerRecording ? 'Stop Recording' : 'Record Audio'}
           </Button>
 
-          {/* Transcribe Button */}
+          {/* Transcribe Button - Auto-parses after transcription */}
           {audioBlob && (
             <Button
               variant="primary"
               onClick={() => onTranscribe(audioBlob!)}
-              disabled={isBusy || isRecording || isServerRecording}
+              disabled={isBusy || isServerRecording}
               data-testid="transcribe-button"
             >
               <Send className="w-4 h-4 mr-2" />
@@ -539,15 +547,17 @@ export default function LogFreeform() {
             </Button>
           )}
           
-          {/* Parse Button */}
-          <Button
-            onClick={onParse}
-            disabled={!transcript.trim() || isBusy || isRecording || isServerRecording}
-            data-testid="parse-button"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            {isBusy ? 'Parsing...' : 'Parse Workout'}
-          </Button>
+          {/* Parse Button - For manual text entry (not shown when audio is being used) */}
+          {!audioBlob && transcript.trim() && (
+            <Button
+              onClick={onParse}
+              disabled={isBusy || isServerRecording}
+              data-testid="parse-button"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {isBusy ? 'Parsing...' : 'Parse Workout'}
+            </Button>
+          )}
         </div>
       </div>
 
