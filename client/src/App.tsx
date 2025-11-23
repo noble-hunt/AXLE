@@ -22,6 +22,7 @@ import PRs from "@/pages/prs";
 import Achievements from "@/pages/achievements";
 import Profile from "@/pages/profile";
 import EditProfile from "@/pages/EditProfile";
+import ThemePage from "@/pages/profile/ThemePage";
 import Connect from "@/pages/connect";
 import Reports from "@/pages/reports";
 import WorkoutGenerate from "@/pages/workout/generate";
@@ -105,6 +106,11 @@ function OverlayWrapper() {
         <Route path="/profile/edit" component={() => (
           <ProtectedRoute>
             <EditProfile />
+          </ProtectedRoute>
+        )} />
+        <Route path="/profile/theme" component={() => (
+          <ProtectedRoute>
+            <ThemePage />
           </ProtectedRoute>
         )} />
         <Route path="/connect" component={() => (

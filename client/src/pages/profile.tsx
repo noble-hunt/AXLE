@@ -42,72 +42,11 @@ import {
   Award,
   Camera,
   FileText,
-  Heart
+  Heart,
+  Palette,
+  Smartphone
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-
-// Health connections component
-function HealthConnections() {
-  const [, setLocation] = useLocation()
-  
-  return (
-    <Card>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-subheading font-semibold text-foreground">Health Connections</h3>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          data-testid="manage-connections"
-          onClick={() => setLocation("/connect")}
-        >
-          <span className="text-primary">Manage</span>
-        </Button>
-      </div>
-      
-      <div className="space-y-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center">
-              <div className="w-4 h-4 bg-white rounded-sm"></div>
-            </div>
-            <div>
-              <p className="text-body font-medium text-foreground">Apple Watch</p>
-              <p className="text-caption text-muted-foreground">Connected</p>
-            </div>
-          </div>
-          <div className="w-2 h-2 rounded-full bg-success"></div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
-              <div className="w-4 h-4 bg-white rounded-sm"></div>
-            </div>
-            <div>
-              <p className="text-body font-medium text-foreground">iPhone Health</p>
-              <p className="text-caption text-muted-foreground">Connected</p>
-            </div>
-          </div>
-          <div className="w-2 h-2 rounded-full bg-success"></div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-lg bg-gray-400 flex items-center justify-center">
-              <div className="w-4 h-4 bg-white rounded-sm"></div>
-            </div>
-            <div>
-              <p className="text-body font-medium text-foreground">Fitbit</p>
-              <p className="text-caption text-muted-foreground">Not connected</p>
-            </div>
-          </div>
-          <div className="w-2 h-2 rounded-full bg-muted"></div>
-        </div>
-      </div>
-    </Card>
-  )
-}
-
 
 // Modal content components
 function NotificationModal() {
@@ -684,80 +623,6 @@ function HelpSupportModal() {
   )
 }
 
-// Theme selector component
-function ThemeSelector() {
-  const { theme, setTheme } = useTheme()
-  
-  const themes = [
-    {
-      id: "boomer-light" as const,
-      name: "Boomer Light",
-      description: "Classic vibes for those who remember when fitness apps weren't a thing",
-      emoji: "☀️"
-    },
-    {
-      id: "rainbow-sherbet" as const,
-      name: "Rainbow Sherbet",
-      description: "Dark mode but make it electric—like a rave at your local CrossFit box",
-      emoji: "🌈"
-    },
-    {
-      id: "mocha-professional" as const,
-      name: "Mocha Professional",
-      description: "Business casual for your gains—warm browns like your morning coffee",
-      emoji: "☕"
-    },
-    {
-      id: "deep-blue-bush" as const,
-      name: "Deep Blue Bush",
-      description: "Navy seals meet forest vibes—crisp blues and greens for peak focus",
-      emoji: "🌊"
-    }
-  ]
-  
-  return (
-    <div>
-      <h3 className="text-subheading font-semibold text-foreground mb-2">App Theme</h3>
-      <p className="text-caption text-muted-foreground mb-4">
-        Choose your visual vibe. Tap any theme to preview it instantly.
-      </p>
-      <Card className="divide-y divide-border">
-        {themes.map((themeOption) => (
-          <button
-            key={themeOption.id}
-            onClick={() => setTheme(themeOption.id)}
-            className={`
-              w-full px-5 py-4 flex items-center gap-4 transition-all duration-200
-              hover:bg-accent/10 active:bg-accent/20
-              ${theme === themeOption.id ? 'bg-primary/10' : ''}
-            `}
-            data-testid={`theme-${themeOption.id}`}
-          >
-            <div className="text-3xl">{themeOption.emoji}</div>
-            <div className="flex-1 text-left">
-              <div className="flex items-center gap-2">
-                <p className="text-body font-semibold text-foreground">
-                  {themeOption.name}
-                </p>
-                {theme === themeOption.id && (
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                )}
-              </div>
-              <p className="text-caption text-muted-foreground">
-                {themeOption.description}
-              </p>
-            </div>
-            <ChevronRight className={`
-              w-5 h-5 transition-all
-              ${theme === themeOption.id ? 'text-primary' : 'text-muted-foreground'}
-            `} />
-          </button>
-        ))}
-      </Card>
-    </div>
-  )
-}
-
 // Settings section component
 function SettingsSection() {
   const [, setLocation] = useLocation()
@@ -796,9 +661,14 @@ function SettingsSection() {
     }
   }
   
+  const quickActions = [
+    { icon: Settings, label: "Edit Profile", path: "/profile/edit", color: "text-primary" },
+    { icon: Palette, label: "App Theme", path: "/profile/theme", color: "text-accent" },
+  ]
+
   const settingsItems = [
-    { icon: Settings, label: "Edit Profile", path: "/profile/edit", color: "text-primary", type: "navigate" },
     { icon: Heart, label: "Health", path: "/health", color: "text-accent", type: "navigate" },
+    { icon: Smartphone, label: "Connected Devices", path: "/connect", color: "text-primary", type: "navigate" },
     { icon: Award, label: "Achievements", path: "/achievements", color: "text-accent", type: "navigate" },
     { icon: FileText, label: "Reports", path: "/reports", color: "text-primary", type: "navigate" },
     { icon: Bell, label: "Notifications", type: "modal" },
@@ -826,10 +696,32 @@ function SettingsSection() {
   }
 
   return (
-    <div>
-      <h3 className="text-subheading font-semibold text-foreground mb-4">Settings</h3>
-      <Card className="divide-y divide-border">
-        {settingsItems.map((item, index) => {
+    <>
+      {/* Quick Actions Section */}
+      <div className="mb-6">
+        <Card className="divide-y divide-border">
+          {quickActions.map((item) => (
+            <button
+              key={item.path}
+              onClick={() => setLocation(item.path)}
+              className="w-full flex items-center justify-between p-5 hover:bg-muted/50 transition-colors"
+              data-testid={`button-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              <div className="flex items-center gap-4">
+                <item.icon className={`w-5 h-5 ${item.color}`} data-testid={`icon-${item.label.toLowerCase().replace(/\s+/g, '-')}`} />
+                <span className="text-body font-medium text-foreground">{item.label}</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+          ))}
+        </Card>
+      </div>
+
+      {/* Settings Section */}
+      <div>
+        <h3 className="text-subheading font-semibold text-foreground mb-4">Settings</h3>
+        <Card className="divide-y divide-border">
+          {settingsItems.map((item, index) => {
           if (item.type === "modal") {
             return (
               <Dialog key={index}>
@@ -879,8 +771,9 @@ function SettingsSection() {
           <LogOut className="w-5 h-5 text-destructive" />
           <span className="text-body font-medium text-destructive">Sign Out</span>
         </button>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </>
   )
 }
 
@@ -1063,16 +956,6 @@ export default function Profile() {
               Member since {formatMemberSince(memberSince)}
             </p>
           </div>
-        </motion.div>
-
-        {/* Health Connections */}
-        <motion.div variants={slideUp}>
-          <HealthConnections />
-        </motion.div>
-
-        {/* Theme Selector */}
-        <motion.div variants={slideUp}>
-          <ThemeSelector />
         </motion.div>
 
         {/* Settings */}

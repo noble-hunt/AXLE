@@ -21,6 +21,7 @@ import { motion } from "framer-motion"
 import { ChevronRight, Calendar, Clock, Dumbbell, Zap, Timer, Weight, Activity, Heart, Move, CheckCircle, XCircle, Filter, Search, RefreshCw, Info, TrendingUp, Sparkles } from "lucide-react"
 import { Category } from "../types"
 import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 // Category icon mapping
 const getCategoryIcon = (category: Category): React.ComponentType<React.SVGProps<SVGSVGElement>> => {
@@ -223,15 +224,19 @@ export default function History() {
           <label className="text-body font-medium text-foreground">Category</label>
           <div className="flex flex-wrap gap-2" data-testid="category-filter-chips">
             {categoryOptions.map((option) => (
-              <Chip 
+              <button
                 key={option.value}
-                size="default"
-                variant={categoryFilter === option.value ? "primary" : "default"}
                 onClick={() => setCategoryFilter(option.value)}
+                className={cn(
+                  "px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200",
+                  categoryFilter === option.value
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
                 data-testid={`category-filter-${option.value}`}
               >
                 {option.label}
-              </Chip>
+              </button>
             ))}
           </div>
         </div>
