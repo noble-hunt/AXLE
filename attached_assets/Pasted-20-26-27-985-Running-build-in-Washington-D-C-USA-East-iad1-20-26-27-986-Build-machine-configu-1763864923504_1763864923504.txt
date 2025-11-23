@@ -1,0 +1,43 @@
+20:26:27.985 Running build in Washington, D.C., USA (East) – iad1
+20:26:27.986 Build machine configuration: 4 cores, 8 GB
+20:26:28.088 Cloning github.com/noble-hunt/AXLE (Branch: main, Commit: c5c815c)
+20:26:29.539 Cloning completed: 1.450s
+20:26:29.678 Restored build cache from previous deployment (9k6AcQKyDqgncBQy9jsTVFyfiEsP)
+20:26:30.568 Running "vercel build"
+20:26:30.980 Vercel CLI 48.10.5
+20:26:31.772 Running "install" command: `npm ci`...
+20:26:37.133 npm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+20:26:38.528 npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+20:26:41.004 npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+20:26:41.053 npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+20:26:41.845 npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+20:26:42.505 npm warn deprecated source-map@0.8.0-beta.0: The work that was done in this beta branch won't be included in future versions
+20:26:50.376 
+20:26:50.376 added 1238 packages, and audited 1239 packages in 18s
+20:26:50.376 
+20:26:50.376 212 packages are looking for funding
+20:26:50.376   run `npm fund` for details
+20:26:50.419 
+20:26:50.420 7 vulnerabilities (4 moderate, 3 high)
+20:26:50.420 
+20:26:50.420 To address issues that do not require attention, run:
+20:26:50.420   npm audit fix
+20:26:50.420 
+20:26:50.420 To address all issues (including breaking changes), run:
+20:26:50.420   npm audit fix --force
+20:26:50.420 
+20:26:50.420 Run `npm audit` for details.
+20:26:59.476 server/dal/workouts.ts(54,44): error TS2769: No overload matches this call.
+20:26:59.476   Overload 1 of 2, '(value: { sets: unknown; title: string | SQL<unknown> | Placeholder<string, any>; userId: string | SQL<unknown> | Placeholder<string, any>; request: unknown; }): PgInsertBase<PgTableWithColumns<{ ...; }>, ... 4 more ..., never>', gave the following error.
+20:26:59.476     Object literal may only specify known properties, and 'notes' does not exist in type '{ sets: unknown; title: string | SQL<unknown> | Placeholder<string, any>; userId: string | SQL<unknown> | Placeholder<string, any>; request: unknown; }'.
+20:26:59.477   Overload 2 of 2, '(values: { sets: unknown; title: string | SQL<unknown> | Placeholder<string, any>; userId: string | SQL<unknown> | Placeholder<string, any>; request: unknown; }[]): PgInsertBase<PgTableWithColumns<{ ...; }>, ... 4 more ..., never>', gave the following error.
+20:26:59.477     Object literal may only specify known properties, and 'userId' does not exist in type '{ sets: unknown; title: string | SQL<unknown> | Placeholder<string, any>; userId: string | SQL<unknown> | Placeholder<string, any>; request: unknown; }[]'.
+20:26:59.478 server/dal/workouts.ts(137,7): error TS2353: Object literal may only specify known properties, and 'startedAt' does not exist in type '{ sets?: unknown; title?: string | SQL<unknown> | PgColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}>; userId?: string | SQL<unknown> | PgColumn<...>; request?: unknown; }'.
+20:26:59.478 server/dal/workouts.ts(383,53): error TS2769: No overload matches this call.
+20:26:59.479   Overload 1 of 2, '(value: { userId: string | SQL<unknown> | Placeholder<string, any>; workoutId: string | SQL<unknown> | Placeholder<string, any>; perceivedIntensity: number | SQL<...> | Placeholder<...>; }): PgInsertBase<...>', gave the following error.
+20:26:59.479     Object literal may only specify known properties, and 'notes' does not exist in type '{ userId: string | SQL<unknown> | Placeholder<string, any>; workoutId: string | SQL<unknown> | Placeholder<string, any>; perceivedIntensity: number | SQL<...> | Placeholder<...>; }'.
+20:26:59.480   Overload 2 of 2, '(values: { userId: string | SQL<unknown> | Placeholder<string, any>; workoutId: string | SQL<unknown> | Placeholder<string, any>; perceivedIntensity: number | SQL<...> | Placeholder<...>; }[]): PgInsertBase<...>', gave the following error.
+20:26:59.480     Object literal may only specify known properties, and 'workoutId' does not exist in type '{ userId: string | SQL<unknown> | Placeholder<string, any>; workoutId: string | SQL<unknown> | Placeholder<string, any>; perceivedIntensity: number | SQL<...> | Placeholder<...>; }[]'.
+20:26:59.480 server/lib/generator/progression.ts(57,22): error TS2551: Property 'workout_id' does not exist on type '{ workoutId: string; perceivedIntensity: number; createdAt: Date; }'. Did you mean 'workoutId'?
+20:26:59.480 server/lib/generator/progression.ts(57,38): error TS2551: Property 'perceived_intensity' does not exist on type '{ workoutId: string; perceivedIntensity: number; createdAt: Date; }'. Did you mean 'perceivedIntensity'?
+20:26:59.525 Error: Command "npm exec tsc -- -p tsconfig.server.json && npm run build" exited with 2

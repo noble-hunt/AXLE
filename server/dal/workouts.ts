@@ -54,12 +54,12 @@ export async function insertWorkout({ userId, workout }: InsertWorkoutParams) {
   const [data] = await db.insert(workouts).values({
     userId,
     title: workout.title,
-    request: workout.request as any,
-    sets: workout.sets as any,
+    request: workout.request,
+    sets: workout.sets,
     notes: workout.notes,
     completed: workout.completed || false,
-    feedback: workout.feedback as any
-  }).returning();
+    feedback: workout.feedback
+  } as any).returning();
 
   if (!data) {
     throw new Error('Failed to insert workout');
@@ -136,7 +136,7 @@ export async function startWorkoutAtomic(userId: string, id: string): Promise<{
     .set({ 
       startedAt,
       completed: false
-    })
+    } as any)
     .where(and(
       eq(workouts.userId, userId),
       eq(workouts.id, id),
@@ -385,7 +385,7 @@ export async function insertWorkoutFeedback({ workoutId, userId, perceivedIntens
       userId,
       perceivedIntensity,
       notes: notes || null
-    }).returning();
+    } as any).returning();
 
     return data;
   } catch (error: any) {

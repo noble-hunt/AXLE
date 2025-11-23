@@ -54,7 +54,7 @@ export async function enrichWorkoutHistoryWithRPE(
     // Create lookup map for RPE by workout ID
     const rpeMap = new Map();
     rpeData.forEach(rpe => {
-      rpeMap.set(rpe.workout_id, rpe.perceived_intensity);
+      rpeMap.set(rpe.workoutId, rpe.perceivedIntensity);
     });
     
     // Enrich workouts with RPE data
