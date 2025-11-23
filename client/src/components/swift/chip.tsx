@@ -17,7 +17,7 @@ const chipVariants = cva(
         destructive: "bg-destructive/10 text-destructive border border-destructive/20",
       },
       size: {
-        sm: "h-6 px-2 text-[11px]",
+        sm: "h-6 px-3 text-[11px]",
         default: "h-8 px-3",
         lg: "h-10 px-4 text-body",
       },

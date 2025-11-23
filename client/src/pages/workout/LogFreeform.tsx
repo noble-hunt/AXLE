@@ -731,7 +731,7 @@ export default function LogFreeform() {
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        value={set.exercise || ''}
+                        value={set.exercise || (set as any).movement || ''}
                         onChange={(e) => updateSet(index, { exercise: e.target.value })}
                         placeholder="Exercise name"
                         className="flex-1 px-2 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -780,7 +780,7 @@ export default function LogFreeform() {
                   // View Mode - Show Read-Only Text
                   <span className="text-sm text-foreground">
                     {set.repScheme ? `${set.repScheme} ` : ''}
-                    {set.exercise}
+                    {set.exercise || (set as any).movement}
                     {set.weight ? ` @ ${set.weight} kg` : ''}
                     {set.notes ? ` (${set.notes})` : ''}
                   </span>
