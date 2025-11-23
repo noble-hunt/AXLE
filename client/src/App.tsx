@@ -287,7 +287,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="axle-ui-theme">
+      <ThemeProvider defaultTheme="boomer-light" storageKey="axle-ui-theme">
         <TooltipProvider>
           <AuthProvider>
             <AppLayout>

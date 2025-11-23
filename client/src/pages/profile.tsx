@@ -9,6 +9,7 @@ import { motion } from "framer-motion"
 import { useToast } from "@/hooks/use-toast"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { useTheme } from "@/components/ui/theme-provider"
 import { 
   requestPushPermissions, 
   registerPushToken, 
@@ -683,6 +684,80 @@ function HelpSupportModal() {
   )
 }
 
+// Theme selector component
+function ThemeSelector() {
+  const { theme, setTheme } = useTheme()
+  
+  const themes = [
+    {
+      id: "boomer-light" as const,
+      name: "Boomer Light",
+      description: "Classic vibes for those who remember when fitness apps weren't a thing",
+      emoji: "☀️"
+    },
+    {
+      id: "rainbow-sherbet" as const,
+      name: "Rainbow Sherbet",
+      description: "Dark mode but make it electric—like a rave at your local CrossFit box",
+      emoji: "🌈"
+    },
+    {
+      id: "mocha-professional" as const,
+      name: "Mocha Professional",
+      description: "Business casual for your gains—warm browns like your morning coffee",
+      emoji: "☕"
+    },
+    {
+      id: "deep-blue-bush" as const,
+      name: "Deep Blue Bush",
+      description: "Navy seals meet forest vibes—crisp blues and greens for peak focus",
+      emoji: "🌊"
+    }
+  ]
+  
+  return (
+    <div>
+      <h3 className="text-subheading font-semibold text-foreground mb-2">App Theme</h3>
+      <p className="text-caption text-muted-foreground mb-4">
+        Choose your visual vibe. Tap any theme to preview it instantly.
+      </p>
+      <Card className="divide-y divide-border">
+        {themes.map((themeOption) => (
+          <button
+            key={themeOption.id}
+            onClick={() => setTheme(themeOption.id)}
+            className={`
+              w-full px-5 py-4 flex items-center gap-4 transition-all duration-200
+              hover:bg-accent/10 active:bg-accent/20
+              ${theme === themeOption.id ? 'bg-primary/10' : ''}
+            `}
+            data-testid={`theme-${themeOption.id}`}
+          >
+            <div className="text-3xl">{themeOption.emoji}</div>
+            <div className="flex-1 text-left">
+              <div className="flex items-center gap-2">
+                <p className="text-body font-semibold text-foreground">
+                  {themeOption.name}
+                </p>
+                {theme === themeOption.id && (
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                )}
+              </div>
+              <p className="text-caption text-muted-foreground">
+                {themeOption.description}
+              </p>
+            </div>
+            <ChevronRight className={`
+              w-5 h-5 transition-all
+              ${theme === themeOption.id ? 'text-primary' : 'text-muted-foreground'}
+            `} />
+          </button>
+        ))}
+      </Card>
+    </div>
+  )
+}
+
 // Settings section component
 function SettingsSection() {
   const [, setLocation] = useLocation()
@@ -993,6 +1068,11 @@ export default function Profile() {
         {/* Health Connections */}
         <motion.div variants={slideUp}>
           <HealthConnections />
+        </motion.div>
+
+        {/* Theme Selector */}
+        <motion.div variants={slideUp}>
+          <ThemeSelector />
         </motion.div>
 
         {/* Settings */}

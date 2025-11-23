@@ -1,4 +1,4 @@
-import { Activity, Sun, Moon, ChevronLeft } from "lucide-react"
+import { Activity, Palette, ChevronLeft } from "lucide-react"
 import { useTheme } from "@/components/ui/theme-provider"
 import { Button } from "@/components/ui/button"
 import { useLocation } from "wouter"
@@ -8,7 +8,11 @@ export function TopAppBar() {
   const [location] = useLocation()
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
+    // Cycle through all 4 themes: boomer-light → rainbow-sherbet → mocha-professional → deep-blue-bush → boomer-light
+    const themes = ["boomer-light", "rainbow-sherbet", "mocha-professional", "deep-blue-bush"] as const
+    const currentIndex = themes.indexOf(theme)
+    const nextIndex = (currentIndex + 1) % themes.length
+    setTheme(themes[nextIndex])
   }
 
   const handleBack = () => {
@@ -47,9 +51,8 @@ export function TopAppBar() {
           className="w-10 h-10 rounded-2xl bg-card hover:bg-accent transition-colors duration-200 card-shadow"
           data-testid="theme-toggle"
         >
-          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
+          <Palette className="h-5 w-5 transition-all" />
+          <span className="sr-only">Cycle theme</span>
         </Button>
       </div>
     </header>
