@@ -186,7 +186,7 @@ export function DailySuggestionCard() {
 
       {/* Rationale Dialog */}
       <Dialog open={showRationale} onOpenChange={setShowRationale}>
-        <DialogContent data-testid="rationale-dialog" className="max-w-2xl">
+        <DialogContent data-testid="rationale-dialog" className="max-w-[calc(100vw-2rem)] sm:max-w-md mx-4">
           <DialogHeader>
             <DialogTitle>Workout Rationale</DialogTitle>
             <DialogDescription>
