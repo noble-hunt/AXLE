@@ -2,6 +2,9 @@
 import { computeSuggestion } from '../logic/suggestions.js';
 import { createWorkoutFromSeed } from './workouts/createFromSeed.js';
 import { nanoid } from 'nanoid';
+import { db } from '../db.js';
+import { suggestedWorkouts } from '../../shared/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 /**
  * Service functions for suggestion-related operations as specified in the backend requirements.
@@ -43,10 +46,30 @@ export async function computeTodaySuggestion(userId: string) {
 
 /**
  * Start (generate and persist) a suggestion as an actual workout
- * Uses the existing createWorkoutFromSeed service
+ * First checks for pre-generated workouts, falls back to on-demand generation
  */
 export async function startSuggestion(userId: string) {
   try {
+    // Check for pre-generated workout first
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const suggestions = await db
+      .select()
+      .from(suggestedWorkouts)
+      .where(and(
+        eq(suggestedWorkouts.userId, userId),
+        eq(suggestedWorkouts.date, today)
+      ))
+      .limit(1);
+    
+    // If pre-generated workout exists, return it instantly
+    if (suggestions.length > 0 && suggestions[0].workoutId) {
+      console.log(`[startSuggestion] Serving pre-generated workout for user ${userId}: ${suggestions[0].workoutId}`);
+      return { workoutId: suggestions[0].workoutId };
+    }
+    
+    // Fallback to on-demand generation
+    console.log(`[startSuggestion] No pre-generated workout found for user ${userId}, generating on-demand`);
+    
     // First get today's suggestion to determine the parameters
     const { config, seed } = await computeTodaySuggestion(userId);
     
@@ -64,6 +87,7 @@ export async function startSuggestion(userId: string) {
       source: 'daily-suggestion-start'
     });
     
+    console.log(`[startSuggestion] On-demand workout generated for user ${userId}: ${result.id}`);
     return { workoutId: result.id };
   } catch (error) {
     console.error('Failed to start suggestion:', error);
