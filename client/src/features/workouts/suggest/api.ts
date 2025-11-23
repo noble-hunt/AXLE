@@ -3,7 +3,7 @@ import { API_ORIGIN, API_PREFIX } from '@/lib/env';
 import type { SuggestionRationale } from '@/../../shared/schema';
 
 export async function startSuggestion(): Promise<string> {
-  const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/suggest/start`, { 
+  const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/workouts/suggest/today/start`, { 
     method: 'POST' 
   });
   

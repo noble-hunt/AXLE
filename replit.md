@@ -18,6 +18,26 @@
 4. ✅ Added comprehensive logging to track serverless request routing
 **Status**: Fixed in code, ready for Vercel deployment
 
+### DAILY SUGGESTION START NOW FIX (Nov 23, 2025)
+**Issue**: "Start Now" button failing to load workouts - generated workouts returned 404 errors
+1. Frontend calling wrong API endpoint `/api/suggest/start` (non-existent)
+2. Database mismatch: workouts created with Drizzle ORM but queried with Supabase Admin SDK
+3. Result: workout created in dev database, GET request looked in production database → 404
+**Root Cause**: 
+1. `StartNowButton` component called `startSuggestion()` function which used old endpoint `/api/suggest/start`
+2. Backend `createWorkoutFromSeed()` used Drizzle ORM to INSERT workouts → writes to development database
+3. Backend `getWorkout()` used Supabase Admin SDK to SELECT workouts → reads from production database
+4. Workouts were never found after creation due to database mismatch
+**Solution**: 
+1. ✅ Updated `startSuggestion()` in `client/src/features/workouts/suggest/api.ts` line 6 to call correct endpoint `/api/workouts/suggest/today/start`
+2. ✅ Converted ALL workout DAL functions in `server/dal/workouts.ts` from Supabase Admin SDK to Drizzle ORM:
+   - `getWorkout()`, `listWorkouts()`, `insertWorkout()`, `updateWorkout()`, `deleteWorkout()`
+   - `startWorkoutAtomic()`, `getRecentRPE()`, `getZoneMinutes14d()`, `getStrain()`
+   - `insertWorkoutFeedback()`, `getRecentRPEs()`, `getUserRecentWorkouts()`
+3. ✅ Updated field mappings to use camelCase (Drizzle) instead of snake_case (Supabase)
+4. ✅ Ensured workouts are now written AND read from the same development database
+**Status**: Fixed and verified with e2e test - workouts load instantly after creation, no more 404 errors
+
 ### PROFILE UPSERT VALIDATION FIX (Nov 22, 2025)
 **Issue**: Profile upsert endpoint failing with 500 errors, causing:
 1. Profile data not loading (username, name, avatar not displaying)

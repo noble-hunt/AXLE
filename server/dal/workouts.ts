@@ -1,26 +1,27 @@
-import { supabaseAdmin } from "../lib/supabaseAdmin.js";
+import { db } from '../db.js';
+import { workouts, workoutFeedback } from '../../shared/schema.js';
+import { eq, and, desc, gte, isNull, isNotNull } from 'drizzle-orm';
 
 /**
- * Maps workout data from database snake_case to frontend camelCase
+ * Maps workout data to frontend format
+ * Note: Drizzle already returns camelCase fields, so this is mostly a passthrough
+ * with optional computed fields
  */
 export function mapWorkoutToFrontend(workout: any) {
   if (!workout) return null;
   
   return {
     id: workout.id,
-    userId: workout.user_id,
+    userId: workout.userId,
     title: workout.title,
     request: workout.request,
     sets: workout.sets,
     notes: workout.notes,
     completed: workout.completed,
     feedback: workout.feedback,
-    startedAt: workout.started_at,
-    createdAt: workout.created_at,
-    totalActiveMinutes: workout.total_active_minutes,
-    intensity: workout.intensity,
-    energySystem: workout.energy_system,
-    generationId: workout.generation_id
+    startedAt: workout.startedAt,
+    createdAt: workout.createdAt,
+    generationId: workout.generationId
   };
 }
 
@@ -46,26 +47,22 @@ export interface UpdateWorkoutPatch {
   sets?: Record<string, any>;
   completed?: boolean;
   feedback?: Record<string, any>;
-  started_at?: string; // ISO timestamp when workout was started
+  startedAt?: string; // ISO timestamp when workout was started
 }
 
 export async function insertWorkout({ userId, workout }: InsertWorkoutParams) {
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .insert({
-      user_id: userId,
-      title: workout.title,
-      request: workout.request,
-      sets: workout.sets,
-      notes: workout.notes,
-      completed: workout.completed || false,
-      feedback: workout.feedback
-    })
-    .select()
-    .single();
+  const [data] = await db.insert(workouts).values({
+    userId,
+    title: workout.title,
+    request: workout.request as any,
+    sets: workout.sets as any,
+    notes: workout.notes,
+    completed: workout.completed || false,
+    feedback: workout.feedback as any
+  }).returning();
 
-  if (error) {
-    throw new Error(`Failed to insert workout: ${error.message}`);
+  if (!data) {
+    throw new Error('Failed to insert workout');
   }
 
   return mapWorkoutToFrontend(data);
@@ -74,67 +71,48 @@ export async function insertWorkout({ userId, workout }: InsertWorkoutParams) {
 export async function listWorkouts(userId: string, options: ListWorkoutsOptions = {}) {
   const { limit = 50 } = options;
 
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+  const data = await db
+    .select()
+    .from(workouts)
+    .where(eq(workouts.userId, userId))
+    .orderBy(desc(workouts.createdAt))
     .limit(limit);
-
-  if (error) {
-    throw new Error(`Failed to list workouts: ${error.message}`);
-  }
 
   return (data || []).map(mapWorkoutToFrontend);
 }
 
 export async function getWorkout(userId: string, id: string) {
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('id', id)
-    .single();
+  const data = await db
+    .select()
+    .from(workouts)
+    .where(and(eq(workouts.userId, userId), eq(workouts.id, id)))
+    .limit(1);
 
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // Not found
-    }
-    throw new Error(`Failed to get workout: ${error.message}`);
+  if (!data || data.length === 0) {
+    return null; // Not found
   }
 
-  return mapWorkoutToFrontend(data);
+  return mapWorkoutToFrontend(data[0]);
 }
 
 export async function updateWorkout(userId: string, id: string, patch: UpdateWorkoutPatch) {
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .update(patch)
-    .eq('user_id', userId)
-    .eq('id', id)
-    .select()
-    .single();
+  const data = await db
+    .update(workouts)
+    .set(patch as any)
+    .where(and(eq(workouts.userId, userId), eq(workouts.id, id)))
+    .returning();
 
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // Not found
-    }
-    throw new Error(`Failed to update workout: ${error.message}`);
+  if (!data || data.length === 0) {
+    return null; // Not found
   }
 
-  return mapWorkoutToFrontend(data);
+  return mapWorkoutToFrontend(data[0]);
 }
 
 export async function deleteWorkout(userId: string, id: string) {
-  const { error } = await supabaseAdmin
-    .from('workouts')
-    .delete()
-    .eq('user_id', userId)
-    .eq('id', id);
-
-  if (error) {
-    throw new Error(`Failed to delete workout: ${error.message}`);
-  }
+  await db
+    .delete(workouts)
+    .where(and(eq(workouts.userId, userId), eq(workouts.id, id)));
 
   return { success: true };
 }
@@ -150,41 +128,39 @@ export async function startWorkoutAtomic(userId: string, id: string): Promise<{
   workout: any;
   wasAlreadyStarted: boolean;
 } | null> {
-  const startedAt = new Date().toISOString();
+  const startedAt = new Date();
   
   // Atomic conditional update: only update if started_at is null
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .update({ 
-      started_at: startedAt,
+  const data = await db
+    .update(workouts)
+    .set({ 
+      startedAt,
       completed: false
     })
-    .eq('user_id', userId)
-    .eq('id', id)
-    .is('started_at', null) // Only update if started_at is currently null
-    .select()
-    .single();
+    .where(and(
+      eq(workouts.userId, userId),
+      eq(workouts.id, id),
+      isNull(workouts.startedAt) // Only update if startedAt is currently null
+    ))
+    .returning();
 
-  if (error) {
-    if (error.code === 'PGRST116') {
-      // No rows were updated - either workout doesn't exist or already started
-      // Check if workout exists
-      const existing = await getWorkout(userId, id);
-      if (!existing) {
-        return null; // Workout doesn't exist
-      }
-      // Workout exists but already started
-      return {
-        workout: existing,
-        wasAlreadyStarted: true
-      };
+  if (!data || data.length === 0) {
+    // No rows were updated - either workout doesn't exist or already started
+    // Check if workout exists
+    const existing = await getWorkout(userId, id);
+    if (!existing) {
+      return null; // Workout doesn't exist
     }
-    throw new Error(`Failed to start workout: ${error.message}`);
+    // Workout exists but already started
+    return {
+      workout: existing,
+      wasAlreadyStarted: true
+    };
   }
 
   // Successfully started
   return {
-    workout: mapWorkoutToFrontend(data),
+    workout: mapWorkoutToFrontend(data[0]),
     wasAlreadyStarted: false
   };
 }
@@ -199,17 +175,15 @@ export async function getRecentRPE(userId: string, hours: number = 24): Promise<
   const cutoffDate = new Date();
   cutoffDate.setHours(cutoffDate.getHours() - hours);
 
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .select('feedback')
-    .eq('user_id', userId)
-    .eq('completed', true)
-    .gte('created_at', cutoffDate.toISOString())
-    .not('feedback', 'is', null);
-
-  if (error) {
-    throw new Error(`Failed to get recent RPE: ${error.message}`);
-  }
+  const data = await db
+    .select({ feedback: workouts.feedback })
+    .from(workouts)
+    .where(and(
+      eq(workouts.userId, userId),
+      eq(workouts.completed, true),
+      gte(workouts.createdAt, cutoffDate),
+      isNotNull(workouts.feedback)
+    ));
 
   if (!data || data.length === 0) {
     return null;
@@ -242,16 +216,14 @@ export async function getZoneMinutes14d(userId: string): Promise<Record<string, 
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - 14);
 
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .select('sets, request')
-    .eq('user_id', userId)
-    .eq('completed', true)
-    .gte('created_at', cutoffDate.toISOString());
-
-  if (error) {
-    throw new Error(`Failed to get zone minutes: ${error.message}`);
-  }
+  const data = await db
+    .select({ sets: workouts.sets, request: workouts.request })
+    .from(workouts)
+    .where(and(
+      eq(workouts.userId, userId),
+      eq(workouts.completed, true),
+      gte(workouts.createdAt, cutoffDate)
+    ));
 
   if (!data || data.length === 0) {
     return null;
@@ -319,16 +291,18 @@ export async function getStrain(userId: string, hours: number): Promise<number |
   const cutoffDate = new Date();
   cutoffDate.setHours(cutoffDate.getHours() - hours);
 
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .select('sets, request, feedback')
-    .eq('user_id', userId)
-    .eq('completed', true)
-    .gte('created_at', cutoffDate.toISOString());
-
-  if (error) {
-    throw new Error(`Failed to get strain: ${error.message}`);
-  }
+  const data = await db
+    .select({ 
+      sets: workouts.sets, 
+      request: workouts.request, 
+      feedback: workouts.feedback 
+    })
+    .from(workouts)
+    .where(and(
+      eq(workouts.userId, userId),
+      eq(workouts.completed, true),
+      gte(workouts.createdAt, cutoffDate)
+    ));
 
   if (!data || data.length === 0) {
     return null;
@@ -405,42 +379,38 @@ export interface InsertWorkoutFeedbackParams {
 }
 
 export async function insertWorkoutFeedback({ workoutId, userId, perceivedIntensity, notes }: InsertWorkoutFeedbackParams) {
-  const { data, error } = await supabaseAdmin
-    .from('workout_feedback')
-    .insert({
-      workout_id: workoutId,
-      user_id: userId,
-      perceived_intensity: perceivedIntensity,
+  try {
+    const [data] = await db.insert(workoutFeedback).values({
+      workoutId,
+      userId,
+      perceivedIntensity,
       notes: notes || null
-    })
-    .select()
-    .single();
+    }).returning();
 
-  if (error) {
+    return data;
+  } catch (error: any) {
     // Improve error handling for duplicates
     if (error.code === '23505') { // PostgreSQL unique violation
       throw new Error('Feedback already submitted for this workout');
     }
-    throw new Error(`Failed to insert workout feedback: ${error.message}`);
+    throw new Error(`Failed to insert workout feedback: ${error.message || 'Unknown error'}`);
   }
-
-  return data;
 }
 
 /**
  * Get recent RPE values for a user to inform progression decisions
  */
 export async function getRecentRPEs(userId: string, limit: number = 10) {
-  const { data, error } = await supabaseAdmin
-    .from('workout_feedback')
-    .select('workout_id, perceived_intensity, created_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+  const data = await db
+    .select({
+      workoutId: workoutFeedback.workoutId,
+      perceivedIntensity: workoutFeedback.perceivedIntensity,
+      createdAt: workoutFeedback.createdAt
+    })
+    .from(workoutFeedback)
+    .where(eq(workoutFeedback.userId, userId))
+    .orderBy(desc(workoutFeedback.createdAt))
     .limit(limit);
-
-  if (error) {
-    throw new Error(`Failed to get recent RPEs: ${error.message}`);
-  }
 
   return data || [];
 }
@@ -449,17 +419,15 @@ export async function getUserRecentWorkouts(userId: string, options: { days: num
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - options.days);
 
-  const { data, error } = await supabaseAdmin
-    .from('workouts')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('completed', true)
-    .gte('created_at', cutoffDate.toISOString())
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    throw new Error(`Failed to get recent workouts: ${error.message}`);
-  }
+  const data = await db
+    .select()
+    .from(workouts)
+    .where(and(
+      eq(workouts.userId, userId),
+      eq(workouts.completed, true),
+      gte(workouts.createdAt, cutoffDate)
+    ))
+    .orderBy(desc(workouts.createdAt));
 
   // Transform the data to include the fields needed by the score engine
   return (data || []).map(workout => ({
