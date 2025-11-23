@@ -212,10 +212,11 @@ export default function Home() {
       >
         {/* Welcome Banner */}
         <motion.div
-          className="relative overflow-hidden rounded-3xl p-6 bg-gradient-to-br from-purple-400/90 via-pink-300/90 to-orange-300/90 dark:from-primary dark:via-accent dark:to-info"
+          className="relative overflow-hidden rounded-3xl p-6 theme-gradient-animate border-none shadow-soft"
           variants={slideUp}
+          data-testid="welcome-card"
         >
-          <div className="relative z-10 flex items-center justify-between text-gray-900 dark:text-white">
+          <div className="relative z-10 flex items-center justify-between text-white drop-shadow-sm">
             <div>
               <h1 className="text-subheading font-bold">Welcome back!</h1>
               <h2 className="text-heading font-bold">{(() => {
@@ -226,7 +227,7 @@ export default function Home() {
               })()}</h2>
               <p className="text-body opacity-90 mt-1">Ready to crush your goals?</p>
             </div>
-            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center overflow-hidden">
+            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden">
               {profile?.avatarUrl ? (
                 <img 
                   src={profile.avatarUrl} 

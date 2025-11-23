@@ -373,6 +373,32 @@
     animation: pulse-subtle 2s infinite;
   }
 
+  /* Theme-aware gradient animation for welcome card */
+  @keyframes theme-gradient-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .theme-gradient-animate {
+    background: linear-gradient(
+      135deg,
+      var(--primary) 0%,
+      var(--accent) 25%,
+      var(--info) 50%,
+      var(--accent) 75%,
+      var(--primary) 100%
+    );
+    background-size: 200% 200%;
+    animation: theme-gradient-shift 18s ease-in-out infinite;
+  }
+
   /* Better focus styles for accessibility */
   .focus-ring:focus {
     outline: 2px solid var(--ring);
