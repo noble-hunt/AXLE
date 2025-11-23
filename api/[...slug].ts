@@ -3,6 +3,19 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+    // Extract slug from Vercel's query params
+    const slug = req.query.slug as string[] | string | undefined;
+    const slugPath = Array.isArray(slug) ? slug.join('/') : (slug || '');
+    
+    // Reconstruct the full path for Express
+    const fullPath = `/api/${slugPath}`;
+    
+    // Restore the original request URL so Express can match routes
+    req.url = fullPath + (req.url?.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
+    (req as any).originalUrl = req.url;
+    
+    console.log(`[SERVERLESS] Request: ${req.method} ${req.url}`);
+    
     // Import pre-compiled Express app
     const { default: expressApp } = await import('../server/app.js');
     

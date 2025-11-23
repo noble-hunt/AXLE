@@ -2,7 +2,23 @@
 
 ## Recent Production Deployment Fixes (Nov 22, 2025)
 
-### PROFILE UPSERT VALIDATION FIX (Latest - Nov 22, 2025)
+### VERCEL SERVERLESS ROUTING FIX (Latest - Nov 23, 2025)
+**Issue**: ALL API routes returning 404 "API endpoint / not found" in Vercel production
+1. Profile API failing with 404
+2. Save Workout feature broken
+3. Direct navigation to /api/profiles shows `{"ok":false,"error":{"code":"NOT_FOUND","message":"API endpoint / not found"}}`
+**Root Cause**: 
+1. Vercel's rewrite from `/api/profiles` to `/api/[...slug]` strips the path from `req.url`
+2. Express receives `req.url = '/'` instead of `req.url = '/api/profiles'`
+3. All registered routes are skipped, hitting the catch-all 404 handler in server/app.ts:192-198
+**Solution**: 
+1. ✅ Extract slug from `req.query.slug` in api/[...slug].ts
+2. ✅ Reconstruct full path as `/api/${slugPath}`
+3. ✅ Restore `req.url` and `req.originalUrl` before passing to Express
+4. ✅ Added logging to track serverless requests
+**Status**: Fixed in code, ready for Vercel deployment
+
+### PROFILE UPSERT VALIDATION FIX (Nov 22, 2025)
 **Issue**: Profile upsert endpoint failing with 500 errors, causing:
 1. Profile data not loading (username, name, avatar not displaying)
 2. Save Workout button showing "need to be signed in" error despite being authenticated
