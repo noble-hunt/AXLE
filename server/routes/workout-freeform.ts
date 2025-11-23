@@ -152,7 +152,6 @@ Now parse the user's workout description following these rules exactly.`
 // Log freeform workout to database  
 router.post('/log-freeform', requireAuth, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
-  const sb = supabaseFromReq(req);
   const { parsed, title } = req.body ?? {};
   
   if (!parsed) {
@@ -160,49 +159,51 @@ router.post('/log-freeform', requireAuth, async (req, res) => {
   }
 
   try {
-    // Get authenticated user (RLS)
-    const { data: user, error: authError } = await sb.auth.getUser();
-    if (authError || !user?.user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    // Transform freeform parsed data to match database schema
+    // Transform freeform parsed data to match WorkoutSetSchema requirements
     const transformedSets = parsed.sets?.map((set: any, index: number) => ({
       id: `freeform-${index}`,
-      exercise: set.movement,
+      exercise: set.movement || 'Unknown Exercise', // Required field
       weight: set.weightKg ? Math.round(set.weightKg * 2.20462 * 2) / 2 : undefined, // kg to lbs
-      reps: set.reps,
+      reps: set.reps || undefined, // Convert null to undefined
       duration: set.timeCapMinutes ? set.timeCapMinutes * 60 : undefined, // minutes to seconds
       restTime: set.restMinutes ? set.restMinutes * 60 : undefined, // minutes to seconds
-      notes: set.notes,
-      repScheme: set.repScheme,
-      timeCapMinutes: set.timeCapMinutes
+      notes: set.notes || undefined, // Convert null to undefined
+      repScheme: set.repScheme || set.reps || undefined // Required fallback to reps
     })) || [];
 
-    // Store workout in database
-    const { data, error } = await sb.from('workouts').insert({
-      user_id: user.user.id,
-      title: title || parsed.title || 'Freeform workout',
-      request: {
-        category: parsed.request?.category || 'other',
-        durationMinutes: parsed.request?.durationMinutes || parsed.est_duration_min || 30,
-        intensity: parsed.request?.intensity || parsed.intensity || 5
-      },
-      sets: transformedSets,
-      notes: parsed.notes || null,
-      completed: true,
-      feedback: {
-        source: "freeform",
-        confidence: parsed.confidence || 0.8
+    // Use Drizzle ORM DAL for consistency with GET /api/workouts
+    const { insertWorkout } = await import('../dal/workouts.js');
+    
+    const durationMinutes = parsed.request?.durationMinutes || parsed.est_duration_min || 30;
+    
+    const workout = await insertWorkout({
+      userId: authReq.user.id,
+      workout: {
+        title: title || parsed.title || 'Freeform workout',
+        // Both `duration` and `durationMinutes` are needed per WorkoutRequestSchema
+        request: {
+          category: parsed.request?.category || 'other',
+          duration: durationMinutes,  // DAL consumers expect duration
+          durationMinutes: durationMinutes, // Also populate durationMinutes
+          intensity: parsed.request?.intensity || parsed.intensity || 5
+        },
+        sets: transformedSets,
+        notes: parsed.notes || undefined, // Convert null to undefined
+        completed: true,
+        feedback: {
+          source: "freeform",
+          confidence: parsed.confidence || 0.8
+        }
       }
-    }).select('id').single();
+    });
 
-    if (error) {
-      console.error('[dev/log] db error:', error);
-      return res.status(400).json({ error: error.message });
+    if (!workout?.id) {
+      console.error('[dev/log] no workout id returned');
+      return res.status(500).json({ error: 'Failed to save workout' });
     }
 
-    res.json({ id: data.id, success: true });
+    console.log(`[FREEFORM] Logged workout ${workout.id} for user ${authReq.user.id}`);
+    res.json({ id: workout.id, success: true });
   } catch (e: any) {
     console.error('[dev/log] err', e);
     res.status(500).json({ error: e?.message || 'log failed' });
