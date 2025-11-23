@@ -1,5 +1,6 @@
 import { authFetch } from '@/lib/authFetch';
 import { API_ORIGIN, API_PREFIX } from '@/lib/env';
+import type { SuggestionRationale } from '@/../../shared/schema';
 
 export async function startSuggestion(): Promise<string> {
   const response = await authFetch(`${API_ORIGIN}${API_PREFIX}/suggest/start`, { 
@@ -32,7 +33,7 @@ export type TodaySuggestionResponse = {
     equipment: string[];
     constraints: string[];
   };
-  rationale: string;
+  rationale: SuggestionRationale;
   seed: {
     rngSeed: string;
     generatorVersion: string;

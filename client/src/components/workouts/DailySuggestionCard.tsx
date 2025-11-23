@@ -4,7 +4,8 @@ import { Card } from '@/components/swift/card';
 import { Button } from '@/components/swift/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Clock, Activity, LogIn, RotateCcw, Info, Zap } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Clock, Activity, LogIn, RotateCcw, Info, Zap, Heart, TrendingUp, Calendar } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useDailySuggestion } from '@/features/workouts/useDailySuggestion';
 import { StartNowButton } from '@/features/workouts/suggest/StartNowButton';
@@ -185,40 +186,127 @@ export function DailySuggestionCard() {
 
       {/* Rationale Dialog */}
       <Dialog open={showRationale} onOpenChange={setShowRationale}>
-        <DialogContent data-testid="rationale-dialog">
+        <DialogContent data-testid="rationale-dialog" className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Workout Rationale</DialogTitle>
             <DialogDescription>
               Why we chose this workout for you today
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 max-h-96 overflow-y-auto">
-            <div className="text-sm text-muted-foreground">
-              {typeof rationale === 'string' 
-                ? rationale 
-                : (rationale as any)?.rulesApplied?.join('. ') || 'This workout was selected based on your fitness profile, recent activity, and recovery status.'}
+          <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+            {/* Why This Workout - Most Important Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Info className="h-4 w-4 text-primary" />
+                <h4 className="font-semibold text-foreground">Why This Workout</h4>
+              </div>
+              <ul className="space-y-2">
+                {rationale.rulesApplied.map((rule, index) => (
+                  <li key={index} className="text-sm text-muted-foreground flex gap-2">
+                    <span className="text-primary">•</span>
+                    <span>{rule}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            
-            {rationale && typeof rationale === 'object' && 'scores' in rationale && (rationale as any).scores && (
-              <div>
-                <h4 className="font-medium mb-2">Health Metrics:</h4>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  {Object.entries((rationale as any).scores as Record<string, any>).map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                      <span>{typeof value === 'number' ? Math.round(value) : value}</span>
+
+            {/* Suggestion Scores */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <h4 className="font-semibold text-foreground">Suggestion Scores</h4>
+              </div>
+              <div className="space-y-3">
+                {Object.entries(rationale.scores).map(([key, value]) => {
+                  const percentage = Math.round(value * 100);
+                  const label = key.replace(/([A-Z])/g, ' $1').trim();
+                  const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+                  
+                  return (
+                    <div key={key}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">{capitalizedLabel}</span>
+                        <span className="font-medium text-foreground">{percentage}%</span>
+                      </div>
+                      <Progress value={percentage} className="h-2" />
                     </div>
-                  ))}
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Health Metrics */}
+            {rationale.sources.health && Object.keys(rationale.sources.health).some(key => rationale.sources.health![key as keyof typeof rationale.sources.health] != null) && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Heart className="h-4 w-4 text-primary" />
+                  <h4 className="font-semibold text-foreground">Health Metrics</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {Object.entries(rationale.sources.health).map(([key, value]) => {
+                    if (value == null) return null;
+                    
+                    const label = key.replace(/([A-Z])/g, ' $1').trim();
+                    const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+                    
+                    return (
+                      <div key={key} className="flex justify-between items-center p-2 bg-muted/50 rounded">
+                        <span className="text-xs text-muted-foreground">{capitalizedLabel}</span>
+                        <span className="text-sm font-medium text-foreground">{Math.round(value as number)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
-            
+
+            {/* Recent Activity */}
+            {(rationale.sources.weeklyCounts || rationale.sources.monthlyCounts) && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <h4 className="font-semibold text-foreground">Recent Activity</h4>
+                </div>
+                <div className="space-y-3">
+                  {rationale.sources.weeklyCounts && Object.keys(rationale.sources.weeklyCounts).length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">This Week</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(rationale.sources.weeklyCounts).map(([category, count]) => (
+                          <Badge key={category} variant="outline" className="text-xs">
+                            {category}: {count}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {rationale.sources.monthlyCounts && Object.keys(rationale.sources.monthlyCounts).length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">This Month</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(rationale.sources.monthlyCounts).map(([category, count]) => (
+                          <Badge key={category} variant="secondary" className="text-xs">
+                            {category}: {count}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Considerations */}
             {config.constraints && config.constraints.length > 0 && (
               <div>
-                <h4 className="font-medium mb-2">Considerations:</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
+                <h4 className="font-semibold text-foreground mb-3">Additional Considerations</h4>
+                <ul className="space-y-1">
                   {config.constraints.map((constraint, index) => (
-                    <li key={index}>• {constraint}</li>
+                    <li key={index} className="text-sm text-muted-foreground flex gap-2">
+                      <span className="text-primary">•</span>
+                      <span>{constraint}</span>
+                    </li>
                   ))}
                 </ul>
               </div>
