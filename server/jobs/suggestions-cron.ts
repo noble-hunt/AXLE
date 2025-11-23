@@ -13,6 +13,8 @@ import { MetricsEnvelope } from '../../shared/health/types.js';
 import { computeAxleScores } from "../metrics/axle.js";
 import { upsertDailyReport } from "../dal/reports.js";
 import { getEnvironment } from '../services/environment/index.js';
+import { createWorkoutFromSeed } from '../services/workouts/createFromSeed.js';
+import { nanoid } from 'nanoid';
 
 /**
  * Last run timestamp for health reporting
@@ -27,6 +29,32 @@ const providers: Record<string, HealthProvider> = {
   Whoop: new WhoopHealthProvider(),
   Garmin: new GarminHealthProvider(),
 };
+
+/**
+ * Helper function to map suggestion categories to focus strings for workout generation
+ */
+function mapCategoryToFocus(category: string): string {
+  const categoryLower = category.toLowerCase();
+  
+  if (categoryLower.includes('strength') || categoryLower.includes('power')) {
+    return 'Strength';
+  }
+  if (categoryLower.includes('cardio') || categoryLower.includes('endurance')) {
+    return 'Cardio';
+  }
+  if (categoryLower.includes('conditioning') || categoryLower.includes('hiit') || categoryLower.includes('metcon')) {
+    return 'Conditioning';
+  }
+  if (categoryLower.includes('skill') || categoryLower.includes('gymnastics')) {
+    return 'Skill';
+  }
+  if (categoryLower.includes('recovery') || categoryLower.includes('mobility')) {
+    return 'Recovery';
+  }
+  
+  // Default to general fitness for mixed/unknown categories
+  return 'Mixed';
+}
 
 /**
  * Sync health data for a user if they have connected devices and no report for today
@@ -251,6 +279,33 @@ export async function generateDailySuggestions(): Promise<{ processed: number; c
         console.log(`🧠 [CRON] Generating suggestion for user ${userId}`);
         const suggestionResult = await computeSuggestion(userId, new Date());
         
+        // Pre-generate the full workout (with fallback to on-demand if generation fails)
+        let generatedWorkoutId: string | null = null;
+        try {
+          console.log(`🏋️ [CRON] Pre-generating workout for user ${userId}`);
+          
+          // Map category to focus for workout generation
+          const focus = mapCategoryToFocus(suggestionResult.request.category);
+          
+          // Generate workout using the same service used in startSuggestion
+          const workoutResult = await createWorkoutFromSeed({
+            userId: userId,
+            focus: focus,
+            minutes: suggestionResult.request.duration,
+            intensity: suggestionResult.request.intensity,
+            seed: { rngSeed: nanoid(10) },
+            generatorVersion: 'v0.3.0',
+            source: 'daily-suggestion-cron'
+          });
+          
+          generatedWorkoutId = workoutResult.id;
+          console.log(`✅ [CRON] Pre-generated workout ${generatedWorkoutId} for user ${userId}`);
+          
+        } catch (workoutError) {
+          console.error(`⚠️ [CRON] Failed to pre-generate workout for user ${userId}, will fallback to on-demand:`, workoutError);
+          // Continue with workoutId as null - user can still generate on-demand
+        }
+        
         // Insert new suggestion (unique constraint handles conflicts)
         try {
           const inserted = await db
@@ -260,7 +315,7 @@ export async function generateDailySuggestions(): Promise<{ processed: number; c
               date: today,
               request: suggestionResult.request,
               rationale: suggestionResult.rationale,
-              workoutId: null
+              workoutId: generatedWorkoutId
             } as any)
             .returning();
             
