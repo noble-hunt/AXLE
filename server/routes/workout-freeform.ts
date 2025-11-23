@@ -159,22 +159,39 @@ router.post('/log-freeform', requireAuth, async (req, res) => {
   }
 
   try {
+    // Validate that parsed.sets is an array before transforming
+    const rawSets = Array.isArray(parsed.sets) ? parsed.sets : [];
+    
     // Transform freeform parsed data to match WorkoutSetSchema requirements
-    const transformedSets = parsed.sets?.map((set: any, index: number) => ({
-      id: `freeform-${index}`,
-      exercise: set.movement || 'Unknown Exercise', // Required field
-      weight: set.weightKg ? Math.round(set.weightKg * 2.20462 * 2) / 2 : undefined, // kg to lbs
-      reps: set.reps || undefined, // Convert null to undefined
-      duration: set.timeCapMinutes ? set.timeCapMinutes * 60 : undefined, // minutes to seconds
-      restTime: set.restMinutes ? set.restMinutes * 60 : undefined, // minutes to seconds
-      notes: set.notes || undefined, // Convert null to undefined
-      repScheme: set.repScheme || set.reps || undefined // Required fallback to reps
-    })) || [];
+    const transformedSets = rawSets.map((set: any, index: number) => {
+      // Ensure repScheme has a meaningful fallback for AMRAP/EMOM cases
+      let repScheme = set.repScheme || set.reps?.toString() || '';
+      if (!repScheme && set.timeCapMinutes) {
+        repScheme = `${set.timeCapMinutes} min cap`;
+      }
+      if (!repScheme) {
+        repScheme = 'For quality'; // Final fallback
+      }
+      
+      return {
+        id: `freeform-${index}`,
+        exercise: set.movement || 'Unknown Exercise', // Required field
+        weight: set.weightKg ? Math.round(set.weightKg * 2.20462 * 2) / 2 : undefined, // kg to lbs
+        reps: set.reps || undefined, // Convert null to undefined
+        duration: set.timeCapMinutes ? set.timeCapMinutes * 60 : undefined, // minutes to seconds
+        restTime: set.restMinutes ? set.restMinutes * 60 : undefined, // minutes to seconds
+        notes: set.notes || undefined, // Convert null to undefined
+        repScheme: repScheme // Always populated with meaningful fallback
+      };
+    });
 
     // Use Drizzle ORM DAL for consistency with GET /api/workouts
     const { insertWorkout } = await import('../dal/workouts.js');
     
-    const durationMinutes = parsed.request?.durationMinutes || parsed.est_duration_min || 30;
+    // Ensure durationMinutes has a valid fallback
+    const durationMinutes = parsed.request?.durationMinutes 
+      || parsed.est_duration_min 
+      || (transformedSets.length > 0 ? Math.ceil(transformedSets.length * 3) : 30); // Estimate 3 min per set
     
     const workout = await insertWorkout({
       userId: authReq.user.id,
