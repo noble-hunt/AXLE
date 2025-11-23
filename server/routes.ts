@@ -1434,6 +1434,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Calendar endpoints
+  app.get("/api/calendar/month/:month", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { month } = req.params; // Format: YYYY-MM
+      
+      // Parse month and get date range in UTC to avoid timezone issues
+      const [year, monthNum] = month.split('-').map(Number);
+      const startDate = new Date(Date.UTC(year, monthNum - 1, 1));
+      const endDate = new Date(Date.UTC(year, monthNum, 0)); // Last day of month
+      
+      // Helper function to format date as YYYY-MM-DD in UTC
+      const formatDateUTC = (date: Date): string => {
+        return date.toISOString().split('T')[0];
+      };
+      
+      // Helper function to get date string from workout createdAt
+      const getWorkoutDateStr = (createdAt: any): string | null => {
+        if (!createdAt) return null;
+        const date = new Date(createdAt);
+        return formatDateUTC(new Date(Date.UTC(
+          date.getFullYear(),
+          date.getMonth(),
+          date.getDate()
+        )));
+      };
+      
+      // Get all workouts for the month
+      const { listWorkouts } = await import("./dal/workouts.js");
+      const allWorkouts = await listWorkouts(authReq.user.id);
+      
+      // Get health reports for the month (using supabaseAdmin for health_reports table)
+      const { supabaseAdmin } = await import("./lib/supabaseAdmin.js");
+      const { data: healthReports } = await supabaseAdmin
+        .from('health_reports')
+        .select('date, metrics, fatigue_score')
+        .eq('user_id', authReq.user.id)
+        .gte('date', formatDateUTC(startDate))
+        .lte('date', formatDateUTC(endDate));
+      
+      // Group data by date - create a new Date object for each iteration
+      const daysSummary: any[] = [];
+      const currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const dateStr = formatDateUTC(currentDate);
+        
+        // Filter workouts for this date
+        const dayWorkouts = allWorkouts.filter(w => {
+          const workoutDateStr = getWorkoutDateStr(w?.createdAt);
+          return workoutDateStr === dateStr;
+        });
+        
+        const healthReport = healthReports?.find(hr => hr.date === dateStr);
+        const metrics = healthReport?.metrics as any || {};
+        
+        daysSummary.push({
+          date: dateStr,
+          workoutCount: dayWorkouts.length,
+          totalDuration: dayWorkouts.reduce((sum, w) => sum + ((w?.request as any)?.duration || 0), 0),
+          sleepHours: metrics.provider?.sleep_score ? (metrics.provider.sleep_score / 100) * 8 : undefined,
+          vitalityScore: metrics.axle?.vitality_score,
+          performancePotential: metrics.axle?.performance_potential,
+        });
+        
+        // Move to next day
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+      }
+      
+      res.json(daysSummary);
+    } catch (error) {
+      console.error("Error fetching calendar month:", error);
+      res.status(500).json({ error: "Failed to fetch calendar data" });
+    }
+  });
+  
+  app.get("/api/calendar/day/:date", requireAuth, async (req, res) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { date } = req.params; // Format: YYYY-MM-DD
+      
+      // Helper function to get date string from workout createdAt in UTC
+      const getWorkoutDateStr = (createdAt: any): string | null => {
+        if (!createdAt) return null;
+        const workoutDate = new Date(createdAt);
+        return new Date(Date.UTC(
+          workoutDate.getFullYear(),
+          workoutDate.getMonth(),
+          workoutDate.getDate()
+        )).toISOString().split('T')[0];
+      };
+      
+      // Get workouts for this date
+      const { listWorkouts } = await import("./dal/workouts.js");
+      const allWorkouts = await listWorkouts(authReq.user.id);
+      const dayWorkouts = allWorkouts.filter(w => {
+        const workoutDateStr = getWorkoutDateStr(w?.createdAt);
+        return workoutDateStr === date;
+      });
+      
+      // Get health report for this date
+      const { supabaseAdmin } = await import("./lib/supabaseAdmin.js");
+      const { data: healthReport } = await supabaseAdmin
+        .from('health_reports')
+        .select('*')
+        .eq('user_id', authReq.user.id)
+        .eq('date', date)
+        .single();
+      
+      const metrics = (healthReport?.metrics as any) || {};
+      
+      // Generate mock heart rate time series for demonstration
+      const generateMockHRTimeSeries = () => {
+        const baseHR = 65;
+        const series = [];
+        for (let hour = 0; hour < 24; hour++) {
+          for (let min = 0; min < 60; min += 15) {
+            const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`;
+            // Simulate lower HR at night, higher during day
+            const variance = hour >= 22 || hour <= 6 ? -5 : 
+                           hour >= 12 && hour <= 14 ? 5 : 0;
+            const value = baseHR + variance + (Math.random() * 4 - 2);
+            series.push({ time: timeStr, value: Math.round(value) });
+          }
+        }
+        return series;
+      };
+      
+      // Build response
+      const dayDetail = {
+        date,
+        workouts: dayWorkouts,
+        healthMetrics: {
+          sleepHours: metrics.provider?.sleep_score ? (metrics.provider.sleep_score / 100) * 8 : undefined,
+          sleepQuality: metrics.provider?.sleep_score,
+          maxHeartRate: 165, // Mock data
+          restingHeartRate: metrics.provider?.resting_hr || 65,
+          restingHeartRateTimeSeries: generateMockHRTimeSeries(),
+          fatigueScore: healthReport?.fatigue_score,
+          circadianAlignment: metrics.axle?.circadian_alignment,
+          energySystemsBalance: metrics.axle?.energy_systems_balance,
+          vitalityScore: metrics.axle?.vitality_score,
+          performancePotential: metrics.axle?.performance_potential,
+        },
+        insights: {
+          summary: `Great day of training! You completed ${dayWorkouts.length} workout${dayWorkouts.length !== 1 ? 's' : ''} and maintained strong health metrics. Your vitality and performance scores show you're recovering well and ready for tomorrow's session.`,
+          goalsProgress: {
+            "Weekly Workouts": `${dayWorkouts.length}/5`,
+            "Sleep Target": metrics.provider?.sleep_score ? `${Math.round(metrics.provider.sleep_score)}%` : "—"
+          },
+          recommendations: [
+            "Maintain current training intensity",
+            "Focus on quality sleep tonight",
+            "Stay hydrated throughout the day"
+          ],
+          bedtimeRecommendation: "Aim for 10:30 PM to get 8 hours of sleep"
+        }
+      };
+      
+      res.json(dayDetail);
+    } catch (error) {
+      console.error("Error fetching calendar day:", error);
+      res.status(500).json({ error: "Failed to fetch day details" });
+    }
+  });
+  
   app.get("/api/achievement-stats", requireAuth, async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;

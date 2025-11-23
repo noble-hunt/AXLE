@@ -46,6 +46,8 @@ import ResetPassword from "@/pages/auth/ResetPassword";
 import PrivacyPolicy from "@/pages/legal/privacy";
 import TermsOfService from "@/pages/legal/terms";
 import { HealthVizPlayground } from "@/components/HealthVizPlayground";
+import Calendar from "@/pages/calendar";
+import DayDetail from "@/pages/calendar/day-detail";
 
 function OverlayWrapper() {
   const search = useSearch();
@@ -98,6 +100,10 @@ function OverlayWrapper() {
         <Route path="/health" component={Health} />
         <Route path="/prs" component={PRs} />
         <Route path="/achievements" component={Achievements} />
+        
+        {/* Calendar routes */}
+        <Route path="/calendar" component={Calendar} />
+        <Route path="/calendar/:date" component={DayDetail} />
         <Route path="/profile" component={() => (
           <ProtectedRoute>
             <Profile />

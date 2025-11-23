@@ -1,11 +1,13 @@
-import { Activity, Palette, ChevronLeft } from "lucide-react"
+import { Calendar, Palette, ArrowLeft } from "lucide-react"
 import { useTheme } from "@/components/ui/theme-provider"
 import { Button } from "@/components/ui/button"
 import { useLocation } from "wouter"
 
 export function TopAppBar() {
   const { theme, setTheme } = useTheme()
-  const [location] = useLocation()
+  const [location, setLocation] = useLocation()
+  
+  const isHomePage = location === "/"
 
   const toggleTheme = () => {
     // Cycle through all 4 themes: boomer-light → rainbow-sherbet → mocha-professional → deep-blue-bush → boomer-light
@@ -15,35 +17,47 @@ export function TopAppBar() {
     setTheme(themes[nextIndex])
   }
 
-  const handleBack = () => {
-    window.history.back()
+  const handleCalendarClick = () => {
+    setLocation("/calendar")
   }
 
-  // Show back button on all pages except home
-  const showBackButton = location !== "/"
+  const handleBackClick = () => {
+    setLocation("/")
+  }
 
   return (
     <header className="sticky top-0 z-50 bg-white/10 dark:bg-black/10 backdrop-blur-lg border-b border-border/50 px-4 py-3">
       <div className="flex items-center justify-between max-w-sm mx-auto">
-        <div className="flex items-center gap-3">
-          {showBackButton && (
+        {/* Left: Back Button (when not on home) + Calendar Icon */}
+        <div className="flex items-center gap-2">
+          {!isHomePage && (
             <Button
-              onClick={handleBack}
+              onClick={handleBackClick}
               size="icon"
               variant="ghost"
-              className="w-9 h-9 rounded-xl hover:bg-accent/50 transition-colors duration-200"
+              className="w-10 h-10 rounded-2xl bg-card hover:bg-accent transition-colors duration-200 card-shadow"
               data-testid="back-button"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 transition-all" />
               <span className="sr-only">Go back</span>
             </Button>
           )}
-          <div className="w-8 h-8 rounded-2xl bg-primary flex items-center justify-center">
-            <Activity className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight" data-testid="app-title">AXLE</h1>
+          <Button
+            onClick={handleCalendarClick}
+            size="icon"
+            variant="ghost"
+            className="w-10 h-10 rounded-2xl bg-card hover:bg-accent transition-colors duration-200 card-shadow"
+            data-testid="calendar-button"
+          >
+            <Calendar className="h-5 w-5 transition-all" />
+            <span className="sr-only">Open calendar</span>
+          </Button>
         </div>
         
+        {/* Center: AXLE Text */}
+        <h1 className="text-xl font-bold tracking-tight absolute left-1/2 transform -translate-x-1/2" data-testid="app-title">AXLE</h1>
+        
+        {/* Right: Theme Icon */}
         <Button
           onClick={toggleTheme}
           size="icon"

@@ -271,6 +271,20 @@ export const healthReports = pgTable("health_reports", {
   fatigueScore: real("fatigue_score"), // 0.0-1.0 fatigue score based on health metrics
 });
 
+// DAILY INSIGHTS - AI-generated insights for each day
+export const dailyInsights = pgTable("daily_insights", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull(), // References auth.users(id) in Supabase
+  date: date("date").notNull(),
+  insight: text("insight").notNull(), // AI-generated insight paragraph
+  goalsProgress: jsonb("goals_progress"), // Progress towards goals and achievements
+  recommendations: text("recommendations").array().default(sql`'{}'`), // Suggestions for tomorrow
+  bedtimeRecommendation: text("bedtime_recommendation"), // When they should go to bed
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueUserDate: uniqueIndex("daily_insights_user_date_unique").on(table.userId, table.date),
+}));
+
 // DEVICE TOKENS - Push notification device tokens
 export const deviceTokens = pgTable("device_tokens", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
