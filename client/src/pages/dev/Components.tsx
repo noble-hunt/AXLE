@@ -70,7 +70,7 @@ export default function ComponentsDemo() {
         </NavBarContent>
       </NavBar>
 
-      <div className="p-6 space-y-8">
+      <div className="space-y-8">
         {/* Header */}
         <motion.div variants={item} className="text-center space-y-2">
           <h1 className="text-display text-foreground" data-testid="demo-title">
@@ -357,7 +357,7 @@ export default function ComponentsDemo() {
         {/* Component Features */}
         <motion.section variants={item} className="space-y-4">
           <h2 className="text-title text-foreground">Features</h2>
-          <Card className="p-6">
+          <Card>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-headline font-semibold mb-2 flex items-center gap-2">

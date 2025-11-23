@@ -65,14 +65,14 @@ export function GroupWorkoutEventCard({
   
   return (
     <Card 
-      className="rounded-2xl bg-zinc-900/70 border border-white/10 p-4 md:p-5 space-y-4 cursor-pointer break-words"
+      className="rounded-2xl bg-zinc-900/70 border border-white/10 p-5 md:p-6 space-y-5 cursor-pointer break-words"
       onContextMenu={onContextMenu ? (e) => onContextMenu(e, post.id) : undefined}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       data-testid={`group-workout-post-${post.id}`}
     >
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
           <Dumbbell className="w-6 h-6 text-primary" />
         </div>
@@ -101,15 +101,15 @@ export function GroupWorkoutEventCard({
       </div>
 
       {/* Event Details */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-white/90">
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 text-white/90">
           <Calendar className="w-5 h-5 text-primary" />
           <span className="font-medium">{eventDate.toLocaleDateString()}</span>
           <Clock className="w-5 h-5 text-white/70 ml-3" />
           <span>{eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
         
-        <div className="flex items-center gap-2 text-white/70">
+        <div className="flex items-center gap-3 text-white/70">
           <Target className="w-5 h-5" />
           <span>{durationMin || 60} minutes</span>
           {post.content.location && (
@@ -123,7 +123,7 @@ export function GroupWorkoutEventCard({
 
       {/* Workout Summary */}
       {workoutData && (
-        <div className="bg-background/50 rounded-lg p-3 mb-4 border border-border/50">
+        <div className="bg-background/50 rounded-lg p-4 mb-4 border border-border/50">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-chart-2" />
@@ -158,7 +158,7 @@ export function GroupWorkoutEventCard({
           </p>
           
           {/* Workout Stats */}
-          <div className="grid grid-cols-1 gap-3 mt-3 text-center">
+          <div className="grid grid-cols-1 gap-4 mt-3 text-center">
             <div>
               <div className="text-lg font-bold text-chart-3">{workoutData.sets?.length || 0}</div>
               <div className="text-xs text-muted-foreground">exercises</div>
@@ -172,7 +172,7 @@ export function GroupWorkoutEventCard({
                 <Trophy className="w-4 h-4 text-primary" />
                 Workout Plan
               </h4>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
+              <div className="space-y-3 max-h-32 overflow-y-auto">
                 {workoutData.sets.slice(0, 5).map((set: any, index: number) => (
                   <div key={index} className="text-xs">
                     <div className="font-medium text-foreground">{set.exercise}</div>
@@ -198,7 +198,7 @@ export function GroupWorkoutEventCard({
 
       {/* RSVP Section */}
       <div className="border-t border-border/50 pt-3">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-3 mb-3">
           <Users className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium">Who's joining?</span>
         </div>

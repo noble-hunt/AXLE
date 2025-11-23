@@ -544,7 +544,7 @@ export function WorkoutWizard() {
       </div>
 
       {/* Step Content */}
-      <Card className="p-4">
+      <Card>
         {currentStep === 1 && (
           <ArchetypeStep
             value={wizardState.archetype}
@@ -589,7 +589,7 @@ export function WorkoutWizard() {
 
       {/* Navigation */}
       {currentStep < 5 && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Validation Error */}
           {getValidationError() && (
             <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
@@ -597,7 +597,7 @@ export function WorkoutWizard() {
             </div>
           )}
           
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-5">
             <Button
               variant="secondary"
               onClick={prevStep}

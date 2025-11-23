@@ -223,7 +223,7 @@ export default function WorkoutDetail() {
   if (showSuccessState) {
     return (
       <motion.div 
-        className="min-h-screen flex flex-col items-center justify-center space-y-6 p-6"
+        className="min-h-screen flex flex-col items-center justify-center space-y-6 p-7"
         variants={fadeIn}
         initial="initial"
         animate="animate"
@@ -240,8 +240,8 @@ export default function WorkoutDetail() {
           <p className="text-body text-muted-foreground">Amazing work on "{workout.title || workout.name}"</p>
         </div>
 
-        <Card className="p-6 w-full max-w-sm">
-          <div className="space-y-4">
+        <Card className="w-full max-w-sm">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
               <span className="text-body text-muted-foreground">Perceived Intensity (RPE)</span>
               <span className="text-subheading font-bold text-foreground">{workout.feedback?.difficulty || 'N/A'}/10</span>
@@ -249,7 +249,7 @@ export default function WorkoutDetail() {
           </div>
         </Card>
 
-        <div className="space-y-3 w-full max-w-sm">
+        <div className="space-y-4 w-full max-w-sm">
           <Button className="w-full" onClick={() => setLocation(ROUTES.HISTORY)}>
             View All Workouts
           </Button>
@@ -269,7 +269,7 @@ export default function WorkoutDetail() {
       animate="animate"
     >
       {/* Header */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <h1 className="text-heading font-bold text-foreground">{(workout as any)?.title || (workout as any)?.name}</h1>
@@ -336,7 +336,7 @@ Intensity {(workout as any)?.intensity}/10
 
         {/* Description */}
         {(workout as any)?.description && (
-          <Card className="p-4">
+          <Card>
             <p className="text-body text-muted-foreground">{(workout as any)?.description}</p>
           </Card>
         )}
@@ -344,7 +344,7 @@ Intensity {(workout as any)?.intensity}/10
 
       {/* AI Insights Section */}
       {((workout as any)?.rendered || (workout as any)?.rationale || (workout as any)?.criticScore || (workout as any)?.criticIssues) && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <h2 className="text-subheading font-semibold text-foreground flex items-center gap-2">
             <Brain className="w-5 h-5" />
             AI Insights
@@ -352,7 +352,7 @@ Intensity {(workout as any)?.intensity}/10
           
           {/* Critic Score */}
           {(workout as any)?.criticScore && (
-            <Card className="p-4">
+            <Card>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-body font-medium text-foreground">Quality Score</span>
                 <div className="flex items-center gap-2">
@@ -377,7 +377,7 @@ Intensity {(workout as any)?.intensity}/10
 
           {/* Rationale */}
           {(workout as any)?.rationale && (
-            <Card className="p-4">
+            <Card>
               <div className="flex items-center gap-2 mb-2">
                 <ThumbsUp className="w-4 h-4 text-muted-foreground" />
                 <span className="text-body font-medium text-foreground">AI Rationale</span>
@@ -388,7 +388,7 @@ Intensity {(workout as any)?.intensity}/10
 
           {/* Critic Issues */}
           {(workout as any)?.criticIssues && (workout as any)?.criticIssues.length > 0 && (
-            <Card className="p-4">
+            <Card>
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-4 h-4 text-yellow-600" />
                 <span className="text-body font-medium text-foreground">Areas for Improvement</span>
@@ -406,7 +406,7 @@ Intensity {(workout as any)?.intensity}/10
 
           {/* Rendered Workout */}
           {(workout as any)?.rendered && (
-            <Card className="p-4">
+            <Card>
               <div className="flex items-center gap-2 mb-3">
                 <Dumbbell className="w-4 h-4 text-muted-foreground" />
                 <span className="text-body font-medium text-foreground">Professional Format</span>
@@ -420,7 +420,7 @@ Intensity {(workout as any)?.intensity}/10
       )}
 
       {/* Workout Sets as Cards */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         <h2 className="text-subheading font-semibold text-foreground">Workout Structure</h2>
         
         {(workout as any)?.sets?.map((set: any, index: number) => {
@@ -433,10 +433,10 @@ Intensity {(workout as any)?.intensity}/10
           }
           
           return (
-            <Card key={index} className="p-4" data-testid={`exercise-set-${index}`}>
+            <Card key={index} data-testid={`exercise-set-${index}`}>
               <div className="space-y-2">
                 <h3 className="text-body font-semibold text-foreground">{set.exercise}</h3>
-                <div className="grid grid-cols-2 gap-4 text-caption text-muted-foreground">
+                <div className="grid grid-cols-2 gap-5 text-caption text-muted-foreground">
                   {set.reps && <div>Reps: {set.reps}</div>}
                   {set.weight && <div>Weight: {set.weight} lbs</div>}
                   {set.duration && <div>Duration: {set.duration}s</div>}
@@ -453,7 +453,7 @@ Intensity {(workout as any)?.intensity}/10
 
       {/* Action Buttons */}
       {!(workout as any)?.completed && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <Button 
             variant="secondary" 
             className="w-full"
@@ -487,7 +487,7 @@ Intensity {(workout as any)?.intensity}/10
         onOpenChange={setShowCompletionSheet}
         data-testid="completion-sheet"
       >
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           <div className="text-center space-y-2">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
               <Award className="w-6 h-6 text-primary" />
@@ -499,7 +499,7 @@ Intensity {(workout as any)?.intensity}/10
           <form onSubmit={form.handleSubmit(handleCompleteWorkout)} className="space-y-6">
             
             {/* RPE Selection */}
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="text-center space-y-2">
                 <label className="text-body font-medium text-foreground">
                   How intense was this workout?
@@ -508,7 +508,7 @@ Intensity {(workout as any)?.intensity}/10
               </div>
               
               {/* Quick tap grid for RPE 1-10 */}
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-5 gap-4">
                 {Array.from({ length: 10 }, (_, i) => i + 1).map((rpe) => (
                   <button
                     key={rpe}
@@ -549,7 +549,7 @@ Intensity {(workout as any)?.intensity}/10
             </div>
 
             {/* Action Buttons */}
-            <div className="space-y-3 pt-4">
+            <div className="space-y-4 pt-4">
               <Button
                 type="submit"
                 className="w-full"

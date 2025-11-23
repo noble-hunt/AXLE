@@ -130,7 +130,7 @@ export default function EditProfile() {
 
         {/* Form */}
         <motion.div variants={slideUp}>
-          <Card className="p-6 space-y-6">
+          <Card className="space-y-6">
             <div className="space-y-4">
               <div>
                 <Label htmlFor="firstName" className="text-body font-medium text-foreground">
@@ -213,7 +213,7 @@ export default function EditProfile() {
 
         {/* Password Reset Section */}
         <motion.div variants={slideUp}>
-          <Card className="p-6 space-y-4">
+          <Card className="space-y-4">
             <div className="flex items-center gap-2 pb-2">
               <KeyRound className="w-5 h-5 text-primary" />
               <h2 className="text-lg font-semibold text-foreground">Password & Security</h2>

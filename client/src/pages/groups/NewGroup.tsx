@@ -140,7 +140,7 @@ export default function NewGroup() {
         <SectionTitle title="Create New Group" />
       </div>
 
-      <Card className="p-6">
+      <Card>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Photo Upload */}
           <div className="space-y-3">

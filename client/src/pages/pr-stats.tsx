@@ -151,7 +151,7 @@ export default function PRStats() {
         initial="initial"
         animate="animate"
       >
-        <Card className="p-5">
+        <Card>
           <div className="text-center space-y-3">
             <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center mx-auto">
               <Activity className="w-6 h-6 text-destructive" />
@@ -266,7 +266,7 @@ export default function PRStats() {
         
         {/* Key PR Metrics */}
         <div className="grid grid-cols-3 gap-4">
-          <Card className="p-5" data-testid="total-prs-card">
+          <Card data-testid="total-prs-card">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Total PRs</p>
@@ -281,7 +281,7 @@ export default function PRStats() {
             </div>
           </Card>
 
-          <Card className="p-5" data-testid="recent-prs-card">
+          <Card data-testid="recent-prs-card">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Last 30 Days</p>
@@ -302,7 +302,7 @@ export default function PRStats() {
             </div>
           </Card>
 
-          <Card className="p-5" data-testid="pr-streak-card">
+          <Card data-testid="pr-streak-card">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Current Streak</p>
@@ -319,7 +319,7 @@ export default function PRStats() {
         </div>
 
         {/* Milestone Progress */}
-        <Card className="p-5">
+        <Card>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-body font-semibold text-foreground">Milestone Progress</h3>
@@ -341,7 +341,7 @@ export default function PRStats() {
 
         {/* PR Velocity Chart */}
         {monthlyData.length > 0 && (
-          <Card className="p-5">
+          <Card>
             <h3 className="text-body font-semibold text-foreground mb-4">
               PR Velocity {timeRange === 'month' ? '(This Month)' : timeRange === 'year' ? '(This Year)' : '(All Time)'}
             </h3>
@@ -380,7 +380,7 @@ export default function PRStats() {
 
         {/* Category Distribution */}
         {categoryData.length > 0 && (
-          <Card className="p-5">
+          <Card>
             <h3 className="text-body font-semibold text-foreground mb-4">PR Distribution by Category</h3>
             <ResponsiveContainer width="100%" height={250}>
               <RechartsPieChart>
@@ -416,7 +416,7 @@ export default function PRStats() {
 
         {/* Top Improvements */}
         {prStats.topImprovements && prStats.topImprovements.length > 0 && (
-          <Card className="p-5">
+          <Card>
             <h3 className="text-body font-semibold text-foreground mb-4">Top Improvements</h3>
             <div className="space-y-3">
               {prStats.topImprovements.slice(0, 5).map((improvement: any, index: number) => (
@@ -443,7 +443,7 @@ export default function PRStats() {
         
         {/* Key Achievement Metrics */}
         <div className="grid grid-cols-3 gap-4">
-          <Card className="p-5" data-testid="total-achievements-card">
+          <Card data-testid="total-achievements-card">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Unlocked</p>
@@ -458,7 +458,7 @@ export default function PRStats() {
             </div>
           </Card>
 
-          <Card className="p-5" data-testid="completion-rate-card">
+          <Card data-testid="completion-rate-card">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Completion</p>
@@ -473,7 +473,7 @@ export default function PRStats() {
             </div>
           </Card>
 
-          <Card className="p-5" data-testid="recent-unlocks-card">
+          <Card data-testid="recent-unlocks-card">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-caption text-muted-foreground">Last 30 Days</p>
@@ -491,7 +491,7 @@ export default function PRStats() {
 
         {/* Next Targets */}
         {achievementStats.nextTargets && achievementStats.nextTargets.length > 0 && (
-          <Card className="p-5">
+          <Card>
             <h3 className="text-body font-semibold text-foreground mb-4">Next Achievements to Unlock</h3>
             <div className="space-y-3">
               {achievementStats.nextTargets.map((target: any, index: number) => (
@@ -520,7 +520,7 @@ export default function PRStats() {
 
         {/* Recent Achievements */}
         {achievementStats.recentAchievements && achievementStats.recentAchievements.length > 0 && (
-          <Card className="p-5">
+          <Card>
             <h3 className="text-body font-semibold text-foreground mb-4">Recently Unlocked</h3>
             <div className="space-y-3">
               {achievementStats.recentAchievements.map((achievement: any, index: number) => (

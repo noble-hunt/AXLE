@@ -213,15 +213,15 @@ export default function PRs() {
         initial="initial"
         animate="animate"
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className="h-8 bg-muted rounded-2xl w-48 animate-pulse" />
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-5">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-20 bg-muted rounded-2xl animate-pulse" />
             ))}
           </div>
           <div className="h-10 bg-muted rounded-2xl animate-pulse" />
-          <div className="grid gap-4">
+          <div className="grid gap-5">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="h-24 bg-muted rounded-2xl animate-pulse" />
             ))}
@@ -247,7 +247,7 @@ export default function PRs() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-5">
         <StatBadge
           icon={<Trophy className="w-4 h-4" />}
           value={totalPRs.toString()}
@@ -308,7 +308,7 @@ export default function PRs() {
       </div>
 
       {/* Movements Grid */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="text-subheading font-semibold text-foreground">
             {activeCategory} Movements
@@ -325,7 +325,7 @@ export default function PRs() {
         </div>
 
         {movements.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 space-y-3">
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
               <Target className="w-8 h-8 text-muted-foreground" />
             </div>
@@ -340,7 +340,7 @@ export default function PRs() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4" data-testid="movements-grid">
+          <div className="grid gap-5" data-testid="movements-grid">
             {movements.map((movement) => {
               // Determine the correct category to pass to MovementCard
               let movementCategory: MovementCategory
@@ -368,7 +368,7 @@ export default function PRs() {
 
       {/* Empty State */}
       {totalPRs === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <div className="flex flex-col items-center justify-center py-12 space-y-5">
           <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
             <Trophy className="w-8 h-8 text-muted-foreground" />
           </div>
@@ -400,7 +400,7 @@ export default function PRs() {
             <p className="text-body text-muted-foreground">Set a new PR for your training</p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Movement Picker */}
             <div className="space-y-2">
               <label className="text-body font-medium text-foreground">Movement</label>
@@ -526,7 +526,7 @@ export default function PRs() {
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Button
               className="w-full"
               onClick={handleSubmitPR}

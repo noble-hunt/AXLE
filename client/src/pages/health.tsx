@@ -141,7 +141,7 @@ export default function Health() {
             <div className="text-white/90 text-lg font-semibold mb-2">Today's Metrics</div>
 
             {/* Row 1: Proprietary */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <MetricCard 
                 keyName="axle_health_score" 
                 title="AXLE Health Score" 
@@ -180,7 +180,7 @@ export default function Health() {
             </div>
 
             {/* Row 2: Provider core metrics */}
-            <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className="grid grid-cols-2 gap-4 mt-4">
               <MetricCard 
                 keyName="hrv" 
                 title="HRV" 
@@ -221,7 +221,7 @@ export default function Health() {
             <h2 className="text-subheading font-semibold text-foreground">14-Day Trends</h2>
             
             {/* HRV Chart */}
-            <Card className="p-4" data-testid="hrv-chart">
+            <Card data-testid="hrv-chart">
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Activity className="w-4 h-4 text-primary" />
                 Heart Rate Variability (HRV)
@@ -263,7 +263,7 @@ export default function Health() {
             </Card>
 
             {/* Resting Heart Rate Chart */}
-            <Card className="p-4" data-testid="resting-hr-chart">
+            <Card data-testid="resting-hr-chart">
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Heart className="w-4 h-4 text-red-500" />
                 Resting Heart Rate
@@ -305,7 +305,7 @@ export default function Health() {
             </Card>
 
             {/* Sleep Score Chart */}
-            <Card className="p-4" data-testid="sleep-score-chart">
+            <Card data-testid="sleep-score-chart">
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-blue-500" />
                 Sleep Score
@@ -347,7 +347,7 @@ export default function Health() {
             </Card>
 
             {/* Fatigue Score Chart */}
-            <Card className="p-4" data-testid="fatigue-chart">
+            <Card data-testid="fatigue-chart">
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <BatteryLow className="w-4 h-4 text-amber-500" />
                 Fatigue Score
@@ -412,16 +412,16 @@ export default function Health() {
 
       {/* Connected Devices Status */}
       {connectedProviders.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <h2 className="text-subheading font-semibold text-foreground">Connected Devices</h2>
           
-          <div className="grid gap-3">
+          <div className="grid gap-4">
             {connectedProviders.map((connection: any) => {
               const lastSync = connection.lastSync ? new Date(connection.lastSync) : null
               
               return (
-                <Card key={connection.provider} className="p-4 flex items-center justify-between" data-testid={`connected-${connection.provider}`}>
-                  <div className="flex items-center gap-3">
+                <Card key={connection.provider} className="flex items-center justify-between" data-testid={`connected-${connection.provider}`}>
+                  <div className="flex items-center gap-4">
                     <div className="w-2 h-2 bg-green-500 rounded-full" />
                     <div>
                       <p className="font-medium text-foreground">{connection.provider}</p>

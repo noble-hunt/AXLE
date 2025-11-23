@@ -332,7 +332,7 @@ export default function StatsOverview() {
         initial="initial"
         animate="animate"
       >
-        <Card className="p-5">
+        <Card>
           <div className="text-center space-y-3">
             <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center mx-auto">
               <Activity className="w-6 h-6 text-destructive" />
@@ -375,7 +375,7 @@ export default function StatsOverview() {
             <h1 className="text-heading font-bold text-foreground">Detailed Stats</h1>
           </div>
         </div>
-        <Card className="p-5">
+        <Card>
           <div className="text-center space-y-3">
             <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
               <Sparkles className="w-6 h-6 text-muted-foreground" />
@@ -435,7 +435,7 @@ export default function StatsOverview() {
 
       {/* Empty State Alert - when workouts exist but none in selected range */}
       {hasWorkoutsButNoneInRange && (
-        <Card className="p-5 border-warning/20 bg-warning/5" data-testid="empty-range-alert">
+        <Card className="border-warning/20 bg-warning/5" data-testid="empty-range-alert">
           <div className="flex gap-4">
             <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
               <Info className="w-5 h-5 text-warning" />
@@ -456,7 +456,7 @@ export default function StatsOverview() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-2 gap-4">
-        <Card className="p-5" data-testid="total-workouts-card">
+        <Card data-testid="total-workouts-card">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-caption text-muted-foreground">Total Workouts</p>
@@ -469,7 +469,7 @@ export default function StatsOverview() {
           </div>
         </Card>
 
-        <Card className="p-5" data-testid="total-time-card">
+        <Card data-testid="total-time-card">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-caption text-muted-foreground">Total Time</p>
@@ -482,7 +482,7 @@ export default function StatsOverview() {
           </div>
         </Card>
 
-        <Card className="p-5" data-testid="completion-rate-card">
+        <Card data-testid="completion-rate-card">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-caption text-muted-foreground">Completion Rate</p>
@@ -495,7 +495,7 @@ export default function StatsOverview() {
           </div>
         </Card>
 
-        <Card className="p-5" data-testid="avg-duration-card">
+        <Card data-testid="avg-duration-card">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-caption text-muted-foreground">Avg Duration</p>
@@ -537,7 +537,7 @@ export default function StatsOverview() {
       </div>
 
       {/* Workout Trend Chart */}
-      <Card className="p-5" data-testid="workout-trend-chart">
+      <Card data-testid="workout-trend-chart">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-subheading font-semibold text-foreground">Workout Activity</h3>
@@ -582,7 +582,7 @@ export default function StatsOverview() {
 
       {/* Category Breakdown */}
       {categoryData.length > 0 && (
-        <Card className="p-5" data-testid="category-breakdown-chart">
+        <Card data-testid="category-breakdown-chart">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-subheading font-semibold text-foreground">Category Distribution</h3>
@@ -623,7 +623,7 @@ export default function StatsOverview() {
       )}
 
       {/* Intensity Distribution */}
-      <Card className="p-5" data-testid="intensity-distribution-chart">
+      <Card data-testid="intensity-distribution-chart">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-subheading font-semibold text-foreground">Intensity Levels</h3>
@@ -713,7 +713,7 @@ export default function StatsOverview() {
       </div>
 
       {/* Motivational Footer */}
-      <Card className="p-5 bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20" data-testid="motivation-card">
+      <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20" data-testid="motivation-card">
         <div className="flex items-center gap-3">
           <Sparkles className="w-6 h-6 text-primary" />
           <div className="flex-1">

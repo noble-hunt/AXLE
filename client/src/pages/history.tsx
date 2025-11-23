@@ -187,12 +187,12 @@ export default function History() {
         <div className="space-y-4">
           <div className="h-8 bg-muted rounded-2xl w-48 animate-pulse" />
           <div className="h-10 bg-muted rounded-2xl animate-pulse" />
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-5">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-20 bg-muted rounded-2xl animate-pulse" />
             ))}
           </div>
-          <div className="space-y-4">
+          <div className="space-y-5">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-24 bg-muted rounded-2xl animate-pulse" />
             ))}
@@ -221,7 +221,7 @@ export default function History() {
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="text-body font-medium text-foreground">Category</label>
-          <div className="flex flex-wrap gap-3" data-testid="category-filter-chips">
+          <div className="flex flex-wrap gap-4" data-testid="category-filter-chips">
             {categoryOptions.map((option) => (
               <Chip 
                 key={option.value}
@@ -255,7 +255,7 @@ export default function History() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <label className="text-body font-medium text-foreground">Status</label>
                 <div className="grid grid-cols-3 gap-2">
                   {completionOptions.map((option) => (
@@ -272,7 +272,7 @@ export default function History() {
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <label className="text-body font-medium text-foreground">Source</label>
                 <div className="grid grid-cols-2 gap-2">
                   {sourceOptions.map((option) => (
@@ -294,7 +294,7 @@ export default function History() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-4 pt-2">
+      <div className="grid grid-cols-3 gap-5 pt-2">
         <StatBadge
           icon={<Calendar className="w-4 h-4" />}
           value={filteredWorkouts.length.toString()}
@@ -343,12 +343,12 @@ export default function History() {
               return (
                 <div key={workout.id} className="relative">
                   <Link href={`/workout/${workout.id}`} className="block">
-                    <Card className="p-5 active:scale-98 transition-transform" data-testid={`history-workout-${workout.id}`}>
-                      <div className="space-y-3">
+                    <Card className="active:scale-98 transition-transform" data-testid={`history-workout-${workout.id}`}>
+                      <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <div className="flex-1 space-y-3">
+                          <div className="flex-1 space-y-4">
                             {/* Header Row */}
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-4">
                               <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
                                 <CategoryIcon className="w-5 h-5 text-primary" />
                               </div>
@@ -359,7 +359,7 @@ export default function History() {
                             </div>
                             
                             {/* Chips Row */}
-                            <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-5 flex-wrap">
                               {workoutCategory && (
                                 <Chip variant="default" size="sm">
                                   {workoutCategory}

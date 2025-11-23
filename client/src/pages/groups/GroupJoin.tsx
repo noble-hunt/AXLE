@@ -242,7 +242,7 @@ export default function GroupJoin() {
           </Button>
           <SectionTitle title="Join Group" />
         </div>
-        <Card className="p-6">
+        <Card>
           <div className="text-center p-4 bg-muted/50 rounded-lg mb-4">
             <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-semibold mb-2">You've been invited to join a group</h3>
@@ -288,7 +288,7 @@ export default function GroupJoin() {
         <SectionTitle title="Join Group" />
       </div>
 
-      <Card className="p-6">
+      <Card>
         <div className="flex items-center gap-4 mb-6">
           <Avatar className="w-20 h-20">
             <AvatarImage src={group.photoUrl} alt={group.name} />

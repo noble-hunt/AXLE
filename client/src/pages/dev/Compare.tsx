@@ -59,7 +59,7 @@ export default function Compare() {
       </div>
 
       {!isComparing ? (
-        <Card className="p-6 space-y-6">
+        <Card className="space-y-6">
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Configure Comparison</h2>
 

@@ -118,7 +118,7 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
       data-testid={`movement-card-${movement.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`}
       onClick={() => hasPRs && setIsExpanded(!isExpanded)}
     >
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-4">
         <CardTitle className="text-base flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button
@@ -158,13 +158,13 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-4 min-h-[64px]">
+      <CardContent className="space-y-5 min-h-[64px]">
         {hasPRs ? (
           <>
             {/* Collapsed View - Show Most Recent PR */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 flex-1">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1">
                   <Trophy className="w-5 h-5 text-destructive" />
                   <div className="min-h-[48px] flex flex-col justify-center">
                     <p className="font-bold text-lg" data-testid={`text-latest-pr-value-${movement.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`}>
@@ -205,22 +205,22 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  className="overflow-hidden space-y-4"
+                  className="overflow-hidden space-y-5"
                 >
                   {/* All PRs Section */}
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <h4 className="text-sm font-medium text-muted-foreground">All Personal Records</h4>
-                    <div className="grid gap-2">
+                    <div className="grid gap-3">
                       {Object.entries(bestPRs).map(([repMaxKey, pr]) => {
                         if (!pr) return null
                         
                         return (
                           <div
                             key={repMaxKey}
-                            className="flex items-center justify-between p-2 bg-muted/50 rounded-lg border border-border"
+                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border"
                             data-testid={`current-pr-${repMaxKey.toLowerCase()}`}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                               <Trophy className="w-4 h-4 text-destructive" />
                               <div>
                                 <p className="font-semibold text-sm">
@@ -249,8 +249,8 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
                   </div>
 
                   {/* Progress Chart - Single unified chart for all PR entries */}
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-3">
                       <TrendingUp className="w-4 h-4" />
                       Progress Over Time
                     </h4>
@@ -284,9 +284,9 @@ export function MovementCard({ movement, category, onAddPR }: MovementCardProps)
           </>
         ) : (
           // Empty state - min-height ensures consistent card size
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 flex-1">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1">
                 <Trophy className="w-5 h-5 text-muted-foreground opacity-30" />
                 <div className="min-h-[48px] flex flex-col justify-center">
                   <p className="font-bold text-lg text-muted-foreground">No PRs recorded</p>

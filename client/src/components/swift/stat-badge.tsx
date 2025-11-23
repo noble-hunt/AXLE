@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { forwardRef } from "react";
 
 const statBadgeVariants = cva(
-  "inline-flex items-center gap-2 rounded-xl text-caption font-semibold transition-all duration-200 ease-in-out",
+  "inline-flex items-center gap-3 rounded-xl text-caption font-semibold transition-all duration-200 ease-in-out",
   {
     variants: {
       variant: {

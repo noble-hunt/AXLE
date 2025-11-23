@@ -28,9 +28,9 @@ export function GroupsShortcutCard() {
   // Show sign-in state for unauthenticated users
   if (!isAuthenticated) {
     return (
-      <Card data-testid="groups-shortcut-card-cta" className="w-full p-4">
-        <div className="space-y-4 text-center">
-          <div className="flex items-center justify-center gap-2">
+      <Card data-testid="groups-shortcut-card-cta" className="w-full">
+        <div className="space-y-5 text-center">
+          <div className="flex items-center justify-center gap-3">
             <Users className="h-5 w-5 text-primary" />
             <h3 className="text-body font-medium text-foreground">Groups</h3>
           </div>
@@ -50,9 +50,9 @@ export function GroupsShortcutCard() {
   // Loading state for authenticated users
   if (isLoading) {
     return (
-      <Card data-testid="groups-shortcut-card-loading" className="w-full p-4">
-        <div className="space-y-4 text-center">
-          <div className="flex items-center justify-center gap-2">
+      <Card data-testid="groups-shortcut-card-loading" className="w-full">
+        <div className="space-y-5 text-center">
+          <div className="flex items-center justify-center gap-3">
             <Users className="h-5 w-5 text-primary" />
             <h3 className="text-body font-medium text-foreground">Groups</h3>
           </div>
@@ -68,9 +68,9 @@ export function GroupsShortcutCard() {
   // Error state for authenticated users
   if (error) {
     return (
-      <Card data-testid="groups-shortcut-card-error" className="w-full p-4">
-        <div className="space-y-4 text-center">
-          <div className="flex items-center justify-center gap-2">
+      <Card data-testid="groups-shortcut-card-error" className="w-full">
+        <div className="space-y-5 text-center">
+          <div className="flex items-center justify-center gap-3">
             <Users className="h-5 w-5 text-primary" />
             <h3 className="text-body font-medium text-foreground">Groups</h3>
           </div>
@@ -90,9 +90,9 @@ export function GroupsShortcutCard() {
   // Empty state - no groups
   if (groups.length === 0) {
     return (
-      <Card data-testid="groups-shortcut-card-empty" className="w-full p-4">
-        <div className="space-y-4 text-center">
-          <div className="flex items-center justify-center gap-2">
+      <Card data-testid="groups-shortcut-card-empty" className="w-full">
+        <div className="space-y-5 text-center">
+          <div className="flex items-center justify-center gap-3">
             <Users className="h-5 w-5 text-primary" />
             <h3 className="text-body font-medium text-foreground">Groups</h3>
           </div>
@@ -119,10 +119,10 @@ export function GroupsShortcutCard() {
     <Link href="/groups">
       <Card 
         data-testid="groups-shortcut-card" 
-        className="w-full p-4 active:scale-98 transition-transform cursor-pointer hover:shadow-md"
+        className="w-full active:scale-98 transition-transform cursor-pointer hover:shadow-md"
       >
-        <div className="space-y-4 text-center">
-          <div className="flex items-center justify-center gap-2">
+        <div className="space-y-5 text-center">
+          <div className="flex items-center justify-center gap-3">
             <Users className="h-5 w-5 text-primary" />
             <h3 className="text-body font-medium text-foreground">Your Groups</h3>
             <div className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
@@ -134,7 +134,7 @@ export function GroupsShortcutCard() {
           {/* Render groups based on count */}
           {groupCount === 1 ? (
             // Single group - centered
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden">
                 {displayGroups[0].photoUrl ? (
                   <img 
@@ -153,10 +153,10 @@ export function GroupsShortcutCard() {
             </div>
           ) : (
             // 2 or more groups - side by side
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
                 {displayGroups.map((group) => (
-                  <div key={group.id} className="flex flex-col items-center gap-2">
+                  <div key={group.id} className="flex flex-col items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden">
                       {group.photoUrl ? (
                         <img 

@@ -37,12 +37,12 @@ export default function MetricCard({
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          "rounded-2xl bg-[#1d1f24] px-4 py-3 text-left shadow w-full",
+          "rounded-2xl bg-[#1d1f24] px-5 py-4 text-left shadow w-full",
           "hover:bg-[#20242b] active:bg-[#1b1e24] transition-colors"
         )}
         data-testid={`metric-card-${keyName}`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {icon && (
             <span className="flex-shrink-0 opacity-80">
               {icon}
@@ -72,12 +72,12 @@ export default function MetricCard({
             <div
               className="mx-auto w-full max-w-[420px] sm:max-w-[480px]
                          rounded-t-2xl bg-[#101215] shadow-lg
-                         px-4 pt-4 pb-[calc(env(safe-area-inset-bottom,0)+1rem)]
+                         px-5 pt-5 pb-[calc(env(safe-area-inset-bottom,0)+1rem)]
                          max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="mb-3">
+              <div className="mb-4">
                 <div className="text-white/90 text-lg font-semibold">{title}</div>
                 <div className="text-white/60 text-sm">
                   Current: {latest != null ? `${latest}${unit ?? ""}` : "--"}
@@ -85,7 +85,7 @@ export default function MetricCard({
               </div>
 
               {/* Chart */}
-              <div className="h-44 sm:h-48 mb-3">
+              <div className="h-44 sm:h-48 mb-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={series.map((d: any) => ({ x: d.date, y: d.value }))}>
                     <XAxis dataKey="x" hide />

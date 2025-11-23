@@ -40,18 +40,18 @@ function QuickStats() {
   const currentStreak = 7 // This could be calculated based on consecutive workout days
 
   return (
-    <div className="grid grid-cols-3 gap-3">
-      <Card className="p-4 text-center">
+    <div className="grid grid-cols-3 gap-4">
+      <Card className="text-center">
         <Activity className="w-6 h-6 text-info mx-auto mb-2" />
         <p className="text-heading font-bold text-foreground">{thisWeekWorkouts}</p>
         <p className="text-caption text-muted-foreground">Workouts This Week</p>
       </Card>
-      <Card className="p-4 text-center">
+      <Card className="text-center">
         <Trophy className="w-6 h-6 text-warning mx-auto mb-2" />
         <p className="text-heading font-bold text-foreground">{totalPRs}</p>
         <p className="text-caption text-muted-foreground">Personal Records</p>
       </Card>
-      <Card className="p-4 text-center">
+      <Card className="text-center">
         <Flame className="w-6 h-6 text-accent mx-auto mb-2" />
         <p className="text-heading font-bold text-foreground">{currentStreak}</p>
         <p className="text-caption text-muted-foreground">Day<br />Streak</p>
@@ -63,10 +63,10 @@ function QuickStats() {
 // Health Insights Component - Shows zeroed out data when no health data is available
 function HealthInsights() {
   return (
-    <div className="space-y-3">
-      <Card className="p-4">
+    <div className="space-y-4">
+      <Card>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
               <Heart className="w-5 h-5 text-accent" />
             </div>
@@ -79,9 +79,9 @@ function HealthInsights() {
         </div>
       </Card>
       
-      <Card className="p-4">
+      <Card>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-info" />
             </div>
@@ -200,14 +200,14 @@ export default function Home() {
             </Button>
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-5">
             {recentWorkouts.length > 0 ? (
               recentWorkouts.slice(0, 3).map((workout) => (
                 <div key={workout.id} className="relative">
                   <Link href={`/workout/${workout.id}`} className="block">
-                    <Card className="p-4 active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
+                    <Card className="active:scale-98 transition-transform" data-testid={`recent-workout-${workout.id}`}>
                       <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
                             <Dumbbell className="w-5 h-5 text-success" />
                           </div>
@@ -227,7 +227,7 @@ export default function Home() {
                 </div>
               ))
             ) : (
-              <Card className="p-6 text-center">
+              <Card className="text-center">
                 <Dumbbell className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                 <p className="text-body text-muted-foreground mb-2">No workouts yet</p>
                 <p className="text-caption text-muted-foreground">Start your fitness journey by generating your first workout!</p>
@@ -255,7 +255,7 @@ export default function Home() {
         onOpenChange={setShowWorkoutGenerator}
         data-testid="workout-generator-sheet"
       >
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           <div className="text-center space-y-2">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
               <Sparkles className="w-6 h-6 text-primary" />

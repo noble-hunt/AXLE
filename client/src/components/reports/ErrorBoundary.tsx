@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <Card className="p-6" data-testid="error-boundary-fallback">
+        <Card data-testid="error-boundary-fallback">
           <div className="flex flex-col items-center text-center gap-3">
             <AlertTriangle className="w-8 h-8 text-destructive" />
             <div>

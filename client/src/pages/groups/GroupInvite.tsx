@@ -241,7 +241,7 @@ export default function GroupInvite() {
       </div>
 
       {/* Group Info */}
-      <Card className="p-6">
+      <Card>
         <div className="flex items-center gap-4 mb-6">
           <Avatar className="w-16 h-16">
             <AvatarImage src={group.photoUrl} alt={group.name} />

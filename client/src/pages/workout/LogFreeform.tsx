@@ -496,7 +496,7 @@ export default function LogFreeform() {
       </div>
 
       {/* Instructions */}
-      <Card className="p-4">
+      <Card>
         <p className="text-sm text-muted-foreground">
           Describe your workout in plain English. Include category or style (e.g., CrossFit/HIIT, Powerlifting, Aerobic), 
           format (EMOM/AMRAP/For time/Strength), sets & reps, weights or time caps, and total time.
@@ -507,7 +507,7 @@ export default function LogFreeform() {
       </Card>
 
       {/* Text Input Area */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="relative">
           <textarea
             value={transcript}
@@ -563,8 +563,8 @@ export default function LogFreeform() {
 
       {/* Environmental Issues Warning */}
       {typeof window !== 'undefined' && (!window.isSecureContext || window.top !== window) && (
-        <Card className="p-4 border-warning bg-warning/10">
-          <div className="space-y-3">
+        <Card className="border-warning bg-warning/10">
+          <div className="space-y-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-warning" />
               <p className="text-sm font-medium text-warning">Voice recognition requires secure context</p>
@@ -588,8 +588,8 @@ export default function LogFreeform() {
 
       {/* Voice Diagnostics Panel */}
       {showDiagnostics && diagnostics && (
-        <Card className="p-4 bg-muted/30">
-          <div className="space-y-3">
+        <Card className="bg-muted/30">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Voice Recognition Diagnostics</h3>
               <Button
@@ -616,7 +616,7 @@ export default function LogFreeform() {
 
       {/* Error Display */}
       {error && (
-        <Card className="p-4 border-destructive bg-destructive/5">
+        <Card className="border-destructive bg-destructive/5">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-destructive" />
             <p className="text-sm text-destructive">{error}</p>
@@ -640,7 +640,7 @@ export default function LogFreeform() {
 
       {/* Audio Recording Status */}
       {audioBlob && (
-        <Card className="p-4 bg-secondary/20 border-secondary">
+        <Card className="bg-secondary/20 border-secondary">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Mic className="w-4 h-4 text-secondary-foreground" />
@@ -666,7 +666,7 @@ export default function LogFreeform() {
 
       {/* Parsed Preview */}
       {parsed && (
-        <Card className="p-6 space-y-4">
+        <Card className="space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-foreground">Workout Preview</h3>
             <div className="flex items-center gap-2">
@@ -825,7 +825,7 @@ export default function LogFreeform() {
 
       {/* Manual Form (fallback) */}
       {showManualForm && !parsed && (
-        <Card className="p-6 space-y-4">
+        <Card className="space-y-5">
           <h3 className="text-lg font-semibold text-foreground">Manual Entry</h3>
           <p className="text-sm text-muted-foreground">
             Enter your workout details manually if parsing failed.

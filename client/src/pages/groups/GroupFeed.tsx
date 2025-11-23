@@ -85,7 +85,7 @@ function PhotoPicker({ groupId, value, onChange }: { groupId: string; value?: st
     }
   };
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-5">
       <img 
         src={value || ''} 
         className="h-16 w-16 rounded-xl object-cover bg-muted" 
@@ -1260,8 +1260,8 @@ export default function GroupFeedPage() {
     const reactions = postReactions[post.id] || [];
     
     return (
-      <Card key={post.id} className="rounded-2xl bg-zinc-900/70 border border-white/10 p-3 space-y-3" data-testid={`post-${post.id}`}>
-        <div className="flex gap-3">
+      <Card key={post.id} className="rounded-2xl bg-zinc-900/70 border border-white/10 p-3 space-y-4" data-testid={`post-${post.id}`}>
+        <div className="flex gap-4">
           <Avatar className="w-10 h-10 flex-shrink-0">
             <AvatarImage src={post.authorAvatar} alt={post.authorName} />
             <AvatarFallback className="text-sm">
@@ -1298,7 +1298,7 @@ export default function GroupFeedPage() {
           
             {post.kind === "workout" && (
               <div 
-                className="bg-white/5 rounded-xl p-4 cursor-pointer break-words"
+                className="bg-white/5 rounded-xl p-5 cursor-pointer break-words"
                 onContextMenu={(e) => handlePostInteraction(e, post.id)}
                 onTouchStart={(e) => {
                   const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
@@ -1374,7 +1374,7 @@ export default function GroupFeedPage() {
               />
             ) : (
               <div 
-                className="bg-white/5 rounded-xl p-4 cursor-pointer break-words"
+                className="bg-white/5 rounded-xl p-5 cursor-pointer break-words"
                 onContextMenu={(e) => handlePostInteraction(e, post.id)}
                 onTouchStart={(e) => {
                   const timeout = setTimeout(() => handlePostInteraction(e, post.id), 500);
@@ -1465,7 +1465,7 @@ export default function GroupFeedPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -1491,9 +1491,9 @@ export default function GroupFeedPage() {
   return (
     <div className="flex flex-col min-h-[100dvh] max-h-[100dvh]">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b bg-background/95 backdrop-blur-sm">
+      <div className="flex-shrink-0 p-5 border-b bg-background/95 backdrop-blur-sm">
         {/* First line: Back button, Avatar, Group name and info */}
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-4 mb-3">
           <BackButton fallbackPath="/groups" />
           
           <Avatar className="w-8 h-8">
@@ -1581,11 +1581,11 @@ export default function GroupFeedPage() {
             <DialogHeader>
               <DialogTitle>Edit Group</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-5">
               {/* Group Details Section */}
               <div>
                 <h3 className="font-medium mb-3">Group Details</h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
                     <Label htmlFor="group-name">Group Name</Label>
                     <Input
@@ -1712,7 +1712,7 @@ export default function GroupFeedPage() {
               </div>
 
               {/* Chat & Group Actions - Owner only */}
-              <div className="border-t pt-4 space-y-3">
+              <div className="border-t pt-4 space-y-4">
                 <h3 className="font-medium">Group Actions</h3>
                 <div className="flex gap-2">
                   <Button
@@ -1765,7 +1765,7 @@ export default function GroupFeedPage() {
         {/* Event reminder banner */}
         {groupId && <EventReminderBanner groupId={groupId} />}
         
-        <div className="space-y-3"
+        <div className="space-y-4"
           style={{
             height: `${virtualizer.getTotalSize()}px`,
             width: '100%',
@@ -1797,7 +1797,7 @@ export default function GroupFeedPage() {
           
           {/* Typing indicators */}
           {typingMembers.length > 0 && (
-            <div className="flex gap-3 mb-4 opacity-60">
+            <div className="flex gap-4 mb-4 opacity-60">
               <Avatar className="w-8 h-8 flex-shrink-0">
                 <AvatarFallback className="text-xs">
                   {getInitials(typingMembers[0].displayName)}
@@ -1887,7 +1887,7 @@ export default function GroupFeedPage() {
       )}
 
       {/* Composer */}
-      <div className="sticky bottom-0 flex-shrink-0 p-4 border-t bg-background/95 backdrop-blur-sm" style={{ paddingBottom: `calc(1rem + env(safe-area-inset-bottom))` }}>
+      <div className="sticky bottom-0 flex-shrink-0 p-5 border-t bg-background/95 backdrop-blur-sm" style={{ paddingBottom: `calc(1rem + env(safe-area-inset-bottom))` }}>
         {/* Cross-post selector */}
         {crossPost && (
           <div className="mb-3">
@@ -1915,7 +1915,7 @@ export default function GroupFeedPage() {
           </div>
         )}
         
-        <div className="flex items-end gap-3">
+        <div className="flex items-end gap-4">
           <div className="flex-1">
             <Textarea
               placeholder="Type a message..."
@@ -2046,7 +2046,7 @@ export default function GroupFeedPage() {
             <DialogTitle>Share a Personal Record</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <Label htmlFor="movement">Movement</Label>
               <Input
@@ -2058,7 +2058,7 @@ export default function GroupFeedPage() {
               />
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="reps">Reps</Label>
                 <Select 
@@ -2103,7 +2103,7 @@ export default function GroupFeedPage() {
               </div>
             </div>
             
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-4 pt-4">
               <Button
                 variant="outline"
                 onClick={() => setShowPRModal(false)}
@@ -2131,7 +2131,7 @@ export default function GroupFeedPage() {
             <DialogTitle>Select Groups to Post To</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-3 max-h-80 overflow-y-auto">
+          <div className="space-y-4 max-h-80 overflow-y-auto">
             <div className="flex items-center space-x-2 p-2 rounded border bg-muted">
               <Checkbox checked disabled />
               <Avatar className="w-6 h-6">
@@ -2172,7 +2172,7 @@ export default function GroupFeedPage() {
             ))}
           </div>
           
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-4 pt-4">
             <Button
               variant="outline"
               onClick={() => setShowGroupSelect(false)}

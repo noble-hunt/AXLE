@@ -23,11 +23,11 @@ export default function ProviderCard({
   const isUnavailable = status === "unavailable";
 
   return (
-    <div className="w-full rounded-2xl bg-[#1d1f24] shadow px-5 py-4">
-      <div className="flex items-start justify-between gap-4">
+    <div className="w-full rounded-2xl bg-[#1d1f24] shadow px-6 py-5">
+      <div className="flex items-start justify-between gap-5">
         {/* LEFT: text/status */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span
               className={[
                 "inline-block h-2 w-2 rounded-full",
@@ -57,7 +57,7 @@ export default function ProviderCard({
         </div>
 
         {/* RIGHT: actions (stacked) */}
-        <div className="flex flex-col items-stretch gap-2 shrink-0 w-36">
+        <div className="flex flex-col items-stretch gap-3 shrink-0 w-36">
           {isConnected ? (
             <>
               <button

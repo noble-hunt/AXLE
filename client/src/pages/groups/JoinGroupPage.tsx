@@ -42,7 +42,7 @@ export default function JoinGroupPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 pb-24">
-      <Card className="mt-6 p-6">
+      <Card className="mt-6">
         <div className="flex items-center gap-4">
           {group.photo_url ? (
             <img src={group.photo_url} className="h-12 w-12 rounded-xl object-cover" alt="" />

@@ -48,9 +48,9 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
   };
 
   return (
-    <Card className={`rounded-2xl bg-zinc-900/70 border border-white/10 p-6 space-y-4 ${className}`}>
+    <Card className={`rounded-2xl bg-zinc-900/70 border border-white/10 space-y-5 ${className}`}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Dumbbell className="w-6 h-6 text-primary" />
           <h3 className="text-xl font-semibold text-white/90">Go move! 🔥</h3>
           <Badge variant="secondary" className="bg-white/15 text-white/80 text-xs">
@@ -73,7 +73,7 @@ export function FeedNudgeCard({ groupId, className }: FeedNudgeCardProps) {
         It's been quiet here lately. Time to get the group moving! 💪
       </p>
       
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-3">
         <Button
           onClick={handleGenerateWorkout}
           size="sm"

@@ -50,7 +50,7 @@ function HealthConnections() {
   const [, setLocation] = useLocation()
   
   return (
-    <Card className="p-6">
+    <Card>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-subheading font-semibold text-foreground">Health Connections</h3>
         <Button 
@@ -63,9 +63,9 @@ function HealthConnections() {
         </Button>
       </div>
       
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center">
               <div className="w-4 h-4 bg-white rounded-sm"></div>
             </div>
@@ -78,7 +78,7 @@ function HealthConnections() {
         </div>
         
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
               <div className="w-4 h-4 bg-white rounded-sm"></div>
             </div>
@@ -91,7 +91,7 @@ function HealthConnections() {
         </div>
         
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-lg bg-gray-400 flex items-center justify-center">
               <div className="w-4 h-4 bg-white rounded-sm"></div>
             </div>
@@ -120,26 +120,26 @@ function YourStats() {
   return (
     <div>
       <h3 className="text-subheading font-semibold text-foreground mb-4">Your Stats</h3>
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="p-4 text-center" data-testid="stat-card-workouts">
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="text-center" data-testid="stat-card-workouts">
           <Dumbbell className="w-6 h-6 text-primary mx-auto mb-2" />
           <p className="text-heading font-bold text-foreground">{totalWorkouts}</p>
           <p className="text-caption text-muted-foreground">Total Workouts</p>
         </Card>
         
-        <Card className="p-4 text-center" data-testid="stat-card-prs">
+        <Card className="text-center" data-testid="stat-card-prs">
           <Trophy className="w-6 h-6 text-accent mx-auto mb-2" />
           <p className="text-heading font-bold text-foreground">{totalPRs}</p>
           <p className="text-caption text-muted-foreground">Personal Records</p>
         </Card>
         
-        <Card className="p-4 text-center" data-testid="stat-card-active-days">
+        <Card className="text-center" data-testid="stat-card-active-days">
           <Calendar className="w-6 h-6 text-primary mx-auto mb-2" />
           <p className="text-heading font-bold text-foreground">{activeDays}</p>
           <p className="text-caption text-muted-foreground">Active Days</p>
         </Card>
         
-        <Card className="p-4 text-center" data-testid="stat-card-volume">
+        <Card className="text-center" data-testid="stat-card-volume">
           <Weight className="w-6 h-6 text-secondary mx-auto mb-2" />
           <p className="text-heading font-bold text-foreground">{totalVolume} lbs</p>
           <p className="text-caption text-muted-foreground">Total Volume</p>
@@ -389,7 +389,7 @@ function NotificationModal() {
       </div>
 
       {/* Platform-specific information */}
-      <div className="rounded-lg bg-muted p-4">
+      <div className="rounded-lg bg-muted p-5">
         <p className="text-caption text-muted-foreground">
           {isNative ? (
             <>✅ Running in native app - APNs and local notifications available</>
@@ -401,7 +401,7 @@ function NotificationModal() {
 
       {/* Test and Unregister buttons */}
       {notificationsEnabled && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex gap-3">
             <Button
               variant="secondary"
@@ -482,7 +482,7 @@ function NotificationModal() {
 
 function AboutModal() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <p className="text-body text-foreground leading-relaxed">
         AXLE health & performance is a wholistic fitness application. Generated workouts based on adjustable variables that learn about you & get better with you everyday. Connect your wearable device and use our proprietary metrics system to gain better insight and understanding into your health journey. Log and track personal records of lifts, cardio / aerobic work, gymnastics, and more. Join groups with your friends, broadcast workouts, complete them together. Unlock achievements, and more.
       </p>
@@ -492,8 +492,8 @@ function AboutModal() {
 
 function PrivacyModal() {
   return (
-    <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-      <div className="space-y-3">
+    <div className="space-y-5 max-h-[70vh] overflow-y-auto">
+      <div className="space-y-4">
         <h3 className="text-subheading font-semibold text-foreground">Axle Privacy Policy</h3>
         <p className="text-caption text-muted-foreground">Effective Date: [Insert Date] • Governing Law: Delaware, U.S.A.</p>
         
@@ -592,8 +592,8 @@ function PrivacyModal() {
 
 function TermsModal() {
   return (
-    <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-      <div className="space-y-3">
+    <div className="space-y-5 max-h-[70vh] overflow-y-auto">
+      <div className="space-y-4">
         <h3 className="text-subheading font-semibold text-foreground">Axle Terms & Conditions</h3>
         <p className="text-caption text-muted-foreground">Effective Date: [Insert Date] • Governing Law: State of Delaware, U.S.A.</p>
         
@@ -688,8 +688,8 @@ function TermsModal() {
 
 function HelpSupportModal() {
   return (
-    <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-      <div className="space-y-3">
+    <div className="space-y-5 max-h-[70vh] overflow-y-auto">
+      <div className="space-y-4">
         <h3 className="text-subheading font-semibold text-foreground">Axle Help & Support Policy</h3>
         <p className="text-caption text-muted-foreground">Effective Date: [Insert Date] • Governing Law: Delaware, U.S.A.</p>
         
@@ -801,10 +801,10 @@ function SettingsSection() {
               <Dialog key={index}>
                 <DialogTrigger asChild>
                   <button
-                    className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                    className="w-full flex items-center justify-between p-5 hover:bg-muted/50 transition-colors"
                     data-testid={`settings-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <item.icon className={`w-5 h-5 ${item.color || 'text-muted-foreground'}`} />
                       <span className="text-body font-medium text-foreground">{item.label}</span>
                     </div>
@@ -824,10 +824,10 @@ function SettingsSection() {
               <button
                 key={index}
                 onClick={() => setLocation(item.path!)}
-                className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center justify-between p-5 hover:bg-muted/50 transition-colors"
                 data-testid={`settings-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <item.icon className={`w-5 h-5 ${item.color || 'text-muted-foreground'}`} />
                   <span className="text-body font-medium text-foreground">{item.label}</span>
                 </div>
@@ -839,7 +839,7 @@ function SettingsSection() {
         
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors"
+          className="w-full flex items-center gap-4 p-5 hover:bg-muted/50 transition-colors"
           data-testid="settings-sign-out"
         >
           <LogOut className="w-5 h-5 text-destructive" />
@@ -989,7 +989,7 @@ export default function Profile() {
         </div>
 
         {/* User Info Section */}
-        <motion.div className="text-center space-y-4" variants={slideUp}>
+        <motion.div className="text-center space-y-5" variants={slideUp}>
           <div className="relative">
             <div className="w-24 h-24 mx-auto rounded-full bg-primary flex items-center justify-center overflow-hidden">
               {avatarUrl ? (
