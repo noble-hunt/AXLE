@@ -12,8 +12,8 @@ const chipVariants = cva(
         default: "bg-muted text-muted-foreground border border-border",
         primary: "bg-primary/10 text-primary border border-primary/20",
         accent: "bg-accent/10 text-accent-foreground border border-accent/20",
-        success: "bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800",
-        warning: "bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800",
+        success: "bg-success/10 text-success border border-success/20",
+        warning: "bg-warning/10 text-warning border border-warning/20",
         destructive: "bg-destructive/10 text-destructive border border-destructive/20",
       },
       size: {
