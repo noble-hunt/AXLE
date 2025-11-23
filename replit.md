@@ -23,6 +23,7 @@ Preferred communication style: Simple, everyday language.
 - **API Validation**: Utilizes Zod schemas for robust request validation.
 - **Workout Generation**: Implements an OpenAI-first approach (gpt-4o-mini) for varied, style-specific, and equipment-aware workout programming, supported by a comprehensive movement registry. Includes mock workout fallbacks, creative titles, score types, and coaching cues.
 - **API Surface**: Provides endpoints for health checks, workout generation, workout simulation, daily workout suggestions, and fetching personal records.
+- **Freeform Workout Logging**: Robust transformer with array validation, comprehensive repScheme fallbacks (handles AMRAP/EMOM edge cases), and smart duration estimation. Uses Drizzle ORM DAL for database layer consistency.
 
 ### Data Layer
 - **Database**: PostgreSQL, managed with Drizzle ORM.
