@@ -93,13 +93,19 @@ export default function WorkoutDetail() {
     mutationFn: async (workoutId: string) => {
       return apiRequest('DELETE', `/api/workouts/${workoutId}`)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/workouts'] })
-      queryClient.invalidateQueries({ queryKey: ['/api/workouts/recent'] })
+    onSuccess: async () => {
+      // Invalidate and wait for refetch to ensure fresh data
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/workouts'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/workouts/recent'] })
+      ]);
+      
       toast({
         title: "Workout deleted",
         description: "The workout has been removed from your history.",
       })
+      
+      // Navigate after cache is invalidated
       setLocation(ROUTES.HISTORY)
     },
     onError: () => {

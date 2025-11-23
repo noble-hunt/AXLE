@@ -1,6 +1,7 @@
 import { authFetch } from '@/lib/authFetch';
 import { toast } from '@/hooks/use-toast';
 import { API_ORIGIN, API_PREFIX } from '@/lib/env';
+import { queryClient } from '@/lib/queryClient';
 
 export async function parseFreeform(text: string) {
   try {
@@ -41,6 +42,11 @@ export async function logFreeform(parsed: any, title?: string) {
     }
     
     const data = await response.json();
+    
+    // Invalidate workout queries to refresh the history page
+    queryClient.invalidateQueries({ queryKey: ['/api/workouts'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/workouts/recent'] });
+    
     return data.id as string;
   } catch (error: any) {
     toast({
