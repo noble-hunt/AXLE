@@ -3,18 +3,27 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    // Extract slug from Vercel's query params
-    const slug = req.query.slug as string[] | string | undefined;
-    const slugPath = Array.isArray(slug) ? slug.join('/') : (slug || '');
+    // Get the original path from Vercel's forwarded headers
+    // Vercel populates these headers with the actual request path before rewriting
+    const forwardedPath = 
+      req.headers['x-vercel-forwarded-path'] as string || 
+      req.headers['x-forwarded-uri'] as string ||
+      req.url;
     
-    // Reconstruct the full path for Express
-    const fullPath = `/api/${slugPath}`;
+    // Preserve query string if present
+    const queryString = forwardedPath?.includes('?') 
+      ? forwardedPath.substring(forwardedPath.indexOf('?')) 
+      : '';
+    
+    // Extract just the path (before query string)
+    const originalPath = forwardedPath?.split('?')[0] || '/api';
     
     // Restore the original request URL so Express can match routes
-    req.url = fullPath + (req.url?.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
+    req.url = originalPath + queryString;
     (req as any).originalUrl = req.url;
+    (req as any).path = originalPath;
     
-    console.log(`[SERVERLESS] Request: ${req.method} ${req.url}`);
+    console.log(`[SERVERLESS] ${req.method} ${req.url} (forwarded: ${forwardedPath})`);
     
     // Import pre-compiled Express app
     const { default: expressApp } = await import('../server/app.js');

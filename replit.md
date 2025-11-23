@@ -8,14 +8,14 @@
 2. Save Workout feature broken
 3. Direct navigation to /api/profiles shows `{"ok":false,"error":{"code":"NOT_FOUND","message":"API endpoint / not found"}}`
 **Root Cause**: 
-1. Vercel's rewrite from `/api/profiles` to `/api/[...slug]` strips the path from `req.url`
-2. Express receives `req.url = '/'` instead of `req.url = '/api/profiles'`
-3. All registered routes are skipped, hitting the catch-all 404 handler in server/app.ts:192-198
+1. Vercel's rewrite from `/api/profiles` to `/api/[...slug]` does NOT populate `req.query.slug` for Node.js functions
+2. Initial fix attempt using `req.query.slug` resulted in empty slug, reconstructing path as `/api/` instead of `/api/profiles`
+3. Express received wrong path, all registered routes skipped, hitting catch-all 404 handler in server/app.ts:192-198
 **Solution**: 
-1. ✅ Extract slug from `req.query.slug` in api/[...slug].ts
-2. ✅ Reconstruct full path as `/api/${slugPath}`
-3. ✅ Restore `req.url` and `req.originalUrl` before passing to Express
-4. ✅ Added logging to track serverless requests
+1. ✅ Read original path from Vercel's forwarded headers (`x-vercel-forwarded-path` or `x-forwarded-uri`)
+2. ✅ Extract path and query string from forwarded headers
+3. ✅ Restore `req.url`, `req.originalUrl`, and `req.path` before passing to Express
+4. ✅ Added comprehensive logging to track serverless request routing
 **Status**: Fixed in code, ready for Vercel deployment
 
 ### PROFILE UPSERT VALIDATION FIX (Nov 22, 2025)
