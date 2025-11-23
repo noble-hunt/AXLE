@@ -426,7 +426,7 @@ export default function LogFreeform() {
         title: "Workout saved", 
         description: "Your workout has been logged successfully"
       });
-      navigate(`/workouts/${id}`);
+      navigate('/history');
     } catch (e:any) {
       toast({ 
         variant: "destructive",
