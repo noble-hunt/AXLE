@@ -67,7 +67,7 @@ router.post('/whisper', requireAuth, async (req, res, next) => {
 
     const r = await openai.audio.transcriptions.create({
       file,
-      model: 'gpt-4o-mini-audio-preview',
+      model: 'gpt-4o-mini-transcribe',
       language: 'en',
       response_format: 'json'
     });
@@ -128,7 +128,7 @@ router.post('/whisper', requireAuth, upload.single('audio'), async (req, res) =>
 
     const r = await openai.audio.transcriptions.create({
       file,
-      model: 'gpt-4o-mini-audio-preview',
+      model: 'gpt-4o-mini-transcribe',
       language: 'en',
       response_format: 'json'
     });
