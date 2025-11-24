@@ -15,6 +15,7 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: Uses Zustand for client-side state and TanStack Query for server-side data synchronization.
 - **Error Handling**: Implements structured `HttpError` objects.
 - **Key Features**: Unified Personal Record (PR) charting, global unit preference system, enhanced group messaging, and comprehensive AXLE Reports with advanced visualizations (Training Load Chart, Enhanced Consistency Card, PR Sparklines Grid, Recovery Correlation Chart). Advanced analytics dashboards provide visualizations for PR trends and progress. Dynamic and interactive visualizations for health metrics are implemented with sophisticated animations (anime.js) and real-time data binding.
+- **Calendar Feature**: Comprehensive calendar view with Today/Calendar dual-tab interface. Today tab displays current day's full detail (workouts, 8 health metrics, heart rate chart, AI insights). Calendar tab shows month grid with day cards featuring quick metrics (workout count, sleep hours, vitality score) using pastel-colored metric indicators. Implements smart back-button navigation in TopAppBar (day detail → calendar → home). Critical UTC timezone handling in backend ensures workouts appear on correct calendar dates. DayDetailContent component shared between Today tab and day detail pages for UI consistency.
 - **PR Projections**: Employs Epley Formula-based rep max projections for all weight-based movements.
 - **Mobile Optimization**: Systematic UI sizing increases (Nov 2024) across 20+ files improved mobile usability: card padding increased by one step (p-4→p-5, p-6→p-7), spacing expanded proportionally (gap-3→gap-4, space-y-3→space-y-4), ensuring comfortable touch targets and better screen utilization on modern iPhones.
 
@@ -23,7 +24,7 @@ Preferred communication style: Simple, everyday language.
 - **Modularity**: Features an abstracted storage interface (`IStorage`).
 - **API Validation**: Utilizes Zod schemas for robust request validation.
 - **Workout Generation**: Implements an OpenAI-first approach (gpt-4o-mini) for varied, style-specific, and equipment-aware workout programming, supported by a comprehensive movement registry. Includes mock workout fallbacks, creative titles, score types, and coaching cues.
-- **API Surface**: Provides endpoints for health checks, workout generation, workout simulation, daily workout suggestions, and fetching personal records.
+- **API Surface**: Provides endpoints for health checks, workout generation, workout simulation, daily workout suggestions, fetching personal records, and calendar data (month summaries and day details). Calendar endpoints use UTC date normalization (formatDateUTC, getWorkoutDateStr helpers) to prevent timezone boundary issues.
 - **Freeform Workout Logging**: Robust transformer with array validation, comprehensive repScheme fallbacks (handles AMRAP/EMOM edge cases), and smart duration estimation. Uses Drizzle ORM DAL for database layer consistency.
 
 ### Data Layer
