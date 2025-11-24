@@ -1450,14 +1450,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return date.toISOString().split('T')[0];
       };
       
-      // Helper function to get date string from workout createdAt
+      // Helper function to get date string from workout createdAt (using UTC to avoid timezone issues)
       const getWorkoutDateStr = (createdAt: any): string | null => {
         if (!createdAt) return null;
         const date = new Date(createdAt);
+        // IMPORTANT: Use UTC methods to avoid timezone boundary issues
         return formatDateUTC(new Date(Date.UTC(
-          date.getFullYear(),
-          date.getMonth(),
-          date.getDate()
+          date.getUTCFullYear(),
+          date.getUTCMonth(),
+          date.getUTCDate()
         )));
       };
       
@@ -1518,16 +1519,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const getWorkoutDateStr = (createdAt: any): string | null => {
         if (!createdAt) return null;
         const workoutDate = new Date(createdAt);
-        return new Date(Date.UTC(
-          workoutDate.getFullYear(),
-          workoutDate.getMonth(),
-          workoutDate.getDate()
+        // IMPORTANT: Use UTC methods to avoid timezone boundary issues
+        const dateStr = new Date(Date.UTC(
+          workoutDate.getUTCFullYear(),
+          workoutDate.getUTCMonth(),
+          workoutDate.getUTCDate()
         )).toISOString().split('T')[0];
+        return dateStr;
       };
       
       // Get workouts for this date
       const { listWorkouts } = await import("./dal/workouts.js");
       const allWorkouts = await listWorkouts(authReq.user.id);
+      
       const dayWorkouts = allWorkouts.filter(w => {
         const workoutDateStr = getWorkoutDateStr(w?.createdAt);
         return workoutDateStr === date;

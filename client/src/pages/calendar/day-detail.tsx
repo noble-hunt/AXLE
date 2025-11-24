@@ -1,15 +1,12 @@
-import { useRoute, Link } from "wouter"
+import { useRoute } from "wouter"
 import { motion } from "framer-motion"
 import { fadeIn } from "@/lib/motion-variants"
-import { ArrowLeft, Dumbbell, Activity } from "lucide-react"
+import { Activity } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { useQuery } from "@tanstack/react-query"
 import { Card } from "@/components/swift/card"
-import { Button } from "@/components/swift/button"
 import { useAppStore } from "@/store/useAppStore"
-import { HealthMetricsGrid } from "@/components/calendar/HealthMetricsGrid"
-import { InsightsCard } from "@/components/calendar/InsightsCard"
-import { HeartRateChart } from "@/components/calendar/HeartRateChart"
+import { DayDetailContent } from "@/components/calendar/DayDetailContent"
 
 interface DayDetail {
   date: string
@@ -97,11 +94,6 @@ export default function DayDetail() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/calendar">
-            <Button variant="ghost" className="w-10 h-10 p-0 rounded-full" data-testid="back-button">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </Link>
           <div>
             <p className="text-caption text-muted-foreground">
               {format(dateObj, 'EEEE')}
@@ -116,74 +108,8 @@ export default function DayDetail() {
         </div>
       </div>
 
-      {/* Workouts Section */}
-      {dayData?.workouts && dayData.workouts.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-subheading font-semibold">Workouts</h2>
-          {dayData.workouts.map((workout) => (
-            <Link key={workout.id} href={`/workout/${workout.id}`}>
-              <Card className="p-6 cursor-pointer hover:scale-[1.01] transition-transform">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Dumbbell className="w-6 h-6 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-body font-semibold text-foreground">{workout.title}</h3>
-                    {workout.completed && (
-                      <p className="text-caption text-success mt-1">✓ Completed</p>
-                    )}
-                    {workout.request?.duration && (
-                      <p className="text-caption text-muted-foreground mt-1">
-                        {workout.request.duration} min
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* No Workouts */}
-      {dayData?.workouts && dayData.workouts.length === 0 && (
-        <Card className="p-6 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
-            <Dumbbell className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-body font-semibold text-foreground mb-2">Rest Day</h3>
-          <p className="text-caption text-muted-foreground">No workouts logged this day</p>
-        </Card>
-      )}
-
-      {/* Health Metrics */}
-      {dayData?.healthMetrics && (
-        <div className="space-y-4">
-          <h2 className="text-subheading font-semibold">Health Metrics</h2>
-          <HealthMetricsGrid metrics={dayData.healthMetrics} />
-          
-          {/* Resting Heart Rate Graph */}
-          {dayData.healthMetrics.restingHeartRateTimeSeries && 
-           dayData.healthMetrics.restingHeartRateTimeSeries.length > 0 && (
-            <HeartRateChart data={dayData.healthMetrics.restingHeartRateTimeSeries} />
-          )}
-        </div>
-      )}
-
-      {/* AI Insights */}
-      {dayData?.insights && (
-        <div className="space-y-4">
-          <h2 className="text-subheading font-semibold">Insights</h2>
-          <InsightsCard insights={dayData.insights} />
-        </div>
-      )}
-
-      {/* No data message */}
-      {!dayData && !isLoading && (
-        <Card className="p-8 text-center">
-          <p className="text-body text-muted-foreground">No data available for this day</p>
-        </Card>
-      )}
+      {/* Day Detail Content */}
+      <DayDetailContent dayData={dayData} isLoading={isLoading} error={error} />
     </motion.div>
   )
 }

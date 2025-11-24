@@ -22,7 +22,14 @@ export function TopAppBar() {
   }
 
   const handleBackClick = () => {
-    setLocation("/")
+    // Smart back navigation based on current location
+    if (location.startsWith("/calendar/")) {
+      // From day detail, go back to calendar
+      setLocation("/calendar")
+    } else {
+      // For other pages, go back to home
+      setLocation("/")
+    }
   }
 
   return (

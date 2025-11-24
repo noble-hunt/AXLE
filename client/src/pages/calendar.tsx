@@ -1,13 +1,13 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { fadeIn } from "@/lib/motion-variants"
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { ChevronLeft, ChevronRight, Dumbbell, Moon, Zap } from "lucide-react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, isSameDay, parseISO } from "date-fns"
 import { Link } from "wouter"
 import { useQuery } from "@tanstack/react-query"
 import { Card } from "@/components/swift/card"
-import { Button } from "@/components/swift/button"
 import { useAppStore } from "@/store/useAppStore"
+import { DayDetailContent } from "@/components/calendar/DayDetailContent"
 
 // Day colors (cycling pastels matching screenshot)
 const DAY_COLORS = [
@@ -26,6 +26,29 @@ interface DaySummary {
   performancePotential?: number
 }
 
+interface DayDetail {
+  date: string
+  workouts: any[]
+  healthMetrics: {
+    sleepHours?: number
+    sleepQuality?: number
+    maxHeartRate?: number
+    restingHeartRate?: number
+    restingHeartRateTimeSeries?: Array<{ time: string; value: number }>
+    fatigueScore?: number
+    circadianAlignment?: number
+    energySystemsBalance?: number
+    vitalityScore?: number
+    performancePotential?: number
+  }
+  insights?: {
+    summary: string
+    goalsProgress?: any
+    recommendations?: string[]
+    bedtimeRecommendation?: string
+  }
+}
+
 export default function Calendar() {
   const { user } = useAppStore()
   const [selectedView, setSelectedView] = useState<'today' | 'calendar'>('today')
@@ -36,6 +59,13 @@ export default function Calendar() {
   const { data: monthData, isLoading, error } = useQuery<DaySummary[]>({
     queryKey: ['/api/calendar/month', format(currentMonth, 'yyyy-MM')],
     enabled: !!user && selectedView === 'calendar',
+  })
+
+  // Fetch today's data for the Today tab
+  const todayStr = format(today, 'yyyy-MM-dd')
+  const { data: todayData, isLoading: todayLoading, error: todayError } = useQuery<DayDetail>({
+    queryKey: ['/api/calendar/day', todayStr],
+    enabled: !!user && selectedView === 'today',
   })
 
   const goToPreviousMonth = () => setCurrentMonth(prev => subMonths(prev, 1))
@@ -60,40 +90,30 @@ export default function Calendar() {
       initial="initial"
       animate="animate"
     >
-      {/* Today/Calendar Tabs + Add Button */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 flex gap-2">
-          <button
-            onClick={() => setSelectedView('today')}
-            className={`flex-1 px-4 py-2 rounded-full font-medium transition-all ${
-              selectedView === 'today'
-                ? 'bg-foreground text-background'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-            data-testid="tab-today"
-          >
-            Today
-          </button>
-          <button
-            onClick={() => setSelectedView('calendar')}
-            className={`flex-1 px-4 py-2 rounded-full font-medium transition-all ${
-              selectedView === 'calendar'
-                ? 'bg-foreground text-background'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-            data-testid="tab-calendar"
-          >
-            Calendar
-          </button>
-        </div>
-        
-        <Button
-          variant="ghost"
-          className="w-10 h-10 rounded-full bg-muted hover:bg-muted/80 p-0"
-          data-testid="button-add"
+      {/* Today/Calendar Tabs */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setSelectedView('today')}
+          className={`flex-1 px-4 py-2 rounded-full font-medium transition-all ${
+            selectedView === 'today'
+              ? 'bg-foreground text-background'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
+          data-testid="tab-today"
         >
-          <Plus className="w-5 h-5" />
-        </Button>
+          Today
+        </button>
+        <button
+          onClick={() => setSelectedView('calendar')}
+          className={`flex-1 px-4 py-2 rounded-full font-medium transition-all ${
+            selectedView === 'calendar'
+              ? 'bg-foreground text-background'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
+          data-testid="tab-calendar"
+        >
+          Calendar
+        </button>
       </div>
 
       {/* Today View */}
@@ -112,27 +132,8 @@ export default function Calendar() {
             </p>
           </div>
 
-          {/* Today's Activities */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-subheading font-semibold">Today's tasks</h2>
-              <Link href="/history">
-                <button className="text-body text-muted-foreground hover:text-foreground transition-colors">
-                  View all
-                </button>
-              </Link>
-            </div>
-            
-            {/* Today's workout cards would go here */}
-            <Card className="p-6 text-center text-muted-foreground">
-              <p className="text-body">No workouts logged today</p>
-              <Link href="/workout">
-                <Button variant="primary" className="mt-4">
-                  Log Workout
-                </Button>
-              </Link>
-            </Card>
-          </div>
+          {/* Today's Day Detail Content */}
+          <DayDetailContent dayData={todayData} isLoading={todayLoading} error={todayError} />
         </div>
       )}
 
@@ -171,7 +172,7 @@ export default function Calendar() {
           </div>
 
           {/* Day Cards */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             {isLoading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
@@ -211,25 +212,45 @@ export default function Calendar() {
                           </p>
                         </div>
 
-                        {/* Summary */}
+                        {/* Metrics */}
                         <div className="flex-1 pt-2">
                           {isPast && dayData ? (
-                            <div className="space-y-2">
-                              <p className="text-body font-medium text-foreground/90">
-                                {dayData.workoutCount > 0 
-                                  ? `${dayData.workoutCount} workout${dayData.workoutCount > 1 ? 's' : ''}`
-                                  : 'Rest day'
-                                }
-                              </p>
+                            <div className="space-y-3">
+                              {/* Workout Count */}
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center">
+                                  <Dumbbell className="w-4 h-4 text-foreground/70" />
+                                </div>
+                                <p className="text-body font-medium text-foreground/90">
+                                  {dayData.workoutCount > 0 
+                                    ? `${dayData.workoutCount} workout${dayData.workoutCount > 1 ? 's' : ''}`
+                                    : 'Rest day'
+                                  }
+                                </p>
+                              </div>
+                              
+                              {/* Sleep Hours */}
                               {dayData.sleepHours && (
-                                <p className="text-caption text-foreground/70">
-                                  {dayData.sleepHours}h sleep
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center">
+                                    <Moon className="w-4 h-4 text-foreground/70" />
+                                  </div>
+                                  <p className="text-caption text-foreground/70">
+                                    {Math.round(dayData.sleepHours * 10) / 10}h sleep
+                                  </p>
+                                </div>
                               )}
+                              
+                              {/* Vitality Score */}
                               {dayData.vitalityScore && (
-                                <p className="text-caption text-foreground/70">
-                                  Vitality: {dayData.vitalityScore}/100
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center">
+                                    <Zap className="w-4 h-4 text-foreground/70" />
+                                  </div>
+                                  <p className="text-caption text-foreground/70">
+                                    Vitality: {Math.round(dayData.vitalityScore)}/100
+                                  </p>
+                                </div>
                               )}
                             </div>
                           ) : (
@@ -237,15 +258,6 @@ export default function Calendar() {
                               {isSameDay(date, today) ? 'Today' : 'Upcoming'}
                             </p>
                           )}
-                        </div>
-
-                        {/* Plus icons for time slots (decorative) */}
-                        <div className="flex gap-2">
-                          {[1, 2, 3].map(slot => (
-                            <div key={slot} className="w-8 h-8 rounded-lg bg-foreground/10 flex items-center justify-center">
-                              <Plus className="w-4 h-4 text-foreground/30" />
-                            </div>
-                          ))}
                         </div>
                       </div>
                     </Card>
