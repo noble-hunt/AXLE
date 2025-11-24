@@ -321,7 +321,7 @@ export default function History() {
         />
       </div>
 
-      {/* View More Stats Button */}
+      {/* View Workout Stats Button */}
       <div className="mt-6">
         <Link href="/stats">
           <Button 
@@ -330,7 +330,7 @@ export default function History() {
             data-testid="view-more-stats-button"
           >
             <Sparkles className="w-4 h-4 mr-2" />
-            View More Stats
+            View Workout Stats
           </Button>
         </Link>
       </div>

@@ -273,14 +273,14 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
         data-testid="rationale-sheet"
       >
         <div className="flex flex-col h-full">
-          <div className="flex-shrink-0 p-6 pb-4">
+          <div className="flex-shrink-0 px-4 sm:px-6 py-6 pb-4">
             <div className="text-center space-y-2">
               <h2 className="text-subheading font-bold text-foreground">Workout Rationale</h2>
               <p className="text-body text-muted-foreground">Why we chose this workout for you</p>
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto px-6 pb-2 max-h-[70vh]">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-2 max-h-[70vh]">
             <div className="space-y-6">
               {/* Health Influence Section */}
               {healthInfluences.length > 0 && (
@@ -329,7 +329,7 @@ export function SuggestionCard({ variant = 'home', className = '' }: SuggestionC
             </div>
           </div>
           
-          <div className="flex-shrink-0 p-6 pt-4">
+          <div className="flex-shrink-0 px-4 sm:px-6 py-6 pt-4">
             <Button 
               variant="secondary"
               className="w-full"

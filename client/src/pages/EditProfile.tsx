@@ -171,7 +171,7 @@ export default function EditProfile() {
                   type="date"
                   value={formatDateForInput(dateOfBirth)}
                   onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="mt-2"
+                  className="mt-2 w-full"
                   data-testid="input-date-of-birth"
                 />
               </div>
@@ -197,7 +197,7 @@ export default function EditProfile() {
             </div>
 
             {/* Save Button */}
-            <div className="flex justify-end pt-4">
+            <div className="flex justify-start pt-4">
               <Button 
                 onClick={handleSave} 
                 disabled={isSaving}
@@ -241,7 +241,6 @@ export default function EditProfile() {
               
               <div className="flex justify-start pt-2">
                 <Button 
-                  variant="secondary"
                   onClick={handlePasswordReset} 
                   disabled={isResettingPassword || !resetEmail.trim()}
                   className="min-w-[160px]"

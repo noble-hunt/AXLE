@@ -710,7 +710,7 @@ function SettingsSection() {
                     <ChevronRight className="w-4 h-4 text-muted-foreground" />
                   </button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>{item.label}</DialogTitle>
                   </DialogHeader>
