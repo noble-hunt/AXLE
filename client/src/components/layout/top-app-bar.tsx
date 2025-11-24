@@ -33,7 +33,7 @@ export function TopAppBar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-white/10 dark:bg-black/10 backdrop-blur-lg border-b border-border/50 px-4 py-3">
+    <header className="sticky top-0 z-50 bg-white/5 dark:bg-black/5 backdrop-blur-lg border-b border-border/30 px-4 py-3">
       <div className="flex items-center justify-between max-w-sm mx-auto">
         {/* Left: Back Button (when not on home) + Calendar Icon */}
         <div className="flex items-center gap-2">
