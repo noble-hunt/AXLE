@@ -72,6 +72,10 @@ export default {
           DEFAULT: "var(--info)",
           foreground: "var(--info-foreground)",
         },
+        "workout-button": {
+          DEFAULT: "var(--workout-button)",
+          foreground: "var(--workout-button-foreground)",
+        },
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",

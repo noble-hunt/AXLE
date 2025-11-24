@@ -96,7 +96,7 @@ export default function Workout() {
 
       {/* Create New Workout */}
       <Button 
-        className="w-full h-12 bg-info text-info-foreground hover:bg-info/90"
+        className="w-full h-12 bg-workout-button text-workout-button-foreground hover:bg-workout-button/90"
         onClick={handleCreateWorkout}
         data-testid="primary-button"
       >
