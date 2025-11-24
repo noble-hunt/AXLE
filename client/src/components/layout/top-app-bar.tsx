@@ -62,7 +62,7 @@ export function TopAppBar() {
         </div>
         
         {/* Center: AXLE Text */}
-        <h1 className="text-xl font-bold tracking-tight absolute left-1/2 transform -translate-x-1/2" data-testid="app-title">AXLE</h1>
+        <h1 className="text-xl font-orbitron font-bold tracking-wider absolute left-1/2 transform -translate-x-1/2" data-testid="app-title">AXLE</h1>
         
         {/* Right: Theme Icon */}
         <Button
