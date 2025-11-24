@@ -172,11 +172,11 @@ export default function Calendar() {
           </div>
 
           {/* Day Cards */}
-          <div className="space-y-6">
+          <div className="flex flex-col gap-4">
             {isLoading ? (
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-32 bg-muted rounded-2xl animate-pulse" />
+                  <div key={i} className="h-28 bg-muted rounded-2xl animate-pulse" />
                 ))}
               </div>
             ) : error ? (
@@ -195,19 +195,19 @@ export default function Calendar() {
                 return (
                   <Link key={date.toISOString()} href={`/calendar/${format(date, 'yyyy-MM-dd')}`}>
                     <Card 
-                      className={`p-6 ${colorClass} border-none cursor-pointer hover:scale-[1.02] transition-transform`}
+                      className={`p-5 ${colorClass} border-none cursor-pointer hover:scale-[1.02] transition-transform`}
                       data-testid={`day-card-${format(date, 'yyyy-MM-dd')}`}
                     >
-                      <div className="flex items-start gap-6">
+                      <div className="flex items-start gap-5">
                         {/* Date */}
                         <div className="flex-shrink-0">
-                          <p className="text-caption text-foreground/70">
+                          <p className="text-xs text-foreground/70">
                             {format(date, 'EEEE')}
                           </p>
-                          <p className="text-[56px] leading-none font-bold text-foreground/90">
+                          <p className="text-[48px] leading-none font-bold text-foreground/90">
                             {format(date, 'dd')}
                           </p>
-                          <p className="text-xl font-bold tracking-wide text-foreground/90">
+                          <p className="text-lg font-bold tracking-wide text-foreground/90">
                             {format(date, 'MMM').toUpperCase()}
                           </p>
                         </div>
